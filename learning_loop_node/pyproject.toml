@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "trainer"
+name = "learning_loop_node"
 version = "0.1.0"
-description = "AI Trainer for the Zauberzeug Learning Loop"
-authors = ["Zauberzeug <info@zauberzeug.com>"]
+description = ""
+authors = ["Zauberzeug GmbH <info@zauberzeug.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"

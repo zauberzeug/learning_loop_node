@@ -11,6 +11,7 @@ from fastapi_utils.tasks import repeat_every
 import simplejson as json
 import requests
 import io
+from learning_loop_node.learning_loop_node.node import Node
 
 app = FastAPI()
 sio = socketio.AsyncClient(
@@ -38,8 +39,10 @@ async def run(source_model):
     data = requests.get(
         f'http://{hostname}/api/{context["organization"]}/projects/{context["project"]}/data?state=complete&mode=boxes').json()
     status.status.box_categories = data['box_categories']
-    status.status.train_images = [i for i in data['images'] if i['set'] == 'train']
-    status.status.test_images = [i for i in data['images'] if i['set'] == 'test']
+    status.status.train_images = [
+        i for i in data['images'] if i['set'] == 'train']
+    status.status.test_images = [
+        i for i in data['images'] if i['set'] == 'test']
     await status.update_state(sio, status.State.Running)
     return True
 
@@ -55,7 +58,8 @@ async def stop():
 async def save(model):
     print('---- saving model', model['id'], flush=True)
     fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
-    fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
+    fake_weight_file.write(
+        b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
     context = model['context']
     response = requests.put(
         f'http://{hostname}/api/{context["organization"]}/projects/{context["project"]}/models/{model["id"]}/file', files={'data': fake_weight_file}
