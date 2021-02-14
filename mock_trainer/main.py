@@ -11,7 +11,7 @@ from fastapi_utils.tasks import repeat_every
 import simplejson as json
 import requests
 import io
-from learning_loop_node.learning_loop_node.node import Node
+from learning_loop_node.node import Node
 
 app = FastAPI()
 sio = socketio.AsyncClient(
