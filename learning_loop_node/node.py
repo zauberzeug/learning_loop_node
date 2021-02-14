@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
 import socketio
 import asyncio
+import functools
+import requests
 
 
 class Node(FastAPI):
@@ -23,6 +25,19 @@ class Node(FastAPI):
             print('shutting down', flush=True)
             await self.sio.disconnect()
 
+        @self.sio.on('save')
+        async def save(model):
+            print('---- saving model', model['id'], flush=True)
+            context = model['context']
+            response = requests.put(
+                f'http://{hostname}/api/{context["organization"]}/projects/{context["project"]}/models/{model["id"]}/file',
+                files={'data': self._get_weightfile(model)}
+            )
+            if response.status_code == 200:
+                return True
+            else:
+                return response.json()['detail']
+
     async def connect(self):
         await self.sio.disconnect()
         print('connecting to Learning Loop', flush=True)
@@ -34,3 +49,6 @@ class Node(FastAPI):
             await asyncio.sleep(0.2)
             await self.connect()
         print('connected to Learning Loop', flush=True)
+
+    def get_weightfile(self, func):
+        self._get_weightfile = func

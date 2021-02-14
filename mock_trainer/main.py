@@ -19,6 +19,7 @@ node = Node(hostname)
 @node.on_event("startup")
 @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
+    """creating new model every 5 seconds for the demo project"""
     if status.status.model and status.status.model['context']['project'] == 'demo':
         await status.increment_time(node.sio)
 
@@ -48,21 +49,11 @@ async def stop():
     return True
 
 
-@node.sio.on('save')
-async def save(model):
-    print('---- saving model', model['id'], flush=True)
+@node.get_weightfile
+def get_weightfile(model) -> io.BufferedRandom:
     fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
-    fake_weight_file.write(
-        b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
-    context = model['context']
-    response = requests.put(
-        f'http://{hostname}/api/{context["organization"]}/projects/{context["project"]}/models/{model["id"]}/file', files={'data': fake_weight_file}
-    )
-    if response.status_code == 200:
-        return True
-    else:
-        return response.json()['detail']
-        return False
+    fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
+    return fake_weight_file
 
 
 @node.sio.on('connect')
