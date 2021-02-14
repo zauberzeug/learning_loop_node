@@ -1,6 +1,5 @@
 import sys
 import asyncio
-import socketio
 import threading
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -14,11 +13,6 @@ import io
 from learning_loop_node.node import Node
 
 node = Node()
-sio = socketio.AsyncClient(
-    reconnection_delay=0,
-    request_timeout=0.5,
-    # logger=True, engineio_logger=True
-)
 hostname = 'backend'
 
 
@@ -26,10 +20,10 @@ hostname = 'backend'
 @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
     if status.status.model and status.status.model['context']['project'] == 'demo':
-        await status.increment_time(sio)
+        await status.increment_time(node.sio)
 
 
-@sio.on('run')
+@node.sio.on('run')
 async def run(source_model):
     print('---- running training with source model', source_model, flush=True)
 
@@ -43,18 +37,18 @@ async def run(source_model):
         i for i in data['images'] if i['set'] == 'train']
     status.status.test_images = [
         i for i in data['images'] if i['set'] == 'test']
-    await status.update_state(sio, status.State.Running)
+    await status.update_state(node.sio, status.State.Running)
     return True
 
 
-@sio.on('stop')
+@node.sio.on('stop')
 async def stop():
     print('---- stopping', flush=True)
-    await status.update_state(sio, status.State.Idle)
+    await status.update_state(node.sio, status.State.Idle)
     return True
 
 
-@sio.on('save')
+@node.sio.on('save')
 async def save(model):
     print('---- saving model', model['id'], flush=True)
     fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
@@ -80,27 +74,27 @@ async def startup():
 @node.on_event("shutdown")
 async def shutdown():
     print('shutting down', flush=True)
-    await sio.disconnect()
+    await node.sio.disconnect()
 
 
-@sio.on('connect')
+@node.sio.on('connect')
 async def on_connect():
     if status.status.id:
-        await status.update_state(sio, status.State.Idle)
+        await status.update_state(node.sio, status.State.Idle)
 
 
-@sio.on('disconnect')
+@node.sio.on('disconnect')
 async def on_disconnect():
-    await status.update_state(sio, status.State.Offline)
+    await status.update_state(node.sio, status.State.Offline)
 
 
 async def connect():
-    await sio.disconnect()
+    await node.sio.disconnect()
     print('connecting to Learning Loop', flush=True)
 
     try:
-        await sio.connect(f"ws://{hostname}", socketio_path="/ws/socket.io")
-        print('my sid is', sio.sid, flush=True)
+        await node.sio.connect(f"ws://{hostname}", socketio_path="/ws/socket.io")
+        print('my sid is', node.sio.sid, flush=True)
     except:
         await asyncio.sleep(0.2)
         await connect()
@@ -108,5 +102,4 @@ async def connect():
 
 # setting up backdoor_controls
 node.connect = connect
-node.sio = sio
 node.include_router(backdoor_controls.router, prefix="")
