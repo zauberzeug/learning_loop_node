@@ -12,8 +12,8 @@ import requests
 import io
 from learning_loop_node.node import Node
 
-node = Node()
 hostname = 'backend'
+node = Node(hostname)
 
 
 @node.on_event("startup")
@@ -68,7 +68,7 @@ async def save(model):
 @node.on_event("startup")
 async def startup():
     print('startup', flush=True)
-    await connect()
+    await node.connect()
 
 
 @node.on_event("shutdown")
@@ -88,18 +88,5 @@ async def on_disconnect():
     await status.update_state(node.sio, status.State.Offline)
 
 
-async def connect():
-    await node.sio.disconnect()
-    print('connecting to Learning Loop', flush=True)
-
-    try:
-        await node.sio.connect(f"ws://{hostname}", socketio_path="/ws/socket.io")
-        print('my sid is', node.sio.sid, flush=True)
-    except:
-        await asyncio.sleep(0.2)
-        await connect()
-    print('connected to Learning Loop', flush=True)
-
 # setting up backdoor_controls
-node.connect = connect
 node.include_router(backdoor_controls.router, prefix="")
