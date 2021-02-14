@@ -65,18 +65,6 @@ async def save(model):
         return False
 
 
-@node.on_event("startup")
-async def startup():
-    print('startup', flush=True)
-    await node.connect()
-
-
-@node.on_event("shutdown")
-async def shutdown():
-    print('shutting down', flush=True)
-    await node.sio.disconnect()
-
-
 @node.sio.on('connect')
 async def on_connect():
     if status.status.id:

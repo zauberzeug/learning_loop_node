@@ -13,6 +13,16 @@ class Node(FastAPI):
             # logger=True, engineio_logger=True
         )
 
+        @self.on_event("startup")
+        async def startup():
+            print('startup', flush=True)
+            await self.connect()
+
+        @self.on_event("shutdown")
+        async def shutdown():
+            print('shutting down', flush=True)
+            await self.sio.disconnect()
+
     async def connect(self):
         await self.sio.disconnect()
         print('connecting to Learning Loop', flush=True)
