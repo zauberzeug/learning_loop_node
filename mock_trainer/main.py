@@ -13,7 +13,7 @@ import requests
 import io
 from learning_loop_node.node import Node
 
-app = FastAPI()
+node = Node()
 sio = socketio.AsyncClient(
     reconnection_delay=0,
     request_timeout=0.5,
@@ -22,7 +22,7 @@ sio = socketio.AsyncClient(
 hostname = 'backend'
 
 
-@app.on_event("startup")
+@node.on_event("startup")
 @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
     if status.status.model and status.status.model['context']['project'] == 'demo':
@@ -71,13 +71,13 @@ async def save(model):
         return False
 
 
-@app.on_event("startup")
+@node.on_event("startup")
 async def startup():
     print('startup', flush=True)
     await connect()
 
 
-@app.on_event("shutdown")
+@node.on_event("shutdown")
 async def shutdown():
     print('shutting down', flush=True)
     await sio.disconnect()
@@ -107,6 +107,6 @@ async def connect():
     print('connected to Learning Loop', flush=True)
 
 # setting up backdoor_controls
-app.connect = connect
-app.sio = sio
-app.include_router(backdoor_controls.router, prefix="")
+node.connect = connect
+node.sio = sio
+node.include_router(backdoor_controls.router, prefix="")
