@@ -50,7 +50,7 @@ async def stop():
 
 
 @node.get_weightfile
-def get_weightfile(model) -> io.BufferedRandom:
+def get_weightfile(ogranization: str, project: str, model_id: str) -> io.BufferedRandom:
     fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
     fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
     return fake_weight_file

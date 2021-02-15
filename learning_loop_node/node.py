@@ -42,7 +42,7 @@ class Node(FastAPI):
             uri_base = f'http://{self.hostname}/api/{ogranization}/projects/{project}'
             response = requests.put(
                 f'{uri_base}/models/{model["id"]}/file',
-                files={'data': self._get_weightfile(model)}
+                files={'data': self._get_weightfile(ogranization, project, model['id'])}
             )
             if response.status_code == 200:
                 return True
