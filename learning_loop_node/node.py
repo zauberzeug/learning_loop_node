@@ -71,6 +71,14 @@ class Node(FastAPI):
             await self.update_state(State.Running)
             return True
 
+        @self.sio.on('stop_training')
+        async def stop():
+            print('---- stopping', flush=True)
+            if hasattr(self, '_stop_training'):
+                self._stop_training()
+            await self.update_state(State.Idle)
+            return True
+
         @self.sio.on('connect')
         async def on_connect():
             reset()
@@ -97,6 +105,9 @@ class Node(FastAPI):
 
     def begin_training(self, func):
         self._begin_training = func
+
+    def stop_training(self, func):
+        self._stop_training = func
 
     async def update_state(self, state: State):
         self.status.state = state
