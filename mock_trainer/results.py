@@ -33,6 +33,8 @@ async def increment_time(node: Node):
         'trainer_id': node.status.id,
     }
 
-    await node.sio.call('update_model', new_model)
+    result = await node.sio.call('update_model', new_model)
+    if result != True:
+        raise Exception('could not update model: ' + str(result))
     node.status.model = new_model
     await node.update_state(State.Running)

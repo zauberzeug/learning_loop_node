@@ -137,4 +137,6 @@ class Node(FastAPI):
         del content['test_images']
 
         print('sending status', content, flush=True)
-        await self.sio.call('update_trainer', content)
+        result = await self.sio.call('update_trainer', content)
+        if not result == True:
+            raise Exception(result)
