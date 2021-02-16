@@ -7,6 +7,7 @@ import uuid
 import random
 import asyncio
 import requests
+import simplejson as json
 
 
 class Node(FastAPI):
@@ -19,7 +20,10 @@ class Node(FastAPI):
             request_timeout=0.5,
             # logger=True, engineio_logger=True
         )
-        self.status = Status(id=uuid, name=name, state=State.Offline)
+
+        def reset():
+            self.status = Status(id=uuid, name=name, state=State.Offline)
+        reset()
 
         @self.on_event("startup")
         async def startup():
@@ -49,10 +53,28 @@ class Node(FastAPI):
             else:
                 return response.json()['detail']
 
+        @self.sio.on('begin_training')
+        async def on_begin_training(source_model):
+            if not hasattr(self, '_begin_training'):
+                return 'node does not provide a begin_training function'
+
+            print('---- running training with source model', source_model, flush=True)
+            self.status.model = source_model
+
+            ogranization = source_model['context']['organization']
+            project = source_model['context']['project']
+            uri_base = f'http://{self.hostname}/api/{ogranization}/projects/{project}'
+            data = requests.get(uri_base + '/data?state=complete&mode=boxes').json()
+
+            self._begin_training(data)
+
+            await self.update_state(State.Running)
+            return True
+
         @self.sio.on('connect')
         async def on_connect():
-            if self.status.id:
-                await self.update_state(State.Idle)
+            reset()
+            await self.update_state(State.Idle)
 
         @self.sio.on('disconnect')
         async def on_disconnect():
@@ -73,9 +95,11 @@ class Node(FastAPI):
     def get_weightfile(self, func):
         self._get_weightfile = func
 
+    def begin_training(self, func):
+        self._begin_training = func
+
     async def update_state(self, state: State):
         self.status.state = state
-        print('updating state', self.status, flush=True)
         if self.status.state != State.Offline:
             await self.send_status()
 
@@ -98,5 +122,8 @@ class Node(FastAPI):
         if self.status.model:
             content['latest_produced_model_id'] = self.status.model['id']
         del content['model']
+        del content['train_images']
+        del content['test_images']
 
+        print('sending status', content, flush=True)
         await self.sio.call('update_trainer', content)

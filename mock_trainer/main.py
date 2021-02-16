@@ -24,25 +24,15 @@ async def step() -> None:
         await results.increment_time(node)
 
 
-@node.sio.on('run')
-async def run(source_model):
-    print('---- running training with source model', source_model, flush=True)
+@node.begin_training
+def begin_training(data):
 
-    node.status.model = json.loads(source_model)
-    context = node.status.model['context']
-
-    data = requests.get(
-        f'http://{hostname}/api/{context["organization"]}/projects/{context["project"]}/data?state=complete&mode=boxes').json()
     node.status.box_categories = data['box_categories']
-    node.status.train_images = [
-        i for i in data['images'] if i['set'] == 'train']
-    node.status.test_images = [
-        i for i in data['images'] if i['set'] == 'test']
-    await node.update_state(State.Running)
-    return True
+    node.status.train_images = [i for i in data['images'] if i['set'] == 'train']
+    node.status.test_images = [i for i in data['images'] if i['set'] == 'test']
 
 
-@node.sio.on('stop')
+@node.sio.on('stop_training')
 async def stop():
     print('---- stopping', flush=True)
     await node.update_state(State.Idle)
