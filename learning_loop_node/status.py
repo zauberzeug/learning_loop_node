@@ -14,6 +14,8 @@ class Status(BaseModel):
     name: str
     state: Optional[State] = State.Offline
     uptime: Optional[int] = 0
+    organization: Optional[str]
+    project: Optional[str]
     model: Optional[dict]
     hyperparameters: Optional[str]
     box_categories: Optional[dict]

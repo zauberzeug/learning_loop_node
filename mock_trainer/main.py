@@ -41,7 +41,7 @@ def get_weightfile(ogranization: str, project: str, model_id: str) -> io.Buffere
 @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
     """creating new model every 5 seconds for the demo project"""
-    if node.status.model and node.status.model['context']['project'] == 'demo':
+    if node.status.model and node.status.project == 'demo':
         await results.increment_time(node)
 
 # setting up backdoor_controls

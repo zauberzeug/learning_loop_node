@@ -27,13 +27,12 @@ async def increment_time(node: Node):
         'hyperparameters': node.status.hyperparameters,
         'confusion_matrix': confusion_matrix,
         'parent_id': node.status.model['id'],
-        'context': node.status.model['context'],
         'train_image_count': len(node.status.train_images),
         'test_image_count': len(node.status.test_images),
         'trainer_id': node.status.id,
     }
 
-    result = await node.sio.call('update_model', new_model)
+    result = await node.sio.call('update_model', (new_model, node.status.organization, node.status.project))
     if result != True:
         raise Exception('could not update model: ' + str(result))
     node.status.model = new_model

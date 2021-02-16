@@ -41,12 +41,12 @@ class Node(FastAPI):
             if not hasattr(self, '_get_weightfile'):
                 return 'node does not provide a get_weightfile function'
 
-            ogranization = model['context']['organization']
-            project = model['context']['project']
-            uri_base = f'http://{self.hostname}/api/{ogranization}/projects/{project}'
+            organization = self.status.organization
+            project = self.status.project
+            uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
             response = requests.put(
                 f'{uri_base}/models/{model["id"]}/file',
-                files={'data': self._get_weightfile(ogranization, project, model['id'])}
+                files={'data': self._get_weightfile(organization, project, model['id'])}
             )
             if response.status_code == 200:
                 return True
@@ -54,16 +54,16 @@ class Node(FastAPI):
                 return response.json()['detail']
 
         @self.sio.on('begin_training')
-        async def on_begin_training(source_model):
+        async def on_begin_training(source_model, organization, project):
             if not hasattr(self, '_begin_training'):
                 return 'node does not provide a begin_training function'
 
-            print('---- running training with source model', source_model, flush=True)
+            print(f'---- running training with source model {source_model} for {organization}.{project}', flush=True)
             self.status.model = source_model
+            self.status.organization = organization
+            self.status.project = project
 
-            ogranization = source_model['context']['organization']
-            project = source_model['context']['project']
-            uri_base = f'http://{self.hostname}/api/{ogranization}/projects/{project}'
+            uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
             data = requests.get(uri_base + '/data?state=complete&mode=boxes').json()
 
             self._begin_training(data)
