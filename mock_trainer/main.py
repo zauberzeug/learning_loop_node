@@ -24,11 +24,10 @@ def begin_training(data):
     node.status.test_images = [i for i in data['images'] if i['set'] == 'test']
 
 
-@node.sio.on('stop_training')
-async def stop():
-    print('---- stopping', flush=True)
-    await node.update_state(State.Idle)
-    return True
+@node.stop_training
+def stop():
+    # nothing to do for the mock trainer
+    pass
 
 
 @node.get_weightfile
