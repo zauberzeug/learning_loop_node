@@ -36,13 +36,11 @@ class Node(FastAPI):
             await self.sio.disconnect()
 
         @self.sio.on('save')
-        def on_save(model):
+        def on_save(model, organization, project):
             print('---- saving model', model['id'], flush=True)
             if not hasattr(self, '_get_weightfile'):
                 return 'node does not provide a get_weightfile function'
-
-            organization = self.status.organization
-            project = self.status.project
+            # NOTE: Do not use self.status.organization here. The requested model maybe not belongs to the currently running training.
             uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
             response = requests.put(
                 f'{uri_base}/models/{model["id"]}/file',
