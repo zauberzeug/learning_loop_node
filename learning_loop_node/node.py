@@ -36,7 +36,7 @@ class Node(FastAPI):
             await self.sio.disconnect()
 
         @self.sio.on('save')
-        def on_save(model, organization, project):
+        def on_save(organization, project, model):
             print('---- saving model', model['id'], flush=True)
             if not hasattr(self, '_get_weightfile'):
                 return 'node does not provide a get_weightfile function'
@@ -52,7 +52,7 @@ class Node(FastAPI):
                 return response.json()['detail']
 
         @self.sio.on('begin_training')
-        async def on_begin_training(source_model, organization, project):
+        async def on_begin_training(organization, project, source_model):
             if not hasattr(self, '_begin_training'):
                 return 'node does not provide a begin_training function'
 
