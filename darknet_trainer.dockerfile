@@ -39,7 +39,7 @@ WORKDIR /app/
 
 RUN ln -s /learning_loop_node /app/learning_loop_node && ls -lha learning_loop_node/
 
-COPY ./mock_trainer/pyproject.toml ./mock_trainer/poetry.lock* ./
+COPY ./darknet_trainer/pyproject.toml ./darknet_trainer/poetry.lock* ./
 
 RUN poetry update
 
@@ -47,7 +47,18 @@ RUN poetry update
 ARG INSTALL_DEV=false
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
 
-COPY ./mock_trainer/ /app
+COPY ./darknet_trainer/ /app
 ENV PYTHONPATH=/app
 
 EXPOSE 80
+
+
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apt-get install -y git-all  
+
+# darknet
+
+RUN git clone https://github.com/AlexeyAB/darknet.git darknet && cd darknet && git checkout 64efa721ede91cd8ccc18257f98eeba43b73a6af
+
+

@@ -39,3 +39,7 @@ async def add_steps(request: Request):
     print(f'moving {steps} forward', flush=True)
     for i in range(0, steps):
         await results.increment_time(request.app)
+
+@router.get("/echo")
+def echo():
+    return {'msg': 'hello from trainer'}
