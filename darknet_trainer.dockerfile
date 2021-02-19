@@ -61,4 +61,5 @@ RUN apt-get install -y git-all
 
 RUN git clone https://github.com/AlexeyAB/darknet.git darknet && cd darknet && git checkout 64efa721ede91cd8ccc18257f98eeba43b73a6af
 
+CMD mkdir -p /data
 

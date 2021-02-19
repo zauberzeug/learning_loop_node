@@ -26,7 +26,7 @@ def begin_training(data):
         print('URL: ', url, flush=True)
         response = requests.get(url)
         print('RESPONSE: ', response, flush=True)
-        with open('img.jpg', 'wb') as f:
+        with open(f'/data/img.jpg', 'wb') as f:
             f.write(response.content)
 
     print('################ begin_training END', flush=True)
