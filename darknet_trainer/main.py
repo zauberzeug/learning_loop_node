@@ -18,7 +18,19 @@ node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet
 
 @node.begin_training
 def begin_training(data):
-    return False
+    print('################ begin_training START', flush=True)
+    resources = [i['resource'] for i in data['images']]
+    print(resources, flush=True)
+    for resource in resources:
+        url = f'http://{node.hostname}/api{resource}'
+        print('URL: ', url, flush=True)
+        response = requests.get(url)
+        print('RESPONSE: ', response, flush=True)
+        with open('img.jpg', 'wb') as f:
+            f.write(response.content)
+
+    print('################ begin_training END', flush=True)
+    return True
 
 
 @node.stop_training
@@ -28,7 +40,7 @@ def stop():
 
 
 @node.get_weightfile
-def get_weightfile(ogranization: str, project: str, model_id: str) -> io.BufferedRandom:
+def get_weightfile(organization: str, project: str, model_id: str) -> io.BufferedRandom:
     fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
     fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
     return fake_weight_file
@@ -38,7 +50,7 @@ def get_weightfile(ogranization: str, project: str, model_id: str) -> io.Buffere
 @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
     """creating new model every 5 seconds for the demo project"""
-    if node.status.model and node.status.project == 'darknet':
+    if node.status.model and node.status.project == 'pytest':
         await results.increment_time(node)
 
 # setting up backdoor_controls
