@@ -6,6 +6,9 @@ from pydantic import BaseModel
 import asyncio
 from learning_loop_node.status import Status, State
 import results
+import os
+import glob
+import shutil
 
 router = APIRouter()
 
@@ -40,6 +43,19 @@ async def add_steps(request: Request):
     for i in range(0, steps):
         await results.increment_time(request.app)
 
+
 @router.get("/echo")
 def echo():
     return {'msg': 'hello from trainer'}
+
+
+@router.delete("/images")
+def delete_images():
+    shutil.rmtree('../data/zauberzeug/pytest/images')
+    return get_images()
+
+
+@router.get("/images")
+def get_images():
+    files = glob.glob('../data/zauberzeug/pytest/images/*')
+    return {'images': files}
