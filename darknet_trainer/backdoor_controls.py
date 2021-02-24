@@ -51,7 +51,7 @@ def echo():
 
 @router.delete("/images")
 def delete_images():
-    shutil.rmtree('../data/zauberzeug/pytest/images')
+    shutil.rmtree('../data/zauberzeug/pytest/images', ignore_errors=True)
     return get_images()
 
 
