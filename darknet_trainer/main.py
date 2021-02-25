@@ -18,20 +18,28 @@ hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet trainer')
 
 
-@node.begin_training
-def begin_training(data):
-    print('################ begin_training START', flush=True)
-
-    image_folder = f'/data/{node.status.organization}/{node.status.project}/images'
-    os.makedirs(image_folder, exist_ok=True)
-    resources_ids = [(i['resource'], i['id']) for i in data['images']]
-    download_images(node.hostname, resources_ids, image_folder)
-
-    print('################ begin_training END', flush=True)
+def return_true():
     return True
 
 
-def download_images(hostname: str, resources_ids: List[tuple], image_folder: str):
+@node.begin_training
+def begin_training(data):
+    image_folder = _create_image_folder(node.status.organization, node.status.project)
+    resources_ids = _extract_ressoure_ids(data)
+    _download_images(node.hostname, resources_ids, image_folder)
+
+
+def _extract_ressoure_ids(data) -> List[str]:
+    return [(i['resource'], i['id']) for i in data['images']]
+
+
+def _create_image_folder(organization: str, project: str) -> str:
+    image_folder = f'/data/{organization}/{project}/images'
+    os.makedirs(image_folder, exist_ok=True)
+    return image_folder
+
+
+def _download_images(hostname: str, resources_ids: List[tuple], image_folder: str):
 
     print(resources_ids, flush=True)
     for resource, image_id in resources_ids:
@@ -67,6 +75,16 @@ async def step() -> None:
     """creating new model every 5 seconds for the demo project"""
     if node.status.model and node.status.project == 'pytest':
         await results.increment_time(node)
+
+
+@node.on_event("shutdown")
+async def shutdown():
+
+    def restart():
+        asyncio.create_task(node.sio.disconnect())
+
+    Thread(target=restart).start()
+
 
 # setting up backdoor_controls
 node.include_router(backdoor_controls.router, prefix="")

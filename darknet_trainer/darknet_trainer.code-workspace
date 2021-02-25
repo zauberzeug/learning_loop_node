@@ -1,0 +1,20 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.pythonPath": "/bin/python"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-vsliveshare.vsliveshare",
+      "ms-python.vscode-pylance",
+      "ms-python.python",
+      "himanoa.python-autopep8",
+      "esbenp.prettier-vscode",
+      "littlefoxteam.vscode-python-test-adapter"
+    ]
+  }
+}
