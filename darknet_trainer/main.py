@@ -13,6 +13,7 @@ from learning_loop_node.node import Node, State
 import results
 import os
 from typing import List
+import yolo_converter
 
 hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet trainer')
@@ -40,7 +41,6 @@ def _create_image_folder(organization: str, project: str) -> str:
 
 
 def _download_images(hostname: str, resources_ids: List[tuple], image_folder: str):
-
     print(resources_ids, flush=True)
     for resource, image_id in resources_ids:
         url = f'http://{hostname}/api{resource}'
@@ -56,28 +56,43 @@ def _download_images(hostname: str, resources_ids: List[tuple], image_folder: st
             pass
 
 
-@node.stop_training
+def _update_yolo_boxes(image_folder: str, data: dict):
+    category_ids = [c['id']for c in data['box_categories']]
+
+    for image in data['images']:
+        image_width, image_height = image['width'], image['height']
+        image_id = image['id']
+        yolo_boxes = []
+        for box in image['box_annotations']:
+            yolo_box = yolo_converter.to_yolo(box, image_width, image_height, category_ids)
+            yolo_boxes.append(yolo_box)
+
+        with open(f'{image_folder}/{image_id}.txt', 'w') as f:
+            f.write('\n'.join(yolo_boxes))
+
+
+@ node.stop_training
 def stop():
     # nothing to do for the darknet trainer
     pass
 
 
-@node.get_weightfile
+@ node.get_weightfile
 def get_weightfile(organization: str, project: str, model_id: str) -> io.BufferedRandom:
     fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
     fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
     return fake_weight_file
 
 
-@node.on_event("startup")
-@repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
+@ node.on_event("startup")
+@ repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
     """creating new model every 5 seconds for the demo project"""
     if node.status.model and node.status.project == 'pytest':
         await results.increment_time(node)
 
 
-@node.on_event("shutdown")
+@ node.on_event("shutdown")
 async def shutdown():
 
     def restart():
