@@ -14,6 +14,7 @@ import results
 import os
 from typing import List
 import yolo_converter
+from uuid import uuid4
 
 hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet trainer')
@@ -24,24 +25,34 @@ def return_true():
 
 
 @node.begin_training
-def begin_training(data):
-    image_folder = _create_image_folder(node.status.organization, node.status.project)
+def begin_training(data: dict) -> None:
+    project_folder = _create_project_folder(node.status.organization, node.status.project)
+    image_folder = _create_image_folder(project_folder)
     resources_ids = _extract_ressoure_ids(data)
     _download_images(node.hostname, resources_ids, image_folder)
     _update_yolo_boxes(image_folder, data)
 
+    trainings_folder = _create_trainings_folder(project_folder, str(uuid4()))
+    _create_names_file()
 
-def _extract_ressoure_ids(data) -> List[str]:
+
+def _create_project_folder(organization: str, project: str) -> str:
+    project_folder = f'../data/{organization}/{project}'
+    os.makedirs(project_folder, exist_ok=True)
+    return project_folder
+
+
+def _extract_ressoure_ids(data: dict) -> List[str]:
     return [(i['resource'], i['id']) for i in data['images']]
 
 
-def _create_image_folder(organization: str, project: str) -> str:
-    image_folder = f'/data/{organization}/{project}/images'
+def _create_image_folder(project_folder: str) -> str:
+    image_folder = f'{project_folder}/images'
     os.makedirs(image_folder, exist_ok=True)
     return image_folder
 
 
-def _download_images(hostname: str, resources_ids: List[tuple], image_folder: str):
+def _download_images(hostname: str, resources_ids: List[tuple], image_folder: str) -> None:
     print(resources_ids, flush=True)
     for resource, image_id in resources_ids:
         url = f'http://{hostname}/api{resource}'
@@ -57,7 +68,7 @@ def _download_images(hostname: str, resources_ids: List[tuple], image_folder: st
             pass
 
 
-def _update_yolo_boxes(image_folder: str, data: dict):
+def _update_yolo_boxes(image_folder: str, data: dict) -> None:
     category_ids = [c['id']for c in data['box_categories']]
 
     for image in data['images']:
@@ -72,8 +83,19 @@ def _update_yolo_boxes(image_folder: str, data: dict):
             f.write('\n'.join(yolo_boxes))
 
 
+def _create_trainings_folder(project_folder: str, trainings_id: str) -> str:
+    trainings_folder = f'{project_folder}/trainings/{trainings_id}'
+    os.makedirs(trainings_folder, exist_ok=True)
+    return trainings_folder
+
+
+def _create_names_file(trainings_folder: str, categories: List[str]) -> None:
+    with open(f'{trainings_folder}/names.txt', 'w') as f:
+        f.write('\n'.join(categories))
+
+
 @ node.stop_training
-def stop():
+def stop() -> None:
     # nothing to do for the darknet trainer
     pass
 
