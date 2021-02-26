@@ -13,3 +13,14 @@ def to_yolo(learning_loop_box, image_width, image_height, categories):
         str("%.6f" % y),
         str("%.6f" % w),
         str("%.6f" % h)])
+
+
+def create_data_file(trainings_folder: str, number_of_classes: int) -> None:
+    number_of_classes = f'classes = {number_of_classes}'
+    train = 'train  = train.txt'
+    valid = 'valid  = test.txt'
+    names = 'names = names.txt'
+    backup = 'backup = backup/'
+    with open(f'{trainings_folder}/data.txt', 'w') as f:
+        data_object = [number_of_classes, train, valid, names, backup]
+        f.write('\n'.join(data_object))

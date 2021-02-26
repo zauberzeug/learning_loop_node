@@ -8,6 +8,7 @@ import pytest
 from requests import Session
 from urllib.parse import urljoin
 import darknet_tests.test_helper as test_helper
+import yolo_converter
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -33,7 +34,7 @@ def get_data() -> dict:
 
 
 def get_files_from_data_folder():
-        return [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
+    return [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
 
 
 def test_download_images(web: Session):
@@ -81,3 +82,24 @@ def test_create_names_file(web: Session):
     assert len(names) == 2
     assert names[0] == 'category_1\n'
     assert names[1] == 'category_2'
+
+
+def test_create_data_file():
+    assert len(get_files_from_data_folder()) == 0
+    project_folder = main._create_project_folder('zauberzeug', 'pytest')
+    trainings_path = main._create_trainings_folder(project_folder, 'some_uuid')
+
+    yolo_converter.create_data_file(trainings_path, 1)
+    files = get_files_from_data_folder()
+    assert len(files) == 1
+    data_file = files[0]
+    assert data_file.endswith('data.txt')
+    with open(f'{trainings_path}/data.txt', 'r') as f:
+        data = f.readlines()
+
+    assert len(data) == 5
+    assert data[0] == 'classes = 1\n'
+    assert data[1] == 'train  = train.txt\n'
+    assert data[2] == 'valid  = test.txt\n'
+    assert data[3] == 'names = names.txt\n'
+    assert data[4] == 'backup = backup/'

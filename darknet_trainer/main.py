@@ -34,6 +34,8 @@ def begin_training(data: dict) -> None:
 
     trainings_folder = _create_trainings_folder(project_folder, str(uuid4()))
     _create_names_file()
+    box_categories = _get_box_categories(data)
+    yolo_converter.create_data_file(trainings_folder, box_categories)
 
 
 def _create_project_folder(organization: str, project: str) -> str:
@@ -69,7 +71,7 @@ def _download_images(hostname: str, resources_ids: List[tuple], image_folder: st
 
 
 def _update_yolo_boxes(image_folder: str, data: dict) -> None:
-    category_ids = [c['id']for c in data['box_categories']]
+    category_ids = _get_box_categories(data)
 
     for image in data['images']:
         image_width, image_height = image['width'], image['height']
@@ -81,6 +83,10 @@ def _update_yolo_boxes(image_folder: str, data: dict) -> None:
 
         with open(f'{image_folder}/{image_id}.txt', 'w') as f:
             f.write('\n'.join(yolo_boxes))
+
+
+def _get_box_categories(data: dict):
+    return [c['id']for c in data['box_categories']]
 
 
 def _create_trainings_folder(project_folder: str, trainings_id: str) -> str:
