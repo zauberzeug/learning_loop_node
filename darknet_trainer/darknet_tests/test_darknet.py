@@ -2,7 +2,6 @@ import pytest
 from requests import Session
 from glob import glob
 import main
-import requests
 import shutil
 import os
 import pytest
@@ -33,29 +32,27 @@ def get_data() -> dict:
     return response.json()
 
 
-def test_download_images(web: Session):
-    def get_files_files():
+def get_files_from_data_folder():
         return [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
 
-    assert len(get_files_files()) == 0
+
+def test_download_images(web: Session):
+    assert len(get_files_from_data_folder()) == 0
     data = get_data()
     image_folder = main._create_image_folder('zauberzeug', 'pytest')
     resources_ids = main._extract_ressoure_ids(data)
 
     main._download_images('backend', resources_ids, image_folder)
-    assert len(get_files_files()) == 2
+    assert len(get_files_from_data_folder()) == 2
 
 
 def test_yolo_box_creation(web: Session):
-    def get_files_files():
-        return [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
-
-    assert len(get_files_files()) == 0
+    assert len(get_files_from_data_folder()) == 0
     image_folder = main._create_image_folder('zauberzeug', 'pytest')
     data = get_data()
 
     main._update_yolo_boxes(image_folder, data)
-    assert len(get_files_files()) == 2
+    assert len(get_files_from_data_folder()) == 2
 
     first_image_id = data['images'][0]['id']
     with open(f'{image_folder}/{first_image_id}.txt', 'r') as f:
