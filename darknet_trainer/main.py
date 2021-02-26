@@ -28,6 +28,7 @@ def begin_training(data):
     image_folder = _create_image_folder(node.status.organization, node.status.project)
     resources_ids = _extract_ressoure_ids(data)
     _download_images(node.hostname, resources_ids, image_folder)
+    _update_yolo_boxes(image_folder, data)
 
 
 def _extract_ressoure_ids(data) -> List[str]:
