@@ -1,3 +1,6 @@
+from typing import List
+import helper
+
 
 def to_yolo(learning_loop_box, image_width, image_height, categories):
     w = float(learning_loop_box['width']) / float(image_width)
@@ -24,3 +27,23 @@ def create_data_file(trainings_folder: str, number_of_classes: int) -> None:
     with open(f'{trainings_folder}/data.txt', 'w') as f:
         data_object = [number_of_classes, train, valid, names, backup]
         f.write('\n'.join(data_object))
+
+
+def update_yolo_boxes(image_folder: str, data: dict) -> None:
+    category_ids = helper.get_box_category_ids(data)
+
+    for image in data['images']:
+        image_width, image_height = image['width'], image['height']
+        image_id = image['id']
+        yolo_boxes = []
+        for box in image['box_annotations']:
+            yolo_box = to_yolo(box, image_width, image_height, category_ids)
+            yolo_boxes.append(yolo_box)
+
+        with open(f'{image_folder}/{image_id}.txt', 'w') as f:
+            f.write('\n'.join(yolo_boxes))
+
+
+def create_names_file(trainings_folder: str, categories: List[str]) -> None:
+    with open(f'{trainings_folder}/names.txt', 'w') as f:
+        f.write('\n'.join(categories))

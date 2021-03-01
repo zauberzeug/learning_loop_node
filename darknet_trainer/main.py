@@ -13,7 +13,8 @@ from learning_loop_node.node import Node, State
 import results
 import os
 from typing import List
-import yolo_converter
+import helper
+import yolo_helper
 from uuid import uuid4
 
 hostname = 'backend'
@@ -30,12 +31,13 @@ def begin_training(data: dict) -> None:
     image_folder = _create_image_folder(project_folder)
     resources_ids = _extract_ressoure_ids(data)
     _download_images(node.hostname, resources_ids, image_folder)
-    _update_yolo_boxes(image_folder, data)
+    yolo_helper.update_yolo_boxes(image_folder, data)
 
     trainings_folder = _create_trainings_folder(project_folder, str(uuid4()))
-    _create_names_file()
-    box_categories = _get_box_categories(data)
-    yolo_converter.create_data_file(trainings_folder, box_categories)
+
+    box_categories = helper.get_box_category_ids(data)
+    yolo_helper.create_names_file(trainings_folder, box_categories)
+    yolo_helper.create_data_file(trainings_folder, len(box_categories))
 
 
 def _create_project_folder(organization: str, project: str) -> str:
@@ -70,34 +72,10 @@ def _download_images(hostname: str, resources_ids: List[tuple], image_folder: st
             pass
 
 
-def _update_yolo_boxes(image_folder: str, data: dict) -> None:
-    category_ids = _get_box_categories(data)
-
-    for image in data['images']:
-        image_width, image_height = image['width'], image['height']
-        image_id = image['id']
-        yolo_boxes = []
-        for box in image['box_annotations']:
-            yolo_box = yolo_converter.to_yolo(box, image_width, image_height, category_ids)
-            yolo_boxes.append(yolo_box)
-
-        with open(f'{image_folder}/{image_id}.txt', 'w') as f:
-            f.write('\n'.join(yolo_boxes))
-
-
-def _get_box_categories(data: dict):
-    return [c['id']for c in data['box_categories']]
-
-
 def _create_trainings_folder(project_folder: str, trainings_id: str) -> str:
     trainings_folder = f'{project_folder}/trainings/{trainings_id}'
     os.makedirs(trainings_folder, exist_ok=True)
     return trainings_folder
-
-
-def _create_names_file(trainings_folder: str, categories: List[str]) -> None:
-    with open(f'{trainings_folder}/names.txt', 'w') as f:
-        f.write('\n'.join(categories))
 
 
 @ node.stop_training

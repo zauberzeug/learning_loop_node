@@ -8,7 +8,7 @@ import pytest
 from requests import Session
 from urllib.parse import urljoin
 import darknet_tests.test_helper as test_helper
-import yolo_converter
+import yolo_helper
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -54,7 +54,7 @@ def test_yolo_box_creation(web: Session):
     image_folder = main._create_image_folder(project_folder)
     data = get_data()
 
-    main._update_yolo_boxes(image_folder, data)
+    yolo_helper.update_yolo_boxes(image_folder, data)
     assert len(get_files_from_data_folder()) == 2
 
     first_image_id = data['images'][0]['id']
@@ -71,7 +71,7 @@ def test_create_names_file(web: Session):
     project_folder = main._create_project_folder('zauberzeug', 'pytest')
     trainings_path = main._create_trainings_folder(project_folder, 'some_uuid')
 
-    main. _create_names_file(trainings_path, ['category_1', 'category_2'])
+    yolo_helper.create_names_file(trainings_path, ['category_1', 'category_2'])
     files = get_files_from_data_folder()
     assert len(files) == 1
     names_file = files[0]
@@ -89,7 +89,7 @@ def test_create_data_file():
     project_folder = main._create_project_folder('zauberzeug', 'pytest')
     trainings_path = main._create_trainings_folder(project_folder, 'some_uuid')
 
-    yolo_converter.create_data_file(trainings_path, 1)
+    yolo_helper.create_data_file(trainings_path, 1)
     files = get_files_from_data_folder()
     assert len(files) == 1
     data_file = files[0]
