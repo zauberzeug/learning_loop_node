@@ -30,7 +30,7 @@ def create_data_file(trainings_folder: str, number_of_classes: int) -> None:
         f.write('\n'.join(data_object))
 
 
-def update_yolo_boxes(image_folder: str, data: dict) -> None:
+def update_yolo_boxes(image_folder_for_training: str, data: dict) -> None:
     category_ids = helper.get_box_category_ids(data)
 
     for image in data['images']:
@@ -41,7 +41,7 @@ def update_yolo_boxes(image_folder: str, data: dict) -> None:
             yolo_box = to_yolo(box, image_width, image_height, category_ids)
             yolo_boxes.append(yolo_box)
 
-        with open(f'{image_folder}/{image_id}.txt', 'w') as f:
+        with open(f'{image_folder_for_training}/{image_id}.txt', 'w') as f:
             f.write('\n'.join(yolo_boxes))
 
 
@@ -50,10 +50,12 @@ def create_names_file(trainings_folder: str, categories: List[str]) -> None:
         f.write('\n'.join(categories))
 
 
-def create_image_links(trainings_folder: str, image_folder: str, image_ids: List[str]) -> None:
+def create_image_links(trainings_folder: str, image_folder: str, image_ids: List[str]) -> str:
     training_images_path = f'{trainings_folder}/images'
     os.makedirs(training_images_path, exist_ok=True)
     for image_id in image_ids:
         source = os.path.join(image_folder, f'{image_id}.jpg')
         target = os.path.join(training_images_path, f'{image_id}.jpg')
         os.symlink(source, target)
+
+    return training_images_path

@@ -53,13 +53,16 @@ def test_yolo_box_creation(web: Session):
     assert len(get_files_from_data_folder()) == 0
     project_folder = main._create_project_folder('zauberzeug', 'pytest')
     image_folder = main._create_image_folder(project_folder)
+    trainings_folder = main._create_trainings_folder(project_folder, 'some_uuid')
     data = get_data()
+    image_ids = main._extract_image_ids(data)
+    image_folder_for_training = yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
-    yolo_helper.update_yolo_boxes(image_folder, data)
+    yolo_helper.update_yolo_boxes(image_folder_for_training, data)
     assert len(get_files_from_data_folder()) == 2
 
-    first_image_id = data['images'][0]['id']
-    with open(f'{image_folder}/{first_image_id}.txt', 'r') as f:
+    first_image_id = image_ids[0]
+    with open(f'{image_folder_for_training}/{first_image_id}.txt', 'r') as f:
         yolo_content = f.read()
     print(yolo_content, flush=True)
     assert yolo_content == '''0 0.550000 0.547917 0.050000 0.057500

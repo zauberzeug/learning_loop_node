@@ -35,9 +35,9 @@ def begin_training(data: dict) -> None:
 
     trainings_folder = _create_trainings_folder(project_folder, str(uuid4()))
 
-    yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
+    image_folder_for_training = yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
-    yolo_helper.update_yolo_boxes(trainings_folder, data)
+    yolo_helper.update_yolo_boxes(image_folder_for_training, data)
 
     box_categories = helper.get_box_category_ids(data)
     yolo_helper.create_names_file(trainings_folder, box_categories)
