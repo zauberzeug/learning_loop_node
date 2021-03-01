@@ -50,7 +50,7 @@ def create_names_file(trainings_folder: str, categories: List[str]) -> None:
         f.write('\n'.join(categories))
 
 
-def create_image_links(trainings_folder, image_folder, image_ids):
+def create_image_links(trainings_folder: str, image_folder: str, image_ids: List[str]) -> None:
     training_images_path = f'{trainings_folder}/images'
     os.makedirs(training_images_path, exist_ok=True)
     for image_id in image_ids:

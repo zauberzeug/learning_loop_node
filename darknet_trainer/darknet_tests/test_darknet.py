@@ -114,8 +114,11 @@ def test_create_image_links():
 
     data = get_data()
     image_ids = main._extract_image_ids(data)
+    image_resources = main._extract_image_ressoures(data)
     yolo_helper.create_image_links(trainings_path, image_folder, image_ids)
 
+    main._download_images('backend', zip(image_resources, image_ids), image_folder)
     files = get_files_from_data_folder()
-    assert len((files)) == 2
-    assert files[0] == ""
+    assert len(files) == 2
+    assert files[0] == "../data/zauberzeug/pytest/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg"
+    assert files[1] == "../data/zauberzeug/pytest/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg"
