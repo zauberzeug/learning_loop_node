@@ -125,3 +125,31 @@ def test_create_image_links():
     assert len(files) == 2
     assert files[0] == "../data/zauberzeug/pytest/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg"
     assert files[1] == "../data/zauberzeug/pytest/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg"
+
+
+def test_create_train_and_test_file():
+    project_folder = main._create_project_folder('zauberzeug', 'pytest')
+    trainings_path = main._create_trainings_folder(project_folder, 'some_uuid')
+    image_folder = main._create_image_folder(project_folder)
+    data = get_data()
+    image_ids = main._extract_image_ids(data)
+    images_folder_for_training = yolo_helper.create_image_links(trainings_path, image_folder, image_ids)
+
+    yolo_helper.create_train_and_test_file(trainings_path, images_folder_for_training, data['images'])
+    files = get_files_from_data_folder()
+    assert len(files) == 2
+    test_file = files[0]
+    train_file = files[1]
+    assert train_file.endswith('train.txt')
+    assert test_file.endswith('test.txt')
+    with open(f'{trainings_path}/train.txt', 'r') as f:
+        content = f.readlines()
+
+    assert len(content) == 1
+    assert content[0] == '../data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7\n'
+
+    with open(f'{trainings_path}/test.txt', 'r') as f:
+        content = f.readlines()
+
+    assert len(content) == 1
+    assert content[0] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243\n'

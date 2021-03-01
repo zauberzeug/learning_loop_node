@@ -59,3 +59,15 @@ def create_image_links(trainings_folder: str, image_folder: str, image_ids: List
         os.symlink(source, target)
 
     return training_images_path
+
+
+def create_train_and_test_file(trainings_folder, image_folder_for_training, images: List) -> None:
+    with open(f'{trainings_folder}/train.txt', 'w') as f:
+        for image in images:
+            if image['set'] == 'train':
+                f.write(f"{image_folder_for_training}/{image['id']}\n")
+
+    with open(f'{trainings_folder}/test.txt', 'w') as f:
+        for image in images:
+            if image['set'] == 'test':
+                f.write(f"{image_folder_for_training}/{image['id']}\n")
