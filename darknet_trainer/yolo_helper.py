@@ -1,5 +1,6 @@
 from typing import List
 import helper
+import os
 
 
 def to_yolo(learning_loop_box, image_width, image_height, categories):
@@ -47,3 +48,12 @@ def update_yolo_boxes(image_folder: str, data: dict) -> None:
 def create_names_file(trainings_folder: str, categories: List[str]) -> None:
     with open(f'{trainings_folder}/names.txt', 'w') as f:
         f.write('\n'.join(categories))
+
+
+def create_image_links(trainings_folder, image_folder, image_ids):
+    training_images_path = f'{trainings_folder}/images'
+    os.makedirs(training_images_path, exist_ok=True)
+    for image_id in image_ids:
+        source = os.path.join(image_folder, f'{image_id}.jpg')
+        target = os.path.join(training_images_path, f'{image_id}.jpg')
+        os.symlink(source, target)

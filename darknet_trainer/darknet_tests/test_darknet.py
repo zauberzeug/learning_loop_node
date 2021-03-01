@@ -42,9 +42,10 @@ def test_download_images(web: Session):
     data = get_data()
     project_folder = main._create_project_folder('zauberzeug', 'pytest')
     image_folder = main._create_image_folder(project_folder)
-    resources_ids = main._extract_ressoure_ids(data)
+    resources = main._extract_image_ressoures(data)
+    ids = main._extract_image_ids(data)
 
-    main._download_images('backend', resources_ids, image_folder)
+    main._download_images('backend', zip(resources, ids), image_folder)
     assert len(get_files_from_data_folder()) == 2
 
 
@@ -103,3 +104,18 @@ def test_create_data_file():
     assert data[2] == 'valid  = test.txt\n'
     assert data[3] == 'names = names.txt\n'
     assert data[4] == 'backup = backup/'
+
+
+def test_create_image_links():
+    assert len(get_files_from_data_folder()) == 0
+    project_folder = main._create_project_folder('zauberzeug', 'pytest')
+    image_folder = main._create_image_folder(project_folder)
+    trainings_path = main._create_trainings_folder(project_folder, 'some_uuid')
+
+    data = get_data()
+    image_ids = main._extract_image_ids(data)
+    yolo_helper.create_image_links(trainings_path, image_folder, image_ids)
+
+    files = get_files_from_data_folder()
+    assert len((files)) == 2
+    assert files[0] == ""

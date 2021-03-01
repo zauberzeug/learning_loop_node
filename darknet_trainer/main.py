@@ -29,11 +29,15 @@ def return_true():
 def begin_training(data: dict) -> None:
     project_folder = _create_project_folder(node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
-    resources_ids = _extract_ressoure_ids(data)
-    _download_images(node.hostname, resources_ids, image_folder)
-    yolo_helper.update_yolo_boxes(image_folder, data)
+    image_resources = _extract_image_ressoures(data)
+    image_ids = _extract_image_ids(data)
+    _download_images(node.hostname, zip(image_resources, image_ids), image_folder)
 
     trainings_folder = _create_trainings_folder(project_folder, str(uuid4()))
+
+    yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
+
+    yolo_helper.update_yolo_boxes(trainings_folder, data)
 
     box_categories = helper.get_box_category_ids(data)
     yolo_helper.create_names_file(trainings_folder, box_categories)
@@ -46,8 +50,12 @@ def _create_project_folder(organization: str, project: str) -> str:
     return project_folder
 
 
-def _extract_ressoure_ids(data: dict) -> List[str]:
-    return [(i['resource'], i['id']) for i in data['images']]
+def _extract_image_ressoures(data: dict) -> List[tuple]:
+    return [i['resource'] for i in data['images']]
+
+
+def _extract_image_ids(data: dict) -> List[str]:
+    return [i['id'] for i in data['images']]
 
 
 def _create_image_folder(project_folder: str) -> str:
@@ -56,9 +64,8 @@ def _create_image_folder(project_folder: str) -> str:
     return image_folder
 
 
-def _download_images(hostname: str, resources_ids: List[tuple], image_folder: str) -> None:
-    print(resources_ids, flush=True)
-    for resource, image_id in resources_ids:
+def _download_images(hostname: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+    for resource, image_id in image_ressources_and_ids:
         url = f'http://{hostname}/api{resource}'
         response = requests.get(url)
         if response.status_code == 200:
