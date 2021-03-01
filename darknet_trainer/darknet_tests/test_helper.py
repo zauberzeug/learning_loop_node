@@ -1,6 +1,8 @@
 from requests import Session
 from urllib.parse import urljoin
 from glob import glob
+import os
+import main
 
 
 class LiveServerSession(Session):
@@ -13,3 +15,21 @@ class LiveServerSession(Session):
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
         return super(LiveServerSession, self).request(method, url, *args, **kwargs)
+
+
+def get_data() -> dict:
+    response = LiveServerSession().get(f'api/zauberzeug/projects/pytest/data?state=complete&mode=boxes')
+    assert response.status_code == 200
+    return response.json()
+
+
+def get_files_from_data_folder():
+    return [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
+
+
+def create_needed_folders():
+    project_folder = main._create_project_folder('zauberzeug', 'pytest')
+    image_folder = main._create_image_folder(project_folder)
+    trainings_folder = main._create_trainings_folder(project_folder, 'some_uuid')
+
+    return project_folder, image_folder, trainings_folder
