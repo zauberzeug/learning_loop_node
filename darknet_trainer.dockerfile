@@ -1,7 +1,10 @@
 FROM nvidia/cuda:11.0.3-devel-ubuntu20.04
 
+ENV TZ=Europe/Berlin
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 RUN apt update
-RUN apt-get install -y curl python3.8 python3-distutils python3-pip
+RUN apt-get install -y curl python3.8 python3-distutils python3-pip git-all  
 RUN ln -sf /usr/bin/python3.8 /usr/bin/python3 && ln -sf /usr/bin/python3.8 /usr/bin/python
 
 # copied (not 1:1) from https://github.com/tiangolo/uvicorn-gunicorn-docker/blob/master/docker-images/python3.8.dockerfile
@@ -22,6 +25,11 @@ CMD ["/start.sh"]
 
 # <--- end
 
+# darknet
+WORKDIR /
+RUN git clone https://github.com/AlexeyAB/darknet.git darknet && cd darknet && git checkout 64efa721ede91cd8ccc18257f98eeba43b73a6af 
+RUN cd darknet && make clean && make
+
 
 # We use Poetry for dependency management
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_HOME=/opt/poetry python && \
@@ -32,8 +40,6 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
 WORKDIR /learning_loop_node/
 
 COPY ./learning_loop_node/ ./
-
-RUN poetry update
 
 WORKDIR /app/
 
@@ -53,13 +59,7 @@ ENV PYTHONPATH=/app
 EXPOSE 80
 
 
-ENV TZ=Europe/Berlin
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-RUN apt-get install -y git-all  
 
-# darknet
-
-RUN git clone https://github.com/AlexeyAB/darknet.git darknet && cd darknet && git checkout 64efa721ede91cd8ccc18257f98eeba43b73a6af
 
 CMD mkdir -p /data
 
