@@ -1,12 +1,7 @@
 import pytest
-from requests import Session
-from glob import glob
 import main
 import shutil
-import os
 import pytest
-from requests import Session
-from urllib.parse import urljoin
 import darknet_tests.test_helper as test_helper
 import yolo_helper
 
@@ -27,7 +22,7 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-def test_download_images(web: Session):
+def test_download_images():
     assert len(test_helper.get_files_from_data_folder()) == 0
     data = test_helper.get_data()
     _, image_folder, _ = test_helper.create_needed_folders()
@@ -38,7 +33,7 @@ def test_download_images(web: Session):
     assert len(test_helper.get_files_from_data_folder()) == 2
 
 
-def test_yolo_box_creation(web: Session):
+def test_yolo_box_creation():
     assert len(test_helper.get_files_from_data_folder()) == 0
     _, image_folder, trainings_folder = test_helper.create_needed_folders()
     data = test_helper.get_data()
@@ -57,7 +52,7 @@ def test_yolo_box_creation(web: Session):
 1 0.175000 0.143750 0.050000 0.057500'''
 
 
-def test_create_names_file(web: Session):
+def test_create_names_file():
     assert len(test_helper.get_files_from_data_folder()) == 0
     _, _, trainings_folder = test_helper.create_needed_folders()
 
