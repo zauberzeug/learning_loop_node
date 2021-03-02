@@ -42,6 +42,7 @@ def begin_training(data: dict) -> None:
     box_categories = helper.get_box_category_ids(data)
     yolo_helper.create_names_file(trainings_folder, box_categories)
     yolo_helper.create_data_file(trainings_folder, len(box_categories))
+    yolo_helper.create_train_and_test_file(trainings_folder, image_folder_for_training, data['images'])
 
 
 def _create_project_folder(organization: str, project: str) -> str:
