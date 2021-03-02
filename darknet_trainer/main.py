@@ -33,16 +33,16 @@ def begin_training(data: dict) -> None:
     image_ids = _extract_image_ids(data)
     _download_images(node.hostname, zip(image_resources, image_ids), image_folder)
 
-    trainings_folder = _create_trainings_folder(project_folder, str(uuid4()))
+    training_folder = _create_training_folder(project_folder, str(uuid4()))
 
-    image_folder_for_training = yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
+    image_folder_for_training = yolo_helper.create_image_links(training_folder, image_folder, image_ids)
 
     yolo_helper.update_yolo_boxes(image_folder_for_training, data)
 
     box_categories = helper.get_box_category_ids(data)
-    yolo_helper.create_names_file(trainings_folder, box_categories)
-    yolo_helper.create_data_file(trainings_folder, len(box_categories))
-    yolo_helper.create_train_and_test_file(trainings_folder, image_folder_for_training, data['images'])
+    yolo_helper.create_names_file(training_folder, box_categories)
+    yolo_helper.create_data_file(training_folder, len(box_categories))
+    yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
 
 def _create_project_folder(organization: str, project: str) -> str:
@@ -80,10 +80,10 @@ def _download_images(hostname: str, image_ressources_and_ids: List[tuple], image
             pass
 
 
-def _create_trainings_folder(project_folder: str, trainings_id: str) -> str:
-    trainings_folder = f'{project_folder}/trainings/{trainings_id}'
-    os.makedirs(trainings_folder, exist_ok=True)
-    return trainings_folder
+def _create_training_folder(project_folder: str, trainings_id: str) -> str:
+    training_folder = f'{project_folder}/trainings/{trainings_id}'
+    os.makedirs(training_folder, exist_ok=True)
+    return training_folder
 
 
 @ node.stop_training

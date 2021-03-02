@@ -30,6 +30,6 @@ def get_files_from_data_folder():
 def create_needed_folders():
     project_folder = main._create_project_folder('zauberzeug', 'pytest')
     image_folder = main._create_image_folder(project_folder)
-    trainings_folder = main._create_trainings_folder(project_folder, 'some_uuid')
+    training_folder = main._create_training_folder(project_folder, 'some_uuid')
 
-    return project_folder, image_folder, trainings_folder
+    return project_folder, image_folder, training_folder

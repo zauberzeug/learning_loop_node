@@ -19,13 +19,13 @@ def to_yolo(learning_loop_box, image_width, image_height, categories):
         str("%.6f" % h)])
 
 
-def create_data_file(trainings_folder: str, number_of_classes: int) -> None:
+def create_data_file(training_folder: str, number_of_classes: int) -> None:
     number_of_classes = f'classes = {number_of_classes}'
     train = 'train  = train.txt'
     valid = 'valid  = test.txt'
     names = 'names = names.txt'
     backup = 'backup = backup/'
-    with open(f'{trainings_folder}/data.txt', 'w') as f:
+    with open(f'{training_folder}/data.txt', 'w') as f:
         data_object = [number_of_classes, train, valid, names, backup]
         f.write('\n'.join(data_object))
 
@@ -45,13 +45,13 @@ def update_yolo_boxes(image_folder_for_training: str, data: dict) -> None:
             f.write('\n'.join(yolo_boxes))
 
 
-def create_names_file(trainings_folder: str, categories: List[str]) -> None:
-    with open(f'{trainings_folder}/names.txt', 'w') as f:
+def create_names_file(training_folder: str, categories: List[str]) -> None:
+    with open(f'{training_folder}/names.txt', 'w') as f:
         f.write('\n'.join(categories))
 
 
-def create_image_links(trainings_folder: str, image_folder: str, image_ids: List[str]) -> str:
-    training_images_path = f'{trainings_folder}/images'
+def create_image_links(training_folder: str, image_folder: str, image_ids: List[str]) -> str:
+    training_images_path = f'{training_folder}/images'
     os.makedirs(training_images_path, exist_ok=True)
     for image_id in image_ids:
         source = os.path.join(image_folder, f'{image_id}.jpg')
@@ -61,13 +61,13 @@ def create_image_links(trainings_folder: str, image_folder: str, image_ids: List
     return training_images_path
 
 
-def create_train_and_test_file(trainings_folder, image_folder_for_training, images: List) -> None:
-    with open(f'{trainings_folder}/train.txt', 'w') as f:
+def create_train_and_test_file(training_folder, image_folder_for_training, images: List) -> None:
+    with open(f'{training_folder}/train.txt', 'w') as f:
         for image in images:
             if image['set'] == 'train':
                 f.write(f"{image_folder_for_training}/{image['id']}\n")
 
-    with open(f'{trainings_folder}/test.txt', 'w') as f:
+    with open(f'{training_folder}/test.txt', 'w') as f:
         for image in images:
             if image['set'] == 'test':
                 f.write(f"{image_folder_for_training}/{image['id']}\n")
