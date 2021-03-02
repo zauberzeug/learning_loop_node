@@ -50,6 +50,7 @@ def begin_training(data: dict) -> None:
     yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
     _download_model(training_folder, node.status.model['id'], node.hostname)
+    yolo_helper.replace_classes_and_filters(len(box_categories), training_folder)
 
 def _create_project_folder(organization: str, project: str) -> str:
     project_folder = f'../data/{organization}/{project}'

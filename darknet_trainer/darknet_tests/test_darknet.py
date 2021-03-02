@@ -5,6 +5,8 @@ import pytest
 import darknet_tests.test_helper as test_helper
 import yolo_helper
 from uuid import uuid4
+import os
+from glob import glob
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -152,3 +154,28 @@ def test_download_model():
 
     assert files[0] == "../data/zauberzeug/pytest/trainings/some_uuid/tiny_yolo.cfg"
     assert files[1] == "../data/zauberzeug/pytest/trainings/some_uuid/weightfile.weights"
+
+
+def test_replace_classes_and_filters():
+    target_folder = '/tmp/classes_test'
+
+    def get_yolo_lines():
+        with open(f'{target_folder}/yolo.cfg', 'r') as f:
+            return f.readlines()
+
+    def assert_line_count(search_string, expected_count):
+        matched_lines = [line for line in get_yolo_lines() if line.strip() == search_string]
+        assert len(matched_lines) == expected_count
+
+    shutil.rmtree(target_folder, ignore_errors=True)
+    os.makedirs(target_folder)
+
+    shutil.copy('darknet_tests/test_data/tiny_yolo.cfg', f'{target_folder}/yolo.cfg')
+
+    assert_line_count('filters=45', 0)
+    assert_line_count('classes=10', 0)
+
+    yolo_helper.replace_classes_and_filters(10, target_folder)
+
+    assert_line_count('filters=45', 3)
+    assert_line_count('classes=10', 3)
