@@ -16,6 +16,11 @@ from typing import List
 import helper
 import yolo_helper
 from uuid import uuid4
+import shutil
+from io import BytesIO
+import zipfile
+import os
+from glob import glob
 
 hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet trainer')
@@ -44,6 +49,7 @@ def begin_training(data: dict) -> None:
     yolo_helper.create_data_file(training_folder, len(box_categories))
     yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
+    _download_model(training_folder, node.status.model['id'], node.hostname)
 
 def _create_project_folder(organization: str, project: str) -> str:
     project_folder = f'../data/{organization}/{project}'
@@ -84,6 +90,24 @@ def _create_training_folder(project_folder: str, trainings_id: str) -> str:
     training_folder = f'{project_folder}/trainings/{trainings_id}'
     os.makedirs(training_folder, exist_ok=True)
     return training_folder
+
+
+def _download_model(training_folder: str,  model_id: str, hostname: str):
+    # download model
+    download_response = requests.get(f'http://{hostname}/api/zauberzeug/projects/pytest/models/{model_id}/file')
+    assert download_response.status_code == 200
+    provided_filename = download_response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
+
+    # unzip and place downloaded model
+    target_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
+    shutil.rmtree(target_path, ignore_errors=True)
+    filebytes = BytesIO(download_response.content)
+    with zipfile.ZipFile(filebytes, 'r') as zip:
+        zip.extractall(target_path)
+
+    files = glob(f'{target_path}/**/*', recursive=True)
+    for file in files:
+        shutil.move(file, training_folder)
 
 
 @ node.stop_training

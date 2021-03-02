@@ -4,6 +4,7 @@ import shutil
 import pytest
 import darknet_tests.test_helper as test_helper
 import yolo_helper
+from uuid import uuid4
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -130,3 +131,24 @@ def test_create_train_and_test_file():
 
     assert len(content) == 1
     assert content[0] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243\n'
+
+
+def test_download_model():
+    assert len(test_helper.get_files_from_data_folder()) == 0
+    data = test_helper.get_data()
+
+    _, _, trainings_folder = test_helper.create_needed_folders()
+    # upload model
+    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
+            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
+    model_id = uuid4()
+    upload_response = test_helper.LiveServerSession().put(
+        f'/api/zauberzeug/projects/pytest/models/{model_id}/file', files=data)
+    assert upload_response.status_code == 500, "We cant save the model proper yet."
+
+    main._download_model(trainings_folder, model_id, 'backend')
+    files = test_helper.get_files_from_data_folder()
+    assert len(files) == 2
+
+    assert files[0] == "../data/zauberzeug/pytest/trainings/some_uuid/tiny_yolo.cfg"
+    assert files[1] == "../data/zauberzeug/pytest/trainings/some_uuid/weightfile.weights"
