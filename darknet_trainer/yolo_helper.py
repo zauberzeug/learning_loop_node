@@ -66,38 +66,9 @@ def create_train_and_test_file(training_folder: str, image_folder_for_training: 
     with open(f'{training_folder}/train.txt', 'w') as f:
         for image in images:
             if image['set'] == 'train':
-                f.write(f"{image_folder_for_training}/{image['id']}\n")
+                f.write(f"{image_folder_for_training}/{image['id']}.jpg\n")
 
     with open(f'{training_folder}/test.txt', 'w') as f:
         for image in images:
             if image['set'] == 'test':
-                f.write(f"{image_folder_for_training}/{image['id']}\n")
-
-
-def replace_classes_and_filters(classes_count: int, training_folder: str) -> None:
-    cfg_file = _find_cfg_file(training_folder)
-
-    with open(cfg_file, 'r') as f:
-        lines = f.readlines()
-
-    for i, line in enumerate(lines):
-        if line.startswith('filters='):
-            last_known_filters_line = i
-        if line.startswith('[yolo]'):
-            new_line = f'filters={(classes_count+5)*3}'
-            lines[last_known_filters_line] = f'filters={(classes_count+5)*3}'
-            last_known_filters_line = None
-        if line.startswith('classes='):
-            lines[i] = f'classes={classes_count}'
-
-    with open(cfg_file, 'w') as f:
-        f.write('\n'.join(lines))
-
-
-def _find_cfg_file(folder) -> str:
-    cfg_files = [file for file in glob(f'{folder}/**/*', recursive=True) if file.endswith('.cfg')]
-    if len(cfg_files) == 0:
-        raise Exception(f'[-] Error: No cfg file found.')
-    elif len(cfg_files) > 1:
-        raise Exception(f'[-] Error: Found more than one cfg file')
-    return cfg_files[0]
+                f.write(f"{image_folder_for_training}/{image['id']}.jpg\n")

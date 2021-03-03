@@ -15,6 +15,7 @@ import os
 from typing import List
 import helper
 import yolo_helper
+import yolo_cfg_helper
 from uuid import uuid4
 import shutil
 from io import BytesIO
@@ -26,19 +27,19 @@ hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet trainer')
 
 
-def return_true():
-    return True
-
-
 @node.begin_training
 def begin_training(data: dict) -> None:
+    _begin_training(node, data, str(uuid4()))
+
+
+def _begin_training(node: Node, data: dict, training_uuid: str):
     project_folder = _create_project_folder(node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
     image_resources = _extract_image_ressoures(data)
     image_ids = _extract_image_ids(data)
     _download_images(node.hostname, zip(image_resources, image_ids), image_folder)
 
-    training_folder = _create_training_folder(project_folder, str(uuid4()))
+    training_folder = _create_training_folder(project_folder, training_uuid)
 
     image_folder_for_training = yolo_helper.create_image_links(training_folder, image_folder, image_ids)
 
@@ -50,10 +51,14 @@ def begin_training(data: dict) -> None:
     yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
     _download_model(training_folder, node.status.model['id'], node.hostname)
-    yolo_helper.replace_classes_and_filters(len(box_categories), training_folder)
+    yolo_cfg_helper.replace_classes_and_filters(len(box_categories), training_folder)
+    yolo_cfg_helper.update_anchors(training_folder)
+
+    return True
+
 
 def _create_project_folder(organization: str, project: str) -> str:
-    project_folder = f'../data/{organization}/{project}'
+    project_folder = f'/data/{organization}/{project}'
     os.makedirs(project_folder, exist_ok=True)
     return project_folder
 

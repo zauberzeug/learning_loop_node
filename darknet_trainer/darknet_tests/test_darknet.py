@@ -4,6 +4,7 @@ import shutil
 import pytest
 import darknet_tests.test_helper as test_helper
 import yolo_helper
+import yolo_cfg_helper
 from uuid import uuid4
 import os
 from glob import glob
@@ -99,13 +100,16 @@ def test_create_image_links():
     data = test_helper.get_data()
     image_ids = main._extract_image_ids(data)
     image_resources = main._extract_image_ressoures(data)
+    main._download_images('backend', zip(image_resources, image_ids), image_folder)
+
     yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
-    main._download_images('backend', zip(image_resources, image_ids), image_folder)
     files = test_helper.get_files_from_data_folder()
-    assert len(files) == 2
-    assert files[0] == "../data/zauberzeug/pytest/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg"
-    assert files[1] == "../data/zauberzeug/pytest/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg"
+    assert len(files) == 4
+    assert files[0] == '../data/zauberzeug/pytest/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
+    assert files[1] == '../data/zauberzeug/pytest/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
+    assert files[2] == '../data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
+    assert files[3] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
 
 
 def test_create_train_and_test_file():
@@ -126,13 +130,13 @@ def test_create_train_and_test_file():
         content = f.readlines()
 
     assert len(content) == 1
-    assert content[0] == '../data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7\n'
+    assert content[0] == '/data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg\n'
 
     with open(f'{trainings_folder}/test.txt', 'r') as f:
         content = f.readlines()
 
     assert len(content) == 1
-    assert content[0] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243\n'
+    assert content[0] == '/data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg\n'
 
 
 def test_download_model():
@@ -175,7 +179,46 @@ def test_replace_classes_and_filters():
     assert_line_count('filters=45', 0)
     assert_line_count('classes=10', 0)
 
-    yolo_helper.replace_classes_and_filters(10, target_folder)
+    yolo_cfg_helper.replace_classes_and_filters(10, target_folder)
 
-    assert_line_count('filters=45', 3)
-    assert_line_count('classes=10', 3)
+    assert_line_count('filters=45', 2)
+    assert_line_count('classes=10', 2)
+
+
+def test_create_anchors():
+    # upload model
+    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
+            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
+    model_id = uuid4()
+    upload_response = test_helper.LiveServerSession().put(
+        f'/api/zauberzeug/projects/pytest/models/{model_id}/file', files=data)
+    assert upload_response.status_code == 500, "We cant save the model proper yet."
+
+    main.node.status.model = {'id': model_id}
+    main.node.status.organization = 'zauberzeug'
+    main.node.status.project = 'pytest'
+
+    data = test_helper.get_data()
+    training_uuid = str(uuid4())
+    assert main._begin_training(main.node, data, training_uuid) == True
+
+    anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
+    original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
+    assert_anchors(original_cfg_file_path, anchor_line)
+
+    new_anchors = 'anchors=1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400'
+    cfg_file_path = yolo_cfg_helper._find_cfg_file(f'../data/zauberzeug/pytest/trainings/{training_uuid}')
+    assert_anchors(cfg_file_path, new_anchors)
+
+
+def assert_anchors(cfg_file_path, anchor_line):
+    anchor_line = anchor_line.replace(' ', '')
+    found_anchor_line_count = 0
+    with open(cfg_file_path, 'r') as f:
+        lines = f.readlines()
+    for line in lines:
+        line = line.replace(' ', '').strip()
+        if line.startswith('anchors='):
+            assert line == anchor_line, 'Anchor line does not match. '
+            found_anchor_line_count += 1
+    assert found_anchor_line_count > 0, 'There must be at least one anchorline in cfg file.'
