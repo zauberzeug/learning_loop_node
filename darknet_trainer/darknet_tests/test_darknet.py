@@ -141,16 +141,10 @@ def test_create_train_and_test_file():
 
 def test_download_model():
     assert len(test_helper.get_files_from_data_folder()) == 0
-    data = test_helper.get_data()
 
     _, _, trainings_folder = test_helper.create_needed_folders()
-    # upload model
-    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
-            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
     model_id = uuid4()
-    upload_response = test_helper.LiveServerSession().put(
-        f'/api/zauberzeug/projects/pytest/models/{model_id}/file', files=data)
-    assert upload_response.status_code == 500, "We cant save the model proper yet."
+    _assert_upload_model(model_id)
 
     main._download_model(trainings_folder, model_id, 'backend')
     files = test_helper.get_files_from_data_folder()
@@ -186,13 +180,8 @@ def test_replace_classes_and_filters():
 
 
 def test_create_anchors():
-    # upload model
-    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
-            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
     model_id = uuid4()
-    upload_response = test_helper.LiveServerSession().put(
-        f'/api/zauberzeug/projects/pytest/models/{model_id}/file', files=data)
-    assert upload_response.status_code == 500, "We cant save the model proper yet."
+    _assert_upload_model(model_id)
 
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
@@ -200,7 +189,7 @@ def test_create_anchors():
 
     data = test_helper.get_data()
     training_uuid = str(uuid4())
-    assert main._begin_training(main.node, data, training_uuid) == True
+    main._prepare_training(main.node, data, training_uuid)
 
     anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
     original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
@@ -211,7 +200,7 @@ def test_create_anchors():
     assert_anchors(cfg_file_path, new_anchors)
 
 
-def assert_anchors(cfg_file_path, anchor_line):
+def assert_anchors(cfg_file_path: str, anchor_line: str) -> None:
     anchor_line = anchor_line.replace(' ', '')
     found_anchor_line_count = 0
     with open(cfg_file_path, 'r') as f:
@@ -222,3 +211,11 @@ def assert_anchors(cfg_file_path, anchor_line):
             assert line == anchor_line, 'Anchor line does not match. '
             found_anchor_line_count += 1
     assert found_anchor_line_count > 0, 'There must be at least one anchorline in cfg file.'
+
+
+def _assert_upload_model(model_id: str) -> None:
+    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
+            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
+    upload_response = test_helper.LiveServerSession().put(
+        f'/api/zauberzeug/projects/pytest/models/{model_id}/file', files=data)
+    assert upload_response.status_code == 500, "We cant save the model proper yet."

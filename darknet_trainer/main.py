@@ -29,10 +29,12 @@ node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet
 
 @node.begin_training
 def begin_training(data: dict) -> None:
-    _begin_training(node, data, str(uuid4()))
+    training_uuid = str(uuid4())
+    _prepare_training(node, data, training_uuid)
+    _start_training(training_uuid)
 
 
-def _begin_training(node: Node, data: dict, training_uuid: str):
+def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     project_folder = _create_project_folder(node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
     image_resources = _extract_image_ressoures(data)
@@ -54,7 +56,6 @@ def _begin_training(node: Node, data: dict, training_uuid: str):
     yolo_cfg_helper.replace_classes_and_filters(len(box_categories), training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
 
-    return True
 
 
 def _create_project_folder(organization: str, project: str) -> str:
