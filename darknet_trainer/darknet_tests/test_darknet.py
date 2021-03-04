@@ -148,8 +148,8 @@ def test_download_model():
     assert len(test_helper.get_files_from_data_folder()) == 0
 
     _, _, trainings_folder = test_helper.create_needed_folders()
-    model_id = uuid4()
-    _assert_upload_model(model_id)
+
+    model_id = _assert_upload_model()
 
     main._download_model(trainings_folder, model_id, 'backend')
     files = test_helper.get_files_from_data_folder()
@@ -185,8 +185,8 @@ def test_replace_classes_and_filters():
 
 
 def test_create_anchors():
-    model_id = uuid4()
-    _assert_upload_model(model_id)
+
+    model_id = _assert_upload_model()
 
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
@@ -206,8 +206,8 @@ def test_create_anchors():
 
 
 def test_start_training():
-    model_id = uuid4()
-    _assert_upload_model(model_id)
+
+    model_id = _assert_upload_model()
 
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
@@ -221,8 +221,8 @@ def test_start_training():
     main._start_training(training_folder)
     # NOTE: /proc/{pid}/comm needs some time to show correct process name
     time.sleep(1)
-    assert _is_any_darknet_running() == True
-    assert _wait_until_first_iteration_reached(training_folder, timeout=20) == True
+    assert _is_any_darknet_running() == True, 'Training is not running'
+    assert _wait_until_first_iteration_reached(training_folder, timeout=40) == True, 'No iteration created.'
     main._stop_training(training_folder)
     time.sleep(1)
     assert _is_any_darknet_running() == False
@@ -261,9 +261,11 @@ def _assert_anchors(cfg_file_path: str, anchor_line: str) -> None:
     assert found_anchor_line_count > 0, 'There must be at least one anchorline in cfg file.'
 
 
-def _assert_upload_model(model_id: str) -> None:
+def _assert_upload_model() -> str:
+
     data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
             ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
-    upload_response = test_helper.LiveServerSession().put(
-        f'/api/zauberzeug/projects/pytest/models/{model_id}/file', files=data)
-    assert upload_response.status_code == 500, "We cant save the model proper yet."
+    upload_response = test_helper.LiveServerSession().post(
+        f'/api/zauberzeug/projects/pytest/models', files=data)
+    assert upload_response.status_code == 200
+    return upload_response.json()['id']
