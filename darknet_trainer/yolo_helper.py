@@ -1,3 +1,4 @@
+import subprocess
 from typing import List
 import helper
 import os
@@ -72,3 +73,9 @@ def create_train_and_test_file(training_folder: str, image_folder_for_training: 
         for image in images:
             if image['set'] == 'test':
                 f.write(f"{image_folder_for_training}/{image['id']}.jpg\n")
+
+
+def kill_all_darknet_processes():
+    p = subprocess.Popen('kill -9 `pgrep darknet`', shell=True)
+    p.communicate()
+    return p.returncode == 0

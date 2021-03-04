@@ -8,11 +8,16 @@ import yolo_cfg_helper
 from uuid import uuid4
 import os
 from glob import glob
+import time
+import subprocess
 
 
 @pytest.fixture(autouse=True, scope='function')
 def cleanup():
     shutil.rmtree('../data', ignore_errors=True)
+    yolo_helper.kill_all_darknet_processes()
+    yield
+    yolo_helper.kill_all_darknet_processes()
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -193,14 +198,54 @@ def test_create_anchors():
 
     anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
     original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
-    assert_anchors(original_cfg_file_path, anchor_line)
+    _assert_anchors(original_cfg_file_path, anchor_line)
 
     new_anchors = 'anchors=1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400'
     cfg_file_path = yolo_cfg_helper._find_cfg_file(f'../data/zauberzeug/pytest/trainings/{training_uuid}')
-    assert_anchors(cfg_file_path, new_anchors)
+    _assert_anchors(cfg_file_path, new_anchors)
 
 
-def assert_anchors(cfg_file_path: str, anchor_line: str) -> None:
+def test_start_training():
+    model_id = uuid4()
+    _assert_upload_model(model_id)
+
+    main.node.status.model = {'id': model_id}
+    main.node.status.organization = 'zauberzeug'
+    main.node.status.project = 'pytest'
+
+    data = test_helper.get_data()
+    training_uuid = str(uuid4())
+    main._prepare_training(main.node, data, training_uuid)
+
+    training_folder = f'/data/zauberzeug/pytest/trainings/{training_uuid}'
+    main._start_training(training_folder)
+    # NOTE: /proc/{pid}/comm needs some time to show correct process name
+    time.sleep(1)
+    assert _is_any_darknet_running() == True
+    assert _wait_until_first_iteration_reached(training_folder, timeout=20) == True
+    main._stop_training(training_folder)
+    time.sleep(1)
+    assert _is_any_darknet_running() == False
+
+
+def _is_any_darknet_running():
+    p = subprocess.Popen('pgrep darknet', shell=True)
+    p.communicate()
+    return p.returncode == 0
+
+
+def _wait_until_first_iteration_reached(training_folder: str, timeout: int) -> bool:
+    for i in range(timeout + 1):
+        with open(f'{training_folder}/last_training.log', 'r') as f:
+            content = f.read()
+
+        if '(next mAP calculation at 1000 iterations)' in content:
+            return True
+        time.sleep(1)
+    return False
+
+
+def _assert_anchors(cfg_file_path: str, anchor_line: str) -> None:
     anchor_line = anchor_line.replace(' ', '')
     found_anchor_line_count = 0
     with open(cfg_file_path, 'r') as f:

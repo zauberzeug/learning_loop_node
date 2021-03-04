@@ -22,6 +22,7 @@ from io import BytesIO
 import zipfile
 import os
 from glob import glob
+import subprocess
 
 hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet trainer')
@@ -47,15 +48,15 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
 
     yolo_helper.update_yolo_boxes(image_folder_for_training, data)
 
-    box_categories = helper.get_box_category_ids(data)
-    yolo_helper.create_names_file(training_folder, box_categories)
-    yolo_helper.create_data_file(training_folder, len(box_categories))
+    box_category_names = helper._get_box_category_names(data)
+    box_category_count = len(box_category_names)
+    yolo_helper.create_names_file(training_folder, box_category_names)
+    yolo_helper.create_data_file(training_folder, box_category_count)
     yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
     _download_model(training_folder, node.status.model['id'], node.hostname)
-    yolo_cfg_helper.replace_classes_and_filters(len(box_categories), training_folder)
+    yolo_cfg_helper.replace_classes_and_filters(box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
-
 
 
 def _create_project_folder(organization: str, project: str) -> str:
@@ -121,6 +122,25 @@ def _download_model(training_folder: str,  model_id: str, hostname: str):
 def stop() -> None:
     # nothing to do for the darknet trainer
     pass
+
+
+def _start_training(training_folder: str) -> None:
+    os.chdir(training_folder)
+    # NOTE we have to write the pid inside the bash command to get the correct pid.
+    cmd = 'nohup /darknet/darknet detector train data.txt tiny_yolo.cfg -dont_show -map >> last_training.log 2>&1 & echo $! > last_training.pid'
+    p = subprocess.Popen(cmd, shell=True)
+    _, err = p.communicate()
+    if p.returncode != 0:
+        raise Exception(f'Failed to start training with error: {err}')
+
+
+def _stop_training(training_folder: str) -> None:
+    os.chdir(training_folder)
+    cmd = 'kill -9 `cat last_training.pid`; rm last_training.pid'
+    p = subprocess.Popen(cmd, shell=True)
+    _, err = p.communicate()
+    if p.returncode != 0:
+        raise Exception(f'Failed to stop training with error: {err}')
 
 
 @ node.get_weightfile
