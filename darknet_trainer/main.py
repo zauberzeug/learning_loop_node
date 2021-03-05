@@ -31,8 +31,8 @@ node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='darknet
 @node.begin_training
 def begin_training(data: dict) -> None:
     training_uuid = str(uuid4())
-    _prepare_training(node, data, training_uuid)
-    _start_training(training_uuid)
+    training_folder = _prepare_training(node, data, training_uuid)
+    _start_training(training_folder)
 
 
 def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
@@ -54,9 +54,11 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     yolo_helper.create_data_file(training_folder, box_category_count)
     yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
-    _download_model(training_folder, node.status.model['id'], node.hostname)
+    _download_model(training_folder, node.status.organization,
+                    node.status.project, node.status.model['id'], node.hostname)
     yolo_cfg_helper.replace_classes_and_filters(box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
+    return training_folder
 
 
 def _create_project_folder(organization: str, project: str) -> str:
@@ -100,9 +102,9 @@ def _create_training_folder(project_folder: str, trainings_id: str) -> str:
     return training_folder
 
 
-def _download_model(training_folder: str,  model_id: str, hostname: str):
+def _download_model(training_folder: str, organization: str, project: str, model_id: str, hostname: str):
     # download model
-    download_response = requests.get(f'http://{hostname}/api/zauberzeug/projects/pytest/models/{model_id}/file')
+    download_response = requests.get(f'http://{hostname}/api/{organization}/projects/{project}/models/{model_id}/file')
     assert download_response.status_code == 200
     provided_filename = download_response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
 

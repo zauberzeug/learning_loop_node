@@ -151,7 +151,7 @@ def test_download_model():
 
     model_id = _assert_upload_model()
 
-    main._download_model(trainings_folder, model_id, 'backend')
+    main._download_model(trainings_folder, 'zauberzeug', 'pytest', model_id, 'backend')
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 2
 
@@ -215,9 +215,9 @@ def test_start_training():
 
     data = test_helper.get_data()
     training_uuid = str(uuid4())
-    main._prepare_training(main.node, data, training_uuid)
+    training_folder = main._prepare_training(main.node, data, training_uuid)
+    assert training_folder == f'/data/zauberzeug/pytest/trainings/{training_uuid}'
 
-    training_folder = f'/data/zauberzeug/pytest/trainings/{training_uuid}'
     main._start_training(training_folder)
     # NOTE: /proc/{pid}/comm needs some time to show correct process name
     time.sleep(1)
