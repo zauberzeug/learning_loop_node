@@ -7,6 +7,8 @@ authors = ["Zauberzeug <info@zauberzeug.com>"]
 [tool.poetry.dependencies]
 python = "^3.7"
 learning_loop_node = { path = "learning_loop_node/", develop = true }
+icecream = "^2.1.0"
+psutil = "^5.8.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
