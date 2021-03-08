@@ -55,6 +55,7 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     yolo_helper.create_data_file(training_folder, box_category_count)
     yolo_helper.create_train_and_test_file(
         training_folder, image_folder_for_training, data['images'])
+    yolo_helper.create_backup_dir(training_folder)
 
     _download_model(training_folder, node.status.organization,
                     node.status.project, node.status.model['id'], node.hostname)
@@ -166,6 +167,8 @@ async def step() -> None:
     """creating new model every 5 seconds for the demo project"""
     if node.status.model and node.status.project == 'pytest':
         await results.increment_time(node)
+
+
 def _check_state() -> None:
     if node.status.model:
         training_id = node.status.model['training_id']

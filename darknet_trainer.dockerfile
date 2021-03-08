@@ -30,7 +30,7 @@ COPY conf.sh /tmp/
 ARG CONFIG
 
 WORKDIR /
-RUN git clone https://github.com/AlexeyAB/darknet.git darknet && cd darknet && git checkout 64efa721ede91cd8ccc18257f98eeba43b73a6af 
+RUN git clone https://github.com/zauberzeug/darknet_alexeyAB.git darknet && cd darknet && git checkout 211bb29e9988f6204a32cd38d0720d171135873d 
 RUN cd darknet && chmod +x /tmp/conf.sh && /tmp/conf.sh $CONFIG && make clean && make
 
 
