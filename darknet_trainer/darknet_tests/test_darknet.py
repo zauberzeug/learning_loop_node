@@ -239,6 +239,19 @@ def test_check_crashed_training_state():
     assert state == 'crashed'
 
 
+def test_force_idle_state_after_crash():
+    training_uuid = str(uuid4())
+    _start_training(training_uuid)
+
+    state = main.get_training_state(training_uuid)
+    assert state == 'running'
+    assert _pid_file_exists(training_uuid) == True
+    yolo_helper.kill_all_darknet_processes()
+
+    main._check_state()
+    assert _pid_file_exists(training_uuid) == False
+
+
 def _start_training(training_uuid):
     model_id = _assert_upload_model()
     main.node.status.model = {'id': model_id}
@@ -291,3 +304,9 @@ def _assert_upload_model() -> str:
         f'/api/zauberzeug/projects/pytest/models', files=data)
     assert upload_response.status_code == 200
     return upload_response.json()['url'].split('/')[-2]
+
+
+def _pid_file_exists(training_uuid: str) -> bool:
+    training_path = main.get_training_path_by_id(training_uuid)
+    pid_path = f'{training_path}/last_training.pid'
+    return os.path.exists(pid_path)

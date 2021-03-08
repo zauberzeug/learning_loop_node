@@ -19,7 +19,8 @@ from glob import glob
 import subprocess
 from icecream import ic
 import psutil
-from status import State
+from status import State, Status
+
 
 hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
@@ -162,27 +163,27 @@ def get_weightfile(organization: str, project: str, model_id: str) -> io.Buffere
 
 
 @ node.on_event("startup")
-@ repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
-async def step() -> None:
-    """creating new model every 5 seconds for the demo project"""
-    if node.status.model and node.status.project == 'pytest':
-        await results.increment_time(node)
+@ repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
+async def check_state() -> None:
+    """checking the current status"""
+    await _check_state()
 
 
-def _check_state() -> None:
+async def _check_state() -> None:
+    ic('check state', )
     if node.status.model:
         training_id = node.status.model['training_id']
-
+        ic(training_id,)
         if training_id:
             state = get_training_state(training_id)
+            ic(state, )
             if state == 'crashed':
                 try:
                     _stop_training(training_id)
                 except:
                     pass
-
-                node.status.model = None
-                node.status.state = State.Idle
+                new_status = Status(id=node.status.id, name=node.status.name)
+                await node.update_status(new_status)
 
 
 def get_training_state(training_id):
