@@ -10,14 +10,17 @@ import os
 from glob import glob
 import time
 import subprocess
+from icecream import ic
 
 
 @pytest.fixture(autouse=True, scope='function')
 def cleanup():
+    working_directory = os.getcwd()
     shutil.rmtree('../data', ignore_errors=True)
     yolo_helper.kill_all_darknet_processes()
     yield
     yolo_helper.kill_all_darknet_processes()
+    os.chdir(working_directory)
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -206,26 +209,44 @@ def test_create_anchors():
 
 
 def test_start_training():
-
-    model_id = _assert_upload_model()
-
-    main.node.status.model = {'id': model_id}
-    main.node.status.organization = 'zauberzeug'
-    main.node.status.project = 'pytest'
-
-    data = test_helper.get_data()
     training_uuid = str(uuid4())
-    training_folder = main._prepare_training(main.node, data, training_uuid)
-    assert training_folder == f'/data/zauberzeug/pytest/trainings/{training_uuid}'
+    _start_training(training_uuid)
 
-    main._start_training(training_folder)
     # NOTE: /proc/{pid}/comm needs some time to show correct process name
     time.sleep(1)
     assert _is_any_darknet_running() == True, 'Training is not running'
-    assert _wait_until_first_iteration_reached(training_folder, timeout=40) == True, 'No iteration created.'
-    main._stop_training(training_folder)
+    assert _wait_until_first_iteration_reached(training_uuid, timeout=40) == True, 'No iteration created.'
+    main._stop_training(training_uuid)
     time.sleep(1)
     assert _is_any_darknet_running() == False
+
+
+def test_check_running_training_state():
+    training_uuid = str(uuid4())
+    _start_training(training_uuid)
+
+    state = main.get_training_state(training_uuid)
+    assert state == 'running'
+
+
+def test_check_crashed_training_state():
+    training_uuid = str(uuid4())
+    _start_training(training_uuid)
+
+    yolo_helper.kill_all_darknet_processes()
+
+    state = main.get_training_state(training_uuid)
+    assert state == 'crashed'
+
+
+def _start_training(training_uuid):
+    model_id = _assert_upload_model()
+    main.node.status.model = {'id': model_id}
+    main.node.status.organization = 'zauberzeug'
+    main.node.status.project = 'pytest'
+    data = test_helper.get_data()
+    main._prepare_training(main.node, data, training_uuid)
+    main._start_training(training_uuid)
 
 
 def _is_any_darknet_running():
@@ -234,7 +255,8 @@ def _is_any_darknet_running():
     return p.returncode == 0
 
 
-def _wait_until_first_iteration_reached(training_folder: str, timeout: int) -> bool:
+def _wait_until_first_iteration_reached(training_uuid: str, timeout: int) -> bool:
+    training_folder = main.get_training_path_by_id(training_uuid)
     for i in range(timeout + 1):
         with open(f'{training_folder}/last_training.log', 'r') as f:
             content = f.read()

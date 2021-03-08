@@ -12,6 +12,7 @@ learning_loop_node = { path = "learning_loop_node/", develop = true }
 pytest = "^6.2.1"
 autopep8 = "^1.5.5"
 icecream = "^2.1.0"
+psutil = "^5.8.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
