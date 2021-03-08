@@ -4,7 +4,7 @@ ENV TZ=Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN apt update
-RUN apt-get install -y curl python3.8 python3-distutils python3-pip git-all  
+RUN apt-get install -y curl python3.8 python3-distutils python3-pip git-all vim 
 RUN ln -sf /usr/bin/python3.8 /usr/bin/python3 && ln -sf /usr/bin/python3.8 /usr/bin/python
 
 # copied (not 1:1) from https://github.com/tiangolo/uvicorn-gunicorn-docker/blob/master/docker-images/python3.8.dockerfile
@@ -26,9 +26,12 @@ CMD ["/start.sh"]
 # <--- end
 
 # darknet
+COPY conf.sh /tmp/
+ARG CONFIG
+
 WORKDIR /
 RUN git clone https://github.com/AlexeyAB/darknet.git darknet && cd darknet && git checkout 64efa721ede91cd8ccc18257f98eeba43b73a6af 
-RUN cd darknet && make clean && make
+RUN cd darknet && chmod +x /tmp/conf.sh && /tmp/conf.sh $CONFIG && make clean && make
 
 
 # We use Poetry for dependency management

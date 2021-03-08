@@ -24,7 +24,9 @@ def get_data() -> dict:
 
 
 def get_files_from_data_folder():
-    return [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
+    files = [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
+    files.sort()
+    return files
 
 
 def create_needed_folders():
