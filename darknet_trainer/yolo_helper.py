@@ -3,6 +3,7 @@ from typing import List
 import helper
 import os
 from glob import glob
+from mAP_parser import MAPParser
 
 
 def to_yolo(learning_loop_box, image_width, image_height, categories):
@@ -84,3 +85,18 @@ def kill_all_darknet_processes():
     p = subprocess.Popen('kill -9 `pgrep darknet`', shell=True)
     p.communicate()
     return p.returncode == 0
+
+
+def parse_yolo_lines(lines: str, iteration: int = None) -> dict:
+
+    parser = MAPParser(lines)
+    data = parser.parse_mAP()
+    data['classes'] = parser.parse_classes()
+
+    if iteration:
+        data['iteration'] = iteration
+    else:
+        data.update(parser.parse_training_status())
+
+    # print(data)
+    return data
