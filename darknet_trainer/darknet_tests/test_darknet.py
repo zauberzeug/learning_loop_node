@@ -234,6 +234,7 @@ def test_check_crashed_training_state():
     _start_training(training_uuid)
 
     yolo_helper.kill_all_darknet_processes()
+    time.sleep(.1)
 
     state = main.get_training_state(training_uuid)
     assert state == 'crashed'
