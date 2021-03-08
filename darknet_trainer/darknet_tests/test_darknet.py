@@ -11,6 +11,7 @@ from glob import glob
 import time
 import subprocess
 from icecream import ic
+import learning_loop_node.node_helper as node_helper
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -41,7 +42,7 @@ def test_download_images():
     resources = main._extract_image_ressoures(data)
     ids = main._extract_image_ids(data)
 
-    main._download_images('backend', zip(resources, ids), image_folder)
+    node_helper.download_images('backend', zip(resources, ids), image_folder)
     assert len(test_helper.get_files_from_data_folder()) == 2
 
 
@@ -108,7 +109,7 @@ def test_create_image_links():
     data = test_helper.get_data()
     image_ids = main._extract_image_ids(data)
     image_resources = main._extract_image_ressoures(data)
-    main._download_images('backend', zip(image_resources, image_ids), image_folder)
+    node_helper.download_images('backend', zip(image_resources, image_ids), image_folder)
 
     yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
@@ -154,7 +155,7 @@ def test_download_model():
 
     model_id = _assert_upload_model()
 
-    main._download_model(trainings_folder, 'zauberzeug', 'pytest', model_id, 'backend')
+    node_helper.download_model(trainings_folder, 'zauberzeug', 'pytest', model_id, 'backend')
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 2
 
@@ -239,7 +240,8 @@ def test_check_crashed_training_state():
     assert state == 'crashed'
 
 
-def test_force_idle_state_after_crash():
+@pytest.mark.asyncio
+async def test_force_idle_state_after_crash():
     training_uuid = str(uuid4())
     _start_training(training_uuid)
 
@@ -248,7 +250,7 @@ def test_force_idle_state_after_crash():
     assert _pid_file_exists(training_uuid) == True
     yolo_helper.kill_all_darknet_processes()
 
-    main._check_state()
+    await main._check_state()
     assert _pid_file_exists(training_uuid) == False
 
 

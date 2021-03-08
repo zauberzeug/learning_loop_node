@@ -1,13 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 import socketio
 import asyncio
-import functools
 from status import Status, State
-import uuid
-import random
 import asyncio
 import requests
-import simplejson as json
 
 
 class Node(FastAPI):
@@ -42,7 +38,7 @@ class Node(FastAPI):
                 return 'node does not provide a get_weightfile function'
             # NOTE: Do not use self.status.organization here. The requested model maybe not belongs to the currently running training.
             uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
-            data = [('files', self._get_weightfile(organization, project, model['id']))]            
+            data = [('files', self._get_weightfile(organization, project, model['id']))]
             response = requests.put(
                 f'{uri_base}/models/{model["id"]}/file',
                 files=data

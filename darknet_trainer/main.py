@@ -2,24 +2,21 @@ import asyncio
 from threading import Thread
 import backdoor_controls
 from fastapi_utils.tasks import repeat_every
-import requests
 import io
 from learning_loop_node.node import Node
+import learning_loop_node.node_helper as node_helper
 import os
 from typing import List
 import helper
 import yolo_helper
 import yolo_cfg_helper
 from uuid import uuid4
-import shutil
-from io import BytesIO
-import zipfile
 import os
 from glob import glob
 import subprocess
 from icecream import ic
 import psutil
-from status import State, Status
+from status import  Status
 
 
 hostname = 'backend'
@@ -40,7 +37,7 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     image_folder = _create_image_folder(project_folder)
     image_resources = _extract_image_ressoures(data)
     image_ids = _extract_image_ids(data)
-    _download_images(node.hostname, zip(
+    node_helper.download_images(node.hostname, zip(
         image_resources, image_ids), image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
@@ -58,8 +55,8 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
         training_folder, image_folder_for_training, data['images'])
     yolo_helper.create_backup_dir(training_folder)
 
-    _download_model(training_folder, node.status.organization,
-                    node.status.project, node.status.model['id'], node.hostname)
+    node_helper.download_model(training_folder, node.status.organization,
+                               node.status.project, node.status.model['id'], node.hostname)
     yolo_cfg_helper.replace_classes_and_filters(
         box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
@@ -85,51 +82,10 @@ def _create_image_folder(project_folder: str) -> str:
     return image_folder
 
 
-def _download_images(hostname: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
-    for resource, image_id in image_ressources_and_ids:
-        url = f'http://{hostname}/api{resource}'
-        response = requests.get(url)
-        if response.status_code == 200:
-            try:
-                with open(f'/{image_folder}/{image_id}.jpg', 'wb') as f:
-                    f.write(response.content)
-            except IOError:
-                print(f"Could not save image with id {image_id}")
-        else:
-            # TODO How to deal with this kind of error?
-            pass
-
-
 def _create_training_folder(project_folder: str, trainings_id: str) -> str:
     training_folder = f'{project_folder}/trainings/{trainings_id}'
     os.makedirs(training_folder, exist_ok=True)
     return training_folder
-
-
-def _download_model(training_folder: str, organization: str, project: str, model_id: str, hostname: str):
-    # download model
-    download_response = requests.get(
-        f'http://{hostname}/api/{organization}/projects/{project}/models/{model_id}/file')
-    assert download_response.status_code == 200
-    provided_filename = download_response.headers.get(
-        "Content-Disposition").split("filename=")[1].strip('"')
-
-    # unzip and place downloaded model
-    target_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
-    shutil.rmtree(target_path, ignore_errors=True)
-    filebytes = BytesIO(download_response.content)
-    with zipfile.ZipFile(filebytes, 'r') as zip:
-        zip.extractall(target_path)
-
-    files = glob(f'{target_path}/**/*', recursive=True)
-    for file in files:
-        shutil.move(file, training_folder)
-
-
-@ node.stop_training
-def stop() -> None:
-    # nothing to do for the darknet trainer
-    pass
 
 
 def _start_training(training_id: str) -> None:
@@ -143,6 +99,11 @@ def _start_training(training_id: str) -> None:
         raise Exception(f'Failed to start training with error: {err}')
 
     node.status.model['training_id'] = training_id
+
+
+@node.stop_training
+def stop() -> None:
+    _stop_training(node.status.model['training_id'])
 
 
 def _stop_training(training_id: str) -> None:
