@@ -12,6 +12,7 @@ import time
 import subprocess
 from icecream import ic
 import learning_loop_node.node_helper as node_helper
+from status import State
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -232,6 +233,7 @@ def test_check_running_training_state():
 
 def test_check_crashed_training_state():
     training_uuid = str(uuid4())
+
     _start_training(training_uuid)
 
     yolo_helper.kill_all_darknet_processes()
@@ -241,9 +243,10 @@ def test_check_crashed_training_state():
 
 
 @pytest.mark.asyncio
-async def test_force_idle_state_after_crash():
+async def test_cleanup_after_crash():
     training_uuid = str(uuid4())
     _start_training(training_uuid)
+    assert main.node.status.model['training_id'] == training_uuid
 
     state = main.get_training_state(training_uuid)
     assert state == 'running'
@@ -252,6 +255,28 @@ async def test_force_idle_state_after_crash():
 
     await main._check_state()
     assert _pid_file_exists(training_uuid) == False
+    assert main.node.status.model == None
+
+
+@pytest.mark.asyncio
+async def test_reset_to_idle_after_crash():
+    await main.node.connect()
+    await main.node.sio.sleep(1.0)
+    await main.node.update_state(State.Idle)
+    _assert_trainer_state(State.Idle)
+
+    model_id = _assert_upload_model()
+    main.node.status.model = {'id': model_id}
+    model = {'id': model_id}
+    begin_training_handler = main.node.sio.handlers['/']['begin_training']
+
+    await begin_training_handler('zauberzeug', 'pytest', model)
+    _assert_trainer_state(State.Running)
+
+    yolo_helper.kill_all_darknet_processes()
+
+    await main._check_state()
+    _assert_trainer_state(State.Idle)
 
 
 def _start_training(training_uuid):
@@ -312,3 +337,12 @@ def _pid_file_exists(training_uuid: str) -> bool:
     training_path = main.get_training_path_by_id(training_uuid)
     pid_path = f'{training_path}/last_training.pid'
     return os.path.exists(pid_path)
+
+
+def _assert_trainer_state(state: State) -> None:
+    training_response = test_helper.LiveServerSession().get(
+        f'/api/zauberzeug/projects/pytest/trainings')
+    assert training_response.status_code == 200
+    trainers = training_response.json()['trainers']
+    darknet_trainer = [trainer for trainer in trainers if trainer['name'] == 'darknet trainer'][0]
+    assert darknet_trainer['state'] == state
