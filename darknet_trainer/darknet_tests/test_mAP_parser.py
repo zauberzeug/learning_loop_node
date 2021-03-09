@@ -1,8 +1,11 @@
+import shutil
 from mAP_parser import MAPParser
-
+import pytest
+import main
+import darknet_tests.test_helper as test_helper
 data = """
 
-(next mAP calculation at 1000 iterations) 
+ (next mAP calculation at 1000 iterations) 
  1: 46.133102, 58.463966 avg loss, 3e-06 rate, 70.404934 seconds, 135808 images, 11070.078691 hours left
  total_bbox = 142060, rewritten_bbox = 0.026045 % 
  total_bbox = 142063, rewritten_bbox = 0.026045 % 
@@ -101,10 +104,18 @@ Set -points flag:
  `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
 
  mean_average_precision (mAP@0.5) = 0.000000 
-
+Loaded: 0.061675 seconds
+ (next mAP calculation at 1001 iterations) 
  """
 
-parser = MAPParser(data)
+parser = MAPParser(MAPParser.extract_iteration_log(data))
+
+
+def test_extract_iteration_log():
+    iteration_log = MAPParser.extract_iteration_log(data)
+    assert iteration_log[1].startswith(
+        ' 2: 109.290443, 99.471283 avg loss, 0.000001 rate, 70.404934 seconds, 135808 images, 11070.078691 hours left')
+    assert iteration_log[-1] == 'Loaded: 0.061675 seconds'
 
 
 def test_parse_mAP():
@@ -120,24 +131,32 @@ def test_parse_iteration():
 
 
 def test_parse_classes():
-    classes = parser.parse_classes()
-    assert len(classes) == 2
-    assert classes[0]['name'] == "green"
-    assert classes[1]['name'] == "purple"
+    parsed_class = parser.parse_classes()
+    assert len(parsed_class) == 2
+    assert parsed_class[0]['name'] == "purple"
+    assert parsed_class[1]['name'] == "green"
+
+    purple_class = parsed_class[0]
+    assert purple_class['id'] == "0"
+    assert purple_class['ap'] == 37
+    assert purple_class['tp'] == 34
+    assert purple_class['fp'] == 7
+    assert purple_class['fn'] == 8
 
 
-def test_parse_class():
+def test_first_intetration():
+    training_uuid = "some_uuid"
+    _, _, training_path = test_helper.create_needed_folders(training_uuid)
+    shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
 
-    parsed_class = parser._parse_class('class_id = 0, name = purple, ap = 37.00%          (TP = 34, FP = 7, FN = 8)')
+    new_model = main.get_new_model_from_log(training_uuid)
+    assert new_model
+    assert new_model['iteration'] == 1089
+    confusion_matrix = new_model['confusion_matrix']
+    assert len(confusion_matrix) == 2
+    purple_matrix = confusion_matrix['purple']
 
-    assert parsed_class['id'] == "0"
-    assert parsed_class['name'] == "purple"
-    assert parsed_class['ap'] == 37
-    assert parsed_class['tp'] == 34
-    assert parsed_class['fp'] == 7
-    assert parsed_class['fn'] == 8
-
-
-def test_parse_training_status():
-    assert parser.parse_training_status() == {
-        'avg_loss': 99.471283, 'iteration': 2, 'loss': 109.290443, 'rate': 0.000001}
+    assert purple_matrix['ap'] == 42
+    assert purple_matrix['tp'] == 1
+    assert purple_matrix['fp'] == 2
+    assert purple_matrix['fn'] == 3

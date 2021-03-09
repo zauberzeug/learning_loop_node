@@ -1,4 +1,5 @@
 import asyncio
+from mAP_parser import MAPParser
 from threading import Thread
 import backdoor_controls
 from fastapi_utils.tasks import repeat_every
@@ -16,12 +17,14 @@ from glob import glob
 import subprocess
 from icecream import ic
 import psutil
-from status import  Status
+from status import Status
 
 
 hostname = 'backend'
 node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
             name='darknet trainer')
+
+# wie geht das hier überhaupt? das wird doch erst beim ausführen von begin_training getriggert oder nicht?
 
 
 @node.begin_training
@@ -136,15 +139,47 @@ async def _check_state() -> None:
         training_id = node.status.model['training_id']
         ic(training_id,)
         if training_id:
-            state = get_training_state(training_id)
-            ic(state, )
-            if state == 'crashed':
-                try:
-                    _stop_training(training_id)
-                except:
-                    pass
-                new_status = Status(id=node.status.id, name=node.status.name)
-                await node.update_status(new_status)
+
+            await check_for_new_model(training_id)
+            await check_training_state(training_id)
+
+
+async def check_training_state(training_id: str) -> None:
+    state = get_training_state(training_id)
+    ic(state, )
+    if state == 'crashed':
+        try:
+            _stop_training(training_id)
+        except:
+            pass
+        new_status = Status(id=node.status.id, name=node.status.name)
+        await node.update_status(new_status)
+
+
+async def check_for_new_model(training_id: str) -> None:
+    new_model = get_new_model_from_log()
+    if new_model:
+        print('not finished yet.')
+
+
+def get_new_model_from_log(training_id: str) -> dict:
+    training_path = get_training_path_by_id(training_id)
+    log_file_path = f'{training_path}/last_training.log'
+
+    with open(log_file_path, 'r') as f:
+        log = f.read()
+
+    parser = MAPParser(MAPParser.extract_iteration_log(log))
+    iteration = parser.parse_iteration()
+
+    confusion_matrices = {}
+    for parsed_class in parser.parse_classes():
+        name = parsed_class['name']
+        del parsed_class['id']
+        del parsed_class['name']
+        confusion_matrices[name] = parsed_class
+
+    return {'iteration': iteration, 'confusion_matrix': confusion_matrices}
 
 
 def get_training_state(training_id):
