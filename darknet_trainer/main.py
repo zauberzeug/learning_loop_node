@@ -18,6 +18,7 @@ import subprocess
 from icecream import ic
 import psutil
 from status import Status
+from uuid import uuid4
 
 
 hostname = 'backend'
@@ -140,7 +141,7 @@ async def _check_state() -> None:
         ic(training_id,)
         if training_id:
 
-            await check_for_new_model(training_id)
+            await _check_for_new_model(training_id)
             await check_training_state(training_id)
 
 
@@ -156,13 +157,25 @@ async def check_training_state(training_id: str) -> None:
         await node.update_status(new_status)
 
 
-async def check_for_new_model(training_id: str) -> None:
-    new_model = get_new_model_from_log()
-    if new_model:
-        print('not finished yet.')
+async def _check_for_new_model(training_id: str) -> None:
+    model = parse_latest_confusion_matrix(training_id)
+    if model:
+        last_published_iteration = node.status.model.get('last_published_iteration')
+        if not last_published_iteration or model['iteration'] > last_published_iteration:
+            new_model = {
+                'id': str(uuid4()),
+                'hyperparameters': node.status.hyperparameters,
+                'confusion_matrix': model['confusion_matrix'],
+                'parent_id': node.status.model['id'],
+                'train_image_count': len(node.status.train_images),
+                'test_image_count': len(node.status.test_images),
+                'trainer_id': node.status.id,
+            }
+            await node.sio.call('update_model', (node.status.organization, node.status.project, new_model))
+            node.status.model['last_published_iteration'] = model['iteration']
 
 
-def get_new_model_from_log(training_id: str) -> dict:
+def parse_latest_confusion_matrix(training_id: str) -> dict:
     training_path = get_training_path_by_id(training_id)
     log_file_path = f'{training_path}/last_training.log'
 

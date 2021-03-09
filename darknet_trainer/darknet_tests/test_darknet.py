@@ -154,7 +154,7 @@ def test_download_model():
 
     _, _, trainings_folder = test_helper.create_needed_folders()
 
-    model_id = _assert_upload_model()
+    model_id = test_helper.assert_upload_model()
 
     node_helper.download_model(trainings_folder, 'zauberzeug', 'pytest', model_id, 'backend')
     files = test_helper.get_files_from_data_folder()
@@ -191,7 +191,7 @@ def test_replace_classes_and_filters():
 
 def test_create_anchors():
 
-    model_id = _assert_upload_model()
+    model_id = test_helper.assert_upload_model()
 
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
@@ -266,7 +266,7 @@ async def test_reset_to_idle_after_crash():
     await main.node.update_state(State.Idle)
     _assert_trainer_state(State.Idle)
 
-    model_id = _assert_upload_model()
+    model_id = test_helper.assert_upload_model()
     main.node.status.model = {'id': model_id}
     model = {'id': model_id}
     begin_training_handler = main.node.sio.handlers['/']['begin_training']
@@ -281,7 +281,7 @@ async def test_reset_to_idle_after_crash():
 
 
 def _start_training(training_uuid):
-    model_id = _assert_upload_model()
+    model_id = test_helper.assert_upload_model()
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
     main.node.status.project = 'pytest'
@@ -322,16 +322,6 @@ def _assert_anchors(cfg_file_path: str, anchor_line: str) -> None:
             assert line == anchor_line, 'Anchor line does not match. '
             found_anchor_line_count += 1
     assert found_anchor_line_count > 0, 'There must be at least one anchorline in cfg file.'
-
-
-def _assert_upload_model() -> str:
-
-    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
-            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
-    upload_response = test_helper.LiveServerSession().post(
-        f'/api/zauberzeug/projects/pytest/models', files=data)
-    assert upload_response.status_code == 200
-    return upload_response.json()['url'].split('/')[-2]
 
 
 def _pid_file_exists(training_uuid: str) -> bool:

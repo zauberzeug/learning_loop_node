@@ -35,3 +35,12 @@ def create_needed_folders(training_uuid = 'some_uuid'):
     training_folder = main._create_training_folder(project_folder, training_uuid)
 
     return project_folder, image_folder, training_folder
+
+
+def assert_upload_model() -> str:
+    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
+            ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
+    upload_response = LiveServerSession().post(
+        f'/api/zauberzeug/projects/pytest/models', files=data)
+    assert upload_response.status_code == 200
+    return upload_response.json()['url'].split('/')[-2]
