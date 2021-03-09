@@ -1,11 +1,12 @@
+# NOTE: MAPParser loops backwards
 class MAPParser:
-    def __init__(self, log_file: str):
-        self.log_file_lines = log_file.splitlines()
+    def __init__(self, log_content: str):
+        self.log_file_lines = log_content.splitlines()
 
     def parse_mAP(self):
         # e.g. "mean average precision (mAP@0.50) = 0.793866, or 79.39 % ""
-        for line in self.log_file_lines:
-            line = line.strip()
+        for line in range(len(self.log_file_lines) - 1, 0, -1):
+            line = self.log_file_lines[line].strip()
             match = 'mean average precision'
             if line.startswith(match):
                 mAP_percentage = line.split('mean average precision')[1].split('mAP@')[1].split(')')[0]
@@ -15,28 +16,28 @@ class MAPParser:
         return
 
     def parse_iteration(self):
-        for index, line in enumerate(self.log_file_lines):
-            line = line.strip()
+        # (next mAP calculation at 1000 iterations)
+        #  2: 109.290443, 99.471283 avg loss, 0.000001 rate, 70.404934 seconds, 135808 images, 11070.078691 hours left
+        for line_count in range(len(self.log_file_lines) - 1, 0, -1):
+            line = self.log_file_lines[line_count].strip()
             match = '(next mAP calculation at'
             if line.startswith(match):
-                iteration = int(self.log_file_lines[index + 1].split()[0].replace(':', ''))
+                iteration = int(self.log_file_lines[line_count + 1].split()[0].replace(':', ''))
                 return iteration
         return
 
     def parse_classes(self):
         classes = []
-        for line in self.log_file_lines:
-            line = line.strip()
+        for line in range(len(self.log_file_lines) - 1, 0, -1):
+            line = self.log_file_lines[line].strip()
             if line.startswith("class_id"):
-                a = line.split(", ")
-                id = int(line.split("(")[1].split(", ")[2].split(" = ")[1].split(")")[0])
                 classes.append(self._parse_class(line))
         return classes
 
     def parse_training_status(self):
         # e.g. 1061: 109.290443, 99.471283 avg loss, 0.000001 rate, 70.404934 seconds, 135808 images, 11070.078691 hours left
-        for line in self.log_file_lines:
-            line = line.strip()
+        for line in range(len(self.log_file_lines) - 1, 0, -1):
+            line = self.log_file_lines[line].strip()
             if "hours left" in line:
                 data = line.split(", ")
                 return {

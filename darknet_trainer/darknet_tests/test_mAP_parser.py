@@ -116,14 +116,14 @@ def test_parse_mAP():
 
 def test_parse_iteration():
     iteration = parser.parse_iteration()
-    assert iteration == 1
+    assert iteration == 2
 
 
 def test_parse_classes():
     classes = parser.parse_classes()
     assert len(classes) == 2
-    assert classes[0]['name'] == "purple"
-    assert classes[1]['name'] == "green"
+    assert classes[0]['name'] == "green"
+    assert classes[1]['name'] == "purple"
 
 
 def test_parse_class():
@@ -140,4 +140,4 @@ def test_parse_class():
 
 def test_parse_training_status():
     assert parser.parse_training_status() == {
-        'avg_loss': 58.463966, 'iteration': 1, 'loss': 46.133102, 'rate': 3e-06}
+        'avg_loss': 99.471283, 'iteration': 2, 'loss': 109.290443, 'rate': 0.000001}
