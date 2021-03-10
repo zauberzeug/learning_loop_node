@@ -192,11 +192,17 @@ def parse_latest_confusion_matrix(training_id: str) -> Union[dict, None]:
     confusion_matrices = {}
     for parsed_class in parser.parse_classes():
         name = parsed_class['name']
+        id = _get_id_of_category_from_name(name)
         del parsed_class['id']
         del parsed_class['name']
-        confusion_matrices[name] = parsed_class
+        confusion_matrices[id] = parsed_class
 
     return {'iteration': iteration, 'confusion_matrix': confusion_matrices}
+
+
+def _get_id_of_category_from_name(name: str) -> str:
+    category_id = [category['id'] for category in node.status.box_categories if category['name'] == name]
+    return category_id[0]
 
 
 def get_training_state(training_id):
