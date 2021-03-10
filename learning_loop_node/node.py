@@ -84,9 +84,12 @@ class Node(FastAPI):
             await self.update_state(State.Offline)
 
     async def connect(self):
-        await self.sio.disconnect()
-        print('connecting to Learning Loop', flush=True)
+        try:
+            await self.sio.disconnect()
+        except:
+            pass
 
+        print('connecting to Learning Loop', flush=True)
         try:
             await self.sio.connect(f"ws://{self.hostname}", socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
