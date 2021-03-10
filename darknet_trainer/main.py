@@ -7,7 +7,7 @@ import io
 from learning_loop_node.node import Node
 import learning_loop_node.node_helper as node_helper
 import os
-from typing import List
+from typing import List, Union
 import helper
 import yolo_helper
 import yolo_cfg_helper
@@ -175,14 +175,18 @@ async def _check_for_new_model(training_id: str) -> None:
             node.status.model['last_published_iteration'] = model['iteration']
 
 
-def parse_latest_confusion_matrix(training_id: str) -> dict:
+def parse_latest_confusion_matrix(training_id: str) -> Union[dict, None]:
     training_path = get_training_path_by_id(training_id)
     log_file_path = f'{training_path}/last_training.log'
 
     with open(log_file_path, 'r') as f:
         log = f.read()
 
-    parser = MAPParser(MAPParser.extract_iteration_log(log))
+    iteration_log = MAPParser.extract_iteration_log(log)
+    if not iteration_log:
+        return None
+
+    parser = MAPParser(iteration_log)
     iteration = parser.parse_iteration()
 
     confusion_matrices = {}
