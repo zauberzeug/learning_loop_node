@@ -18,7 +18,6 @@ async def increment_time(node: Node):
         maximum = minimum + 1
         confusion_matrix[category['id']] = {
             'tp': random.randint(minimum, maximum),
-            'tn': random.randint(minimum, maximum),
             'fp': max(random.randint(10-maximum, 10-minimum), 2),
             'fn': max(random.randint(10-maximum, 10-minimum), 2),
         }
