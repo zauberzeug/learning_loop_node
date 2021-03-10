@@ -22,12 +22,13 @@ def test_parse_latest_confusion_matrix():
     _, _, training_path = test_helper.create_needed_folders(training_uuid)
     shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
 
+    main.node.status.box_categories = get_box_categories()
     new_model = main.parse_latest_confusion_matrix(training_uuid)
     assert new_model
     assert new_model['iteration'] == 1089
     confusion_matrix = new_model['confusion_matrix']
     assert len(confusion_matrix) == 2
-    purple_matrix = confusion_matrix['purple']
+    purple_matrix = confusion_matrix[main.node.status.box_categories[0]['id']]
 
     assert purple_matrix['ap'] == 42
     assert purple_matrix['tp'] == 1
@@ -37,10 +38,6 @@ def test_parse_latest_confusion_matrix():
 
 @pytest.mark.asyncio
 async def test_model_is_updated():
-    def get_box_categories():
-        content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/data').json()
-        categories = content['box_categories']
-        return categories
 
     def get_model_ids_from__latest_training():
         content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/trainings')
@@ -73,3 +70,9 @@ async def test_model_is_updated():
     assert main.node.status.model.get('last_published_iteration') == 1089
     model_ids = get_model_ids_from__latest_training()
     assert(len(model_ids)) == 2
+
+
+def get_box_categories():
+    content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/data').json()
+    categories = content['box_categories']
+    return categories
