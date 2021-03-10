@@ -28,7 +28,7 @@ def cleanup():
 @pytest.fixture(autouse=True, scope='module')
 def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 2, 'image_style': 'beautiful',
+    project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
                              'categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'detections': 3, 'annotations': 0, 'skeleton': False}
     assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
@@ -44,7 +44,17 @@ def test_download_images():
     ids = main._extract_image_ids(data)
 
     node_helper.download_images('backend', zip(resources, ids), image_folder)
-    assert len(test_helper.get_files_from_data_folder()) == 2
+    assert len(test_helper.get_files_from_data_folder()) == 3
+
+
+def test_set_node_properties():
+    data = test_helper.get_data()
+    box_categories = data['box_categories']
+    main._set_node_properties(main.node, data)
+
+    assert main.node.status.box_categories == box_categories
+    assert main.node.status.train_images == 2
+    assert main.node.status.test_images == 1
 
 
 def test_yolo_box_creation():
@@ -55,7 +65,7 @@ def test_yolo_box_creation():
     image_folder_for_training = yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
     yolo_helper.update_yolo_boxes(image_folder_for_training, data)
-    assert len(test_helper.get_files_from_data_folder()) == 2
+    assert len(test_helper.get_files_from_data_folder()) == 3
 
     first_image_id = image_ids[0]
     with open(f'{image_folder_for_training}/{first_image_id}.txt', 'r') as f:
@@ -115,11 +125,13 @@ def test_create_image_links():
     yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
     files = test_helper.get_files_from_data_folder()
-    assert len(files) == 4
+    assert len(files) == 6
     assert files[0] == '../data/zauberzeug/pytest/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
     assert files[1] == '../data/zauberzeug/pytest/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
-    assert files[2] == '../data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
-    assert files[3] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
+    assert files[2] == '../data/zauberzeug/pytest/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg'
+    assert files[3] == '../data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
+    assert files[4] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
+    assert files[5] == '../data/zauberzeug/pytest/trainings/some_uuid/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg'
 
 
 def test_create_train_and_test_file():
@@ -139,8 +151,9 @@ def test_create_train_and_test_file():
     with open(f'{trainings_folder}/train.txt', 'r') as f:
         content = f.readlines()
 
-    assert len(content) == 1
+    assert len(content) == 2
     assert content[0] == '/data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg\n'
+    assert content[1] == '/data/zauberzeug/pytest/trainings/some_uuid/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg\n'
 
     with open(f'{trainings_folder}/test.txt', 'r') as f:
         content = f.readlines()

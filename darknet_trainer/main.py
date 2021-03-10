@@ -36,6 +36,7 @@ def begin_training(data: dict) -> None:
 
 
 def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
+    _set_node_properties(node, data)
     project_folder = _create_project_folder(
         node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
@@ -64,6 +65,19 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     yolo_cfg_helper.replace_classes_and_filters(
         box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
+
+
+def _set_node_properties(node: Node, data: dict) -> None:
+    node.status.box_categories = data['box_categories']
+    train_image_count, test_image_count = _count_train_and_test_images(data['images'])
+    node.status.train_images = train_image_count
+    node.status.test_images = test_image_count
+
+
+def _count_train_and_test_images(images: dict) -> None:
+    train_image_count = len([image for image in images if image['set'] == 'train'])
+    test_image_count = len([image for image in images if image['set'] == 'test'])
+    return train_image_count, test_image_count
 
 
 def _create_project_folder(organization: str, project: str) -> str:
