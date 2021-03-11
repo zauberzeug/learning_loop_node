@@ -29,6 +29,24 @@ node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
 # wie geht das hier überhaupt? das wird doch erst beim ausführen von begin_training getriggert oder nicht?
 
 
+@node.get_model_files
+def get_model_files() -> None:
+    files = _get_model_files()  # TODO: Add parameters
+
+
+def _get_model_files(model_id: str, node: Node) -> dict:
+    weightfile_path = glob(f'/data/**/trainings/**/{model_id}.weights', recursive=True)
+    if not weightfile_path:
+        raise Exception(f'No model found for id: {model_id}.')
+
+    trainings_id = weightfile_path[0].split('/')[5]
+    training_path = f'/data/{node.status.organization}/{node.status.project}/trainings/{trainings_id}/'
+    cfg_file_path = f'{training_path}/tiny_yolo.cfg'
+    names_file_path = f'{training_path}/names.txt'
+
+    return {'weightfile': weightfile_path[0], 'cfgfile': cfg_file_path, 'namesfile': names_file_path}
+
+
 @node.begin_training
 def begin_training(data: dict) -> None:
     training_uuid = str(uuid4())
@@ -134,7 +152,7 @@ def _stop_training(training_id: str) -> None:
         raise Exception(f'Failed to stop training with error: {err}')
 
 
-@ node.on_event("startup")
+@node.on_event("startup")
 @ repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
 async def check_state() -> None:
     """checking the current status"""
