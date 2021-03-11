@@ -1,0 +1,70 @@
+(next mAP calculation at 1086 iterations)
+ 1087: -nan, -nan avg loss, 0.001000 rate, 0.327097 seconds, 69568 images, 70.057442 hours left
+1Total Detection Time: 0 Seconds
+ total_bbox = 154327, rewritten_bbox = 0.018791 %
+Resizing to initial size: 32 x 32  try to allocate additional workspace_size = 0.15 MB
+ CUDA allocate done!
+ calculation mAP (mean average precision)...
+ Detection layer: 16 - type = 28
+ Detection layer: 23 - type = 28
+ detections_count = 0, unique_truth_count = 3
+class_id = 0, name = purple, ap = 0.00%      (TP = 0, FP = 0, FN = 1)
+class_id = 1, name = green, ap = -nan%       (TP = 0, FP = 0, FN = 2)
+ for conf_thresh = 0.25, precision = -nan, recall = 0.00, F1-score = -nan
+ for conf_thresh = 0.25, TP = 0, FP = 0, FN = 3, average IoU = 0.00 %
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall
+ mean average precision (mAP@0.50) = -nan, or -nan %
+Set -points flag:
+ `-points 101` for MS COCO
+ `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data)
+ `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+ mean_average_precision (mAP@0.5) = -nan
+Loaded: 0.213649 seconds
+ (next mAP calculation at 1087 iterations)
+ 1088: -nan, -nan avg loss, 0.001000 rate, 0.357280 seconds, 69632 images, 69.995921 hours left
+1Total Detection Time: 0 Seconds
+Saving weights to backup//tiny_yolo_best_mAP_0.000000_iteration_1088_avgloss_-nan_.weights
+ total_bbox = 154468, rewritten_bbox = 0.018774 %
+Resizing to initial size: 32 x 32  try to allocate additional workspace_size = 0.15 MB
+ CUDA allocate done!
+ calculation mAP (mean average precision)...
+ Detection layer: 16 - type = 28
+ Detection layer: 23 - type = 28
+ detections_count = 0, unique_truth_count = 3
+class_id = 0, name = purple, ap = 0.00%      (TP = 0, FP = 0, FN = 1)
+class_id = 1, name = green, ap = 0.00%       (TP = 0, FP = 0, FN = 2)
+ for conf_thresh = 0.25, precision = -nan, recall = 0.00, F1-score = -nan
+ for conf_thresh = 0.25, TP = 0, FP = 0, FN = 3, average IoU = 0.00 %
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall
+ mean average precision (mAP@0.50) = 0.000000, or 0.00 %
+Set -points flag:
+ `-points 101` for MS COCO
+ `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data)
+ `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+ mean_average_precision (mAP@0.5) = 0.000000
+New best mAP!
+Loaded: 0.025187 seconds
+ (next mAP calculation at 1088 iterations)
+ Last accuracy mAP@0.5 = 0.00 %, best = 0.00 %
+ 1089: -nan, -nan avg loss, 0.001000 rate, 0.329265 seconds, 69696 images, 70.424911 hours left
+1Total Detection Time: 0 Seconds
+ total_bbox = 154613, rewritten_bbox = 0.018757 %
+Resizing to initial size: 32 x 32  try to allocate additional workspace_size = 0.15 MB
+ CUDA allocate done!
+ calculation mAP (mean average precision)...
+ Detection layer: 16 - type = 28
+ Detection layer: 23 - type = 28
+ detections_count = 0, unique_truth_count = 3
+class_id = 0, name = purple, ap = 42.00%      (TP = 1, FP = 2, FN = 3)
+class_id = 1, name = green, ap = 43.00%       (TP = 4, FP = 5, FN = 6)
+ for conf_thresh = 0.25, precision = -nan, recall = 0.00, F1-score = -nan
+ for conf_thresh = 0.25, TP = 0, FP = 0, FN = 3, average IoU = 0.00 %
+ IoU threshold = 50 %, used Area-Under-Curve for each unique Recall
+ mean average precision (mAP@0.50) = 0.000000, or 0.00 %
+Set -points flag:
+ `-points 101` for MS COCO
+ `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data)
+ `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+ mean_average_precision (mAP@0.5) = 0.000000
+Loaded: 0.061675 seconds
+(next mAP calculation at 1089 iterations)
