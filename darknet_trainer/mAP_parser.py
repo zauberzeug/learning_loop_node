@@ -61,3 +61,9 @@ class MAPParser:
             "fp": int(line.split("(")[1].split(", ")[1].split(" = ")[1]),
             "fn": int(line.split("(")[1].split(", ")[2].split(" = ")[1].split(")")[0])
         }
+
+    def parse_weightfile(self) -> Optional[str]:
+        for line in self.iteration_log_lines:
+            if line.startswith('Saving weights to'):
+                return line.split('Saving weights to')[-1].strip()
+        return None

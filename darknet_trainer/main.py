@@ -1,4 +1,5 @@
 import asyncio
+import shutil
 from mAP_parser import MAPParser
 from threading import Thread
 import backdoor_controls
@@ -58,7 +59,6 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     yolo_helper.create_data_file(training_folder, box_category_count)
     yolo_helper.create_train_and_test_file(
         training_folder, image_folder_for_training, data['images'])
-    yolo_helper.create_backup_dir(training_folder)
 
     node_helper.download_model(training_folder, node.status.organization,
                                node.status.project, node.status.model['id'], node.hostname)
@@ -165,12 +165,19 @@ async def check_training_state(training_id: str) -> None:
 
 
 async def _check_for_new_model(training_id: str) -> None:
-    model = parse_latest_confusion_matrix(training_id)
+    model = parse_latest_iteration(training_id)
     if model:
         last_published_iteration = node.status.model.get('last_published_iteration')
         if not last_published_iteration or model['iteration'] > last_published_iteration:
+            model_id = str(uuid4())
+            training_path = get_training_path_by_id(training_id)
+            weightfile_name = model['weightfile']
+            if weightfile_name:
+                weightfile_path = f'{training_path}/{weightfile_name}'
+                shutil.move(weightfile_path, f'{training_path}/{model_id}.weights')
+
             new_model = {
-                'id': str(uuid4()),
+                'id': model_id,
                 'hyperparameters': node.status.hyperparameters,
                 'confusion_matrix': model['confusion_matrix'],
                 'parent_id': node.status.model['id'],
@@ -182,7 +189,7 @@ async def _check_for_new_model(training_id: str) -> None:
             node.status.model['last_published_iteration'] = model['iteration']
 
 
-def parse_latest_confusion_matrix(training_id: str) -> Union[dict, None]:
+def parse_latest_iteration(training_id: str) -> Union[dict, None]:
     training_path = get_training_path_by_id(training_id)
     log_file_path = f'{training_path}/last_training.log'
 
@@ -204,7 +211,8 @@ def parse_latest_confusion_matrix(training_id: str) -> Union[dict, None]:
         del parsed_class['name']
         confusion_matrices[id] = parsed_class
 
-    return {'iteration': iteration, 'confusion_matrix': confusion_matrices}
+    weightfile = parser.parse_weightfile()
+    return {'iteration': iteration, 'confusion_matrix': confusion_matrices, 'weightfile': weightfile}
 
 
 def _get_id_of_category_from_name(name: str) -> str:

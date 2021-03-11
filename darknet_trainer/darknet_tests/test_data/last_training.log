@@ -48,6 +48,7 @@ Loaded: 0.025187 seconds
  Last accuracy mAP@0.5 = 0.00 %, best = 0.00 %
  1089: -nan, -nan avg loss, 0.001000 rate, 0.329265 seconds, 69696 images, 70.424911 hours left
 1Total Detection Time: 0 Seconds
+Saving weights to backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights
  total_bbox = 154613, rewritten_bbox = 0.018757 %
 Resizing to initial size: 32 x 32  try to allocate additional workspace_size = 0.15 MB
  CUDA allocate done!

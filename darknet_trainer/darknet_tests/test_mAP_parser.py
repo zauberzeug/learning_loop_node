@@ -80,3 +80,8 @@ def test_parse_classes():
     assert purple_class['tp'] == 34
     assert purple_class['fp'] == 7
     assert purple_class['fn'] == 8
+
+
+def test_parse_weightfile():
+    weight_file = parser.parse_weightfile()
+    assert weight_file == 'backup//tiny_yolo_best_mAP_0.000000_iteration_1000_avgloss_-nan_.weights'
