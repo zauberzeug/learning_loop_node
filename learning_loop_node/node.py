@@ -34,11 +34,15 @@ class Node(FastAPI):
         @self.sio.on('save')
         def on_save(organization, project, model):
             print('---- saving model', model['id'], flush=True)
-            if not hasattr(self, '_get_weightfile'):
-                return 'node does not provide a get_weightfile function'
+            if not hasattr(self, '_get_model_files'):
+                return 'node does not provide a get_model_files function'
             # NOTE: Do not use self.status.organization here. The requested model maybe not belongs to the currently running training.
+
             uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
-            data = [('files', self._get_weightfile(organization, project, model['id']))]
+            data = []
+            for file_name in self._get_model_files(organization, project, model['id']):
+                data.append(('files',  open(file_name, 'rb')))
+
             response = requests.put(
                 f'{uri_base}/models/{model["id"]}/file',
                 files=data
@@ -98,8 +102,8 @@ class Node(FastAPI):
             await self.connect()
         print('connected to Learning Loop', flush=True)
 
-    def get_weightfile(self, func):
-        self._get_weightfile = func
+    def get_model_files(self, func):
+        self._get_model_files = func
 
     def begin_training(self, func):
         self._begin_training = func

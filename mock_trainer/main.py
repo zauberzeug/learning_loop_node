@@ -11,6 +11,7 @@ import requests
 import io
 from learning_loop_node.node import Node, State
 import results
+from typing import List
 
 hostname = 'backend'
 node = Node(hostname, uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
@@ -30,11 +31,18 @@ def stop():
     pass
 
 
-@node.get_weightfile
-def get_weightfile(ogranization: str, project: str, model_id: str) -> io.BufferedRandom:
-    fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
-    fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
-    return fake_weight_file
+@node.get_model_files
+def get_model_files(ogranization: str, project: str, model_id: str) -> List[str]:
+
+    fake_weight_file = '/tmp/weightfile.weights'
+    with open(fake_weight_file, 'wb') as f:
+        f.write(b'\x42')
+
+    more_data_file = '/tmp/some_more_data.txt'
+    with open(more_data_file, 'w') as f:
+        f.write('zweiundvierzig')
+
+    return [fake_weight_file, more_data_file]
 
 
 @node.on_event("startup")

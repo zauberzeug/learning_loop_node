@@ -134,13 +134,6 @@ def _stop_training(training_id: str) -> None:
         raise Exception(f'Failed to stop training with error: {err}')
 
 
-@ node.get_weightfile
-def get_weightfile(organization: str, project: str, model_id: str) -> io.BufferedRandom:
-    fake_weight_file = open('/tmp/fake_weight_file', 'wb+')
-    fake_weight_file.write(b"\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x01\x01\x01")
-    return fake_weight_file
-
-
 @ node.on_event("startup")
 @ repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
 async def check_state() -> None:
