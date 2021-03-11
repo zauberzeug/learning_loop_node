@@ -53,8 +53,8 @@ def test_set_node_properties():
     main._set_node_properties(main.node, data)
 
     assert main.node.status.box_categories == box_categories
-    assert main.node.status.train_images == 2
-    assert main.node.status.test_images == 1
+    assert len(main.node.status.train_images) == 2
+    assert len(main.node.status.test_images) == 1
 
 
 def test_yolo_box_creation():

@@ -69,14 +69,14 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
 
 def _set_node_properties(node: Node, data: dict) -> None:
     node.status.box_categories = data['box_categories']
-    train_image_count, test_image_count = _count_train_and_test_images(data['images'])
-    node.status.train_images = train_image_count
-    node.status.test_images = test_image_count
+    train_images, test_images = _get_train_and_test_images(data['images'])
+    node.status.train_images = train_images
+    node.status.test_images = test_images
 
 
-def _count_train_and_test_images(images: dict) -> None:
-    train_image_count = len([image for image in images if image['set'] == 'train'])
-    test_image_count = len([image for image in images if image['set'] == 'test'])
+def _get_train_and_test_images(images: dict) -> None:
+    train_image_count = [image for image in images if image['set'] == 'train']
+    test_image_count = [image for image in images if image['set'] == 'test']
     return train_image_count, test_image_count
 
 
