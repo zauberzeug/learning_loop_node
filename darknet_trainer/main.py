@@ -234,7 +234,7 @@ def get_training_path_by_id(trainings_id: str) -> str:
     return trainings[0]
 
 
-@ node.on_event("shutdown")
+@node.on_event("shutdown")
 async def shutdown():
 
     def restart():
