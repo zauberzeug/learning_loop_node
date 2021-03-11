@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 
 class MAPParser:
@@ -6,7 +6,7 @@ class MAPParser:
         self.iteration_log_lines = iteration_log_lines
 
     @staticmethod
-    def extract_iteration_log(log: str) -> List[str]:
+    def extract_iteration_log(log: str) -> Optional[List[str]]:
         match = '(next mAP calculation at'
         last_index = None
         pre_last_index = None
@@ -23,7 +23,7 @@ class MAPParser:
             return None
         return log_lines[pre_last_index:last_index]
 
-    def parse_mAP(self):
+    def parse_mAP(self) -> Optional[dict]:
         match = 'mean average precision'
         # e.g. "mean average precision (mAP@0.50) = 0.793866, or 79.39 % ""
         for line in self.iteration_log_lines:
@@ -32,18 +32,18 @@ class MAPParser:
                 mAP = line.split('mean average precision')[1].split(' = ')[1].split(', ')[0]
                 return {"mAP": float(mAP), "mAP_percentage": float(mAP_percentage)}
 
-        return
+        return None
 
-    def parse_iteration(self):
+    def parse_iteration(self) -> Optional[str]:
         match = 'hours left'
         #  2: 109.290443, 99.471283 avg loss, 0.000001 rate, 70.404934 seconds, 135808 images, 11070.078691 hours left
         for line in self.iteration_log_lines:
             if line.endswith(match):
                 iteration = int(line.split()[0].replace(':', ''))
                 return iteration
-        return
+        return None
 
-    def parse_classes(self):
+    def parse_classes(self) -> List:
         classes = []
         for line in self.iteration_log_lines:
             if line.startswith("class_id"):
@@ -51,7 +51,7 @@ class MAPParser:
         return classes
 
     @staticmethod
-    def _parse_class(line):
+    def _parse_class(line) -> dict:
         # e.g. class_id = 0, name = head, ap = 75.96%   	 (TP = 28, FP = 5, FN = 12)
         return {
             "id": line.split(", ")[0].split(" = ")[1],
