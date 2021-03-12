@@ -293,6 +293,22 @@ async def test_reset_to_idle_after_crash():
     _assert_trainer_state(State.Idle)
 
 
+@pytest.mark.asyncio
+async def test_get_files_for_model_id():
+    training_uuid = uuid4()
+    _, _, training_path = test_helper.create_needed_folders(training_uuid)
+    new_model_id = uuid4()
+    open(f'{training_path}/{new_model_id}.weights', 'a').close()
+    open(f'{training_path}/my_yolo.cfg', 'a').close()
+    open(f'{training_path}/names.txt', 'a').close()
+
+    files = main._get_model_files(new_model_id)
+    assert len(files) == 3
+    assert files[0].split('/')[-1] == f'{new_model_id}.weights'
+    assert files[1].split('/')[-1] == 'my_yolo.cfg'
+    assert files[2].split('/')[-1] == 'names.txt'
+
+
 def _start_training(training_uuid):
     model_id = test_helper.assert_upload_model()
     main.node.status.model = {'id': model_id}
