@@ -108,13 +108,10 @@ async def test_get_files_for_model_on_save():
     assert(len(model_ids)) == 2
 
     new_model_id = [id for id in model_ids if id != model_id][0]
-    assert os.path.exists(f'{training_path}/{new_model_id}.weights'), 'there is no weightfile for this model'
 
-    files = main._get_model_files(new_model_id)
-    assert len(files) == 3
-    assert files[0].split('/')[-1] == f'{new_model_id}.weights'
-    assert files[1].split('/')[-1] == 'tiny_yolo.cfg'
-    assert files[2].split('/')[-1] == 'names.txt'
+    save_model_handler = main.node.sio.handlers['/']['save']
+    model_to_save = {'id': new_model_id}
+    assert save_model_handler('zauberzeug', 'pytest', model_to_save) == True
 
 
 def get_box_categories():

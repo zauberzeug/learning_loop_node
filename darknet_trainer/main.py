@@ -34,7 +34,7 @@ def get_model_files(organization: str, project: str, model_id: str) -> List[str]
     return _get_model_files(model_id)
 
 
-def _get_model_files(model_id: str) -> dict:
+def _get_model_files(model_id: str) -> List[str]:
     try:
         weightfile_path = glob(f'/data/**/trainings/**/{model_id}.weights', recursive=True)[0]
     except:
