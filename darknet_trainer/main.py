@@ -126,13 +126,25 @@ def _start_training(training_id: str) -> None:
     training_path = get_training_path_by_id(training_id)
     os.chdir(training_path)
     # NOTE we have to write the pid inside the bash command to get the correct pid.
-    cmd = 'nohup /darknet/darknet detector train data.txt tiny_yolo.cfg -dont_show -map >> last_training.log 2>&1 & echo $! > last_training.pid'
+    weightfile = find_weightfile(training_path)
+    cmd = f'nohup /darknet/darknet detector train data.txt tiny_yolo.cfg {weightfile} -dont_show -map >> last_training.log 2>&1 & echo $! > last_training.pid'
     p = subprocess.Popen(cmd, shell=True)
     _, err = p.communicate()
     if p.returncode != 0:
         raise Exception(f'Failed to start training with error: {err}')
 
     node.status.model['training_id'] = training_id
+
+
+def find_weightfile(training_path: str) -> str:
+    weightfiles = glob(f'{training_path}/*.weights', recursive=True)
+    if not weightfiles or len(weightfiles) > 1:
+        raise Exception('Number of present weightfiles must be 1.')
+    weightfile = weightfiles[0].split('/')[-1]
+    if weightfile == 'fake_weightfile.weights':
+        return ""
+    else:
+        return weightfile
 
 
 @node.stop_training

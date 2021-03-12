@@ -309,6 +309,21 @@ async def test_get_files_for_model_id():
     assert files[2].split('/')[-1] == 'names.txt'
 
 
+def test_find_weightfile():
+    training_uuid = uuid4()
+    _, _, training_path = test_helper.create_needed_folders(training_uuid)
+    shutil.copy('darknet_tests/test_data/fake_weightfile.weights', f'{training_path}/fake_weightfile.weights')
+
+    weightfile = main.find_weightfile(training_path)
+    assert weightfile == ''
+
+    os.remove(f'{training_path}/fake_weightfile.weights')
+    shutil.copy('darknet_tests/test_data/fake_weightfile.weights', f'{training_path}/weightfile.weights')
+
+    weightfile = main.find_weightfile(training_path)
+    assert weightfile == 'weightfile.weights'
+
+
 def _start_training(training_uuid):
     model_id = test_helper.assert_upload_model()
     main.node.status.model = {'id': model_id}
