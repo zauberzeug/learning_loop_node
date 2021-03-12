@@ -30,21 +30,19 @@ node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
 
 
 @node.get_model_files
-def get_model_files() -> None:
-    files = _get_model_files()  # TODO: Add parameters
+def get_model_files(organization: str, project: str, model_id: str) -> List[str]:
+    return _get_model_files(model_id)
 
 
-def _get_model_files(model_id: str, node: Node) -> dict:
-    weightfile_path = glob(f'/data/**/trainings/**/{model_id}.weights', recursive=True)
-    if not weightfile_path:
+def _get_model_files(model_id: str) -> dict:
+    try:
+        weightfile_path = glob(f'/data/**/trainings/**/{model_id}.weights', recursive=True)[0]
+    except:
         raise Exception(f'No model found for id: {model_id}.')
 
-    trainings_id = weightfile_path[0].split('/')[5]
-    training_path = f'/data/{node.status.organization}/{node.status.project}/trainings/{trainings_id}/'
-    cfg_file_path = f'{training_path}/tiny_yolo.cfg'
-    names_file_path = f'{training_path}/names.txt'
-
-    return {'weightfile': weightfile_path[0], 'cfgfile': cfg_file_path, 'namesfile': names_file_path}
+    training_path = '/'.join(weightfile_path.split('/')[:-1])
+    cfg_file_path = glob(f'{training_path}/*.cfg', recursive=True)[0]
+    return [weightfile_path, cfg_file_path, f'{training_path}/names.txt']
 
 
 @node.begin_training

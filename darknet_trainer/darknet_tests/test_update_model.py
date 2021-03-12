@@ -110,11 +110,11 @@ async def test_get_files_for_model_on_save():
     new_model_id = [id for id in model_ids if id != model_id][0]
     assert os.path.exists(f'{training_path}/{new_model_id}.weights'), 'there is no weightfile for this model'
 
-    files = main._get_model_files(new_model_id, main.node)
+    files = main._get_model_files(new_model_id)
     assert len(files) == 3
-    assert files['weightfile'].split('/')[-1] == f'{new_model_id}.weights'
-    assert files['cfgfile'].split('/')[-1] == 'tiny_yolo.cfg'
-    assert files['namesfile'].split('/')[-1] == 'names.txt'
+    assert files[0].split('/')[-1] == f'{new_model_id}.weights'
+    assert files[1].split('/')[-1] == 'tiny_yolo.cfg'
+    assert files[2].split('/')[-1] == 'names.txt'
 
 
 def get_box_categories():
