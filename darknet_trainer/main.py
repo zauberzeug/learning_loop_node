@@ -163,7 +163,7 @@ def _stop_training(training_id: str) -> None:
 
 
 @node.on_event("startup")
-@ repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
+@repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
 async def check_state() -> None:
     """checking the current status"""
     await _check_state()
