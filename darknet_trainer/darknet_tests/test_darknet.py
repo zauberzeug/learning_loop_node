@@ -324,6 +324,18 @@ def test_find_weightfile():
     assert weightfile == 'weightfile.weights'
 
 
+@pytest.mark.parametrize("target_cfg_file", [
+    ('some_file.cfg'),
+    ('different_name.cfg'),
+])
+def test_find_cfg_file(target_cfg_file):
+    _, _, training_path = test_helper.create_needed_folders(uuid4)
+
+    shutil.copy(f'darknet_tests/test_data/tiny_yolo.cfg', f'{training_path}/{target_cfg_file}')
+    cfg_file = main.find_cfg_file(training_path)
+    assert cfg_file == target_cfg_file
+
+
 def _start_training(training_uuid):
     model_id = test_helper.assert_upload_model()
     main.node.status.model = {'id': model_id}

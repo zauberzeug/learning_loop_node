@@ -127,7 +127,8 @@ def _start_training(training_id: str) -> None:
     os.chdir(training_path)
     # NOTE we have to write the pid inside the bash command to get the correct pid.
     weightfile = find_weightfile(training_path)
-    cmd = f'nohup /darknet/darknet detector train data.txt tiny_yolo.cfg {weightfile} -dont_show -map >> last_training.log 2>&1 & echo $! > last_training.pid'
+    cfg_file = find_cfg_file(training_path)
+    cmd = f'nohup /darknet/darknet detector train data.txt {cfg_file} {weightfile} -dont_show -map >> last_training.log 2>&1 & echo $! > last_training.pid'
     p = subprocess.Popen(cmd, shell=True)
     _, err = p.communicate()
     if p.returncode != 0:
@@ -145,6 +146,14 @@ def find_weightfile(training_path: str) -> str:
         return ""
     else:
         return weightfile
+
+
+def find_cfg_file(training_path: str) -> str:
+    cfg_files = weightfiles = glob(f'{training_path}/*.cfg', recursive=True)
+    if not weightfiles or len(weightfiles) > 1:
+        raise Exception('Number of present .cfg files must be 1.')
+    cfg_file = cfg_files[0].split('/')[-1]
+    return cfg_file
 
 
 @node.stop_training

@@ -29,7 +29,7 @@ def get_files_from_data_folder():
     return files
 
 
-def create_needed_folders(training_uuid = 'some_uuid'):
+def create_needed_folders(training_uuid='some_uuid'):
     project_folder = main._create_project_folder('zauberzeug', 'pytest')
     image_folder = main._create_image_folder(project_folder)
     training_folder = main._create_training_folder(project_folder, training_uuid)
