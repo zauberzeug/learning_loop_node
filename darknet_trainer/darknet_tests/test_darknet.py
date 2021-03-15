@@ -173,8 +173,8 @@ def test_download_model():
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 2
 
-    assert files[0] == "../data/zauberzeug/pytest/trainings/some_uuid/tiny_yolo.cfg"
-    assert files[1] == "../data/zauberzeug/pytest/trainings/some_uuid/weightfile.weights"
+    assert files[0] == "../data/zauberzeug/pytest/trainings/some_uuid/fake_weightfile.weights"
+    assert files[1] == "../data/zauberzeug/pytest/trainings/some_uuid/tiny_yolo.cfg"
 
 
 def test_replace_classes_and_filters():
