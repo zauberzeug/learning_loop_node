@@ -30,13 +30,10 @@ def update_anchors(training_folder: str) -> None:
     yolo_layer_count = _read_yolo_layer_count(cfg_file_path)
     width, height = _read_width_and_height(cfg_file_path)
 
-    old_working_directory = os.getcwd()
     os.chdir(training_folder)
 
     anchors = _calculate_anchors(yolo_layer_count, width, height)
     _write_anchors(cfg_file_path, anchors)
-
-    os.chdir(old_working_directory)
 
 
 def _find_cfg_file(folder: str) -> str:
