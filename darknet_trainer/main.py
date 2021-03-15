@@ -223,8 +223,7 @@ async def _check_for_new_model(training_id: str) -> None:
                 'trainer_id': node.status.id,
             }
             await node.sio.call('update_model', (node.status.organization, node.status.project, new_model))
-            node.status.model = new_model
-            node.status.model['training_id'] = training_id
+            node.status.model.update(new_model)
             node.status.model['last_published_iteration'] = model['iteration']
 
 
