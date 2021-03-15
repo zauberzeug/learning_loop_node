@@ -7,6 +7,21 @@ import darknet_tests.test_helper as test_helper
 from uuid import uuid4
 import yolo_helper
 import os
+import asyncio
+
+
+@pytest.fixture(autouse=True, scope="module")
+def event_loop():
+    loop = asyncio.get_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(autouse=True, scope="module")
+async def connect_node_fixture():
+    await main.node.connect()
+    yield
+    await main.node.sio.disconnect()
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -44,9 +59,6 @@ def test_parse_latest_confusion_matrix():
 
 @pytest.mark.asyncio
 async def test_model_is_updated():
-    await main.node.connect()
-    await main.node.sio.sleep(1.0)
-
     model_id = test_helper.assert_upload_model()
 
     model_ids = get_model_ids_from__latest_training()
@@ -79,10 +91,6 @@ async def test_model_is_updated():
 
 @pytest.mark.asyncio
 async def test_get_files_for_model_on_save():
-
-    await main.node.connect()
-    await main.node.sio.sleep(1.0)
-
     model_id = test_helper.assert_upload_model()
     training_uuid = uuid4()
     main.node.status.organization = 'zauberzeug'
