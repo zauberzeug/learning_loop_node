@@ -38,7 +38,7 @@ def create_needed_folders(training_uuid = 'some_uuid'):
 
 
 def assert_upload_model() -> str:
-    data = [('files', open('darknet_tests/test_data/weightfile.weights', 'rb')),
+    data = [('files', open('darknet_tests/test_data/fake_weightfile.weights', 'rb')),
             ('files', open('darknet_tests/test_data/tiny_yolo.cfg', 'rb'))]
     upload_response = LiveServerSession().post(
         f'/api/zauberzeug/projects/pytest/models', files=data)
