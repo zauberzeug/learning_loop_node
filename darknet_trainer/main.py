@@ -63,6 +63,7 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
         image_resources, image_ids), image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
+    yolo_helper.create_backup_dir(training_folder)
 
     image_folder_for_training = yolo_helper.create_image_links(
         training_folder, image_folder, image_ids)
