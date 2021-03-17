@@ -274,7 +274,7 @@ python-versions = "*"
 name = "numpy"
 version = "1.20.1"
 description = "NumPy is the fundamental package for array computing with Python."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -557,7 +557,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "ce268824a668b0f478ccd0eb2110d63e3ff63346dec2f42712e2a429142b6e1d"
+content-hash = "459c5c5e6406d97ed17ffe6ef9daa3908fed3c9351c288dba4ef8d3b60bdca84"
 
 [metadata.files]
 aiohttp = [
