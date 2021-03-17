@@ -1,0 +1,9 @@
+dirt
+obstacle
+animal
+person
+robot
+marker_vorne
+marker_mitte
+marker_hinten_links
+marker_hinten_rechts

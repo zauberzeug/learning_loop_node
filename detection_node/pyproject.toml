@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "trainer"
+version = "0.1.0"
+description = "AI Trainer for the Zauberzeug Learning Loop"
+authors = ["Zauberzeug <info@zauberzeug.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+learning_loop_node = { path = "learning_loop_node/", develop = true }
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+autopep8 = "^1.5.5"
+opencv-python = "^4.5.1"
+icecream = "^2.1.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
