@@ -36,9 +36,21 @@ def test_parse_outs():
     image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
-    indicies, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, net, 608, 608)
-    assert indicies == [1, 0]
+    indices, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, net, 608, 608)
+    assert indices == [1, 0]
     assert class_ids == [0, 0]
     assert len(boxes) == 2
     assert boxes == [[397, 142, 15, 6], [604, 458, 4, 6]]
     assert confidences == [0.609, 0.798]
+
+
+def test_create_json_from_outs():
+    net = inferences_helper.load_network('/data/training.cfg', '/data/training_final.weights')
+    image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
+    image = inferences_helper._read_image(image_path)
+    outs = inferences_helper.get_inferences(net, image)
+    indices, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, net, 608, 608)
+
+    json = inferences_helper.convert_to_json(indices, class_ids, boxes, confidences)
+    ic(json)
+    assert json == '{"0": {"box": [397, 142, 15, 6], "class_id": 0, "confidence": 0.609}, "1": {"box": [604, 458, 4, 6], "class_id": 0, "confidence": 0.798}}'

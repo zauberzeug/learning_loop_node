@@ -2,6 +2,7 @@ import cv2
 from typing import List
 from icecream import ic
 import numpy as np
+import json
 
 
 def get_names_of_classes(names_file_path: str) -> List[str]:
@@ -76,6 +77,17 @@ def apply_non_max_supression(net: cv2.dnn_Net, class_ids: List[int], boxes: List
         indices.extend(class_indices[nms_indices])
 
     return indices
+
+def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[int]], confidences: List[float]):
+    json_obj = {}
+    indices.sort()
+    for i in indices:
+        box = boxes[i]
+        class_id = class_ids[i]
+        confidence = confidences[i]
+        json_obj.update({i.item():{'box': box, 'class_id': class_id.item(), 'confidence': confidence}})
+
+    return json.dumps(json_obj)
 
 
 def _read_image(image_path: str) -> List[int]:
