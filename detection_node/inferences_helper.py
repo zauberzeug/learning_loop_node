@@ -13,8 +13,8 @@ def get_names_of_classes(names_file_path: str) -> List[str]:
 
 def load_network(cfg_file_path: str, weightfile_path: str):
     net = cv2.dnn.readNetFromDarknet(cfg_file_path, weightfile_path)
-    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
     return net
 
 
