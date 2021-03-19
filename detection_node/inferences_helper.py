@@ -79,7 +79,7 @@ def apply_non_max_supression(net: cv2.dnn_Net, class_ids: List[int], boxes: List
     return indices
 
 
-def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[int]], confidences: List[float]):
+def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[int]], net, confidences: List[float]):
     json_obj = {}
     indices.sort()
     for i in indices:
@@ -87,7 +87,7 @@ def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[i
         class_id = class_ids[i]
         confidence = confidences[i]
         json_obj.update({i.item(): {'class_id': class_id.item(),
-                                    'x': box[0], 'y': box[1], 'width': box[2], 'height': box[3], 'confidence': confidence}})
+                                    'x': box[0], 'y': box[1], 'width': box[2], 'height': box[3], 'net': net, 'confidence': confidence}})
 
     return json.dumps(json_obj)
 
@@ -105,3 +105,10 @@ def _get_last_layer_type(net: cv2.dnn_Net):
     lastLayerId = net.getLayerId(layerNames[-1])
     lastLayer = net.getLayer(lastLayerId)
     return lastLayer.type
+
+
+def _get_model_id(model_path: str) -> str:
+    with open(f'{model_path}/project.json', 'r') as f:
+        data = json.load(f)
+
+    return data['model']

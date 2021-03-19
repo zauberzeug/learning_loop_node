@@ -50,7 +50,8 @@ async def compute_detections(request: Request, file: List[UploadFile] = File(...
         outs = inferences_helper.get_inferences(node.net, image)
         indices, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, node.net, 608, 608)
 
-        json_object = inferences_helper.convert_to_json(indices, class_ids, boxes, confidences)
+        net_id = inferences_helper._get_model_id(node.path)
+        json_object = inferences_helper.convert_to_json(indices, class_ids, boxes, net_id, confidences)
         inferences += [json_object]
 
     json_compatible_item_data = jsonable_encoder(inferences)
