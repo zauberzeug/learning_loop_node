@@ -1,8 +1,9 @@
 import cv2
-from typing import List
+from typing import List, Tuple, Any
 from icecream import ic
 import numpy as np
 import json
+import numpy.typing as npt
 
 
 def get_names_of_classes(names_file_path: str) -> List[str]:
@@ -12,34 +13,31 @@ def get_names_of_classes(names_file_path: str) -> List[str]:
     return names
 
 
-def load_network(cfg_file_path: str, weightfile_path: str):
+def load_network(cfg_file_path: str, weightfile_path: str) -> cv2.dnn_Net:
     net = cv2.dnn.readNetFromDarknet(cfg_file_path, weightfile_path)
     net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
     net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
     return net
 
 
-def get_inferences(net: cv2.dnn_Net, image: str) -> List[int]:
-    blob = cv2.dnn.blobFromImage(image, 1/255, (608, 608), [0, 0, 0], 1, crop=False)
+def get_inferences(net: cv2.dnn_Net, image: npt.ArrayLike, net_input_image_width, net_input_image_height) -> List[npt.ArrayLike]:
+    blob = cv2.dnn.blobFromImage(image, 1/255, (net_input_image_width,
+                                 net_input_image_height), [0, 0, 0], 1, crop=False)
     net.setInput(blob)
     out_names = _get_out_names(net)
     outs = net.forward(out_names)
     return outs
 
 
-def parse_inferences(outs: List[int], net: cv2.dnn_Net, image_width: int, image_height: int) -> dict:
-    class_ids = []
-    confidences = []
-    boxes = []
+def parse_inferences(outs: List[int], net: cv2.dnn_Net, image_width: int, image_height: int, net_id: str) -> dict:
+    inferences = []
     last_layer_type = _get_last_layer_type(net)
-    if last_layer_type == 'DetectionOutput':
-        return last_layer_type
-    elif last_layer_type == 'Region':
+    if last_layer_type == 'Region':
         for out in outs:
             for detection in out:
                 scores = detection[5:]
-                classId = np.argmax(scores)
-                confidence = scores[classId]
+                class_id = np.argmax(scores)
+                confidence = scores[class_id]
                 if confidence > 0.5:
                     center_x = int(detection[0] * image_width)
                     center_y = int(detection[1] * image_height)
@@ -47,16 +45,23 @@ def parse_inferences(outs: List[int], net: cv2.dnn_Net, image_width: int, image_
                     height = int(detection[3] * image_height)
                     left = int(center_x - width / 2)
                     top = int(center_y - height / 2)
-                    class_ids.append(classId)
-                    confidences.append(round(float(confidence), 3))
-                    boxes.append([left, top, width, height])
+                    inference = {
+                        'class_id': class_id,
+                        'x': left,
+                        'y': top,
+                        'width': width,
+                        'height': height,
+                        'net': net_id,
+                        'confidence': round(float(confidence), 3)
+                    }
+                    inferences.append(inference)
+
     else:
-        raise Exception('Unknown layer type.')
+        raise Exception(f'Unknown layer type: {last_layer_type}.')
 
     # Remove overlapping boxes with smaller confidence
-    indices = apply_non_max_supression(net, class_ids, boxes, confidences)
-
-    return indices, class_ids, boxes, confidences
+    # indices = apply_non_max_supression(net, class_ids, boxes, confidences)
+    return inferences
 
 
 def apply_non_max_supression(net: cv2.dnn_Net, class_ids: List[int], boxes: List[List[int]], confidences: List[float]):
@@ -79,19 +84,6 @@ def apply_non_max_supression(net: cv2.dnn_Net, class_ids: List[int], boxes: List
     return indices
 
 
-def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[int]], net, confidences: List[float]):
-    json_obj = {}
-    indices.sort()
-    for i in indices:
-        box = boxes[i]
-        class_id = class_ids[i]
-        confidence = confidences[i]
-        json_obj.update({i.item(): {'class_id': class_id.item(),
-                                    'x': box[0], 'y': box[1], 'width': box[2], 'height': box[3], 'net': net, 'confidence': confidence}})
-
-    return json.dumps(json_obj)
-
-
 def _read_image(image_path: str) -> List[int]:
     return cv2.imread(image_path)
 
@@ -112,3 +104,19 @@ def _get_model_id(model_path: str) -> str:
         data = json.load(f)
 
     return data['model']
+
+
+def _get_network_input_image_size(model_path: str) -> Tuple[int, int]:
+    with open(f'{model_path}/training.cfg', 'r') as f:
+        content = f.readlines()
+
+    for line in content:
+        if line.startswith('width'):
+            width = line.split('=')[-1].strip()
+        if line.startswith('height'):
+            height = line.split('=')[-1].strip()
+
+    if not width or not height:
+        raise Exception("width or height are missing in cfg file.")
+
+    return int(width), int(height)
