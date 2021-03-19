@@ -78,6 +78,7 @@ def apply_non_max_supression(net: cv2.dnn_Net, class_ids: List[int], boxes: List
 
     return indices
 
+
 def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[int]], confidences: List[float]):
     json_obj = {}
     indices.sort()
@@ -85,7 +86,8 @@ def convert_to_json(indices: List[int], class_ids: List[int], boxes: List[List[i
         box = boxes[i]
         class_id = class_ids[i]
         confidence = confidences[i]
-        json_obj.update({i.item():{'box': box, 'class_id': class_id.item(), 'confidence': confidence}})
+        json_obj.update({i.item(): {'class_id': class_id.item(),
+                                    'x': box[0], 'y': box[1], 'width': box[2], 'height': box[3], 'confidence': confidence}})
 
     return json.dumps(json_obj)
 

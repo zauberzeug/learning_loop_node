@@ -53,4 +53,4 @@ def test_create_json_from_outs():
 
     json = inferences_helper.convert_to_json(indices, class_ids, boxes, confidences)
     ic(json)
-    assert json == '{"0": {"box": [397, 142, 15, 6], "class_id": 0, "confidence": 0.609}, "1": {"box": [604, 458, 4, 6], "class_id": 0, "confidence": 0.798}}'
+    assert json == '{"0": {"class_id": 0, "x": 397, "y": 142, "width": 15, "height": 6, "confidence": 0.609}, "1": {"class_id": 0, "x": 604, "y": 458, "width": 4, "height": 6, "confidence": 0.798}}'
