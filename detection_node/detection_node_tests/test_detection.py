@@ -1,8 +1,6 @@
 import pytest
 import main
 import inferences_helper
-from icecream import ic
-import numpy as np
 import requests
 
 base_path = '/data/yolo4_tiny_3lspp_12_76844'
@@ -61,3 +59,18 @@ def test_parse_inferences():
                              'x': 1110,
                              'y': 1149}
 
+
+def test_calculate_inferences_from_sent_images():
+    data = {('file', open(image_path, 'rb'))}
+    request = requests.post('http://detection_node/images/', files=data)
+    assert request.status_code == 200
+    content = request.json()
+    inferences = content['box_detections']
+    assert len(inferences) == 5
+    assert inferences[0] == {'class_id': 0,
+                             'confidence': 0.677,
+                             'height': 14,
+                             'net': 'tiny_3l_23_2775',
+                             'width': 10,
+                             'x': 1110,
+                             'y': 1149}

@@ -46,7 +46,7 @@ def parse_inferences(outs: List[int], net: cv2.dnn_Net, image_width: int, image_
                     left = int(center_x - width / 2)
                     top = int(center_y - height / 2)
                     inference = {
-                        'class_id': class_id,
+                        'class_id': int(class_id),
                         'x': left,
                         'y': top,
                         'width': width,

@@ -16,7 +16,6 @@ import inferences_helper
 import PIL.Image
 import numpy as np
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 
 hostname = 'backend'
 node = Node(hostname, uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
@@ -39,23 +38,21 @@ router = APIRouter()
 
 
 @router.post("/images/")
-async def compute_detections(request: Request, file: List[UploadFile] = File(...)):
-    inferences = []
-    for image_data in file:
-        try:
-            image = PIL.Image.open(image_data.file)
-        except:
-            raise Exception(f'Uploaded file {image_data} is no image file.')
-        image = np.asarray(image)
-        outs = inferences_helper.get_inferences(node.net, image)
-        indices, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, node.net, 608, 608)
+async def compute_detections(request: Request, file: UploadFile = File(...)):
+    try:
+        image = PIL.Image.open(file.file)
+    except:
+        raise Exception(f'Uploaded file {file.filename} is no image file.')
 
-        net_id = inferences_helper._get_model_id(node.path)
-        json_object = inferences_helper.convert_to_json(indices, class_ids, boxes, net_id, confidences)
-        inferences += [json_object]
+    image = np.asarray(image)
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+    net_input_image_width, net_input_image_height = inferences_helper._get_network_input_image_size(node.path)
+    outs = inferences_helper.get_inferences(node.net, image, net_input_image_width, net_input_image_height)
+    net_id = inferences_helper._get_model_id(node.path)
+    inferences = inferences_helper.parse_inferences(
+        outs, node.net, image.shape[0], image.shape[1], net_id)
 
-    json_compatible_item_data = jsonable_encoder(inferences)
-    return JSONResponse(content=json_compatible_item_data)
+    return JSONResponse({'box_detections': inferences})
 
 # setting up backdoor_controls
 node.include_router(router, prefix="")
