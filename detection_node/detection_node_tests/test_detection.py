@@ -3,6 +3,7 @@ import main
 import inferences_helper
 from icecream import ic
 import numpy as np
+import requests
 
 
 def test_get_files():
@@ -19,12 +20,12 @@ def test_get_names():
 
 
 def test_load_network():
-    net = inferences_helper.load_network('/data/training.cfg', '/data/training_final.weights')
+    net = main.node.net
     assert len(net.getLayerNames()) == 94
 
 
 def test_get_inferences():
-    net = inferences_helper.load_network('/data/training.cfg', '/data/training_final.weights')
+    net = net = main.node.net
     image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
@@ -32,7 +33,7 @@ def test_get_inferences():
 
 
 def test_parse_outs():
-    net = inferences_helper.load_network('/data/training.cfg', '/data/training_final.weights')
+    net = main.node.net
     image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
@@ -45,7 +46,7 @@ def test_parse_outs():
 
 
 def test_create_json_from_outs():
-    net = inferences_helper.load_network('/data/training.cfg', '/data/training_final.weights')
+    net = main.node.net
     image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
@@ -54,3 +55,13 @@ def test_create_json_from_outs():
     json = inferences_helper.convert_to_json(indices, class_ids, boxes, confidences)
     ic(json)
     assert json == '{"0": {"class_id": 0, "x": 397, "y": 142, "width": 15, "height": 6, "confidence": 0.609}, "1": {"class_id": 0, "x": 604, "y": 458, "width": 4, "height": 6, "confidence": 0.798}}'
+
+
+def test_calculate_inferences_from_sent_images():
+    file = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
+    data = [('file', open(file, 'rb')), ('file', open(file, 'rb'))]
+    request = requests.post('http://detection_node/images/', files=data)
+    assert request.status_code == 200
+    content = request.json()
+    calculated_inferences = '{"0": {"class_id": 0, "x": 587, "y": 450, "width": 6, "height": 7, "confidence": 0.635}, "1": {"class_id": 0, "x": 603, "y": 457, "width": 4, "height": 7, "confidence": 0.804}}'
+    assert content == [calculated_inferences, calculated_inferences]
