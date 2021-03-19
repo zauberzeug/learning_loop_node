@@ -1,0 +1,76 @@
+{
+  "model": "tiny_3l_23_2775",
+  "categoryMapping": [
+    {
+      "categoryId": "0",
+      "name": "dirt",
+      "description": "only horse droppings",
+      "color": "red",
+      "hotkey": "1"
+    },
+    {
+      "categoryId": "2",
+      "name": "obstacle",
+      "description": "(saddle, buckets, tools, vehicles ...)",
+      "color": "blue",
+      "hotkey": "2",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "4",
+      "name": "animal",
+      "description": "(horse, cat, dog, cow, ...)",
+      "color": "aqua",
+      "hotkey": "4",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "5",
+      "name": "person",
+      "description": "",
+      "color": "yellow",
+      "hotkey": "5",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "6",
+      "name": "robot",
+      "description": "(z9, z10, with and without hull, ...)",
+      "color": "lightgreen",
+      "hotkey": "6",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "7",
+      "name": "marker_vorne",
+      "description": "",
+      "color": "purple",
+      "hotkey": "7",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "8",
+      "name": "marker_mitte",
+      "description": "",
+      "color": "pink",
+      "hotkey": "8",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "9",
+      "name": "marker_hinten_links",
+      "description": "",
+      "color": "green",
+      "hotkey": "9",
+      "isAnnotatable": true
+    },
+    {
+      "categoryId": "10",
+      "name": "marker_hinten_rechts",
+      "description": "",
+      "color": "orange",
+      "hotkey": "0",
+      "isAnnotatable": true
+    }
+  ]
+}

@@ -5,16 +5,20 @@ from icecream import ic
 import numpy as np
 import requests
 
+base_path = '/data/yolo4_tiny_3lspp_12_76844'
+image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
+
 
 def test_get_files():
     files = main._get_model_files()
-    assert files[0] == '/data/names.txt'
-    assert files[1] == '/data/training_final.weights'
-    assert files[2] == '/data/training.cfg'
+    assert files[0].split('/')[-1] == 'names.txt'
+    assert files[1].split('/')[-1] == 'project.json'
+    assert files[2].split('/')[-1] == 'training_final.weights'
+    assert files[3].split('/')[-1] == 'training.cfg'
 
 
 def test_get_names():
-    names = inferences_helper.get_names_of_classes('/data/names.txt')
+    names = inferences_helper.get_names_of_classes(f'{base_path}/names.txt')
     assert names == ['dirt', 'obstacle', 'animal', 'person', 'robot', 'marker_vorne',
                      'marker_mitte', 'marker_hinten_links', 'marker_hinten_rechts']
 
@@ -26,7 +30,6 @@ def test_load_network():
 
 def test_get_inferences():
     net = net = main.node.net
-    image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
     assert len(outs) == 3
@@ -34,7 +37,6 @@ def test_get_inferences():
 
 def test_parse_outs():
     net = main.node.net
-    image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
     indices, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, net, 608, 608)
@@ -47,7 +49,6 @@ def test_parse_outs():
 
 def test_create_json_from_outs():
     net = main.node.net
-    image_path = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image)
     indices, class_ids, boxes, confidences = inferences_helper.parse_inferences(outs, net, 608, 608)
@@ -58,7 +59,7 @@ def test_create_json_from_outs():
 
 
 def test_calculate_inferences_from_sent_images():
-    file = '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'
+    file = image_path
     data = [('file', open(file, 'rb')), ('file', open(file, 'rb'))]
     request = requests.post('http://detection_node/images/', files=data)
     assert request.status_code == 200

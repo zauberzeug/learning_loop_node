@@ -20,7 +20,9 @@ from fastapi.encoders import jsonable_encoder
 
 hostname = 'backend'
 node = Node(hostname, uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
-node.net = inferences_helper.load_network('/data/training.cfg', '/data/training_final.weights')
+node.path = '/data/yolo4_tiny_3lspp_12_76844'
+node.net = inferences_helper.load_network(
+    f'{node.path}/training.cfg', f'{node.path}/training_final.weights')
 
 
 @node.get_model_files
@@ -29,7 +31,7 @@ def get_model_files(ogranization: str, project: str, model_id: str) -> List[str]
 
 
 def _get_model_files() -> List[str]:
-    files = glob('/data/*')
+    files = glob('/data/**/*')
     return files
 
 
