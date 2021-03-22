@@ -2,7 +2,6 @@ import cv2
 from typing import List, Tuple, Any
 from icecream import ic
 import numpy as np
-import json
 import numpy.typing as npt
 import helper
 import os

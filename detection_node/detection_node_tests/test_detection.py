@@ -1,4 +1,3 @@
-import pytest
 import main
 import inferences_helper
 import requests
