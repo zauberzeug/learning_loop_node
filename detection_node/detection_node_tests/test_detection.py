@@ -2,6 +2,7 @@ import pytest
 import main
 import inferences_helper
 import requests
+from icecream import ic
 
 base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
@@ -42,14 +43,14 @@ def test_parse_inferences():
     outs = inferences_helper.get_inferences(net, image, 800, 800)
     net_id = inferences_helper._get_model_id(main.node.path)
     inferences = inferences_helper.parse_inferences(outs, net, image.shape[1], image.shape[0], net_id)
-    assert len(inferences) == 5
+    assert len(inferences) == 4
     assert inferences[0] == {'class_id': 0,
-                             'confidence': 0.643,
-                             'height': 14,
-                             'net': 'tiny_3l_23_2775',
-                             'width': 10,
-                             'x': 1110,
-                             'y': 1149}
+                             'confidence': 0.638,
+                             'height': 11,
+                             'net': 'some_weightfile',
+                             'width': 14,
+                             'x': 1479,
+                             'y': 861}
 
 
 def test_calculate_inferences_from_sent_images():
@@ -58,11 +59,12 @@ def test_calculate_inferences_from_sent_images():
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']
-    assert len(inferences) == 5
+    ic(inferences)
+    assert len(inferences) == 4
     assert inferences[0] == {'class_id': 0,
-                             'confidence': 0.677,
-                             'height': 14,
-                             'net': 'tiny_3l_23_2775',
-                             'width': 10,
-                             'x': 1110,
-                             'y': 1149}
+                             'confidence': 0.676,
+                             'height': 11,
+                             'net': 'some_weightfile',
+                             'width': 14,
+                             'x': 1479,
+                             'y': 861}
