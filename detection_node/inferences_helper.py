@@ -59,29 +59,7 @@ def parse_inferences(outs: List[int], net: cv2.dnn_Net, category_names: List[str
     else:
         raise Exception(f'Unknown layer type: {last_layer_type}.')
 
-    # Remove overlapping boxes with smaller confidence
-    # indices = apply_non_max_supression(net, class_ids, boxes, confidences)
     return inferences
-
-
-def apply_non_max_supression(net: cv2.dnn_Net, class_ids: List[int], boxes: List[List[int]], confidences: List[float]):
-    indices = []
-    class_ids = np.array(class_ids)
-    boxes = np.array(boxes)
-    confidences = np.array(confidences)
-    unique_classes = set(class_ids)
-    if len(_get_out_names(net)) < 2:
-        return np.arange(0, len(class_ids))
-
-    for cl in unique_classes:
-        class_indices = np.where(class_ids == cl)[0]
-        conf = confidences[class_indices]
-        box = boxes[class_indices].tolist()
-        nms_indices = cv2.dnn.NMSBoxes(box, conf, 0.5, 0.4)
-        nms_indices = nms_indices[:, 0] if len(nms_indices) else []
-        indices.extend(class_indices[nms_indices])
-
-    return indices
 
 
 def _read_image(image_path: str) -> List[int]:
