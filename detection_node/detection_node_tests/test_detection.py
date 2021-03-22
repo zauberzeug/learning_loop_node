@@ -41,7 +41,7 @@ def test_parse_inferences():
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image, 800, 800)
     net_id = inferences_helper._get_model_id(main.node.path)
-    inferences = inferences_helper.parse_inferences(outs, net, image.shape[0], image.shape[1], net_id)
+    inferences = inferences_helper.parse_inferences(outs, net, image.shape[1], image.shape[0], net_id)
     assert len(inferences) == 5
     assert inferences[0] == {'class_id': 0,
                              'confidence': 0.643,
