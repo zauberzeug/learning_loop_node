@@ -8,10 +8,9 @@ import helper
 import os
 
 
-def get_names_of_classes(names_file_path: str) -> List[str]:
-    with open(names_file_path, 'r') as f:
+def get_category_names(model_path: str) -> List[str]:
+    with open(f'{model_path}/names.txt', 'r') as f:
         names = f.read().rstrip('\n').split('\n')
-
     return names
 
 

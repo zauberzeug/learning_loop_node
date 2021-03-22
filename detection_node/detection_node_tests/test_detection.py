@@ -13,7 +13,7 @@ def test_get_model_id():
 
 
 def test_get_names():
-    names = inferences_helper.get_names_of_classes(f'{base_path}/names.txt')
+    names = inferences_helper.get_category_names(base_path)
     assert names == ['dirt', 'obstacle', 'animal', 'person', 'robot', 'marker_vorne',
                      'marker_mitte', 'marker_hinten_links', 'marker_hinten_rechts']
 
