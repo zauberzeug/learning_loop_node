@@ -23,8 +23,14 @@ except Exception as e:
 router = APIRouter()
 
 
-@router.post("/images/")
+@router.post("/detect")
 async def compute_detections(request: Request, file: UploadFile = File(...)):
+    """
+    Example Usage
+
+        curl --request POST -F 'file=@example1.jpg' localhost:8004/detect
+    """
+
     try:
         image = PIL.Image.open(file.file)
     except:
