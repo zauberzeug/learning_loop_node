@@ -17,12 +17,17 @@ import PIL.Image
 import numpy as np
 from fastapi.responses import JSONResponse
 import helper
+from icecream import ic
 
 hostname = 'backend'
 node = Node(hostname, uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
-node.net = inferences_helper.load_network(
-    helper.find_cfg_file(node.path), helper.find_weight_file(node.path))
+try:
+    node.net = inferences_helper.load_network(
+        helper.find_cfg_file(node.path), helper.find_weight_file(node.path))
+except Exception as e:
+    ic(f'Error: could not load model: {e}')
+
 
 router = APIRouter()
 
