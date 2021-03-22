@@ -3,21 +3,13 @@ import main
 import inferences_helper
 import requests
 
-base_path = '/data/yolo4_tiny_3lspp_12_76844'
+base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
-
-
-def test_get_files():
-    files = main._get_model_files()
-    assert files[0].split('/')[-1] == 'names.txt'
-    assert files[1].split('/')[-1] == 'project.json'
-    assert files[2].split('/')[-1] == 'training_final.weights'
-    assert files[3].split('/')[-1] == 'training.cfg'
 
 
 def test_get_model_id():
     model_id = inferences_helper._get_model_id(base_path)
-    assert model_id == 'tiny_3l_23_2775'
+    assert model_id == 'some_weightfile'
 
 
 def test_get_names():
@@ -27,7 +19,7 @@ def test_get_names():
 
 
 def test_get_network_input_image_size():
-    width, height = inferences_helper._get_network_input_image_size(base_path)
+    width, height = inferences_helper.get_network_input_image_size(base_path)
     assert width == 800
     assert height == 800
 

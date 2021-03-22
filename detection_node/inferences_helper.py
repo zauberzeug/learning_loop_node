@@ -4,6 +4,8 @@ from icecream import ic
 import numpy as np
 import json
 import numpy.typing as npt
+import helper
+import os
 
 
 def get_names_of_classes(names_file_path: str) -> List[str]:
@@ -100,13 +102,11 @@ def _get_last_layer_type(net: cv2.dnn_Net):
 
 
 def _get_model_id(model_path: str) -> str:
-    with open(f'{model_path}/project.json', 'r') as f:
-        data = json.load(f)
-
-    return data['model']
+    weightfile = helper.find_weight_file(model_path)
+    return os.path.basename(weightfile).split('.')[0]
 
 
-def _get_network_input_image_size(model_path: str) -> Tuple[int, int]:
+def get_network_input_image_size(model_path: str) -> Tuple[int, int]:
     with open(f'{model_path}/training.cfg', 'r') as f:
         content = f.readlines()
 
