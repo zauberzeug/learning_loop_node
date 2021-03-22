@@ -49,5 +49,4 @@ async def compute_detections(request: Request, file: UploadFile = File(...)):
 
     return JSONResponse({'box_detections': inferences})
 
-# setting up backdoor_controls
 node.include_router(router, prefix="")
