@@ -39,12 +39,13 @@ def test_get_inferences():
 
 def test_parse_inferences():
     net = main.node.net
+    category_names = inferences_helper.get_category_names(main.node.path)
     image = inferences_helper._read_image(image_path)
     outs = inferences_helper.get_inferences(net, image, 800, 800)
     net_id = inferences_helper._get_model_id(main.node.path)
-    inferences = inferences_helper.parse_inferences(outs, net, image.shape[1], image.shape[0], net_id)
+    inferences = inferences_helper.parse_inferences(outs, net, category_names, image.shape[1], image.shape[0], net_id)
     assert len(inferences) == 4
-    assert inferences[0] == {'class_id': 0,
+    assert inferences[0] == {'category': 'dirt',
                              'confidence': 0.638,
                              'height': 11,
                              'net': 'some_weightfile',
@@ -61,7 +62,7 @@ def test_calculate_inferences_from_sent_images():
     inferences = content['box_detections']
     ic(inferences)
     assert len(inferences) == 4
-    assert inferences[0] == {'class_id': 0,
+    assert inferences[0] == {'category': 'dirt',
                              'confidence': 0.676,
                              'height': 11,
                              'net': 'some_weightfile',

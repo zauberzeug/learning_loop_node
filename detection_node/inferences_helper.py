@@ -30,7 +30,7 @@ def get_inferences(net: cv2.dnn_Net, image: npt.ArrayLike, net_input_image_width
     return outs
 
 
-def parse_inferences(outs: List[int], net: cv2.dnn_Net, image_width: int, image_height: int, net_id: str) -> dict:
+def parse_inferences(outs: List[int], net: cv2.dnn_Net, category_names: List[str], image_width: int, image_height: int, net_id: str) -> dict:
     inferences = []
     last_layer_type = _get_last_layer_type(net)
     if last_layer_type == 'Region':
@@ -47,7 +47,7 @@ def parse_inferences(outs: List[int], net: cv2.dnn_Net, image_width: int, image_
                     left = int(center_x - width / 2)
                     top = int(center_y - height / 2)
                     inference = {
-                        'class_id': int(class_id),
+                        'category': category_names[int(class_id)],
                         'x': left,
                         'y': top,
                         'width': width,

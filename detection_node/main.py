@@ -42,10 +42,11 @@ async def compute_detections(request: Request, file: UploadFile = File(...)):
     image = np.asarray(image)
     image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
     net_input_image_width, net_input_image_height = inferences_helper.get_network_input_image_size(node.path)
+    category_names = inferences_helper.get_category_names(node.path)
     outs = inferences_helper.get_inferences(node.net, image, net_input_image_width, net_input_image_height)
     net_id = inferences_helper._get_model_id(node.path)
     inferences = inferences_helper.parse_inferences(
-        outs, node.net, image.shape[1], image.shape[0], net_id)
+        outs, node.net, category_names, image.shape[1], image.shape[0], net_id)
 
     return JSONResponse({'box_detections': inferences})
 
