@@ -13,18 +13,10 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        for key, value in os.environ.items():
-            ic(key, value)
-
         self.url = os.environ['SERVER_BASE_URL']
         self.ws_url = os.environ['WEBSOCKET_BASE_URL']
         self.username = os.environ['USERNAME']
         self.password = os.environ['PASSWORD']
-
-        ic(self.url)
-        ic(self.ws_url)
-        ic(self.username)
-        ic(self.password)
 
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
@@ -108,7 +100,7 @@ class Node(FastAPI):
         except:
             pass
 
-        print('connecting to Learning Loop9', flush=True)
+        print('connecting to Learning Loop', flush=True)
         try:
             headers = {}
             if self.username:
