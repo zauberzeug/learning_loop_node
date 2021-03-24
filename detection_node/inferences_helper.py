@@ -2,7 +2,6 @@ import cv2
 from typing import List, Tuple, Any
 from icecream import ic
 import numpy as np
-import numpy.typing as npt
 import helper
 import os
 
@@ -20,7 +19,7 @@ def load_network(cfg_file_path: str, weightfile_path: str) -> cv2.dnn_Net:
     return net
 
 
-def get_inferences(net: cv2.dnn_Net, image: npt.ArrayLike, net_input_image_width, net_input_image_height) -> List[npt.ArrayLike]:
+def get_inferences(net: cv2.dnn_Net, image: Any, net_input_image_width, net_input_image_height) -> List[Any]:
     blob = cv2.dnn.blobFromImage(image, 1/255, (net_input_image_width,
                                  net_input_image_height), [0, 0, 0], 1, crop=False)
     net.setInput(blob)
