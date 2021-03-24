@@ -16,45 +16,48 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 #
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-          python3-pip \
-		  python3-dev \
-          python3-matplotlib \
-		  build-essential \
-		  gfortran \
-		  git \
-		  cmake \
-		  curl \
-          vim \
-          libopencv-dev \
-		  libopenblas-dev \
-		  liblapack-dev \
-		  libblas-dev \
-		  libhdf5-serial-dev \
-		  hdf5-tools \
-		  libhdf5-dev \
-		  zlib1g-dev \
-		  zip \
-		  libjpeg8-dev \
-		  libopenmpi2 \
-          openmpi-bin \
-          openmpi-common \
-		  protobuf-compiler \
-          libprotoc-dev \
+        python3-pip \
+		python3-distutils \
+		python3-dev \
+        python3-setuptools \
+        python3-matplotlib \
+        build-essential \
+        gfortran \
+        git \
+        cmake \
+        curl \
+        vim \
+        gnupg \
+        libopencv-dev \
+        libopenblas-dev \
+        liblapack-dev \
+        libblas-dev \
+        libhdf5-serial-dev \
+        hdf5-tools \
+        libhdf5-dev \
+        zlib1g-dev \
+        zip \
+        libjpeg8-dev \
+        libopenmpi2 \
+        openmpi-bin \
+        openmpi-common \
+        protobuf-compiler \
+        libprotoc-dev \
 		llvm-9 \
-          llvm-9-dev \
+        llvm-9-dev \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+RUN ln -sf /usr/bin/python3.6 /usr/bin/python3 && ln -sf /usr/bin/python3.6 /usr/bin/python
 
 #
 # OpenCV
 #
-ARG L4T_APT_KEY
-ARG L4T_APT_SOURCE
 
-COPY jetson-ota-public.asc /etc/apt/trusted.gpg.d/jetson-ota-public.asc
+RUN apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc
+# COPY /etc/apt/trusted.gpg.d/jetson-ota-public.asc /etc/apt/trusted.gpg.d/jetson-ota-public.asc
 
-RUN echo "$L4T_APT_SOURCE" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list && \
+RUN echo "deb https://repo.download.nvidia.com/jetson/common r32.4 main" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list && \
     cat /etc/apt/sources.list.d/nvidia-l4t-apt-source.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -65,7 +68,7 @@ RUN echo "$L4T_APT_SOURCE" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list 
 
 # copied (not 1:1) from https://github.com/tiangolo/uvicorn-gunicorn-docker/blob/master/docker-images/python3.8.dockerfile
 
-RUN python -m pip install --no-cache-dir "uvicorn[standard]" gunicorn
+RUN python3 -m pip install --no-cache-dir "uvicorn[standard]" gunicorn
 
 COPY ./start.sh /start.sh
 RUN chmod +x /start.sh
@@ -86,7 +89,7 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
     ln -s /opt/poetry/bin/poetry && \
     poetry config virtualenvs.create false
 
-# needed for opencv 
+# needed for opencv
 RUN apt-get update && apt-get -y install libgl1-mesa-dev
 
 WORKDIR /learning_loop_node/
@@ -99,8 +102,11 @@ RUN ln -s /learning_loop_node /app/learning_loop_node && ls -lha learning_loop_n
 
 COPY ./detection_node/pyproject.toml ./detection_node/poetry.lock* ./
 
+ENV LANG C.UTF-8
+RUN python -m pip install --upgrade pip
 RUN poetry update
-
+#RUN poetry export -f requirements.txt --output requirements.txt 
+#RUN python -m pip install -r requirements.txt
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"

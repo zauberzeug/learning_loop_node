@@ -1,17 +1,16 @@
 [tool.poetry]
-name = "trainer"
+name = "detection_node"
 version = "0.1.0"
-description = "AI Trainer for the Zauberzeug Learning Loop"
+description = "AI detections for the Zauberzeug Learning Loop"
 authors = ["Zauberzeug <info@zauberzeug.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.6"
 learning_loop_node = { path = "learning_loop_node/", develop = true }
-numpy = "^1.20.1"
 Pillow = "^8.1.2"
 python-multipart = "^0.0.5"
-opencv-python = "^4.5.1"
 icecream = "^2.1.0"
+numpy = "1.19.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
