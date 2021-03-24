@@ -13,6 +13,7 @@ import subprocess
 from icecream import ic
 import learning_loop_node.node_helper as node_helper
 from status import State
+import node
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -43,7 +44,7 @@ def test_download_images():
     resources = main._extract_image_ressoures(data)
     ids = main._extract_image_ids(data)
 
-    node_helper.download_images('backend', zip(resources, ids), image_folder)
+    node_helper.download_images(node.SERVER_BASE_URL_DEFAULT, zip(resources, ids), image_folder)
     assert len(test_helper.get_files_from_data_folder()) == 3
 
 
@@ -120,7 +121,7 @@ def test_create_image_links():
     data = test_helper.get_data()
     image_ids = main._extract_image_ids(data)
     image_resources = main._extract_image_ressoures(data)
-    node_helper.download_images('backend', zip(image_resources, image_ids), image_folder)
+    node_helper.download_images(node.SERVER_BASE_URL_DEFAULT, zip(image_resources, image_ids), image_folder)
 
     yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
@@ -169,7 +170,7 @@ def test_download_model():
 
     model_id = test_helper.assert_upload_model()
 
-    node_helper.download_model(trainings_folder, 'zauberzeug', 'pytest', model_id, 'backend')
+    node_helper.download_model(node.SERVER_BASE_URL_DEFAULT, trainings_folder, 'zauberzeug', 'pytest', model_id)
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 2
 

@@ -8,15 +8,18 @@ import os
 import base64
 from icecream import ic
 
+SERVER_BASE_URL_DEFAULT = 'http://backend'
+WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
+
 
 class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        self.url = os.environ['SERVER_BASE_URL']
-        self.ws_url = os.environ['WEBSOCKET_BASE_URL']
-        self.username = os.environ['USERNAME']
-        self.password = os.environ['PASSWORD']
+        self.url = os.environ.get('SERVER_BASE_URL', SERVER_BASE_URL_DEFAULT)
+        self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
+        self.username = os.environ.get('USERNAME', None)
+        self.password = os.environ.get('PASSWORD', None)
 
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
@@ -109,7 +112,8 @@ class Node(FastAPI):
 
             await self.sio.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
-        except:
+        except Exception as e:
+            ic(e)
             await asyncio.sleep(0.2)
             await self.connect()
         print('connected to Learning Loop', flush=True)

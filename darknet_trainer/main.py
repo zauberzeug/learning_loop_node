@@ -76,8 +76,8 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     yolo_helper.create_train_and_test_file(
         training_folder, image_folder_for_training, data['images'])
 
-    node_helper.download_model(training_folder, node.status.organization,
-                               node.status.project, node.status.model['id'], node.url)
+    node_helper.download_model(node.url, training_folder, node.status.organization,
+                               node.status.project, node.status.model['id'])
     yolo_cfg_helper.replace_classes_and_filters(
         box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)

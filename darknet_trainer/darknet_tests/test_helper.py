@@ -3,6 +3,7 @@ from urllib.parse import urljoin
 from glob import glob
 import os
 import main
+import node
 
 
 class LiveServerSession(Session):
@@ -10,7 +11,7 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = 'http://backend:80/api'
+        self.prefix_url = node.SERVER_BASE_URL_DEFAULT
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)

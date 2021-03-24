@@ -7,9 +7,9 @@ import os
 from glob import glob
 
 
-def download_images(url: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+def download_images(server_base_url: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
     for resource, image_id in image_ressources_and_ids:
-        url = f'{url}/api{resource}'
+        url = f'{server_base_url}/api{resource}'
         response = requests.get(url)
         if response.status_code == 200:
             try:
@@ -22,10 +22,10 @@ def download_images(url: str, image_ressources_and_ids: List[tuple], image_folde
             pass
 
 
-def download_model(training_folder: str, organization: str, project: str, model_id: str, hostname: str):
+def download_model(server_base_url: str, training_folder: str, organization: str, project: str, model_id: str):
     # download model
     download_response = requests.get(
-        f'http://{hostname}/api/{organization}/projects/{project}/models/{model_id}/file')
+        f'{server_base_url}/api/{organization}/projects/{project}/models/{model_id}/file')
     assert download_response.status_code == 200
     provided_filename = download_response.headers.get(
         "Content-Disposition").split("filename=")[1].strip('"')
