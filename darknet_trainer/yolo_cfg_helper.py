@@ -30,9 +30,7 @@ def update_anchors(training_folder: str) -> None:
     yolo_layer_count = _read_yolo_layer_count(cfg_file_path)
     width, height = _read_width_and_height(cfg_file_path)
 
-    os.chdir(training_folder)
-
-    anchors = _calculate_anchors(yolo_layer_count, width, height)
+    anchors = _calculate_anchors(training_folder, yolo_layer_count, width, height)
     _write_anchors(cfg_file_path, anchors)
 
 
@@ -45,15 +43,15 @@ def _find_cfg_file(folder: str) -> str:
     return cfg_files[0]
 
 
-def _calculate_anchors(yolo_layer_count: int, width: int, height: int):
-    cmd = f'/darknet/darknet detector calc_anchors data.txt -num_of_clusters {yolo_layer_count*3} -width {width} -height {height}'
+def _calculate_anchors(training_path, yolo_layer_count: int, width: int, height: int):
+    cmd = f'cd {training_path};/darknet/darknet detector calc_anchors data.txt -num_of_clusters {yolo_layer_count*3} -width {width} -height {height}'
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = p.communicate()
     if (p.returncode != 0):
         raise Exception(f'Calculating anchors failed:\nout: {out.decode("utf-8")} \nerror: {err.decode("utf-8") }')
-    with open('anchors.txt', 'r') as f:
+    with open(f'{training_path}/anchors.txt', 'r') as f:
         anchors = f.readline()
-    os.remove('anchors.txt')
+    os.remove(f'{training_path}/anchors.txt')
     return anchors
 
 

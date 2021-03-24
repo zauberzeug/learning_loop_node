@@ -18,12 +18,11 @@ import node
 
 @pytest.fixture(autouse=True, scope='function')
 def cleanup():
-    working_directory = os.getcwd()
+
     shutil.rmtree('../data', ignore_errors=True)
     yolo_helper.kill_all_darknet_processes()
     yield
     yolo_helper.kill_all_darknet_processes()
-    os.chdir(working_directory)
 
 
 @pytest.fixture(autouse=True, scope='module')
