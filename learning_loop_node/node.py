@@ -4,13 +4,28 @@ import asyncio
 from status import Status, State
 import asyncio
 import requests
+import os
+import base64
+from icecream import ic
 
 
 class Node(FastAPI):
 
-    def __init__(self, hostname: str, name: str, uuid: str):
+    def __init__(self, name: str, uuid: str):
         super().__init__()
-        self.hostname = hostname
+        for key, value in os.environ.items():
+            ic(key, value)
+
+        self.url = os.environ['SERVER_BASE_URL']
+        self.ws_url = os.environ['WEBSOCKET_BASE_URL']
+        self.username = os.environ['USERNAME']
+        self.password = os.environ['PASSWORD']
+
+        ic(self.url)
+        ic(self.ws_url)
+        ic(self.username)
+        ic(self.password)
+
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
@@ -38,7 +53,7 @@ class Node(FastAPI):
                 return 'node does not provide a get_model_files function'
             # NOTE: Do not use self.status.organization here. The requested model maybe not belongs to the currently running training.
 
-            uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
+            uri_base = f'{self.url}/api/{organization}/projects/{project}'
             data = []
             for file_name in self._get_model_files(organization, project, model['id']):
                 data.append(('files',  open(file_name, 'rb')))
@@ -62,7 +77,7 @@ class Node(FastAPI):
             self.status.organization = organization
             self.status.project = project
 
-            uri_base = f'http://{self.hostname}/api/{organization}/projects/{project}'
+            uri_base = f'{self.url}/api/{organization}/projects/{project}'
             data = requests.get(uri_base + '/data?state=complete&mode=boxes').json()
 
             self._begin_training(data)
@@ -93,9 +108,14 @@ class Node(FastAPI):
         except:
             pass
 
-        print('connecting to Learning Loop', flush=True)
+        print('connecting to Learning Loop9', flush=True)
         try:
-            await self.sio.connect(f"ws://{self.hostname}", socketio_path="/ws/socket.io")
+            headers = {}
+            if self.username:
+                headers["Authorization"] = "Basic " + \
+                    base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
+
+            await self.sio.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
         except:
             await asyncio.sleep(0.2)

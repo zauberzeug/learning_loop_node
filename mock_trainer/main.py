@@ -13,8 +13,7 @@ from learning_loop_node.node import Node, State
 import results
 from typing import List
 
-hostname = 'backend'
-node = Node(hostname, uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
+node = Node(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
 
 
 @node.begin_training

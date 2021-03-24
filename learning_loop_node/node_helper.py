@@ -7,9 +7,9 @@ import os
 from glob import glob
 
 
-def download_images(hostname: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+def download_images(url: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
     for resource, image_id in image_ressources_and_ids:
-        url = f'http://{hostname}/api{resource}'
+        url = f'{url}/api{resource}'
         response = requests.get(url)
         if response.status_code == 200:
             try:

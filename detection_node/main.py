@@ -10,8 +10,7 @@ from fastapi.responses import JSONResponse
 import helper
 from icecream import ic
 
-hostname = 'backend'
-node = Node(hostname, uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
+node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
 try:
     node.net = inferences_helper.load_network(

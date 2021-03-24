@@ -22,8 +22,7 @@ from status import Status
 from uuid import uuid4
 
 
-hostname = 'backend'
-node = Node(hostname, uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
+node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
             name='darknet trainer')
 
 # wie geht das hier überhaupt? das wird doch erst beim ausführen von begin_training getriggert oder nicht?
@@ -59,7 +58,7 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     image_folder = _create_image_folder(project_folder)
     image_resources = _extract_image_ressoures(data)
     image_ids = _extract_image_ids(data)
-    node_helper.download_images(node.hostname, zip(
+    node_helper.download_images(node.url, zip(
         image_resources, image_ids), image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
@@ -78,7 +77,7 @@ def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
         training_folder, image_folder_for_training, data['images'])
 
     node_helper.download_model(training_folder, node.status.organization,
-                               node.status.project, node.status.model['id'], node.hostname)
+                               node.status.project, node.status.model['id'], node.url)
     yolo_cfg_helper.replace_classes_and_filters(
         box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
@@ -180,7 +179,6 @@ async def check_state() -> None:
 
 
 async def _check_state() -> None:
-    ic('check state', )
     if node.status.model:
         training_id = node.status.model['training_id']
         ic(training_id,)
