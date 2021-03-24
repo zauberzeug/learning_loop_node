@@ -5,12 +5,13 @@ from io import BytesIO
 import zipfile
 import os
 from glob import glob
+from node import Node
 
 
-def download_images(server_base_url: str, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+def download_images(node:Node, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
     for resource, image_id in image_ressources_and_ids:
-        url = f'{server_base_url}/api{resource}'
-        response = requests.get(url)
+        url = f'{node.url}/api{resource}'
+        response = requests.get(url, headers=node.headers)
         if response.status_code == 200:
             try:
                 with open(f'/{image_folder}/{image_id}.jpg', 'wb') as f:
@@ -22,11 +23,11 @@ def download_images(server_base_url: str, image_ressources_and_ids: List[tuple],
             pass
 
 
-def download_model(server_base_url: str, training_folder: str, organization: str, project: str, model_id: str):
+def download_model(node:Node, training_folder: str, organization: str, project: str, model_id: str):
     # download model
     download_response = requests.get(
-        f'{server_base_url}/api/{organization}/projects/{project}/models/{model_id}/file')
-    assert download_response.status_code == 200
+        f'{node.url}/api/{organization}/projects/{project}/models/{model_id}/file', headers=node.headers)
+    assert download_response.status_code == 200,  download_response.status_code
     provided_filename = download_response.headers.get(
         "Content-Disposition").split("filename=")[1].strip('"')
 

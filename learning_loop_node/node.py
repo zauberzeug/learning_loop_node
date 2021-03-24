@@ -20,6 +20,12 @@ class Node(FastAPI):
         self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
         self.username = os.environ.get('USERNAME', None)
         self.password = os.environ.get('PASSWORD', None)
+        self.headers = {}
+        if self.username:
+            import base64
+            self.headers["Authorization"] = "Basic " + \
+                base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
+            
 
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
@@ -71,9 +77,13 @@ class Node(FastAPI):
             self.status.model = source_model
             self.status.organization = organization
             self.status.project = project
+            from icecream import ic
 
+            ic(self.username)
+
+        
             uri_base = f'{self.url}/api/{organization}/projects/{project}'
-            data = requests.get(uri_base + '/data?state=complete&mode=boxes').json()
+            data = requests.get(uri_base + '/data?state=complete&mode=boxes', headers=self.headers).json()
 
             self._begin_training(data)
 
@@ -105,12 +115,7 @@ class Node(FastAPI):
 
         print('connecting to Learning Loop', flush=True)
         try:
-            headers = {}
-            if self.username:
-                headers["Authorization"] = "Basic " + \
-                    base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
-
-            await self.sio.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
+            await self.sio.connect(f"{self.ws_url}", headers=self.headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
         except Exception as e:
             ic(e)
