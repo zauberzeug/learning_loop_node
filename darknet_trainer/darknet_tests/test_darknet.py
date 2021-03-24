@@ -361,8 +361,7 @@ def _wait_until_first_iteration_reached(training_uuid: str, timeout: int) -> boo
         if '(next mAP calculation at 1000 iterations)' in content:
             return True
         if not _is_any_darknet_running():
-            print('Darknet issnt running anymore. Therefore the log issnt written anymore. Returning False.')
-            return False
+            raise Exception('Darknet issnt running anymore. Therefore the log issnt written anymore. Returning False.')
         time.sleep(1)
     return False
 
