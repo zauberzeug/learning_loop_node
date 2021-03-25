@@ -42,15 +42,16 @@ def test_parse_inferences():
     image = inferences_helper._read_image(image_path)
     classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800)
     net_id = inferences_helper._get_model_id(main.node.path)
-    inferences = inferences_helper.parse_inferences(zip(classes,confidences, boxes), net, category_names, image.shape[1], image.shape[0], net_id)
+    inferences = inferences_helper.parse_inferences(
+        zip(classes, confidences, boxes), net, category_names, image.shape[1], image.shape[0], net_id)
     assert len(inferences) == 8
-    assert inferences[0] ==  {'category': 'dirt',
-                            'confidence': 0.855,
-                            'height': 24,
-                            'net': 'some_weightfile',
-                            'width': 37,
-                            'x': 1366,
-                            'y': 1017}
+    assert inferences[0] == {'category': 'dirt',
+                             'confidence': 0.855,
+                             'height': 24,
+                             'net': 'some_weightfile',
+                             'width': 37,
+                             'x': 1366,
+                             'y': 1017}
 
 
 
