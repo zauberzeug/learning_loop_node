@@ -31,15 +31,14 @@ async def compute_detections(request: Request, file: UploadFile = File(...)):
     """
 
     try:
-        image = PIL.Image.open(file.file)
+        np_image = np.fromfile(file.file, np.uint8)
     except:
         raise Exception(f'Uploaded file {file.filename} is no image file.')
 
-    image = np.asarray(image)
-    image = cv2.cvtColor(np.array(image), cv2.COLOR_BGR2RGB)
+    image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
     net_input_image_width, net_input_image_height = inferences_helper.get_network_input_image_size(node.path)
     category_names = inferences_helper.get_category_names(node.path)
-    classes, confidences, boxes = inferences_helper.get_inferences(node.net, image, net_input_image_width, net_input_image_height)
+    classes, confidences, boxes = inferences_helper.get_inferences(node.net, image, net_input_image_width, net_input_image_height, swap=False)
     net_id = inferences_helper._get_model_id(node.path)
     inferences = inferences_helper.parse_inferences(
         zip(classes, confidences, boxes), node.net, category_names, image.shape[1], image.shape[0], net_id)
