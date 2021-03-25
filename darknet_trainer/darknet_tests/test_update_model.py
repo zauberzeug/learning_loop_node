@@ -102,7 +102,7 @@ async def test_get_files_for_model_on_save():
     main.node.status.box_categories = get_box_categories()
 
     data = test_helper.get_data()
-    main._prepare_training(main.node, data, training_uuid)
+    await main._prepare_training(main.node, data, training_uuid)
 
     _, _, training_path = test_helper.create_needed_folders(training_uuid)
     shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')

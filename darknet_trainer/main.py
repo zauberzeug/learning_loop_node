@@ -41,8 +41,8 @@ def _get_model_files(model_id: str) -> List[str]:
         raise Exception(f'No model found for id: {model_id}.')
 
     training_path = '/'.join(weightfile_path.split('/')[:-1])
-    cfg_file_path = glob(f'{training_path}/*.cfg', recursive=True)[0]
-    return [weightfile_path, cfg_file_path, f'{training_path}/names.txt']
+    cfg_file_path = find_cfg_file(training_path)
+    return [weightfile_path, f'{training_path}/{cfg_file_path}', f'{training_path}/names.txt']
 
 
 @node.begin_training
@@ -155,7 +155,7 @@ def find_weightfile(training_path: str) -> str:
 def find_cfg_file(training_path: str) -> str:
     cfg_files = weightfiles = glob(f'{training_path}/*.cfg', recursive=True)
     if not weightfiles or len(weightfiles) > 1:
-        raise Exception('Number of present .cfg files must be 1.')
+        raise Exception(f'Number of present .cfg files must be 1, but was {len(weightfiles)}')
     cfg_file = cfg_files[0].split('/')[-1]
     return cfg_file
 

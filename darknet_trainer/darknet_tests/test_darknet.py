@@ -13,7 +13,7 @@ import subprocess
 from icecream import ic
 import learning_loop_node.node_helper as node_helper
 from status import State
-import node
+import asyncio
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -36,14 +36,15 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-def test_download_images():
+@pytest.mark.asyncio
+async def test_download_images():
     assert len(test_helper.get_files_from_data_folder()) == 0
     data = test_helper.get_data()
     _, image_folder, _ = test_helper.create_needed_folders()
     resources = main._extract_image_ressoures(data)
     ids = main._extract_image_ids(data)
 
-    node_helper.download_images(node.SERVER_BASE_URL_DEFAULT, zip(resources, ids), image_folder)
+    await node_helper.download_images(main.node, zip(resources, ids), image_folder)
     assert len(test_helper.get_files_from_data_folder()) == 3
 
 
@@ -113,14 +114,15 @@ def test_create_data_file():
     assert data[4] == 'backup = backup/'
 
 
-def test_create_image_links():
+@pytest.mark.asyncio
+async def test_create_image_links():
     assert len(test_helper.get_files_from_data_folder()) == 0
     _, image_folder, trainings_folder = test_helper.create_needed_folders()
 
     data = test_helper.get_data()
     image_ids = main._extract_image_ids(data)
     image_resources = main._extract_image_ressoures(data)
-    node_helper.download_images(node.SERVER_BASE_URL_DEFAULT, zip(image_resources, image_ids), image_folder)
+    await node_helper.download_images(main.node, zip(image_resources, image_ids), image_folder)
 
     yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
@@ -169,7 +171,7 @@ def test_download_model():
 
     model_id = test_helper.assert_upload_model()
 
-    node_helper.download_model(node.SERVER_BASE_URL_DEFAULT, trainings_folder, 'zauberzeug', 'pytest', model_id)
+    node_helper.download_model(main.node, trainings_folder, 'zauberzeug', 'pytest', model_id)
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 2
 
@@ -202,7 +204,8 @@ def test_replace_classes_and_filters():
     assert_line_count('classes=10', 2)
 
 
-def test_create_anchors():
+@pytest.mark.asyncio
+async def test_create_anchors():
 
     model_id = test_helper.assert_upload_model()
 
@@ -212,7 +215,7 @@ def test_create_anchors():
 
     data = test_helper.get_data()
     training_uuid = str(uuid4())
-    main._prepare_training(main.node, data, training_uuid)
+    await main._prepare_training(main.node, data, training_uuid)
 
     anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
     original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
@@ -223,12 +226,14 @@ def test_create_anchors():
     _assert_anchors(cfg_file_path, new_anchors)
 
 
-def test_start_training():
+@pytest.mark.asyncio
+async def test_start_training():
     training_uuid = str(uuid4())
-    _start_training(training_uuid)
+    await _start_training(training_uuid)
 
     # NOTE: /proc/{pid}/comm needs some time to show correct process name
-    time.sleep(1)
+    await asyncio.sleep(1)
+
     assert _is_any_darknet_running() == True, 'Training is not running'
     assert _wait_until_first_iteration_reached(training_uuid, timeout=40) == True, 'No iteration created.'
     main._stop_training(training_uuid)
@@ -236,18 +241,20 @@ def test_start_training():
     assert _is_any_darknet_running() == False
 
 
-def test_check_running_training_state():
+@pytest.mark.asyncio
+async def test_check_running_training_state():
     training_uuid = str(uuid4())
-    _start_training(training_uuid)
+    await _start_training(training_uuid)
 
     state = main.get_training_state(training_uuid)
     assert state == 'running'
 
 
-def test_check_crashed_training_state():
+@pytest.mark.asyncio
+async def test_check_crashed_training_state():
     training_uuid = str(uuid4())
 
-    _start_training(training_uuid)
+    await _start_training(training_uuid)
 
     yolo_helper.kill_all_darknet_processes()
     time.sleep(.1)
@@ -259,7 +266,7 @@ def test_check_crashed_training_state():
 @pytest.mark.asyncio
 async def test_cleanup_after_crash():
     training_uuid = str(uuid4())
-    _start_training(training_uuid)
+    await _start_training(training_uuid)
     assert main.node.status.model['training_id'] == training_uuid
 
     state = main.get_training_state(training_uuid)
@@ -285,6 +292,7 @@ async def test_reset_to_idle_after_crash():
     begin_training_handler = main.node.sio.handlers['/']['begin_training']
 
     await begin_training_handler('zauberzeug', 'pytest', model)
+    await asyncio.sleep(.1)
     _assert_trainer_state(State.Running)
 
     yolo_helper.kill_all_darknet_processes()
@@ -336,14 +344,14 @@ def test_find_cfg_file(target_cfg_file):
     assert cfg_file == target_cfg_file
 
 
-def _start_training(training_uuid):
+async def _start_training(training_uuid):
     model_id = test_helper.assert_upload_model()
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
     main.node.status.project = 'pytest'
     data = test_helper.get_data()
-    main._prepare_training(main.node, data, training_uuid)
-    main._start_training(training_uuid)
+    await main._prepare_training(main.node, data, training_uuid)
+    await main._start_training(training_uuid)
 
 
 def _is_any_darknet_running():
@@ -361,7 +369,14 @@ def _wait_until_first_iteration_reached(training_uuid: str, timeout: int) -> boo
         if '(next mAP calculation at 1000 iterations)' in content:
             return True
         if not _is_any_darknet_running():
-            raise Exception('Darknet issnt running anymore. Therefore the log issnt written anymore. Returning False.')
+            log = None
+            try:
+                with open(f'{training_folder}/last_training.log', 'r') as f:
+                    log = f.read()
+            except:
+                pass
+            raise Exception(
+                f'Darknet issnt running anymore. Therefore the log issnt written anymore. Returning False.\nLog: {log}')
         time.sleep(1)
     return False
 
