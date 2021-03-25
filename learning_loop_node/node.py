@@ -26,7 +26,6 @@ class Node(FastAPI):
             self.headers["Authorization"] = "Basic " + \
                 base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
             
-
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
@@ -77,11 +76,7 @@ class Node(FastAPI):
             self.status.model = source_model
             self.status.organization = organization
             self.status.project = project
-            from icecream import ic
 
-            ic(self.username)
-
-        
             uri_base = f'{self.url}/api/{organization}/projects/{project}'
             data = requests.get(uri_base + '/data?state=complete&mode=boxes', headers=self.headers).json()
 
@@ -100,6 +95,7 @@ class Node(FastAPI):
 
         @self.sio.on('connect')
         async def on_connect():
+            ic('recieved "on_connect" event.')
             reset()
             await self.update_state(State.Idle)
 
