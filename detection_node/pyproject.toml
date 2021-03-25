@@ -11,6 +11,7 @@ Pillow = "^8.1.2"
 python-multipart = "^0.0.5"
 icecream = "^2.1.0"
 numpy = "1.19.4"
+aiohttp = "^3.7.4"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
