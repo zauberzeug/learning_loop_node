@@ -6,12 +6,19 @@ import zipfile
 import os
 from glob import glob
 from node import Node
+from icecream import ic
+import asyncio
 
 
-def download_images(node:Node, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+async def download_images(node: Node, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+    session = requests.Session()
+    session.headers = node.headers
+    loop = asyncio.get_event_loop()
+
     for resource, image_id in image_ressources_and_ids:
         url = f'{node.url}/api{resource}'
-        response = requests.get(url, headers=node.headers)
+        response = await loop.run_in_executor(None, session.get, url)
+
         if response.status_code == 200:
             try:
                 with open(f'/{image_folder}/{image_id}.jpg', 'wb') as f:
@@ -22,8 +29,7 @@ def download_images(node:Node, image_ressources_and_ids: List[tuple], image_fold
             # TODO How to deal with this kind of error?
             pass
 
-
-def download_model(node:Node, training_folder: str, organization: str, project: str, model_id: str):
+def download_model(node: Node, training_folder: str, organization: str, project: str, model_id: str):
     # download model
     download_response = requests.get(
         f'{node.url}/api/{organization}/projects/{project}/models/{model_id}/file', headers=node.headers)
@@ -40,4 +46,5 @@ def download_model(node:Node, training_folder: str, organization: str, project: 
 
     files = glob(f'{target_path}/**/*', recursive=True)
     for file in files:
+        ic(f'moving model file {os.path.basename(file)} to training folder.')
         shutil.move(file, training_folder)

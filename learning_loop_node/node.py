@@ -70,7 +70,8 @@ class Node(FastAPI):
         @self.sio.on('begin_training')
         async def on_begin_training(organization, project, source_model):
             if not hasattr(self, '_begin_training'):
-                return 'node does not provide a begin_training function'
+                msg = 'node does not provide a begin_training function'
+                raise Exception(msg)
 
             print(f'---- running training with source model {source_model} for {organization}.{project}', flush=True)
             self.status.model = source_model
@@ -80,8 +81,10 @@ class Node(FastAPI):
             uri_base = f'{self.url}/api/{organization}/projects/{project}'
             data = requests.get(uri_base + '/data?state=complete&mode=boxes', headers=self.headers).json()
 
-            self._begin_training(data)
-
+            loop = asyncio.get_event_loop()
+   
+            loop.set_debug(True)
+            loop.create_task(self._begin_training(data))
             await self.update_state(State.Running)
             return True
 
