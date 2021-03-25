@@ -32,25 +32,26 @@ def test_load_network():
 def test_get_inferences():
     net = net = main.node.net
     image = inferences_helper._read_image(image_path)
-    outs = inferences_helper.get_inferences(net, image, 800, 800)
-    assert len(outs) == 3
+    classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800)
+    assert len(classes) == 8
 
 
 def test_parse_inferences():
     net = main.node.net
     category_names = inferences_helper.get_category_names(main.node.path)
     image = inferences_helper._read_image(image_path)
-    outs = inferences_helper.get_inferences(net, image, 800, 800)
+    classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800)
     net_id = inferences_helper._get_model_id(main.node.path)
-    inferences = inferences_helper.parse_inferences(outs, net, category_names, image.shape[1], image.shape[0], net_id)
-    assert len(inferences) == 4
-    assert inferences[0] == {'category': 'dirt',
-                             'confidence': 0.638,
-                             'height': 11,
-                             'net': 'some_weightfile',
-                             'width': 14,
-                             'x': 1479,
-                             'y': 861}
+    inferences = inferences_helper.parse_inferences(zip(classes,confidences, boxes), net, category_names, image.shape[1], image.shape[0], net_id)
+    assert len(inferences) == 8
+    assert inferences[0] ==  {'category': 'dirt',
+                            'confidence': 0.855,
+                            'height': 24,
+                            'net': 'some_weightfile',
+                            'width': 37,
+                            'x': 1366,
+                            'y': 1017}
+
 
 
 def test_calculate_inferences_from_sent_images():

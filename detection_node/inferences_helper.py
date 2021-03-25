@@ -20,43 +20,29 @@ def load_network(cfg_file_path: str, weightfile_path: str) -> cv2.dnn_Net:
 
 
 def get_inferences(net: cv2.dnn_Net, image: Any, net_input_image_width, net_input_image_height) -> List[Any]:
-    blob = cv2.dnn.blobFromImage(image, 1/255, (net_input_image_width,
-                                 net_input_image_height), [0, 0, 0], 1, crop=False)
-    net.setInput(blob)
-    out_names = _get_out_names(net)
-    outs = net.forward(out_names)
-    return outs
+    model = cv2.dnn_DetectionModel(net)
+    model.setInputParams(size=(net_input_image_width, net_input_image_height), scale=1/255, swapRB=True)
+    classes, confidences, boxes = model.detect(image, confThreshold=0.2, nmsThreshold=1.0)
+    return classes, confidences, boxes
 
 
 def parse_inferences(outs: List[int], net: cv2.dnn_Net, category_names: List[str], image_width: int, image_height: int, net_id: str) -> dict:
     inferences = []
-    last_layer_type = _get_last_layer_type(net)
-    if last_layer_type == 'Region':
-        for out in outs:
-            for detection in out:
-                scores = detection[5:]
-                class_id = np.argmax(scores)
-                confidence = scores[class_id]
-                if confidence > 0.5:
-                    center_x = int(detection[0] * image_width)
-                    center_y = int(detection[1] * image_height)
-                    width = int(detection[2] * image_width)
-                    height = int(detection[3] * image_height)
-                    left = int(center_x - width / 2)
-                    top = int(center_y - height / 2)
-                    inference = {
-                        'category': category_names[int(class_id)],
-                        'x': left,
-                        'y': top,
-                        'width': width,
-                        'height': height,
-                        'net': net_id,
-                        'confidence': round(float(confidence), 3)
-                    }
-                    inferences.append(inference)
-
-    else:
-        raise Exception(f'Unknown layer type: {last_layer_type}.')
+    for (class_id, confidence, box) in outs:
+        left = int(box[0])
+        top = int(box[1])
+        width = int(box[2])
+        height = int(box[3])
+        inference = {
+            'category': category_names[int(class_id)],
+            'x': left,
+            'y': top,
+            'width': width,
+            'height': height,
+            'net': net_id,
+            'confidence': round(float(confidence), 3)
+        }
+        inferences.append(inference)
 
     return inferences
 
