@@ -20,6 +20,7 @@ from icecream import ic
 import psutil
 from status import Status
 from uuid import uuid4
+import traceback
 
 
 node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
@@ -45,20 +46,23 @@ def _get_model_files(model_id: str) -> List[str]:
 
 
 @node.begin_training
-def begin_training(data: dict) -> None:
-    training_uuid = str(uuid4())
-    _prepare_training(node, data, training_uuid)
-    _start_training(training_uuid)
+async def begin_training(data: dict) -> None:
+    try:
+        training_uuid = str(uuid4())
+        await _prepare_training(node, data, training_uuid)
+        await _start_training(training_uuid)
+    except:
+        traceback.print_exc()
 
 
-def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
+async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     _set_node_properties(node, data)
     project_folder = _create_project_folder(
         node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
     image_resources = _extract_image_ressoures(data)
     image_ids = _extract_image_ids(data)
-    node_helper.download_images(node, zip(
+    await node_helper.download_images(node, zip(
         image_resources, image_ids), image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
@@ -122,7 +126,7 @@ def _create_training_folder(project_folder: str, trainings_id: str) -> str:
     return training_folder
 
 
-def _start_training(training_id: str) -> None:
+async def _start_training(training_id: str) -> None:
     training_path = get_training_path_by_id(training_id)
 
     weightfile = find_weightfile(training_path)
@@ -175,11 +179,15 @@ def _stop_training(training_id: str) -> None:
 @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
 async def check_state() -> None:
     """checking the current status"""
-    await _check_state()
+    try:
+        await _check_state()
+    except:
+        traceback.print_exc()
 
 
 async def _check_state() -> None:
-    if node.status.model:
+    ic(f"checking state: {node.status.state}")
+    if node.status.model and node.status.model.get('training_id'):
         training_id = node.status.model['training_id']
         ic(training_id,)
         if training_id:
