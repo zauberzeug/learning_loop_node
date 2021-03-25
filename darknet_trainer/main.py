@@ -20,6 +20,7 @@ from icecream import ic
 import psutil
 from status import Status
 from uuid import uuid4
+import traceback
 
 
 node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
@@ -175,10 +176,15 @@ def _stop_training(training_id: str) -> None:
 @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
 async def check_state() -> None:
     """checking the current status"""
+    try:
     await _check_state()
+    except:
+        traceback.print_exc()
+        
 
 
 async def _check_state() -> None:
+    ic(f"checking state: {node.status.state}")
     if node.status.model:
         training_id = node.status.model['training_id']
         ic(training_id,)
