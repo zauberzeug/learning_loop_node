@@ -216,9 +216,10 @@ async def _check_for_new_model(training_id: str) -> None:
             model_id = str(uuid4())
             training_path = get_training_path_by_id(training_id)
             weightfile_name = model['weightfile']
-            if weightfile_name:
-                weightfile_path = f'{training_path}/{weightfile_name}'
-                shutil.move(weightfile_path, f'{training_path}/{model_id}.weights')
+            if not weightfile_name:
+                return
+            weightfile_path = f'{training_path}/{weightfile_name}'
+            shutil.move(weightfile_path, f'{training_path}/{model_id}.weights')
 
             new_model = {
                 'id': model_id,
