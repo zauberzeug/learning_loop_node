@@ -8,6 +8,7 @@ from uuid import uuid4
 import yolo_helper
 import os
 import asyncio
+import model_updater
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -41,7 +42,7 @@ def test_parse_latest_confusion_matrix():
     shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
 
     main.node.status.box_categories = get_box_categories()
-    new_model = main.parse_latest_iteration(training_uuid)
+    new_model = model_updater._parse_latest_iteration(training_uuid, main.node)
     assert new_model
     assert new_model['iteration'] == 1089
     confusion_matrix = new_model['confusion_matrix']

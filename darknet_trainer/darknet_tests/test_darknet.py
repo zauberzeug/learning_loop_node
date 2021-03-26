@@ -361,7 +361,7 @@ def _is_any_darknet_running():
 
 
 def _wait_until_first_iteration_reached(training_uuid: str, timeout: int) -> bool:
-    training_folder = main.get_training_path_by_id(training_uuid)
+    training_folder = main.helper.get_training_path_by_id(training_uuid)
     for i in range(timeout + 1):
         with open(f'{training_folder}/last_training.log', 'r') as f:
             content = f.read()
@@ -395,7 +395,7 @@ def _assert_anchors(cfg_file_path: str, anchor_line: str) -> None:
 
 
 def _pid_file_exists(training_uuid: str) -> bool:
-    training_path = main.get_training_path_by_id(training_uuid)
+    training_path = main.helper.get_training_path_by_id(training_uuid)
     pid_path = f'{training_path}/last_training.pid'
     return os.path.exists(pid_path)
 

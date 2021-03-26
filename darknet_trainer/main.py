@@ -21,6 +21,7 @@ import psutil
 from status import Status
 from uuid import uuid4
 import traceback
+import model_updater
 
 
 node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
@@ -73,7 +74,7 @@ async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
 
     yolo_helper.update_yolo_boxes(image_folder_for_training, data)
 
-    box_category_names = helper._get_box_category_names(data)
+    box_category_names = helper.get_box_category_names(data)
     box_category_count = len(box_category_names)
     yolo_helper.create_names_file(training_folder, box_category_names)
     yolo_helper.create_data_file(training_folder, box_category_count)
@@ -127,7 +128,7 @@ def _create_training_folder(project_folder: str, trainings_id: str) -> str:
 
 
 async def _start_training(training_id: str) -> None:
-    training_path = get_training_path_by_id(training_id)
+    training_path = helper.get_training_path_by_id(training_id)
 
     weightfile = find_weightfile(training_path)
     cfg_file = find_cfg_file(training_path)
@@ -166,7 +167,7 @@ def stop() -> None:
 
 
 def _stop_training(training_id: str) -> None:
-    training_path = get_training_path_by_id(training_id)
+    training_path = helper.get_training_path_by_id(training_id)
 
     cmd = f'cd {training_path};kill -9 `cat last_training.pid`; rm last_training.pid'
     p = subprocess.Popen(cmd, shell=True)
@@ -192,11 +193,11 @@ async def _check_state() -> None:
         ic(training_id,)
         if training_id:
 
-            await _check_for_new_model(training_id)
-            await check_training_state(training_id)
+            await model_updater.check_state(training_id, node)
+            await _check_training_state(training_id)
 
 
-async def check_training_state(training_id: str) -> None:
+async def _check_training_state(training_id: str) -> None:
     state = get_training_state(training_id)
     ic(state, )
     if state == 'crashed':
@@ -208,66 +209,8 @@ async def check_training_state(training_id: str) -> None:
         await node.update_status(new_status)
 
 
-async def _check_for_new_model(training_id: str) -> None:
-    model = parse_latest_iteration(training_id)
-    if model:
-        last_published_iteration = node.status.model.get('last_published_iteration')
-        if not last_published_iteration or model['iteration'] > last_published_iteration:
-            model_id = str(uuid4())
-            training_path = get_training_path_by_id(training_id)
-            weightfile_name = model['weightfile']
-            if not weightfile_name:
-                return
-            weightfile_path = f'{training_path}/{weightfile_name}'
-            shutil.move(weightfile_path, f'{training_path}/{model_id}.weights')
-
-            new_model = {
-                'id': model_id,
-                'hyperparameters': node.status.hyperparameters,
-                'confusion_matrix': model['confusion_matrix'],
-                'parent_id': node.status.model['id'],
-                'train_image_count': len(node.status.train_images),
-                'test_image_count': len(node.status.test_images),
-                'trainer_id': node.status.id,
-            }
-            await node.sio.call('update_model', (node.status.organization, node.status.project, new_model))
-            node.status.model.update(new_model)
-            node.status.model['last_published_iteration'] = model['iteration']
-
-
-def parse_latest_iteration(training_id: str) -> Union[dict, None]:
-    training_path = get_training_path_by_id(training_id)
-    log_file_path = f'{training_path}/last_training.log'
-
-    with open(log_file_path, 'r') as f:
-        log = f.read()
-
-    iteration_log = MAPParser.extract_iteration_log(log)
-    if not iteration_log:
-        return None
-
-    parser = MAPParser(iteration_log)
-    iteration = parser.parse_iteration()
-
-    confusion_matrices = {}
-    for parsed_class in parser.parse_classes():
-        name = parsed_class['name']
-        id = _get_id_of_category_from_name(name)
-        del parsed_class['id']
-        del parsed_class['name']
-        confusion_matrices[id] = parsed_class
-
-    weightfile = parser.parse_weightfile()
-    return {'iteration': iteration, 'confusion_matrix': confusion_matrices, 'weightfile': weightfile}
-
-
-def _get_id_of_category_from_name(name: str) -> str:
-    category_id = [category['id'] for category in node.status.box_categories if category['name'] == name]
-    return category_id[0]
-
-
 def get_training_state(training_id):
-    training_path = get_training_path_by_id(training_id)
+    training_path = helper.get_training_path_by_id(training_id)
     pid_path = f'{training_path}/last_training.pid'
     if not os.path.exists(pid_path):
         return 'stopped'
@@ -280,12 +223,6 @@ def get_training_state(training_id):
     if p.name() == 'darknet':
         return 'running'
     return 'crashed'
-
-
-def get_training_path_by_id(trainings_id: str) -> str:
-    trainings = [training_path for training_path in glob(
-        f'/data/**/trainings/{trainings_id}', recursive=True)]
-    return trainings[0]
 
 
 @node.on_event("shutdown")
