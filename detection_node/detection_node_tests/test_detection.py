@@ -57,7 +57,7 @@ def test_parse_inferences():
 
 def test_calculate_inferences_from_sent_images():
     data = {('file', open(image_path, 'rb'))}
-    request = requests.post('http://detection_node/detect', files=data)
+    request = requests.post('http://detection_node/images', files=data)
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']
