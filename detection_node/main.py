@@ -22,7 +22,7 @@ except Exception as e:
 router = APIRouter()
 
 
-@router.post("/detect")
+@router.post("/images")
 async def compute_detections(request: Request, file: UploadFile = File(...)):
     """
     Example Usage
