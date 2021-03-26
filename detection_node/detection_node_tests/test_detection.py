@@ -32,7 +32,7 @@ def test_load_network():
 def test_get_inferences():
     net = net = main.node.net
     image = inferences_helper._read_image(image_path)
-    classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800)
+    classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800, swapRB=True)
     assert len(classes) == 8
 
 
@@ -40,7 +40,7 @@ def test_parse_inferences():
     net = main.node.net
     category_names = inferences_helper.get_category_names(main.node.path)
     image = inferences_helper._read_image(image_path)
-    classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800)
+    classes, confidences, boxes = inferences_helper.get_inferences(net, image, 800, 800, swapRB=True)
     net_id = inferences_helper._get_model_id(main.node.path)
     inferences = inferences_helper.parse_inferences(
         zip(classes, confidences, boxes), net, category_names, image.shape[1], image.shape[0], net_id)
