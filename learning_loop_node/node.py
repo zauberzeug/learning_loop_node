@@ -116,11 +116,11 @@ class Node(FastAPI):
         try:
             await self.sio.connect(f"{self.ws_url}", headers=self.headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
+            print('connected to Learning Loop', flush=True)
         except Exception as e:
             ic(e)
             await asyncio.sleep(0.2)
             await self.connect()
-        print('connected to Learning Loop', flush=True)
 
     def get_model_files(self, func):
         self._get_model_files = func
