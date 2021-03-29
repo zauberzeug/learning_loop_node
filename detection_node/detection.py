@@ -7,7 +7,3 @@ class Detection:
         self.height = height
         self.net = net
         self.confidence = confidence
-
-    def _get_area(self) -> int:
-
-        return self.width * self.height

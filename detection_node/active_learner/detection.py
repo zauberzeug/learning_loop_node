@@ -2,13 +2,15 @@ from detection import Detection
 import time
 
 
-class Watcher(Detection):
-    def __init__(self, detection: Detection):
-        super().__init__(detection.category, detection.x, detection.y,
-                         detection.width, detection.height, detection.net, detection.confidence)
+class ActiveLearnerDetection(Detection):
+    def __init__(self, category, x, y, width, height, net, confidence):
+        super().__init__(category, x, y, width, height, net, confidence)
         self.last_seen = time.time()
 
-    def intersection_over_union(self, other_detection: Detection) -> int:
+    def update_last_seen(self):
+        self.last_seen = time.time()
+
+    def intersection_over_union(self, other_detection: 'Detection') -> int:
 
         # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
         xA = max(self.x, other_detection.x)
@@ -24,3 +26,10 @@ class Watcher(Detection):
             return 0
 
         return interArea / union
+
+    def _get_area(self) -> int:
+
+        return self.width * self.height
+
+    def _is_older_than(self, forget_time_in_seconds):
+        return self.last_seen < time.time() - forget_time_in_seconds
