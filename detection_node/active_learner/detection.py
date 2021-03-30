@@ -1,14 +1,17 @@
 from detection import Detection
-import time
+from datetime import datetime, timedelta
 
 
 class ActiveLearnerDetection(Detection):
     def __init__(self, category, x, y, width, height, net, confidence):
         super().__init__(category, x, y, width, height, net, confidence)
-        self.last_seen = time.time()
+        self.last_seen = datetime.now()
 
     def update_last_seen(self):
-        self.last_seen = time.time()
+        self.last_seen = datetime.now()
+
+    def _is_older_than(self, forget_time_in_seconds):
+        return self.last_seen < datetime.now() - timedelta(seconds=forget_time_in_seconds)
 
     def intersection_over_union(self, other_detection: 'Detection') -> int:
 
@@ -30,6 +33,3 @@ class ActiveLearnerDetection(Detection):
     def _get_area(self) -> int:
 
         return self.width * self.height
-
-    def _is_older_than(self, forget_time_in_seconds):
-        return self.last_seen < time.time() - forget_time_in_seconds
