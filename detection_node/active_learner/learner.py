@@ -7,6 +7,7 @@ class Learner:
     def __init__(self):
         self.reset_time = 3600
         self.low_conf_detections = []
+        self.iou = 0.9
 
     def forget_old_detections(self):
         ic(self.low_conf_detections)
@@ -23,7 +24,7 @@ class Learner:
                 continue
 
             similar_detections = self._find_similar_detection_shapes(
-                self.low_conf_detections, detection, 0.9)
+                self.low_conf_detections, detection)
 
             if(any(similar_detections)):
                 ic(similar_detections)
@@ -35,9 +36,9 @@ class Learner:
 
         return list(active_learning_causes)
 
-    def _find_similar_detection_shapes(self, current_detections: List[detection.ActiveLearnerDetection], new_detection: detection.ActiveLearnerDetection, iou: float):
+    def _find_similar_detection_shapes(self, current_detections: List[detection.ActiveLearnerDetection], new_detection: detection.ActiveLearnerDetection):
         return [detection
                 for detection in current_detections
                 if detection.category == new_detection.category
-                and detection.intersection_over_union(new_detection) >= iou
+                and detection.intersection_over_union(new_detection) >= self.iou
                 ]
