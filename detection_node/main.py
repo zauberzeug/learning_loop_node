@@ -41,9 +41,9 @@ async def compute_detections(request: Request, file: UploadFile = File(...)):
     classes, confidences, boxes = detections_helper.get_inferences(
         node.net, image, net_input_image_width, net_input_image_height)
     net_id = detections_helper._get_model_id(node.path)
-    inferences = detections_helper.parse_inferences(
+    detections = detections_helper.parse_detections(
         zip(classes, confidences, boxes), node.net, category_names, image.shape[1], image.shape[0], net_id)
 
-    return JSONResponse({'box_detections': inferences})
+    return JSONResponse({'box_detections': detections})
 
 node.include_router(router, prefix="")

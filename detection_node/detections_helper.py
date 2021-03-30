@@ -4,7 +4,7 @@ from icecream import ic
 import numpy as np
 import helper
 import os
-import detection
+import detection as d
 
 
 def get_category_names(model_path: str) -> List[str]:
@@ -27,8 +27,8 @@ def get_inferences(net: cv2.dnn_Net, image: Any, net_input_image_width, net_inpu
     return classes, confidences, boxes
 
 
-def parse_inferences(outs: List[int], net: cv2.dnn_Net, category_names: List[str], image_width: int, image_height: int, net_id: str) -> dict:
-    inferences = []
+def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str], image_width: int, image_height: int, net_id: str) -> List[d.Detection]:
+    detections = []
     for (class_id, confidence, box) in outs:
         category = category_names[int(class_id)]
         left = int(box[0])
@@ -36,10 +36,10 @@ def parse_inferences(outs: List[int], net: cv2.dnn_Net, category_names: List[str
         width = int(box[2])
         height = int(box[3])
         confidence = round(float(confidence), 3)
-        inference = detection.Detection(category, left, top, width, height, net_id, confidence).__dict__
-        inferences.append(inference)
+        detection = d.Detection(category, left, top, width, height, net_id, confidence).__dict__
+        detections.append(detection)
 
-    return inferences
+    return detections
 
 
 def _read_image(image_path: str) -> List[int]:
