@@ -61,7 +61,14 @@ def test_calculate_inferences_from_sent_images():
     content = request.json()
     inferences = content['box_detections']
     ic(inferences)
-    assert len(inferences) == 4
+    assert len(inferences) == 8
+    assert inferences[0] == {'category': 'dirt',
+                             'confidence': 0.855,
+                             'height': 24,
+                             'net': 'some_weightfile',
+                             'width': 37,
+                             'x': 1366,
+                             'y': 1017}
     assert inferences[0] == {'category': 'dirt',
                              'confidence': 0.676,
                              'height': 11,
