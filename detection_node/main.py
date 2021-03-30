@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request, File, UploadFile
+from fastapi import APIRouter, Request, File, UploadFile, Form
+from fastapi.param_functions import Form
 from learning_loop_node.node import Node
-from typing import List
+from typing import Optional
 import cv2
 from glob import glob
 import detections_helper
@@ -23,11 +24,11 @@ router = APIRouter()
 
 
 @router.post("/images")
-async def compute_detections(request: Request, file: UploadFile = File(...)):
+async def compute_detections(request: Request, file: UploadFile = File(...), mac: Optional[str] = Form(None)):
     """
     Example Usage
 
-        curl --request POST -F 'file=@example1.jpg' localhost:8004/detect
+        curl --request POST -F 'file=@example1.jpg' localhost:8004/images
     """
 
     try:
@@ -39,10 +40,13 @@ async def compute_detections(request: Request, file: UploadFile = File(...)):
     net_input_image_width, net_input_image_height = detections_helper.get_network_input_image_size(node.path)
     category_names = detections_helper.get_category_names(node.path)
     classes, confidences, boxes = detections_helper.get_inferences(
-        node.net, image, net_input_image_width, net_input_image_height)
+        node.net, image, net_input_image_width, net_input_image_height, swapRB=True)
     net_id = detections_helper._get_model_id(node.path)
     detections = detections_helper.parse_detections(
         zip(classes, confidences, boxes), node.net, category_names, image.shape[1], image.shape[0], net_id)
+
+    if mac and detections:
+        helper.save_detections_and_image(detections, image, mac)
 
     return JSONResponse({'box_detections': detections})
 
