@@ -1,4 +1,5 @@
 # Learner Tests incoming
+from datetime import datetime, timedelta
 import pytest
 from active_learner import detection
 from active_learner import learner as l
@@ -6,6 +7,7 @@ from icecream import ic
 import time
 
 dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 30)
+second_dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 20, 10, 10, 'xyz', 35)
 conf_too_high_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 61)
 conf_too_low_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 29)
 
@@ -16,7 +18,8 @@ def test_learner_confidence():
 
     active_learning_cause = learner.add_detections([dirt_detection])
     assert active_learning_cause == [
-        'lowConfidence'], f'Active Learning should be done due to {active_learning_cause[0]}'
+        'lowConfidence'], f'Active Learning should be done due to lowConfidence'
+    assert len(learner.low_conf_detections) == 1, 'Detection should be stored'
 
     active_learning_cause = learner.add_detections([dirt_detection])
     assert len(learner.low_conf_detections) == 1, f'Detection should already be stored'
@@ -31,18 +34,25 @@ def test_learner_confidence():
     assert active_learning_cause == []
 
 
+def test_add_second_detection_to_learner():
+    learner = l.Learner()
+    assert len(learner.low_conf_detections) == 0
+    learner.add_detections([dirt_detection])
+    assert len(learner.low_conf_detections) == 1, 'Detection should be stored'
+    learner.add_detections([second_dirt_detection])
+    assert len(learner.low_conf_detections) == 2, 'Second detection should be stored'
+
+
 def test_update_last_seen():
     time.sleep(0.5)
     assert dirt_detection._is_older_than(0.5) == True
     learner = l.Learner()
-    active_learning_cause = learner.add_detections([dirt_detection])
-    assert active_learning_cause == [
-        'lowConfidence'], f'Active Learning should be done due to {active_learning_cause[0]}'
+    learner.add_detections([dirt_detection])
 
     dirt_detection_was_last_seen_before_update = dirt_detection.last_seen
-    active_learning_cause = learner.add_detections([dirt_detection])
+    learner.add_detections([dirt_detection])
     dirt_detection_was_last_seen_after_update = dirt_detection.last_seen
-    assert dirt_detection_was_last_seen_after_update != dirt_detection_was_last_seen_before_update
+    assert dirt_detection_was_last_seen_after_update > dirt_detection_was_last_seen_before_update
 
 
 def test_forget_old_detections():
@@ -51,10 +61,14 @@ def test_forget_old_detections():
 
     active_learning_cause = learner.add_detections([dirt_detection])
     assert active_learning_cause == [
-        'lowConfidence'], f'Active Learning should be done due to {active_learning_cause[0]}'
+        'lowConfidence'], f'Active Learning should be done due to lowConfidence.'
 
     assert len(learner.low_conf_detections) == 1
 
-    learner.low_conf_detections[0].last_seen = 3700
+    learner.low_conf_detections[0].last_seen = datetime.now() - timedelta(minutes=30)
+    learner.forget_old_detections()
+    assert len(learner.low_conf_detections) == 1
+
+    learner.low_conf_detections[0].last_seen = datetime.now() - timedelta(hours=1, minutes=1)
     learner.forget_old_detections()
     assert len(learner.low_conf_detections) == 0

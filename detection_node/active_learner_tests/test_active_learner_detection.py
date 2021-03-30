@@ -11,9 +11,9 @@ def test_aging():
 
 
 def test_calculate_iou():
-    detection_one = detection.ActiveLearnerDetection('dirt', 10, 0, 30, 100, 'a', 30)
-    detection_two = detection.ActiveLearnerDetection('dirt', 20, 0, 30, 100, 'b', 61)
-    detection_three = detection.ActiveLearnerDetection('dirt', 0, 30, 10, 10, 'b', 61)
+    detection_one = detection.ActiveLearnerDetection('dirt', 10, 0, 30, 100, None, 30)
+    detection_two = detection.ActiveLearnerDetection('dirt', 20, 0, 30, 100, None, 61)
+    detection_three = detection.ActiveLearnerDetection('dirt', 0, 30, 10, 10, None, 61)
 
     assert detection_one.intersection_over_union(detection_two) == 0.5
     assert detection_one.intersection_over_union(detection_three) == 0.0
