@@ -6,10 +6,10 @@ from active_learner import learner as l
 from icecream import ic
 import time
 
-dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 30)
-second_dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 20, 10, 10, 'xyz', 35)
-conf_too_high_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 61)
-conf_too_low_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 29)
+dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 0.30)
+second_dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 20, 10, 10, 'xyz', 0.35)
+conf_too_high_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 0.61)
+conf_too_low_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 0.29)
 
 
 def test_learner_confidence():

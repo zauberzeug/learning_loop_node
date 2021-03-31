@@ -20,7 +20,7 @@ class Learner:
         active_learning_causes = set()
 
         for detection in detections:
-            if detection.confidence < 30 or detection.confidence > 60:
+            if detection.confidence < 0.3 or detection.confidence > 0.6:
                 continue
 
             similar_detections = self._find_similar_detection_shapes(
