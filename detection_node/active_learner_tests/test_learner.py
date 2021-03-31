@@ -6,10 +6,10 @@ from active_learner import learner as l
 from icecream import ic
 import time
 
-dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 0.30)
-second_dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 20, 10, 10, 'xyz', 0.35)
-conf_too_high_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 0.61)
-conf_too_low_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 0.29)
+dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 30)
+second_dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 20, 10, 10, 'xyz', 35)
+conf_too_high_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 61)
+conf_too_low_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 29)
 
 
 def test_learner_confidence():
@@ -72,3 +72,36 @@ def test_forget_old_detections():
     learner.low_conf_detections[0].last_seen = datetime.now() - timedelta(hours=1, minutes=1)
     learner.forget_old_detections()
     assert len(learner.low_conf_detections) == 0
+
+
+def test_active_learner_extracts_from_json():
+    detections = [
+        {"category_name": "dirt",
+         "x": 1366,
+         "y": 1017,
+         "width": 37,
+         "height": 24,
+         "model_name": "some_weightfile",
+         "confidence": 30},
+        {"category_name": "obstacle",
+         "x": 0,
+         "y": 0,
+         "width": 37,
+         "height": 24,
+         "model_name": "some_weightfile",
+         "confidence": 35},
+        {"category_name": "dirt",
+         "x": 1479,
+         "y": 862,
+         "width": 14,
+         "height": 11,
+         "model_name": "some_weightfile",
+         "confidence": 20}]
+
+    mac = '0000'
+    learners = {mac: l.Learner()}
+
+    active_learning_cause = learners[mac].add_detections(
+        [detection.ActiveLearnerDetection(_detection['category_name'], _detection['x'], _detection['y'], _detection['width'], _detection['height'], _detection['model_name'], _detection['confidence']) for _detection in detections])
+
+    assert active_learning_cause == ['lowConfidence']

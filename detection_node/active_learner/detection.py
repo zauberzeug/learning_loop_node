@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 
 
 class ActiveLearnerDetection(Detection):
-    def __init__(self, category, x, y, width, height, net, confidence):
-        super().__init__(category, x, y, width, height, net, confidence)
+    def __init__(self, category_name, x, y, width, height, model_name, confidence):
+        super().__init__(category_name, x, y, width, height, model_name, confidence)
         self.last_seen = datetime.now()
 
     def update_last_seen(self):

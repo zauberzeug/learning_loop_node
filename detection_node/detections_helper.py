@@ -30,13 +30,13 @@ def get_inferences(net: cv2.dnn_Net, image: Any, net_input_image_width, net_inpu
 def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str], image_width: int, image_height: int, net_id: str) -> List[d.Detection]:
     detections = []
     for (class_id, confidence, box) in outs:
-        category = category_names[int(class_id)]
+        category_name = category_names[int(class_id)]
         left = int(box[0])
         top = int(box[1])
         width = int(box[2])
         height = int(box[3])
-        confidence = round(float(confidence), 3)
-        detection = d.Detection(category, left, top, width, height, net_id, confidence).__dict__
+        confidence = round(float(confidence), 3) * 100
+        detection = d.Detection(category_name, left, top, width, height, net_id, confidence).__dict__
         detections.append(detection)
 
     return detections

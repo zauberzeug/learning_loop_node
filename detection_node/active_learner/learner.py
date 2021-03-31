@@ -20,7 +20,7 @@ class Learner:
         active_learning_causes = set()
 
         for detection in detections:
-            if detection.confidence < 0.3 or detection.confidence > 0.6:
+            if detection.confidence < 30 or detection.confidence > 60:
                 continue
 
             similar_detections = self._find_similar_detection_shapes(
@@ -39,6 +39,6 @@ class Learner:
     def _find_similar_detection_shapes(self, current_detections: List[detection.ActiveLearnerDetection], new_detection: detection.ActiveLearnerDetection):
         return [detection
                 for detection in current_detections
-                if detection.category == new_detection.category
+                if detection.category_name == new_detection.category_name
                 and detection.intersection_over_union(new_detection) >= self.iou
                 ]
