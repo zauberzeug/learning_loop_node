@@ -135,3 +135,15 @@ def test_save_image_and_detections_if_mac_was_sent():
 
     for file in saved_files:
         os.remove(file)
+
+
+def test_extract_macs_and_filenames():
+    files = ['/data/00000_2021-03-31_07:05:54.849.jpg',
+             '/data/00000_2021-03-31_07:04:51.314.jpg',
+             '/data/00000_2021-03-31_07:05:54.849.json',
+             '/data/00000_2021-03-31_07:04:51.314.json',
+             '/data/00001_2021-03-31_07:04:51.316.json']
+
+    macs_and_filenames = helper.extract_macs_and_filenames(files)
+    assert macs_and_filenames == {'00000': ['00000_2021-03-31_07:05:54.849', '00000_2021-03-31_07:04:51.314'],
+                                  '00001': ['00001_2021-03-31_07:04:51.316']}
