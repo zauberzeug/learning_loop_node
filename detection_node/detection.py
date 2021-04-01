@@ -7,3 +7,7 @@ class Detection:
         self.height = height
         self.model_name = net
         self.confidence = confidence
+
+    @staticmethod
+    def from_dict(detection: dict):
+        return Detection(detection['category_name'], detection['x'], detection['y'], detection['width'], detection['height'], detection['model_name'], detection['confidence'])

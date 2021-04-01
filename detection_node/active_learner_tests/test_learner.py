@@ -1,15 +1,16 @@
 # Learner Tests incoming
 from datetime import datetime, timedelta
 import pytest
-from active_learner import detection
+from active_learner import detection as d
 from active_learner import learner as l
 from icecream import ic
 import time
+from detection import Detection
 
-dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 30)
-second_dirt_detection = detection.ActiveLearnerDetection('dirt', 0, 20, 10, 10, 'xyz', 35)
-conf_too_high_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 61)
-conf_too_low_detection = detection.ActiveLearnerDetection('dirt', 0, 0, 100, 100, 'xyz', 29)
+dirt_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 0, 100, 100, 'xyz', 30))
+second_dirt_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 20, 10, 10, 'xyz', 35))
+conf_too_high_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 0, 100, 100, 'xyz', 61))
+conf_too_low_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 0, 100, 100, 'xyz', 29))
 
 
 def test_learner_confidence():
@@ -45,7 +46,7 @@ def test_add_second_detection_to_learner():
 
 def test_update_last_seen():
     # TODO modify .last_seen instead.
-    time.sleep(0.5) 
+    time.sleep(0.5)
     assert dirt_detection._is_older_than(0.5) == True
     learner = l.Learner()
     learner.add_detections([dirt_detection])
@@ -101,12 +102,11 @@ def test_active_learner_extracts_from_json():
     mac = '0000'
     learners = {mac: l.Learner()}
 
-
-    # TODO Ersetzen durch Detection.from_json 
+    # TODO Ersetzen durch Detection.from_json
     # + ActiveLearnerDetection.from_detection()
     # Vielleicht brauchen wir das gar nicht.
     active_learning_cause = learners[mac].add_detections(
-        [detection.ActiveLearnerDetection(_detection['category_name'], _detection['x'], _detection['y'], _detection['width'], _detection['height'], _detection['model_name'], _detection['confidence']) for _detection in detections])
+        [d.ActiveLearnerDetection(Detection.from_dict(_detection)) for _detection in detections])
 
     assert active_learning_cause == ['lowConfidence']
     # TODO count check.

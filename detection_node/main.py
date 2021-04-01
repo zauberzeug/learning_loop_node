@@ -53,6 +53,7 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
         zip(classes, confidences, boxes), node.net, category_names, image.shape[1], image.shape[0], net_id)
 
     # TODO hier überprüfen, ob active learning nötig ist, wenn ja, dann abspeichern.
+
     # TODO mac Adreese als Tag in json speichern.
     if mac and detections:
         helper.save_detections_and_image(detections, image, mac)
@@ -79,11 +80,11 @@ def handle_detections() -> None:
                 with open(f'/data/{filename}.json') as f:
                     detections = json.load(f)
 
-                # TODO Ersetzen durch Detection.from_json 
+                # TODO Ersetzen durch Detection.from_json
                 # + ActiveLearnerDetection.from_detection()
                 # Vielleicht brauchen wir das gar nicht.
                 active_learning_causes = learners[mac].add_detections(
-                    [d.ActiveLearnerDetection(detection['category_name'], detection['x'], detection['y'], detection['width'], detection['height'], detection['model_name'], detection['confidence']) for detection in detections['box_detections']])
+                    [d.ActiveLearnerDetection(detection) for detection in detections['box_detections']])
 
                 if any(active_learning_causes):
                     data = [('file', open(f'/data/{filename}.json', 'r')),
