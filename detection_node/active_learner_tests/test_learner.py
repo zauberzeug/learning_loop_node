@@ -49,10 +49,9 @@ def test_update_last_seen():
     learner = l.Learner()
     learner.add_detections([dirt_detection])
 
-    dirt_detection_was_last_seen_before_update = dirt_detection.last_seen
+    last_seen = dirt_detection.last_seen
     learner.add_detections([dirt_detection])
-    dirt_detection_was_last_seen_after_update = dirt_detection.last_seen
-    assert dirt_detection_was_last_seen_after_update > dirt_detection_was_last_seen_before_update
+    assert dirt_detection.last_seen > last_seen
 
 
 def test_forget_old_detections():
