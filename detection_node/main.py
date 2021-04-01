@@ -60,10 +60,11 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
 
 @node.on_event("startup")
 @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
-async def handle_detections() -> None:
+def handle_detections() -> None:
     files_for_active_learning = glob('/data/*', recursive=True)
 
     global learners
+    ic(learners)
     {learner.forget_old_detections() for (mac, learner) in learners.items()}
 
     if files_for_active_learning:
@@ -82,7 +83,7 @@ async def handle_detections() -> None:
                 if any(active_learning_causes):
                     data = [('file', open(f'/data/{filename}.json', 'r')),
                             ('file', open(f'/data/{filename}.jpg', 'rb'))]
-                    requests.post('http://backend/api/zauberzeug/projects/demo/images', files=data)
+                    requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
 
 
 node.include_router(router, prefix="")

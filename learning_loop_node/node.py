@@ -20,12 +20,14 @@ class Node(FastAPI):
         self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
         self.username = os.environ.get('USERNAME', None)
         self.password = os.environ.get('PASSWORD', None)
+        self.project = os.environ.get('PROJECT', None)
+        self.organization = os.environ.get('ORGANIZATION', None)
         self.headers = {}
         if self.username:
             import base64
             self.headers["Authorization"] = "Basic " + \
                 base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
-            
+
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
@@ -82,7 +84,7 @@ class Node(FastAPI):
             data = requests.get(uri_base + '/data?state=complete&mode=boxes', headers=self.headers).json()
 
             loop = asyncio.get_event_loop()
-   
+
             loop.set_debug(True)
             loop.create_task(self._begin_training(data))
             await self.update_state(State.Running)
