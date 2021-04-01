@@ -118,9 +118,12 @@ class Node(FastAPI):
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except Exception as e:
-            ic(e)
-            await asyncio.sleep(0.2)
-            await self.connect()
+            if str(e) is "ConnectionError('Already connected')":
+                pass
+            else:
+                ic(e)
+                await asyncio.sleep(0.2)
+                await self.connect()
 
     def get_model_files(self, func):
         self._get_model_files = func
