@@ -30,9 +30,9 @@ def extract_macs_and_filenames(file_paths: List[str]) -> List[str]:
 def save_detections_and_image(detections: List[Detection], image: Any, mac: str) -> None:
     os.makedirs('/data', exist_ok=True)
     mac = mac.replace(':', '')
-    date = datetime.utcnow().isoformat(sep='_', timespec='milliseconds')
+    date = datetime.utcnow().isoformat(sep='_', timespec='milliseconds') # TODO filename von gesendeten Bild verwenden.
     filepath = f'/data/{mac}_{date}'
-    _write_json(filepath, detections)
+    _write_json(filepath, detections) # TODO  'date und tag' Property ebenfalls schreiben
     cv2.imwrite(f'{filepath}.jpg', image)
 
 

@@ -44,7 +44,8 @@ def test_add_second_detection_to_learner():
 
 
 def test_update_last_seen():
-    time.sleep(0.5)
+    # TODO modify .last_seen instead.
+    time.sleep(0.5) 
     assert dirt_detection._is_older_than(0.5) == True
     learner = l.Learner()
     learner.add_detections([dirt_detection])
@@ -100,7 +101,12 @@ def test_active_learner_extracts_from_json():
     mac = '0000'
     learners = {mac: l.Learner()}
 
+
+    # TODO Ersetzen durch Detection.from_json 
+    # + ActiveLearnerDetection.from_detection()
+    # Vielleicht brauchen wir das gar nicht.
     active_learning_cause = learners[mac].add_detections(
         [detection.ActiveLearnerDetection(_detection['category_name'], _detection['x'], _detection['y'], _detection['width'], _detection['height'], _detection['model_name'], _detection['confidence']) for _detection in detections])
 
     assert active_learning_cause == ['lowConfidence']
+    # TODO count check.

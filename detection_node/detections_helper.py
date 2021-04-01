@@ -6,6 +6,7 @@ import helper
 import os
 import detection as d
 
+# TODO cleanup
 
 def get_category_names(model_path: str) -> List[str]:
     with open(f'{model_path}/names.txt', 'r') as f:
