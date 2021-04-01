@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, File, UploadFile, Form
 from fastapi.param_functions import Form
 from learning_loop_node.node import Node
-from typing import Optional
+from typing import Optional, List
 import cv2
 from glob import glob
 import detections_helper
@@ -15,6 +15,7 @@ from active_learner import learner as l
 import json
 from active_learner import detection as d
 import requests
+from detection import Detection
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
@@ -52,44 +53,36 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
     detections = detections_helper.parse_detections(
         zip(classes, confidences, boxes), node.net, category_names, image.shape[1], image.shape[0], net_id)
 
-    # TODO hier überprüfen, ob active learning nötig ist, wenn ja, dann abspeichern.
-
-    # TODO mac Adreese als Tag in json speichern.
     if mac and detections:
-        helper.save_detections_and_image(detections, image, mac)
+        active_learning_causes = check_detections_for_active_learning(detections, mac)
+
+        if any(active_learning_causes):
+            helper.save_detections_and_image('/data', detections, image, str(file.filename).rsplit('.', 1)[0], mac)
 
     return JSONResponse({'box_detections': detections})
+
+
+def check_detections_for_active_learning(detections: dict, mac: str) -> List[str]:
+    global learners
+    {learner.forget_old_detections() for (mac, learner) in learners.items()}
+    if mac not in learners:
+        learners[mac] = l.Learner()
+
+    active_learning_causes = learners[mac].add_detections(
+        [d.ActiveLearnerDetection(Detection.from_dict(detection)) for detection in detections])
+
+    return active_learning_causes
 
 
 @node.on_event("startup")
 @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
 def handle_detections() -> None:
     files_for_active_learning = glob('/data/*', recursive=True)
-
-    global learners
-    ic(learners)
-    {learner.forget_old_detections() for (mac, learner) in learners.items()}
-
-    if files_for_active_learning:
-        macs_dict = helper.extract_macs_and_filenames(files_for_active_learning)
-        for mac, filenames in macs_dict.items():
-            if mac not in learners:
-                learners[mac] = l.Learner()
-
-            for filename in filenames:
-                with open(f'/data/{filename}.json') as f:
-                    detections = json.load(f)
-
-                # TODO Ersetzen durch Detection.from_json
-                # + ActiveLearnerDetection.from_detection()
-                # Vielleicht brauchen wir das gar nicht.
-                active_learning_causes = learners[mac].add_detections(
-                    [d.ActiveLearnerDetection(detection) for detection in detections['box_detections']])
-
-                if any(active_learning_causes):
-                    data = [('file', open(f'/data/{filename}.json', 'r')),
-                            ('file', open(f'/data/{filename}.jpg', 'rb'))]
-                    requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
+    file_names = helper.get_file_paths(files_for_active_learning)
+    for filename in file_names:
+        data = [('file', open(f'{filename}.json', 'r')),
+                ('file', open(f'{filename}.jpg', 'rb'))]
+        requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
 
 
 node.include_router(router, prefix="")

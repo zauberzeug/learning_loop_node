@@ -27,15 +27,21 @@ def extract_macs_and_filenames(file_paths: List[str]) -> List[str]:
     return mac_dict
 
 
-def save_detections_and_image(detections: List[Detection], image: Any, mac: str) -> None:
-    os.makedirs('/data', exist_ok=True)
-    mac = mac.replace(':', '')
-    date = datetime.utcnow().isoformat(sep='_', timespec='milliseconds') # TODO filename von gesendeten Bild verwenden.
-    filepath = f'/data/{mac}_{date}'
-    _write_json(filepath, detections) # TODO  'date und tag' Property ebenfalls schreiben
+def get_file_paths(files: List[str]) -> set:
+    return {filepath.rsplit('.', 1)[0] for filepath in files}
+
+
+def save_detections_and_image(dir: str, detections: List[Detection], image: Any, filename: str, mac: str) -> None:
+    os.makedirs(dir, exist_ok=True)
+    filepath = f'{dir}/{filename}'
+    _write_json(filepath, detections, mac)
     cv2.imwrite(f'{filepath}.jpg', image)
 
 
-def _write_json(filepath: str, detections: List[Detection]) -> None:
+def _write_json(filepath: str, detections: List[Detection], mac: str) -> None:
+    mac = mac.replace(':', '')
+    date = datetime.utcnow().isoformat(sep='_', timespec='milliseconds')
     with open(f'{filepath}.json', 'w') as f:
-        json.dump({'box_detections': detections}, f)
+        json.dump({'box_detections': detections,
+                   'tags': [mac],
+                   'date': date}, f)

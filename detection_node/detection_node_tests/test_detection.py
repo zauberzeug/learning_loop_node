@@ -95,10 +95,12 @@ def test_save_detections_and_image():
          "confidence": 67.6}]
 
     image = cv2.imread(image_path)
-    mac_address = '0:0:0:0:0'
+    mac_address = '00000'
+    filename = 'test'
+    dir = '/test_data'
 
-    helper.save_detections_and_image(detections, image, mac_address)
-    saved_files = glob('/data/*', recursive=True)
+    helper.save_detections_and_image(dir, detections, image, filename, mac_address)
+    saved_files = glob(f'{dir}/*', recursive=True)
     assert len(saved_files) == 2
     filename = saved_files[0].rsplit('.', 1)[0]
     with open(f'{filename}.json') as f:
@@ -107,7 +109,8 @@ def test_save_detections_and_image():
     ic(content)
     ic(detections)
 
-    assert content == {"box_detections": detections}
+    assert content['box_detections'] == detections
+    assert content['tags'][0] == mac_address
 
     for file in saved_files:
         os.remove(file)
@@ -133,8 +136,9 @@ def test_save_image_and_detections_if_mac_was_sent():
     saved_files = glob('/data/*', recursive=True)
     assert len(saved_files) == 2
 
-    for file in saved_files:
-        os.remove(file)
+    # cleanup
+    os.remove('/data/2462abd538f8_2021-01-17_08-33-49.800.jpg')
+    os.remove('/data/2462abd538f8_2021-01-17_08-33-49.800.json')
 
 
 def test_extract_macs_and_filenames():
@@ -147,3 +151,9 @@ def test_extract_macs_and_filenames():
     macs_and_filenames = helper.extract_macs_and_filenames(files)
     assert macs_and_filenames == {'00000': ['00000_2021-03-31_07:05:54.849', '00000_2021-03-31_07:04:51.314'],
                                   '00001': ['00001_2021-03-31_07:04:51.316']}
+
+
+def test_get_filename():
+    filpaths = ['/data/2462abd538f8_2021-01-17_08-33-49.800.jpg', '/data/2462abd538f8_2021-01-17_08-33-49.800.json']
+    _filepaths = helper.get_file_paths(filpaths)
+    assert _filepaths == {'/data/2462abd538f8_2021-01-17_08-33-49.800'}

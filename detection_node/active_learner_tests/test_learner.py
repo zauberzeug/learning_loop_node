@@ -102,9 +102,6 @@ def test_active_learner_extracts_from_json():
     mac = '0000'
     learners = {mac: l.Learner()}
 
-    # TODO Ersetzen durch Detection.from_json
-    # + ActiveLearnerDetection.from_detection()
-    # Vielleicht brauchen wir das gar nicht.
     active_learning_cause = learners[mac].add_detections(
         [d.ActiveLearnerDetection(Detection.from_dict(_detection)) for _detection in detections])
 
