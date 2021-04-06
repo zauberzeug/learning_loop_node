@@ -1,3 +1,4 @@
+import uvicorn
 import sys
 import asyncio
 import threading
@@ -52,3 +53,6 @@ async def step() -> None:
 
 # setting up backdoor_controls
 node.include_router(backdoor_controls.router, prefix="")
+
+if __name__ == "__main__":
+    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
