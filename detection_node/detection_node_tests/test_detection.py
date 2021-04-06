@@ -1,3 +1,4 @@
+from active_learner.learner import Learner
 from pydantic.types import Json
 import main
 import detections_helper
@@ -8,6 +9,7 @@ import helper
 from glob import glob
 import os
 import json
+import pytest
 
 base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
@@ -66,7 +68,7 @@ def test_calculate_inferences_from_sent_images():
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']
-    ic(inferences)
+
     assert len(inferences) == 8
     assert inferences[0] == {'category_name': 'dirt',
                              'confidence': 85.5,
@@ -80,19 +82,12 @@ def test_calculate_inferences_from_sent_images():
 def test_save_detections_and_image():
     detections = [
         {"category_name": "dirt",
-         "x": 1366,
-         "y": 1017,
-         "width": 37,
-         "height": 24,
+         "x": 1,
+         "y": 1,
+         "width": 1,
+         "height": 1,
          "model_name": "some_weightfile",
-         "confidence": 85.2},
-        {"category_name": "dirt",
-         "x": 1479,
-         "y": 862,
-         "width": 14,
-         "height": 11,
-         "model_name": "some_weightfile",
-         "confidence": 67.6}]
+         "confidence": 30.0}]
 
     image = cv2.imread(image_path)
     mac_address = '00000'
@@ -106,17 +101,15 @@ def test_save_detections_and_image():
     with open(f'{filename}.json') as f:
         content = json.load(f)
 
-    ic(content)
-    ic(detections)
-
     assert content['box_detections'] == detections
     assert content['tags'][0] == mac_address
 
-    for file in saved_files:
-        os.remove(file)
 
-
+@pytest.mark.reset_active_learners()
 def test_save_image_and_detections_if_mac_was_sent():
+    request = requests.put('http://detection_node/reset')
+    assert request.status_code == 200
+
     data = {('file', open(image_path, 'rb'))}
     mac_adress = {"mac": '0:0:0:0'}
     request = requests.post('http://detection_node/images', files=data, data=mac_adress)
@@ -135,10 +128,6 @@ def test_save_image_and_detections_if_mac_was_sent():
 
     saved_files = glob('/data/*', recursive=True)
     assert len(saved_files) == 2
-
-    # cleanup
-    os.remove('/data/2462abd538f8_2021-01-17_08-33-49.800.jpg')
-    os.remove('/data/2462abd538f8_2021-01-17_08-33-49.800.json')
 
 
 def test_extract_macs_and_filenames():

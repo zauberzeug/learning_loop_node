@@ -31,6 +31,12 @@ router = APIRouter()
 learners = {}
 
 
+@router.put("/reset")
+def reset_test_learner(request: Request):
+    global learners
+    learners = {}
+
+
 @router.post("/images")
 async def compute_detections(request: Request, file: UploadFile = File(...), mac: Optional[str] = Form(None)):
     """

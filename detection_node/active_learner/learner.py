@@ -10,7 +10,6 @@ class Learner:
         self.iou = 0.9
 
     def forget_old_detections(self):
-        ic(self.low_conf_detections)
         self.low_conf_detections = [detection
                                     for detection in self.low_conf_detections
                                     if not detection._is_older_than(self.reset_time)]
@@ -27,7 +26,6 @@ class Learner:
                 self.low_conf_detections, detection)
 
             if(any(similar_detections)):
-                ic(similar_detections)
                 for sd in similar_detections:
                     sd.update_last_seen()
             else:

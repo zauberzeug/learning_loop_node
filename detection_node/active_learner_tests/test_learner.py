@@ -45,9 +45,7 @@ def test_add_second_detection_to_learner():
 
 
 def test_update_last_seen():
-    ic(dirt_detection.last_seen)
     dirt_detection.last_seen = datetime.now() - timedelta(seconds=.5)
-    ic(dirt_detection.last_seen)
     assert dirt_detection._is_older_than(0.5) == True
     learner = l.Learner()
     learner.add_detections([dirt_detection])
