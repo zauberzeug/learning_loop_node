@@ -120,7 +120,7 @@ class Node(FastAPI):
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except Exception as e:
-            if str(e) is "ConnectionError('Already connected')":
+            if str(e) == "ConnectionError('Already connected')":
                 pass
             else:
                 ic(e)
