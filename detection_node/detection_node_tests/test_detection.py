@@ -49,7 +49,7 @@ def test_parse_inferences():
     classes, confidences, boxes = detections_helper.get_inferences(net, image, 800, 800, swapRB=True)
     net_id = detections_helper._get_model_id(main.node.path)
     inferences = detections_helper.parse_detections(
-        zip(classes, confidences, boxes), net, category_names, image.shape[1], image.shape[0], net_id)
+        zip(classes, confidences, boxes), net, category_names, net_id)
     assert len(inferences) == 8
     assert inferences[0] == {'category_name': 'dirt',
                              'confidence': 85.5,

@@ -51,7 +51,7 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
         node.net, image, net_input_image_width, net_input_image_height, swapRB=True)
     net_id = detections_helper._get_model_id(node.path)
     detections = detections_helper.parse_detections(
-        zip(classes, confidences, boxes), node.net, category_names, image.shape[1], image.shape[0], net_id)
+        zip(classes, confidences, boxes), node.net, category_names, net_id)
 
     if mac and detections:
         active_learning_causes = check_detections_for_active_learning(detections, mac)

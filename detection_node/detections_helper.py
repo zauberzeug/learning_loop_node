@@ -6,7 +6,6 @@ import helper
 import os
 import detection as d
 
-# TODO cleanup
 
 def get_category_names(model_path: str) -> List[str]:
     with open(f'{model_path}/names.txt', 'r') as f:
@@ -28,7 +27,7 @@ def get_inferences(net: cv2.dnn_Net, image: Any, net_input_image_width, net_inpu
     return classes, confidences, boxes
 
 
-def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str], image_width: int, image_height: int, net_id: str) -> List[d.Detection]:
+def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str], net_id: str) -> List[d.Detection]:
     detections = []
     for (class_id, confidence, box) in outs:
         category_name = category_names[int(class_id)]
@@ -45,17 +44,6 @@ def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str
 
 def _read_image(image_path: str) -> List[int]:
     return cv2.imread(image_path)
-
-
-def _get_out_names(net: cv2.dnn_Net):
-    return net.getUnconnectedOutLayersNames()
-
-
-def _get_last_layer_type(net: cv2.dnn_Net):
-    layerNames = net.getLayerNames()
-    lastLayerId = net.getLayerId(layerNames[-1])
-    lastLayer = net.getLayer(lastLayerId)
-    return lastLayer.type
 
 
 def _get_model_id(model_path: str) -> str:
