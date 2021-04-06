@@ -1,3 +1,4 @@
+import uvicorn
 import asyncio
 import shutil
 from mAP_parser import MAPParser
@@ -236,3 +237,6 @@ async def shutdown():
 
 # setting up backdoor_controls
 node.include_router(backdoor_controls.router, prefix="")
+
+if __name__ == "__main__":
+    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
