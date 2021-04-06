@@ -20,7 +20,7 @@
     "version": "0.2.0",
     "configurations": [
       {
-        "name": "Backend Uvicorn/FastAPI",
+        "name": "Mock Trainer Uvicorn/FastAPI",
         "type": "python",
         "request": "attach",
 
