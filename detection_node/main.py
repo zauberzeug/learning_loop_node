@@ -16,6 +16,7 @@ import json
 from active_learner import detection as d
 import requests
 from detection import Detection
+import os
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
@@ -83,12 +84,19 @@ def check_detections_for_active_learning(detections: dict, mac: str) -> List[str
 @node.on_event("startup")
 @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
 def handle_detections() -> None:
+    _handle_detections()
+
+
+def _handle_detections() -> None:
     files_for_active_learning = glob('/data/*', recursive=True)
     file_names = helper.get_file_paths(files_for_active_learning)
     for filename in file_names:
         data = [('file', open(f'{filename}.json', 'r')),
                 ('file', open(f'{filename}.jpg', 'rb'))]
-        requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
+        request = requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
+        if request.status_code == 200:
+            os.remove(f'{filename}.json')
+            os.remove(f'{filename}.jpg')
 
 
 node.include_router(router, prefix="")

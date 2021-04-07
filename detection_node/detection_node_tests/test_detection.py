@@ -146,3 +146,21 @@ def test_get_filename():
     filpaths = ['/data/2462abd538f8_2021-01-17_08-33-49.800.jpg', '/data/2462abd538f8_2021-01-17_08-33-49.800.json']
     _filepaths = helper.get_file_paths(filpaths)
     assert _filepaths == {'/data/2462abd538f8_2021-01-17_08-33-49.800'}
+
+
+def test_files_are_deleted_after_sending():
+    with open('/data/test.json', 'w') as f:
+        f.write('Json testfile')
+        f.close()
+
+    with open('/data/test.jpg', 'w') as f:
+        f.write('Jpg testfile')
+        f.close()
+
+    saved_files = glob('/data/*', recursive=True)
+    assert len(saved_files) == 2
+
+    main._handle_detections()
+
+    saved_files = glob('/data/*', recursive=True)
+    assert len(saved_files) == 0
