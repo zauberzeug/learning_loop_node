@@ -19,7 +19,8 @@ class LiveServerSession(Session):
 
 
 def get_data() -> dict:
-    response = LiveServerSession().get(f'api/zauberzeug/projects/pytest/data?state=complete&mode=boxes')
+    # response = LiveServerSession().get(f'api/zauberzeug/projects/pytest/data?state=complete&mode=boxes')
+    response = LiveServerSession().get(f'api/zauberzeug/projects/pytest/training_data')
     assert response.status_code == 200
     return response.json()
 
