@@ -239,4 +239,6 @@ async def shutdown():
 node.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
+    import signal
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
     uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
