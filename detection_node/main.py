@@ -1,6 +1,5 @@
 import uvicorn
-from fastapi import APIRouter, Request, File, UploadFile, Form
-from fastapi.param_functions import Form
+from fastapi import APIRouter, Request, File, UploadFile, Header
 from learning_loop_node.node import Node
 from typing import Optional, List
 import cv2
@@ -40,7 +39,7 @@ def reset_test_learner(request: Request):
 
 
 @router.post("/images")
-async def compute_detections(request: Request, file: UploadFile = File(...), mac: Optional[str] = Form(None)):
+async def compute_detections(request: Request, file: UploadFile = File(...), mac: Optional[str] = Header(None)):
     """
     Example Usage
 
