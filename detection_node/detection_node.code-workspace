@@ -15,5 +15,19 @@
       "esbenp.prettier-vscode",
       "littlefoxteam.vscode-python-test-adapter"
     ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Detection Node Uvicorn/FastAPI",
+        "type": "python",
+        "request": "attach",
+
+        "connect": {
+          "port": 5681
+        }
+      }
+    ]
   }
 }

@@ -1,3 +1,4 @@
+import uvicorn
 from fastapi import APIRouter, Request, File, UploadFile, Form
 from fastapi.param_functions import Form
 from learning_loop_node.node import Node
@@ -100,3 +101,6 @@ def _handle_detections() -> None:
 
 
 node.include_router(router, prefix="")
+
+if __name__ == "__main__":
+    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
