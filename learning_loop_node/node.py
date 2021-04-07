@@ -10,6 +10,8 @@ from icecream import ic
 
 SERVER_BASE_URL_DEFAULT = 'http://backend'
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
+BASE_PROJECT = 'demo'
+BASE_ORGANIZATION = 'zauberzeug'
 
 
 class Node(FastAPI):
@@ -20,8 +22,8 @@ class Node(FastAPI):
         self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
         self.username = os.environ.get('USERNAME', None)
         self.password = os.environ.get('PASSWORD', None)
-        self.project = os.environ.get('PROJECT', None)
-        self.organization = os.environ.get('ORGANIZATION', None)
+        self.project = os.environ.get('PROJECT', BASE_PROJECT)
+        self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
         self.headers = {}
         if self.username:
             import base64
