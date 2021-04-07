@@ -20,8 +20,8 @@ RUN ln -s /learning_loop_node /app/learning_loop_node && ls -lha learning_loop_n
 
 COPY ./detection_node/pyproject.toml ./detection_node/poetry.lock* ./
 
-RUN poetry update
 RUN poetry add opencv-python
+RUN poetry update
 
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
