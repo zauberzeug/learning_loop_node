@@ -20,9 +20,14 @@ def load_network(cfg_file_path: str, weightfile_path: str) -> cv2.dnn_Net:
     return net
 
 
-def get_inferences(net: cv2.dnn_Net, image: Any, net_input_image_width, net_input_image_height, swapRB=False) -> List[Any]:
+def setup_model(net: cv2.dnn_Net, node_path: str) -> cv2.dnn_DetectionModel:
     model = cv2.dnn_DetectionModel(net)
-    model.setInputParams(size=(net_input_image_width, net_input_image_height), scale=1/255, swapRB=swapRB)
+    net_input_image_width, net_input_image_height = get_network_input_image_size(node_path)
+    model.setInputParams(size=(net_input_image_width, net_input_image_height), scale=1/255, swapRB=True)
+    return model
+
+
+def get_inferences(model: cv2.dnn_DetectionModel, image: Any) -> List[Any]:
     classes, confidences, boxes = model.detect(image, confThreshold=0.2, nmsThreshold=1.0)
     return classes, confidences, boxes
 

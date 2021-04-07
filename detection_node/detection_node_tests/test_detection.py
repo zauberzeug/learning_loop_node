@@ -38,18 +38,19 @@ def test_load_network():
 
 
 def test_get_inferences():
-    net = net = main.node.net
+    net = main.node.model
     image = detections_helper._read_image(image_path)
-    classes, confidences, boxes = detections_helper.get_inferences(net, image, 800, 800, swapRB=True)
+    classes, confidences, boxes = detections_helper.get_inferences(net, image)
     assert len(classes) == 8
 
 
 def test_parse_inferences():
-    net = main.node.net
+    model = main.node.model
     category_names = detections_helper.get_category_names(main.node.path)
     image = detections_helper._read_image(image_path)
-    classes, confidences, boxes = detections_helper.get_inferences(net, image, 800, 800, swapRB=True)
+    classes, confidences, boxes = detections_helper.get_inferences(model, image)
     net_id = detections_helper._get_model_id(main.node.path)
+    net = main.node.net
     inferences = detections_helper.parse_detections(
         zip(classes, confidences, boxes), net, category_names, net_id)
     assert len(inferences) == 8

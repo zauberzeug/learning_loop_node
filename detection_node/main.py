@@ -1,7 +1,7 @@
 import uvicorn
 from fastapi import APIRouter, Request, File, UploadFile, Header
 from learning_loop_node.node import Node
-from typing import Optional, List
+from typing import Optional, List, Any
 import cv2
 from glob import glob
 import detections_helper
@@ -23,6 +23,7 @@ node.path = '/model'
 try:
     node.net = detections_helper.load_network(
         helper.find_cfg_file(node.path), helper.find_weight_file(node.path))
+    node.model = detections_helper.setup_model(node.net, node.path)
 except Exception as e:
     ic(f'Error: could not load model: {e}')
 
@@ -52,13 +53,7 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
         raise Exception(f'Uploaded file {file.filename} is no image file.')
 
     image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
-    net_input_image_width, net_input_image_height = detections_helper.get_network_input_image_size(node.path)
-    category_names = detections_helper.get_category_names(node.path)
-    classes, confidences, boxes = detections_helper.get_inferences(
-        node.net, image, net_input_image_width, net_input_image_height, swapRB=True)
-    net_id = detections_helper._get_model_id(node.path)
-    detections = detections_helper.parse_detections(
-        zip(classes, confidences, boxes), node.net, category_names, net_id)
+    detections = get_detections(image)
 
     if mac and detections:
         active_learning_causes = check_detections_for_active_learning(detections, mac)
@@ -67,6 +62,16 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
             helper.save_detections_and_image('/data', detections, image, str(file.filename).rsplit('.', 1)[0], mac)
 
     return JSONResponse({'box_detections': detections})
+
+
+def get_detections(image: Any) -> List[d.Detection]:
+    category_names = detections_helper.get_category_names(node.path)
+    classes, confidences, boxes = detections_helper.get_inferences(node.model, image)
+    net_id = detections_helper._get_model_id(node.path)
+    detections = detections_helper.parse_detections(
+        zip(classes, confidences, boxes), node.net, category_names, net_id)
+
+    return detections
 
 
 def check_detections_for_active_learning(detections: dict, mac: str) -> List[str]:
