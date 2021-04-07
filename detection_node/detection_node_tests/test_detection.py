@@ -112,7 +112,7 @@ def test_save_image_and_detections_if_mac_was_sent():
 
     data = {('file', open(image_path, 'rb'))}
     mac_adress = {"mac": '0:0:0:0'}
-    request = requests.post('http://detection_node/images', files=data, data=mac_adress)
+    request = requests.post('http://detection_node/images', files=data, headers=mac_adress)
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']
