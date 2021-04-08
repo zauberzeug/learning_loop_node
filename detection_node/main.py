@@ -40,7 +40,7 @@ def reset_test_learner(request: Request):
 
 
 @router.post("/images")
-async def compute_detections(request: Request, file: UploadFile = File(...), mac: Optional[str] = Header(None)):
+async def compute_detections(request: Request, file: UploadFile = File(...), tags: Optional[str] = Header(None)):
     """
     Example Usage
 
@@ -55,11 +55,8 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
     image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
     detections = get_detections(image)
 
-    if mac and detections:
-        active_learning_causes = check_detections_for_active_learning(detections, mac)
-
-        if any(active_learning_causes):
-            helper.save_detections_and_image('/data', detections, image, str(file.filename).rsplit('.', 1)[0], mac)
+    if tags:
+        learn(detections, tags, image, str(file.filename))
 
     return JSONResponse({'box_detections': detections})
 
@@ -72,6 +69,15 @@ def get_detections(image: Any) -> List[d.Detection]:
         zip(classes, confidences, boxes), node.net, category_names, net_id)
 
     return detections
+
+
+def learn(detections: List[d.Detection], tags: str, image: Any, filename: str) -> None:
+    tags_list = detections_helper.tags_to_list(tags)
+    mac = [item for item in tags_list if item.count(':') > 2]
+    mac_or_first_tag = mac[0] if mac else tags_list[0]
+    active_learning_causes = check_detections_for_active_learning(detections, mac_or_first_tag)
+    if any(active_learning_causes):
+        helper.save_detections_and_image('/data', detections, image, filename, tags_list)
 
 
 def check_detections_for_active_learning(detections: dict, mac: str) -> List[str]:

@@ -91,11 +91,11 @@ def test_save_detections_and_image():
          "confidence": 30.0}]
 
     image = cv2.imread(image_path)
-    mac_address = '00000'
-    filename = 'test'
-    dir = '/test_data'
+    tags = ['0:0:0:0:0', 'asdf']
+    filename = '2462abd538f8_2021-01-17_08-33-49.800.jpg'
+    dir = '/data'
 
-    helper.save_detections_and_image(dir, detections, image, filename, mac_address)
+    helper.save_detections_and_image(dir, detections, image, filename, tags)
     saved_files = glob(f'{dir}/*', recursive=True)
     assert len(saved_files) == 2
     filename = saved_files[0].rsplit('.', 1)[0]
@@ -103,7 +103,7 @@ def test_save_detections_and_image():
         content = json.load(f)
 
     assert content['box_detections'] == detections
-    assert content['tags'][0] == mac_address
+    assert content['tags'] == tags
 
 
 @pytest.mark.reset_active_learners()
@@ -112,8 +112,8 @@ def test_save_image_and_detections_if_mac_was_sent():
     assert request.status_code == 200
 
     data = {('file', open(image_path, 'rb'))}
-    mac_adress = {"mac": '0:0:0:0'}
-    request = requests.post('http://detection_node/images', files=data, headers=mac_adress)
+    tags = {"tags": '0:0:0:0, asdf'}
+    request = requests.post('http://detection_node/images', files=data, headers=tags)
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']

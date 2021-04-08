@@ -70,3 +70,7 @@ def get_network_input_image_size(model_path: str) -> Tuple[int, int]:
         raise Exception("width or height are missing in cfg file.")
 
     return int(width), int(height)
+
+
+def tags_to_list(tags: str) -> List[str]:
+    return tags.split(',')

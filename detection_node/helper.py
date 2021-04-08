@@ -31,17 +31,18 @@ def get_file_paths(files: List[str]) -> set:
     return {filepath.rsplit('.', 1)[0] for filepath in files}
 
 
-def save_detections_and_image(dir: str, detections: List[Detection], image: Any, filename: str, mac: str) -> None:
+def save_detections_and_image(dir: str, detections: List[Detection], image: Any, filename: str, tags: List[str]) -> None:
     os.makedirs(dir, exist_ok=True)
-    filepath = f'{dir}/{filename}'
-    _write_json(filepath, detections, mac)
-    cv2.imwrite(f'{filepath}.jpg', image)
+    image_path = f'{dir}/{filename}'
+    file_name_without_type = filename.rsplit('.', 1)[0]
+    json_path = f'{dir}/{file_name_without_type}.json'
+    _write_json(json_path, detections, tags)
+    cv2.imwrite(image_path, image)
 
 
-def _write_json(filepath: str, detections: List[Detection], mac: str) -> None:
-    mac = mac.replace(':', '')
+def _write_json(json_path: str, detections: List[Detection], tags: List[str]) -> None:
     date = datetime.utcnow().isoformat(sep='_', timespec='milliseconds')
-    with open(f'{filepath}.json', 'w') as f:
+    with open(json_path, 'w') as f:
         json.dump({'box_detections': detections,
-                   'tags': [mac],
+                   'tags': tags,
                    'date': date}, f)
