@@ -41,7 +41,7 @@ def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str
         width = int(box[2])
         height = int(box[3])
         confidence = round(float(confidence), 3) * 100
-        detection = d.Detection(category_name, left, top, width, height, net_id, confidence).__dict__
+        detection = d.Detection(category_name, left, top, width, height, net_id, confidence)
         detections.append(detection)
 
     return detections
@@ -70,7 +70,3 @@ def get_network_input_image_size(model_path: str) -> Tuple[int, int]:
         raise Exception("width or height are missing in cfg file.")
 
     return int(width), int(height)
-
-
-def tags_to_list(tags: str) -> List[str]:
-    return tags.split(',')

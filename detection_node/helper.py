@@ -5,6 +5,7 @@ import json
 import os
 from datetime import datetime
 import cv2
+from fastapi.encoders import jsonable_encoder
 
 
 def find_weight_file(path: str) -> str:
@@ -43,6 +44,6 @@ def save_detections_and_image(dir: str, detections: List[Detection], image: Any,
 def _write_json(json_path: str, detections: List[Detection], tags: List[str]) -> None:
     date = datetime.utcnow().isoformat(sep='_', timespec='milliseconds')
     with open(json_path, 'w') as f:
-        json.dump({'box_detections': detections,
+        json.dump({'box_detections': jsonable_encoder(detections),
                    'tags': tags,
                    'date': date}, f)

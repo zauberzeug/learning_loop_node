@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import APIRouter, Request, File, UploadFile, Header
+from fastapi.encoders import jsonable_encoder
 from learning_loop_node.node import Node
 from typing import Optional, List, Any
 import cv2
@@ -17,6 +18,7 @@ from active_learner import detection as d
 import requests
 from detection import Detection
 import os
+
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
@@ -58,7 +60,7 @@ async def compute_detections(request: Request, file: UploadFile = File(...), tag
     if tags:
         learn(detections, tags, image, str(file.filename))
 
-    return JSONResponse({'box_detections': detections})
+    return JSONResponse({'box_detections': jsonable_encoder(detections)})
 
 
 def get_detections(image: Any) -> List[d.Detection]:
@@ -72,23 +74,24 @@ def get_detections(image: Any) -> List[d.Detection]:
 
 
 def learn(detections: List[d.Detection], tags: str, image: Any, filename: str) -> None:
-    tags_list = detections_helper.tags_to_list(tags)
+    # TODO geht das hier async ?
+    tags_list = tags.split(',')
     mac = [item for item in tags_list if item.count(':') > 2]
     mac_or_first_tag = mac[0] if mac else tags_list[0]
     active_learning_causes = check_detections_for_active_learning(detections, mac_or_first_tag)
+
     if any(active_learning_causes):
-        helper.save_detections_and_image('/data', detections, image, filename, tags_list)
+        helper.save_detections_and_image('/data', detections, image, filename,
+                                         tags_list)  # TODO active_learning_causes as tags
 
 
-def check_detections_for_active_learning(detections: dict, mac: str) -> List[str]:
+def check_detections_for_active_learning(detections: List[d.Detection], mac: str) -> List[str]:
     global learners
     {learner.forget_old_detections() for (mac, learner) in learners.items()}
     if mac not in learners:
         learners[mac] = l.Learner()
 
-    active_learning_causes = learners[mac].add_detections(
-        [d.ActiveLearnerDetection(Detection.from_dict(detection)) for detection in detections])
-
+    active_learning_causes = learners[mac].add_detections(detections)
     return active_learning_causes
 
 
@@ -98,7 +101,7 @@ def handle_detections() -> None:
     _handle_detections()
 
 
-def _handle_detections() -> None:
+def _handle_detections() -> None:  # TODO move
     files_for_active_learning = glob('/data/*', recursive=True)
     file_names = helper.get_file_paths(files_for_active_learning)
     for filename in file_names:

@@ -54,13 +54,13 @@ def test_parse_inferences():
     inferences = detections_helper.parse_detections(
         zip(classes, confidences, boxes), net, category_names, net_id)
     assert len(inferences) == 8
-    assert inferences[0] == {'category_name': 'dirt',
-                             'confidence': 85.5,
-                             'height': 24,
-                             'model_name': 'some_weightfile',
-                             'width': 37,
-                             'x': 1366,
-                             'y': 1017}
+    assert inferences[0].__dict__ == {'category_name': 'dirt',
+                                      'confidence': 85.5,
+                                      'height': 24,
+                                      'model_name': 'some_weightfile',
+                                      'width': 37,
+                                      'x': 1366,
+                                      'y': 1017}
 
 
 def test_calculate_inferences_from_sent_images():
