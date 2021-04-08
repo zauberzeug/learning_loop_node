@@ -106,7 +106,6 @@ def test_save_detections_and_image():
     assert content['tags'] == tags
 
 
-@pytest.mark.reset_active_learners()
 def test_save_image_and_detections_if_mac_was_sent():
     request = requests.put('http://detection_node/reset')
     assert request.status_code == 200
