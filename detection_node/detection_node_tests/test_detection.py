@@ -143,9 +143,11 @@ def test_extract_macs_and_filenames():
 
 
 def test_get_filename():
-    filpaths = ['/data/2462abd538f8_2021-01-17_08-33-49.800.jpg', '/data/2462abd538f8_2021-01-17_08-33-49.800.json']
-    _filepaths = helper.get_file_paths(filpaths)
-    assert _filepaths == {'/data/2462abd538f8_2021-01-17_08-33-49.800'}
+    filpaths = ['/data/2462abd538f8_2021-01-17_08-33-49.800.jpg',
+                '/data/2462abd538f8_2021-01-17_08-33-49.800.png', '/data/2462abd538f8_2021-01-17_08-33-49.800.json']
+    _filepaths = helper.get_image_files(filpaths)
+    assert _filepaths == {'/data/2462abd538f8_2021-01-17_08-33-49.800.png',
+                          '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'}
 
 
 def test_files_are_deleted_after_sending():

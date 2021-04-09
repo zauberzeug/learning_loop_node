@@ -28,8 +28,8 @@ def extract_macs_and_filenames(file_paths: List[str]) -> List[str]:
     return mac_dict
 
 
-def get_file_paths(files: List[str]) -> set:
-    return {filepath.rsplit('.', 1)[0] for filepath in files}
+def get_image_files(files: List[str]) -> set:
+    return {filepath for filepath in files if filepath.rsplit('.', 1)[1] in ['jpg', 'png']}
 
 
 def save_detections_and_image(dir: str, detections: List[Detection], image: Any, filename: str, tags: List[str]) -> None:

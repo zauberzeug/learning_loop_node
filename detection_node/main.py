@@ -103,14 +103,17 @@ def handle_detections() -> None:
 
 def _handle_detections() -> None:  # TODO move
     files_for_active_learning = glob('/data/*', recursive=True)
-    file_names = helper.get_file_paths(files_for_active_learning)
-    for filename in file_names:
-        data = [('file', open(f'{filename}.json', 'r')),
-                ('file', open(f'{filename}.jpg', 'rb'))]
+    image_files = helper.get_image_files(files_for_active_learning)
+
+    for file in image_files:
+        file_name = file.rsplit('.', 1)[0]
+        data = [('file', open(f'{file_name}.json', 'r')),
+                ('file', open(file, 'rb'))]
+
         request = requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
         if request.status_code == 200:
-            os.remove(f'{filename}.json')
-            os.remove(f'{filename}.jpg')
+            os.remove(f'{file_name}.json')
+            os.remove(file)
 
 
 node.include_router(router, prefix="")
