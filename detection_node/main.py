@@ -102,11 +102,11 @@ def handle_detections() -> None:
 
 
 def _handle_detections() -> None:  # TODO move
-    files_for_active_learning = glob('/data/*', recursive=True)
-    image_files = helper.get_image_files(files_for_active_learning)
+    all_files = glob('/data/*', recursive=True)
+    image_files = [file for file in all_files if '.json' not in file]
 
     for file in image_files:
-        file_name = file.rsplit('.', 1)[0]
+        file_name = os.path.splitext(file)[0]
         data = [('file', open(f'{file_name}.json', 'r')),
                 ('file', open(file, 'rb'))]
 
