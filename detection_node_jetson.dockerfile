@@ -1,6 +1,6 @@
-FROM registry.learning-loop.ai/loop_opencv
+FROM zauberzeug/l4t-opencv:4.5.0-on-nano-r32.4.4
 
-# copied (not 1:1) from https://github.com/tiangolo/uvicorn-gunicorn-docker/blob/master/docker-images/python3.8.dockerfile
+# adapted from https://github.com/tiangolo/uvicorn-gunicorn-docker/blob/master/docker-images/python3.8.dockerfile
 
 RUN python3 -m pip install --no-cache-dir "uvicorn[standard]" gunicorn
 
