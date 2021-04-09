@@ -63,23 +63,6 @@ def test_parse_inferences():
                                       'y': 1017}
 
 
-def test_calculate_inferences_from_sent_images():
-    data = {('file', open(image_path, 'rb'))}
-    request = requests.post('http://detection_node/images', files=data, headers={'mac': '0:0:0:0'})
-    assert request.status_code == 200
-    content = request.json()
-    inferences = content['box_detections']
-
-    assert len(inferences) == 8
-    assert inferences[0] == {'category_name': 'dirt',
-                             'confidence': 85.5,
-                             'height': 24,
-                             'model_name': 'some_weightfile',
-                             'width': 37,
-                             'x': 1366,
-                             'y': 1017}
-
-
 def test_save_detections_and_image():
     detections = [
         {"category_name": "dirt",
