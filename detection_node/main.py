@@ -18,7 +18,11 @@ from active_learner import detection as d
 import requests
 from detection import Detection
 import os
+import aiofiles
+from filelock import FileLock
 
+
+lock_file = '/lock_file.lock'
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
@@ -41,7 +45,21 @@ def reset_test_learner(request: Request):
     learners = {}
 
 
-@router.post("/images")
+@router.post("/upload")
+async def upload_image(request: Request, files: List[UploadFile] = File(...)):
+    for file_data in files:
+        with FileLock(lock_file=lock_file):
+            async with aiofiles.open(f'/data/{file_data.filename}', 'wb') as out_file:
+                while True:
+                    content = await file_data.read(1024)  # async read chunk
+                    if not content:
+                        break
+                    await out_file.write(content)  # async write chunk
+
+    return 200, "OK"
+
+
+@router.post("/detect")
 async def compute_detections(request: Request, file: UploadFile = File(...), mac: str = Header(...), tags: Optional[str] = Header(None)):
     """
     Example Usage
