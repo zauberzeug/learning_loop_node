@@ -42,7 +42,7 @@ def reset_test_learner(request: Request):
 
 
 @router.post("/images")
-async def compute_detections(request: Request, file: UploadFile = File(...), tags: Optional[str] = Header(None)):
+async def compute_detections(request: Request, file: UploadFile = File(...), mac: str = Header(...), tags: Optional[str] = Header(None)):
     """
     Example Usage
 
@@ -57,8 +57,7 @@ async def compute_detections(request: Request, file: UploadFile = File(...), tag
     image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
     detections = get_detections(image)
 
-    if tags:
-        learn(detections, tags, image, str(file.filename))
+    learn(detections, mac, tags, image, str(file.filename))
 
     return JSONResponse({'box_detections': jsonable_encoder(detections)})
 
@@ -73,16 +72,19 @@ def get_detections(image: Any) -> List[d.Detection]:
     return detections
 
 
-def learn(detections: List[d.Detection], tags: str, image: Any, filename: str) -> None:
+def learn(detections: List[d.Detection], mac: str, tags: Optional[str], image: Any, filename: str) -> None:
     # TODO geht das hier async ?
-    tags_list = tags.split(',')
-    mac = [item for item in tags_list if item.count(':') > 2]
-    mac_or_first_tag = mac[0] if mac else tags_list[0]
-    active_learning_causes = check_detections_for_active_learning(detections, mac_or_first_tag)
+
+    active_learning_causes = check_detections_for_active_learning(detections, mac)
 
     if any(active_learning_causes):
+        tags_list = [mac]
+        if tags:
+            tags_list += tags.split(',') if tags else []
+        tags_list += active_learning_causes
+
         helper.save_detections_and_image('/data', detections, image, filename,
-                                         tags_list)  # TODO active_learning_causes as tags
+                                         tags_list)
 
 
 def check_detections_for_active_learning(detections: List[d.Detection], mac: str) -> List[str]:

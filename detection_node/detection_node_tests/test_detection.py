@@ -65,7 +65,7 @@ def test_parse_inferences():
 
 def test_calculate_inferences_from_sent_images():
     data = {('file', open(image_path, 'rb'))}
-    request = requests.post('http://detection_node/images', files=data)
+    request = requests.post('http://detection_node/images', files=data, headers={'mac': '0:0:0:0'})
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']
@@ -111,23 +111,36 @@ def test_save_image_and_detections_if_mac_was_sent():
     assert request.status_code == 200
 
     data = {('file', open(image_path, 'rb'))}
-    tags = {"tags": '0:0:0:0, asdf'}
-    request = requests.post('http://detection_node/images', files=data, headers=tags)
+    headers = {'mac': '0:0:0:0', 'tags':  'some_tag'}
+    request = requests.post('http://detection_node/images', files=data, headers=headers)
     assert request.status_code == 200
     content = request.json()
     inferences = content['box_detections']
 
+    expected_detection = {'category_name': 'dirt',
+                          'confidence': 85.5,
+                          'height': 24,
+                          'model_name': 'some_weightfile',
+                          'width': 37,
+                          'x': 1366,
+                          'y': 1017}
     assert len(inferences) == 8
-    assert inferences[0] == {'category_name': 'dirt',
-                             'confidence': 85.5,
-                             'height': 24,
-                             'model_name': 'some_weightfile',
-                             'width': 37,
-                             'x': 1366,
-                             'y': 1017}
+    assert inferences[0] == expected_detection
 
     saved_files = glob('/data/*', recursive=True)
     assert len(saved_files) == 2
+
+    json_filename = [file for file in saved_files if file.endswith('.json')][0]
+    with open(json_filename, 'r') as f:
+        json_content = json.load(f)
+
+    box_detections = json_content['box_detections']
+    assert len(box_detections) == 8
+    assert box_detections[0] == expected_detection
+
+    tags = json_content['tags']
+    assert len(tags) == 3
+    assert tags == ['0:0:0:0', 'some_tag', 'lowConfidence']
 
 
 def test_extract_macs_and_filenames():
@@ -140,14 +153,6 @@ def test_extract_macs_and_filenames():
     macs_and_filenames = helper.extract_macs_and_filenames(files)
     assert macs_and_filenames == {'00000': ['00000_2021-03-31_07:05:54.849', '00000_2021-03-31_07:04:51.314'],
                                   '00001': ['00001_2021-03-31_07:04:51.316']}
-
-
-def test_get_filename():
-    filpaths = ['/data/2462abd538f8_2021-01-17_08-33-49.800.jpg',
-                '/data/2462abd538f8_2021-01-17_08-33-49.800.png', '/data/2462abd538f8_2021-01-17_08-33-49.800.json']
-    _filepaths = helper.get_image_files(filpaths)
-    assert _filepaths == {'/data/2462abd538f8_2021-01-17_08-33-49.800.png',
-                          '/data/2462abd538f8_2021-01-17_08-33-49.800.jpg'}
 
 
 def test_files_are_deleted_after_sending():
