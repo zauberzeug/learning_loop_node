@@ -125,10 +125,10 @@ class Node(FastAPI):
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except ConnectionError as e:
+            ic(e)
             if str(e.message) == 'Already connected':
                 print('we are already connected')
             else:
-                ic(e)
                 await asyncio.sleep(0.2)
                 await self.connect()
 
