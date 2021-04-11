@@ -124,9 +124,9 @@ class Node(FastAPI):
             await self.sio.connect(f"{self.ws_url}", headers=self.headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
-        except Exception as e:
-            if str(e) == "ConnectionError('Already connected')":
-                pass
+        except ConnectionError as e:
+            if str(e.message) == 'Already connected':
+                print('we are already connected')
             else:
                 ic(e)
                 await asyncio.sleep(0.2)
