@@ -1,3 +1,4 @@
+import asyncio
 from active_learner.learner import Learner
 from pydantic.types import Json
 import main
@@ -10,6 +11,8 @@ from glob import glob
 import os
 import json
 import pytest
+import time
+from helper import data_dir
 
 base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
@@ -63,33 +66,8 @@ def test_parse_inferences():
                                       'y': 1017}
 
 
-def test_save_detections_and_image():
-    detections = [
-        {"category_name": "dirt",
-         "x": 1,
-         "y": 1,
-         "width": 1,
-         "height": 1,
-         "model_name": "some_weightfile",
-         "confidence": 30.0}]
-
-    image = cv2.imread(image_path)
-    tags = ['0:0:0:0:0', 'asdf']
-    filename = '2462abd538f8_2021-01-17_08-33-49.800.jpg'
-    dir = '/data'
-
-    helper.save_detections_and_image(dir, detections, image, filename, tags)
-    saved_files = glob(f'{dir}/*', recursive=True)
-    assert len(saved_files) == 2
-    filename = saved_files[0].rsplit('.', 1)[0]
-    with open(f'{filename}.json') as f:
-        content = json.load(f)
-
-    assert content['box_detections'] == detections
-    assert content['tags'] == tags
-
-
-def test_save_image_and_detections_if_mac_was_sent():
+@pytest.mark.asyncio()
+async def test_save_image_and_detections_if_mac_was_sent():
     request = requests.put('http://detection_node/reset')
     assert request.status_code == 200
 
@@ -110,7 +88,13 @@ def test_save_image_and_detections_if_mac_was_sent():
     assert len(inferences) == 8
     assert inferences[0] == expected_detection
 
-    saved_files = glob('/data/*', recursive=True)
+    # Wait for async file saving
+    for try_to_get_files in range(20):
+        saved_files = helper.get_data_files()
+        await asyncio.sleep(.2)
+        if saved_files == 2:
+            break
+
     assert len(saved_files) == 2
 
     json_filename = [file for file in saved_files if file.endswith('.json')][0]
@@ -139,18 +123,18 @@ def test_extract_macs_and_filenames():
 
 
 def test_files_are_deleted_after_sending():
-    with open('/data/test.json', 'w') as f:
+    with open(f'{data_dir}/test.json', 'w') as f:
         f.write('Json testfile')
         f.close()
 
-    with open('/data/test.jpg', 'w') as f:
+    with open(f'{data_dir}/test.jpg', 'w') as f:
         f.write('Jpg testfile')
         f.close()
 
-    saved_files = glob('/data/*', recursive=True)
+    saved_files = helper.get_data_files()
     assert len(saved_files) == 2
 
     main._handle_detections()
 
-    saved_files = glob('/data/*', recursive=True)
+    saved_files = helper.get_data_files()
     assert len(saved_files) == 0

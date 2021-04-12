@@ -1,5 +1,5 @@
 from typing import List
-from active_learner import detection
+from active_learner import detection as d
 from icecream import ic
 from detection import Detection
 
@@ -7,7 +7,7 @@ from detection import Detection
 class Learner:
     def __init__(self):
         self.reset_time = 3600
-        self.low_conf_detections: List[Detection] = []
+        self.low_conf_detections: List[d.ActiveLearnerDetection] = []
         self.iou = 0.9
 
     def forget_old_detections(self):
@@ -29,7 +29,7 @@ class Learner:
                 for sd in similar_detections:
                     sd.update_last_seen()
             else:
-                self.low_conf_detections.append(detection)
+                self.low_conf_detections.append(d.ActiveLearnerDetection(detection))
                 active_learning_causes.add('lowConfidence')
 
         return list(active_learning_causes)
