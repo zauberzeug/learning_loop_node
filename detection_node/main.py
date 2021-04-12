@@ -18,11 +18,9 @@ from active_learner import detection as d
 import requests
 from detection import Detection
 import os
-import aiofiles
-from filelock import FileLock
+import PIL.Image
+import asyncio
 
-
-lock_file = '/lock_file.lock'
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
@@ -48,13 +46,7 @@ def reset_test_learner(request: Request):
 @router.post("/upload")
 async def upload_image(request: Request, files: List[UploadFile] = File(...)):
     for file_data in files:
-        with FileLock(lock_file=lock_file):
-            async with aiofiles.open(f'/data/{file_data.filename}', 'wb') as out_file:
-                while True:
-                    content = await file_data.read(1024)  # async read chunk
-                    if not content:
-                        break
-                    await out_file.write(content)  # async write chunk
+        await helper.write_file(file_data, file_data.filename)
 
     return 200, "OK"
 
@@ -75,12 +67,13 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
     image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
     detections = get_detections(image)
 
-    learn(detections, mac, tags, image, str(file.filename))
+    loop = asyncio.get_event_loop()
+    loop.create_task(learn(detections, mac, tags, file, str(file.filename)))
 
     return JSONResponse({'box_detections': jsonable_encoder(detections)})
 
 
-def get_detections(image: Any) -> List[d.Detection]:
+def get_detections(image: Any) -> List[Detection]:
     category_names = detections_helper.get_category_names(node.path)
     classes, confidences, boxes = detections_helper.get_inferences(node.model, image)
     net_id = detections_helper._get_model_id(node.path)
@@ -90,10 +83,10 @@ def get_detections(image: Any) -> List[d.Detection]:
     return detections
 
 
-def learn(detections: List[d.Detection], mac: str, tags: Optional[str], image: Any, filename: str) -> None:
+async def learn(detections: List[Detection], mac: str, tags: Optional[str], image_data: Any, filename: str) -> None:
     # TODO geht das hier async ?
-
-    active_learning_causes = check_detections_for_active_learning(detections, mac)
+    detections_for_active_learning = [d.ActiveLearnerDetection(detection) for detection in detections]
+    active_learning_causes = check_detections_for_active_learning(detections_for_active_learning, mac)
 
     if any(active_learning_causes):
         tags_list = [mac]
@@ -101,8 +94,8 @@ def learn(detections: List[d.Detection], mac: str, tags: Optional[str], image: A
             tags_list += tags.split(',') if tags else []
         tags_list += active_learning_causes
 
-        helper.save_detections_and_image('/data', detections, image, filename,
-                                         tags_list)
+        await helper.save_detections_and_image('/data', detections, image_data, filename,
+                                               tags_list)
 
 
 def check_detections_for_active_learning(detections: List[d.Detection], mac: str) -> List[str]:
@@ -122,18 +115,19 @@ def handle_detections() -> None:
 
 
 def _handle_detections() -> None:  # TODO move
-    all_files = glob('/data/*', recursive=True)
+    all_files = helper.get_data_files()
     image_files = [file for file in all_files if '.json' not in file]
 
     for file in image_files:
         file_name = os.path.splitext(file)[0]
-        data = [('file', open(f'{file_name}.json', 'r')),
-                ('file', open(file, 'rb'))]
+        if not os.path.exists(f'/data/{file_name}.json.lock') or not os.path.exists(f'/data/{file}.lock'):
+            data = [('file', open(f'{file_name}.json', 'r')),
+                    ('file', open(file, 'rb'))]
 
-        request = requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
-        if request.status_code == 200:
-            os.remove(f'{file_name}.json')
-            os.remove(file)
+            request = requests.post(f'{node.url}/api/{node.organization}/projects/{node.project}/images', files=data)
+            if request.status_code == 200:
+                os.remove(f'{file_name}.json')
+                os.remove(file)
 
 
 node.include_router(router, prefix="")

@@ -2,6 +2,9 @@
 import requests
 import json
 from glob import glob
+import helper
+
+
 base_path = '/model'
 image_name = '2462abd538f8_2021-01-17_08-33-49.800.jpg'
 json_name = '2462abd538f8_2021-01-17_08-33-49.800.json'
@@ -10,7 +13,7 @@ json_path = f'/tmp/{json_name}'
 
 
 def test_upload_image():
-    assert len(get_data_files()) == 0
+    assert len(helper.get_data_files()) == 0
     json_content = {'some_key': 'some_value'}
 
     with open(json_path, 'w') as f:
@@ -22,7 +25,7 @@ def test_upload_image():
     response = requests.post('http://detection_node/upload', files=data)
     assert response.status_code == 200
 
-    data_files = get_data_files()
+    data_files = helper.get_data_files()
     assert len(data_files) == 2
 
     # we do not check the .jpg file.
@@ -33,7 +36,3 @@ def test_upload_image():
         uploaded_json_content = json.load(f)
 
     assert uploaded_json_content == json_content
-
-
-def get_data_files():
-    return glob('/data/*', recursive=True)

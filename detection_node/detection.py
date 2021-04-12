@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta
+
+
 class Detection:
     def __init__(self, category, x, y, width, height, net, confidence):
         self.category_name = category
@@ -28,7 +31,6 @@ class Detection:
     def _get_area(self) -> int:
 
         return self.width * self.height
-
 
     @staticmethod
     def from_dict(detection: dict):
