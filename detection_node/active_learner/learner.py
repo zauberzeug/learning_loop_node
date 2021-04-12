@@ -34,7 +34,7 @@ class Learner:
 
         return list(active_learning_causes)
 
-    def _find_similar_detection_shapes(self, new_detection: d.ActiveLearnerDetection):
+    def _find_similar_detection_shapes(self, new_detection: Detection):
         return [detection
                 for detection in self.low_conf_detections
                 if detection.category_name == new_detection.category_name
