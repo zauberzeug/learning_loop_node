@@ -15,7 +15,7 @@ class Learner:
                                     for detection in self.low_conf_detections
                                     if not detection._is_older_than(self.reset_time)]
 
-    def add_detections(self, detections: List[d.ActiveLearnerDetection]):
+    def add_detections(self, detections: List[Detection]):
 
         active_learning_causes = set()
 
@@ -29,7 +29,7 @@ class Learner:
                 for sd in similar_detections:
                     sd.update_last_seen()
             else:
-                self.low_conf_detections.append(detection)
+                self.low_conf_detections.append(d.ActiveLearnerDetection(detection))
                 active_learning_causes.add('lowConfidence')
 
         return list(active_learning_causes)

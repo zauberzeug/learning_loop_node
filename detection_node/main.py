@@ -85,9 +85,7 @@ def get_detections(image: Any) -> List[Detection]:
 
 
 async def learn(detections: List[Detection], mac: str, tags: Optional[str], image_data: Any, filename: str) -> None:
-    # TODO geht das hier async ?
-    detections_for_active_learning = [d.ActiveLearnerDetection(detection) for detection in detections]
-    active_learning_causes = check_detections_for_active_learning(detections_for_active_learning, mac)
+    active_learning_causes = check_detections_for_active_learning(detections, mac)
 
     if any(active_learning_causes):
         tags_list = [mac]
@@ -99,7 +97,7 @@ async def learn(detections: List[Detection], mac: str, tags: Optional[str], imag
                                                tags_list)
 
 
-def check_detections_for_active_learning(detections: List[d.Detection], mac: str) -> List[str]:
+def check_detections_for_active_learning(detections: List[Detection], mac: str) -> List[str]:
     global learners
     {learner.forget_old_detections() for (mac, learner) in learners.items()}
     if mac not in learners:
