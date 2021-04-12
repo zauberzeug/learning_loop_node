@@ -12,7 +12,7 @@ import os
 import json
 import pytest
 import time
-from main import data_dir
+from helper import data_dir
 
 base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
@@ -88,9 +88,12 @@ async def test_save_image_and_detections_if_mac_was_sent():
     assert len(inferences) == 8
     assert inferences[0] == expected_detection
 
+    # Wait for async file saving
     for try_to_get_files in range(20):
         saved_files = helper.get_data_files()
         time.sleep(0.2)
+        if saved_files == 2:
+            break
 
     assert len(saved_files) == 2
 
