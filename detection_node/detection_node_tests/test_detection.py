@@ -12,6 +12,7 @@ import os
 import json
 import pytest
 import time
+from main import data_dir
 
 base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
@@ -119,11 +120,11 @@ def test_extract_macs_and_filenames():
 
 
 def test_files_are_deleted_after_sending():
-    with open('/data/test.json', 'w') as f:
+    with open(f'{data_dir}/test.json', 'w') as f:
         f.write('Json testfile')
         f.close()
 
-    with open('/data/test.jpg', 'w') as f:
+    with open(f'{data_dir}/test.jpg', 'w') as f:
         f.write('Jpg testfile')
         f.close()
 

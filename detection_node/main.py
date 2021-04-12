@@ -20,6 +20,7 @@ from detection import Detection
 import os
 import PIL.Image
 import asyncio
+from helper import data_dir
 
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
@@ -94,7 +95,7 @@ async def learn(detections: List[Detection], mac: str, tags: Optional[str], imag
             tags_list += tags.split(',') if tags else []
         tags_list += active_learning_causes
 
-        await helper.save_detections_and_image('/data', detections, image_data, filename,
+        await helper.save_detections_and_image(data_dir, detections, image_data, filename,
                                                tags_list)
 
 
@@ -120,7 +121,7 @@ def _handle_detections() -> None:  # TODO move
 
     for file in image_files:
         file_name = os.path.splitext(file)[0]
-        if not os.path.exists(f'/data/{file_name}.json.lock') or not os.path.exists(f'/data/{file}.lock'):
+        if not os.path.exists(f'{data_dir}/{file_name}.json.lock') or not os.path.exists(f'{data_dir}/{file}.lock'):
             data = [('file', open(f'{file_name}.json', 'r')),
                     ('file', open(file, 'rb'))]
 

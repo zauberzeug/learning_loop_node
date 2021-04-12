@@ -3,6 +3,7 @@ import requests
 import json
 from glob import glob
 import helper
+from helper import data_dir
 
 
 base_path = '/model'
@@ -29,10 +30,10 @@ def test_upload_image():
     assert len(data_files) == 2
 
     # we do not check the .jpg file.
-    assert f'/data/{image_name}' in data_files
-    assert f'/data/{json_name}' in data_files
+    assert f'{data_dir}/{image_name}' in data_files
+    assert f'{data_dir}/{json_name}' in data_files
 
-    with open(f'/data/{json_name}', 'r') as f:
+    with open(f'{data_dir}/{json_name}', 'r') as f:
         uploaded_json_content = json.load(f)
 
     assert uploaded_json_content == json_content

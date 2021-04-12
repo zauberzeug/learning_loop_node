@@ -13,6 +13,8 @@ from filelock import FileLock
 from icecream import ic
 import os
 
+data_dir = '/data'
+
 
 def find_weight_file(path: str) -> str:
     return glob(f'{path}/*.weights', recursive=True)[0]
@@ -47,24 +49,24 @@ async def _write_json(json_file_name: str, detections: List[Detection], tags: Li
     json_data = json.dumps({'box_detections': jsonable_encoder(detections),
                            'tags': tags,
                             'date': date})
-    with FileLock(lock_file=f'/data/{json_file_name}'):
-        async with aiofiles.open(f'/data/{json_file_name}', 'w') as out_file:
+    with FileLock(lock_file=f'{data_dir}/{json_file_name}'):
+        async with aiofiles.open(f'{data_dir}/{json_file_name}', 'w') as out_file:
             await out_file.write(json_data)
 
 
 async def write_file(file_data: Any, file_name: str):
     # Be sure to start from beginning.
     await file_data.seek(0)
-    with FileLock(lock_file=f'/data/{file_name}.lock'):
-        async with aiofiles.open(f'/data/{file_name}', 'wb') as out_file:
+    with FileLock(lock_file=f'{data_dir}/{file_name}.lock'):
+        async with aiofiles.open(f'{data_dir}/{file_name}', 'wb') as out_file:
             while True:
                 content = await file_data.read(1024)  # async read chunk
                 if not content:
                     break
                 await out_file.write(content)  # async write chunk
 
-    os.remove(f'/data/{file_name}.lock')
+    os.remove(f'{data_dir}/{file_name}.lock')
 
 
 def get_data_files():
-    return glob('/data/*[!.lock]', recursive=True)
+    return glob(f'{data_dir}/*[!.lock]', recursive=True)
