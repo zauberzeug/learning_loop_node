@@ -31,22 +31,6 @@ node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
 # wie geht das hier überhaupt? das wird doch erst beim ausführen von begin_training getriggert oder nicht?
 
 
-@node.get_model_files
-def get_model_files(organization: str, project: str, model_id: str) -> List[str]:
-    return _get_model_files(model_id)
-
-
-def _get_model_files(model_id: str) -> List[str]:
-    try:
-        weightfile_path = glob(f'/data/**/trainings/**/{model_id}.weights', recursive=True)[0]
-    except:
-        raise Exception(f'No model found for id: {model_id}.')
-
-    training_path = '/'.join(weightfile_path.split('/')[:-1])
-    cfg_file_path = find_cfg_file(training_path)
-    return [weightfile_path, f'{training_path}/{cfg_file_path}', f'{training_path}/names.txt']
-
-
 @node.begin_training
 async def begin_training(data: dict) -> None:
     try:
@@ -224,6 +208,22 @@ def get_training_state(training_id):
     if p.name() == 'darknet':
         return 'running'
     return 'crashed'
+
+
+@node.get_model_files
+def get_model_files(organization: str, project: str, model_id: str) -> List[str]:
+    return _get_model_files(model_id)
+
+
+def _get_model_files(model_id: str) -> List[str]:
+    try:
+        weightfile_path = glob(f'/data/**/trainings/**/{model_id}.weights', recursive=True)[0]
+    except:
+        raise Exception(f'No model found for id: {model_id}.')
+
+    training_path = '/'.join(weightfile_path.split('/')[:-1])
+    cfg_file_path = find_cfg_file(training_path)
+    return [weightfile_path, f'{training_path}/{cfg_file_path}', f'{training_path}/names.txt']
 
 
 @node.on_event("shutdown")
