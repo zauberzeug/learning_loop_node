@@ -91,7 +91,7 @@ async def test_save_image_and_detections_if_mac_was_sent():
     # Wait for async file saving
     for try_to_get_files in range(20):
         saved_files = helper.get_data_files()
-        time.sleep(0.2)
+        await asyncio.sleep(.2)
         if saved_files == 2:
             break
 

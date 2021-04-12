@@ -19,4 +19,3 @@ class ActiveLearnerDetection(Detection):
 
     def _is_older_than(self, forget_time_in_seconds):
         return self.last_seen < datetime.now() - timedelta(seconds=forget_time_in_seconds)
-

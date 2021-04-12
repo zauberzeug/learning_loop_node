@@ -1,1 +1,6 @@
 darknet_data
+detection_node_data/*
+images_and_detections/*
+
+!images_and_detections/.gitkeep
+!detection_node_data/.gitkeep

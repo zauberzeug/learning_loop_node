@@ -8,9 +8,9 @@ import time
 from detection import Detection
 
 dirt_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 0, 100, 100, 'xyz', 30))
-second_dirt_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 20, 10, 10, 'xyz', 35))
-conf_too_high_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 0, 100, 100, 'xyz', 61))
-conf_too_low_detection = d.ActiveLearnerDetection(Detection('dirt', 0, 0, 100, 100, 'xyz', 29))
+second_dirt_detection = Detection('dirt', 0, 20, 10, 10, 'xyz', 35)
+conf_too_high_detection = Detection('dirt', 0, 0, 100, 100, 'xyz', 61)
+conf_too_low_detection = Detection('dirt', 0, 0, 100, 100, 'xyz', 29)
 
 
 def test_learner_confidence():
@@ -51,6 +51,7 @@ def test_update_last_seen():
     learner.add_detections([dirt_detection])
 
     last_seen = dirt_detection.last_seen
+    dirt_detection.last_seen = datetime.now() + timedelta(seconds=.5)
     learner.add_detections([dirt_detection])
     assert dirt_detection.last_seen > last_seen
 
