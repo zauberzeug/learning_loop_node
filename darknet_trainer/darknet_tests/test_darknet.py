@@ -292,7 +292,7 @@ async def test_reset_to_idle_after_crash():
     begin_training_handler = main.node.sio.handlers['/']['begin_training']
 
     await begin_training_handler('zauberzeug', 'pytest', model)
-    await asyncio.sleep(.1)
+    await asyncio.sleep(3)  # TODO how to wait here?
     _assert_trainer_state(State.Running)
 
     yolo_helper.kill_all_darknet_processes()

@@ -45,4 +45,4 @@ def assert_upload_model() -> str:
     upload_response = LiveServerSession().post(
         f'/api/zauberzeug/projects/pytest/models', files=data)
     assert upload_response.status_code == 200
-    return upload_response.json()['url'].split('/')[-2]
+    return upload_response.json()['id']
