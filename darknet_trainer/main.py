@@ -28,8 +28,6 @@ import model_updater
 node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
             name='darknet trainer')
 
-# wie geht das hier überhaupt? das wird doch erst beim ausführen von begin_training getriggert oder nicht?
-
 
 @node.begin_training
 async def begin_training(data: dict) -> None:
