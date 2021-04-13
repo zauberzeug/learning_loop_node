@@ -6,9 +6,9 @@ import zipfile
 import os
 from glob import glob
 from icecream import ic
-import asyncio
 import aiohttp
 import aiofiles
+from icecream import ic
 
 
 async def download_images_data(base_url: str, headers: dict, image_ids: List[str]) -> List[dict]:
@@ -20,6 +20,7 @@ async def download_images_data(base_url: str, headers: dict, image_ids: List[str
             async with session.get(f'{base_url}/api/zauberzeug/projects/pytest/images?ids={",".join(chunk_ids)}', headers=headers) as response:
                 assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
                 images_data += (await response.json())['images']
+                ic(f'[+] Downloaded image data: {images_data} / {len(image_ids)}')
     return images_data
 
 
@@ -31,6 +32,7 @@ async def download_images(base_url: str, headers: dict, images_data: List[dict],
             resource = image_information['resource']
             id = image_information['id']
             await _download_resource(base_url, headers, resource, id, image_folder)
+        ic(f'[+] Downloading images: {(i+1)*chunk_size} / {len(images_data)}')
 
 
 async def _download_resource(base_url: str, headers: dict, image_resource: str, image_id: str, image_folder: str) -> None:
