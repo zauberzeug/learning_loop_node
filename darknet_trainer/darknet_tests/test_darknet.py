@@ -36,6 +36,11 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
+@pytest.fixture(autouse=True, scope='module')
+def init_node():
+    main.node.project = 'pytest'
+
+
 @pytest.mark.asyncio
 async def test_download_images():
     _, image_folder, _ = test_helper.create_needed_folders()

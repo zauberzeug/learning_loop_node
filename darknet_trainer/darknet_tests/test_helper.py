@@ -26,7 +26,7 @@ class LiveServerSession(Session):
 async def get_training_data(node: Node) -> TrainingData:
     data = get_data2()
     image_ids = data['image_ids']
-    image_data = await node_helper.download_images_data(node.url, node.headers, image_ids)
+    image_data = await node_helper.download_images_data(node.url, node.headers, node.organization, node.project, image_ids)
     training_data = TrainingData(image_data=image_data, box_categories=data['box_categories'])
     return training_data
 

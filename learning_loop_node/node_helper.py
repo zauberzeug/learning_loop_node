@@ -9,18 +9,19 @@ from icecream import ic
 import aiohttp
 import aiofiles
 from icecream import ic
+from training_data import TrainingData
 
 
-async def download_images_data(base_url: str, headers: dict, image_ids: List[str]) -> List[dict]:
+async def download_images_data(base_url: str, headers: dict, organization: str, project: str, image_ids: List[str]) -> List[dict]:
     images_data = []
-    chunk_size = 10
+    chunk_size = 100
     for i in range(0, len(image_ids), chunk_size):
         chunk_ids = image_ids[i:i+chunk_size]
         async with aiohttp.ClientSession() as session:
-            async with session.get(f'{base_url}/api/zauberzeug/projects/pytest/images?ids={",".join(chunk_ids)}', headers=headers) as response:
+            async with session.get(f'{base_url}/api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}', headers=headers) as response:
                 assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
                 images_data += (await response.json())['images']
-                ic(f'[+] Downloaded image data: {images_data} / {len(image_ids)}')
+                ic(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
     return images_data
 
 
