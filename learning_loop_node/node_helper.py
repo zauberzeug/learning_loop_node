@@ -33,7 +33,7 @@ async def download_images(base_url: str, headers: dict, images_data: List[dict],
             resource = image_information['resource']
             id = image_information['id']
             await _download_resource(base_url, headers, resource, id, image_folder)
-        ic(f'[+] Downloading images: {(i+1)*chunk_size} / {len(images_data)}')
+        ic(f'[+] Downloading images: {i+chunk_size} / {len(images_data)}')
 
 
 async def _download_resource(base_url: str, headers: dict, image_resource: str, image_id: str, image_folder: str) -> None:
