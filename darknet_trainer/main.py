@@ -33,21 +33,20 @@ node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
 async def begin_training(data: dict) -> None:
     try:
         training_uuid = str(uuid4())
-        await _prepare_training(node, data, training_uuid)
+        await _prepare_training(node, data, data['image_ids'], training_uuid)
         await _start_training(training_uuid)
-    except:
+    except Exception as e:
         traceback.print_exc()
 
 
-async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
-    _set_node_properties(node, data)
+async def _prepare_training(node: Node, data: dict, image_ids: List[str], training_uuid: str) -> None:
+    images_data = await node_helper.download_images_data(node, image_ids)
+    _set_node_properties(node, data, images_data)
     project_folder = _create_project_folder(
         node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
-    image_resources = _extract_image_ressoures(data)
-    image_ids = _extract_image_ids(data)
-    await node_helper.download_images(node, zip(
-        image_resources, image_ids), image_folder)
+
+    await node_helper.download_images(node, images_data, image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
     yolo_helper.create_backup_dir(training_folder)
@@ -55,14 +54,14 @@ async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     image_folder_for_training = yolo_helper.create_image_links(
         training_folder, image_folder, image_ids)
 
-    yolo_helper.update_yolo_boxes(image_folder_for_training, data)
+    await yolo_helper.update_yolo_boxes(node, image_folder_for_training, data, image_ids)
 
     box_category_names = helper.get_box_category_names(data)
     box_category_count = len(box_category_names)
     yolo_helper.create_names_file(training_folder, box_category_names)
     yolo_helper.create_data_file(training_folder, box_category_count)
     yolo_helper.create_train_and_test_file(
-        training_folder, image_folder_for_training, data['images'])
+        training_folder, image_folder_for_training, images_data)
 
     node_helper.download_model(node, training_folder, node.status.organization,
                                node.status.project, node.status.model['id'])
@@ -71,9 +70,9 @@ async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     yolo_cfg_helper.update_anchors(training_folder)
 
 
-def _set_node_properties(node: Node, data: dict) -> None:
+def _set_node_properties(node: Node, data: dict, images_data: List[dict]) -> None:
     node.status.box_categories = data['box_categories']
-    train_images, test_images = _get_train_and_test_images(data['images'])
+    train_images, test_images = _get_train_and_test_images(images_data)
     node.status.train_images = train_images
     node.status.test_images = test_images
 
@@ -186,7 +185,8 @@ async def _check_training_state(training_id: str) -> None:
     if state == 'crashed':
         try:
             _stop_training(training_id)
-        except:
+        except Exception as e:
+            print(e)
             pass
         new_status = Status(id=node.status.id, name=node.status.name)
         await node.update_status(new_status)

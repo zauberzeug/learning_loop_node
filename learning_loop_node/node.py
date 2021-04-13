@@ -84,7 +84,7 @@ class Node(FastAPI):
 
             uri_base = f'{self.url}/api/{organization}/projects/{project}'
             # response = requests.get(uri_base + '/data?state=complete&mode=boxes', headers=self.headers)
-            response = requests.get(uri_base + '/training_data', headers=self.headers)
+            response = requests.get(uri_base + '/data/data2', headers=self.headers)
             assert response.status_code == 200
             data = response.json()
 

@@ -8,26 +8,44 @@ from glob import glob
 from node import Node
 from icecream import ic
 import asyncio
+import aiohttp
+import aiofiles
 
 
-async def download_images(node: Node, image_ressources_and_ids: List[tuple], image_folder: str) -> None:
+async def download_images_data(node: Node, image_ids: List[str]) -> List[dict]:
     session = requests.Session()
     session.headers = node.headers
-    loop = asyncio.get_event_loop()
+    images_data = []
+    chunk_size = 10
+    for i in range(0, len(image_ids), chunk_size):
+        chunk_ids = image_ids[i:i+chunk_size]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{node.url}/api/zauberzeug/projects/pytest/images?ids={",".join(chunk_ids)}', headers=node.headers) as response:
+                assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
+                images_data += (await response.json())['images']
+    return images_data
 
-    for resource, image_id in image_ressources_and_ids:
-        url = f'{node.url}/api{resource}'
-        response = await loop.run_in_executor(None, session.get, url)
 
-        if response.status_code == 200:
-            try:
-                with open(f'/{image_folder}/{image_id}.jpg', 'wb') as f:
-                    f.write(response.content)
-            except IOError:
-                print(f"Could not save image with id {image_id}")
-        else:
-            # TODO How to deal with this kind of error?
-            pass
+async def download_images(node: Node, images_data: List[dict], image_folder: str) -> None:
+    session = requests.Session()
+    session.headers = node.headers
+    chunk_size = 10
+    for i in range(0, len(images_data), chunk_size):
+        chunk_data = images_data[i:i+chunk_size]
+        for image_information in chunk_data:
+            resource = image_information['resource']
+            id = image_information['id']
+            await _download_resource(node, resource, id, image_folder)
+
+
+async def _download_resource(node: Node, image_resource: str, image_id: str, image_folder: str) -> None:
+    async with aiohttp.ClientSession() as session:
+        resource_url = f"{node.url}/api{image_resource}"
+        async with session.get(resource_url, headers=node.headers) as response:
+            assert response.status == 200
+            async with aiofiles.open(f'/{image_folder}/{image_id}.jpg', 'wb') as out_file:
+                await out_file.write(await response.read())
+
 
 def download_model(node: Node, training_folder: str, organization: str, project: str, model_id: str):
     # download model

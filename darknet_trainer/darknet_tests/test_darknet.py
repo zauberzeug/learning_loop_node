@@ -38,34 +38,39 @@ def create_project():
 
 @pytest.mark.asyncio
 async def test_download_images():
-    assert len(test_helper.get_files_from_data_folder()) == 0
-    data = test_helper.get_data()
     _, image_folder, _ = test_helper.create_needed_folders()
-    resources = main._extract_image_ressoures(data)
-    ids = main._extract_image_ids(data)
+    assert len(test_helper.get_files_from_data_folder()) == 0
 
-    await node_helper.download_images(main.node, zip(resources, ids), image_folder)
+    image_ids, images_data = await test_helper.get_images_data(main.node)
+    assert len(image_ids) == 3
+    assert len(images_data) == 3
+
+    await node_helper.download_images(main.node, images_data, image_folder)
     assert len(test_helper.get_files_from_data_folder()) == 3
 
 
-def test_set_node_properties():
-    data = test_helper.get_data()
+@pytest.mark.asyncio
+async def test_set_node_properties():
+    data = test_helper.get_data2()
+    _image_ids, images_data = await test_helper.get_images_data(main.node)
+
     box_categories = data['box_categories']
-    main._set_node_properties(main.node, data)
+    main._set_node_properties(main.node, data, images_data)
 
     assert main.node.status.box_categories == box_categories
     assert len(main.node.status.train_images) == 2
     assert len(main.node.status.test_images) == 1
 
 
-def test_yolo_box_creation():
+@pytest.mark.asyncio
+async def test_yolo_box_creation():
     assert len(test_helper.get_files_from_data_folder()) == 0
     _, image_folder, trainings_folder = test_helper.create_needed_folders()
-    data = test_helper.get_data()
-    image_ids = main._extract_image_ids(data)
+    data = test_helper.get_data2()
+    image_ids = data['image_ids']
     image_folder_for_training = yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
-    yolo_helper.update_yolo_boxes(image_folder_for_training, data)
+    await yolo_helper.update_yolo_boxes(main.node, image_folder_for_training, data, image_ids)
     assert len(test_helper.get_files_from_data_folder()) == 3
 
     first_image_id = image_ids[0]
@@ -119,10 +124,11 @@ async def test_create_image_links():
     assert len(test_helper.get_files_from_data_folder()) == 0
     _, image_folder, trainings_folder = test_helper.create_needed_folders()
 
-    data = test_helper.get_data()
-    image_ids = main._extract_image_ids(data)
-    image_resources = main._extract_image_ressoures(data)
-    await node_helper.download_images(main.node, zip(image_resources, image_ids), image_folder)
+    # data = test_helper.get_data2()
+    # image_ids = data['image_ids']
+    image_ids, images_data = await test_helper.get_images_data(main.node)
+
+    await node_helper.download_images(main.node,  images_data, image_folder)
 
     yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
@@ -136,14 +142,18 @@ async def test_create_image_links():
     assert files[5] == '../data/zauberzeug/pytest/trainings/some_uuid/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg'
 
 
-def test_create_train_and_test_file():
+@pytest.mark.asyncio
+async def test_create_train_and_test_file():
     assert len(test_helper.get_files_from_data_folder()) == 0
     _, image_folder, trainings_folder = test_helper.create_needed_folders()
-    data = test_helper.get_data()
-    image_ids = main._extract_image_ids(data)
+
+    image_ids, images_data = await test_helper.get_images_data(main.node)
+    assert len(image_ids) == 3
+    assert len(images_data) == 3
+
     images_folder_for_training = yolo_helper.create_image_links(trainings_folder, image_folder, image_ids)
 
-    yolo_helper.create_train_and_test_file(trainings_folder, images_folder_for_training, data['images'])
+    yolo_helper.create_train_and_test_file(trainings_folder, images_folder_for_training, images_data)
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 2
     test_file = files[0]
@@ -213,9 +223,9 @@ async def test_create_anchors():
     main.node.status.organization = 'zauberzeug'
     main.node.status.project = 'pytest'
 
-    data = test_helper.get_data()
+    data = test_helper.get_data2()
     training_uuid = str(uuid4())
-    await main._prepare_training(main.node, data, training_uuid)
+    await main._prepare_training(main.node, data, data['image_ids'], training_uuid)
 
     anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
     original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
@@ -296,7 +306,6 @@ async def test_reset_to_idle_after_crash():
     _assert_trainer_state(State.Running)
 
     yolo_helper.kill_all_darknet_processes()
-
     await main._check_state()
     _assert_trainer_state(State.Idle)
 
@@ -349,8 +358,8 @@ async def _start_training(training_uuid):
     main.node.status.model = {'id': model_id}
     main.node.status.organization = 'zauberzeug'
     main.node.status.project = 'pytest'
-    data = test_helper.get_data()
-    await main._prepare_training(main.node, data, training_uuid)
+    data = test_helper.get_data2()
+    await main._prepare_training(main.node, data, data['image_ids'], training_uuid)
     await main._start_training(training_uuid)
 
 
