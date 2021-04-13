@@ -1,3 +1,4 @@
+from learning_loop_node.training_data import TrainingData
 import subprocess
 from typing import List
 import helper
@@ -35,8 +36,9 @@ def create_data_file(training_folder: str, number_of_classes: int) -> None:
         f.write('\n'.join(data_object))
 
 
-async def update_yolo_boxes(node: Node, image_folder_for_training: str, data: dict, image_ids: List[str]) -> None:
-    category_ids = helper.get_box_category_ids(data)
+async def update_yolo_boxes(node: Node, image_folder_for_training: str, training_data: TrainingData) -> None:
+    category_ids = helper.get_box_category_ids(training_data)
+    image_ids = training_data.image_ids()
 
     chunk_size = 10
     for i in range(0, len(image_ids), chunk_size):
@@ -74,7 +76,7 @@ def create_image_links(training_folder: str, image_folder: str, image_ids: List[
     return training_images_path
 
 
-def create_train_and_test_file(training_folder: str, image_folder_for_training: str, images: List) -> None:
+def create_train_and_test_file(training_folder: str, image_folder_for_training: str, images: List[dict]) -> None:
     with open(f'{training_folder}/train.txt', 'w') as f:
         for image in images:
             if image['set'] == 'train':

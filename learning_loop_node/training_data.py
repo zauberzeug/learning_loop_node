@@ -7,7 +7,6 @@ class TrainingData(BaseModel):
     image_data: Optional[List[dict]]
     box_categories: List[dict]
 
-    @property
     def image_ids(self):
         return [image['id'] for image in self.image_data]
 

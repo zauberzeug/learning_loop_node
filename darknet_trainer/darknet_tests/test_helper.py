@@ -1,9 +1,12 @@
+from learning_loop_node import training_data
+from learning_loop_node.training_data import TrainingData
 from learning_loop_node import node_helper
 from requests import Session
 from urllib.parse import urljoin
 from glob import glob
 import os
 import main
+from node import Node
 import node
 from typing import List
 
@@ -20,12 +23,12 @@ class LiveServerSession(Session):
         return super(LiveServerSession, self).request(method, url, *args, **kwargs)
 
 
-async def get_images_data(node: node.Node) -> List[dict]:
+async def get_training_data(node: Node) -> TrainingData:
     data = get_data2()
     image_ids = data['image_ids']
-
-    images_data = await node_helper.download_images_data(node, image_ids)
-    return image_ids, images_data
+    image_data = await node_helper.download_images_data(node.url, node.headers, image_ids)
+    training_data = TrainingData(image_data=image_data, box_categories=data['box_categories'])
+    return training_data
 
 
 def get_data2() -> dict:

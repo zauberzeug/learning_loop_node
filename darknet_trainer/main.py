@@ -1,3 +1,4 @@
+from learning_loop_node.training_data import TrainingData
 import uvicorn
 import asyncio
 import shutil
@@ -30,51 +31,42 @@ node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
 
 
 @node.begin_training
-async def begin_training(data: dict) -> None:
+async def begin_training() -> None:
     try:
         training_uuid = str(uuid4())
-        await _prepare_training(node, data, data['image_ids'], training_uuid)
+        await _prepare_training(node, node.training_data, training_uuid)
         await _start_training(training_uuid)
     except Exception as e:
         traceback.print_exc()
 
 
-async def _prepare_training(node: Node, data: dict, image_ids: List[str], training_uuid: str) -> None:
-    images_data = await node_helper.download_images_data(node, image_ids)
-    _set_node_properties(node, data, images_data)
+async def _prepare_training(node: Node, training_data: TrainingData, training_uuid: str) -> None:
     project_folder = _create_project_folder(
         node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
 
-    await node_helper.download_images(node, images_data, image_folder)
+    await node_helper.download_images(node.url, node.headers, training_data.image_data, image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
     yolo_helper.create_backup_dir(training_folder)
 
     image_folder_for_training = yolo_helper.create_image_links(
-        training_folder, image_folder, image_ids)
+        training_folder, image_folder, training_data.image_ids())
 
-    await yolo_helper.update_yolo_boxes(node, image_folder_for_training, data, image_ids)
+    await yolo_helper.update_yolo_boxes(node, image_folder_for_training, training_data)
 
-    box_category_names = helper.get_box_category_names(data)
+    box_category_names = helper.get_box_category_names(training_data)
     box_category_count = len(box_category_names)
     yolo_helper.create_names_file(training_folder, box_category_names)
     yolo_helper.create_data_file(training_folder, box_category_count)
     yolo_helper.create_train_and_test_file(
-        training_folder, image_folder_for_training, images_data)
+        training_folder, image_folder_for_training, training_data.image_data)
 
-    node_helper.download_model(node, training_folder, node.status.organization,
+    node_helper.download_model(node.url, node.headers, training_folder, node.status.organization,
                                node.status.project, node.status.model['id'])
     yolo_cfg_helper.replace_classes_and_filters(
         box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
-
-
-def _set_node_properties(node: Node, data: dict, images_data: List[dict]) -> None:
-    node.status.box_categories = data['box_categories']
-    train_images, test_images = _get_train_and_test_images(images_data)
-    node.status.train_images = train_images
-    node.status.test_images = test_images
 
 
 def _get_train_and_test_images(images: dict) -> None:

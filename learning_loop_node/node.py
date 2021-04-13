@@ -147,7 +147,7 @@ class Node(FastAPI):
         response = requests.get(uri_base + '/data/data2?state=complete', headers=self.headers)
         assert response.status_code == 200
         data = response.json()
-        image_data = await node_helper.download_images_data(self, data['image_ids'])
+        image_data = await node_helper.download_images_data(self.url, self.headers, data['image_ids'])
         self.training_data = TrainingData(image_data=image_data,
                                           box_categories=data['box_categories'])
 
