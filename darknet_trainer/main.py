@@ -41,19 +41,16 @@ async def begin_training(data: dict) -> None:
 
 async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     _set_node_properties(node, data)
-    project_folder = _create_project_folder(
-        node.status.organization, node.status.project)
+    project_folder = _create_project_folder(node.status.organization, node.status.project)
     image_folder = _create_image_folder(project_folder)
     image_resources = _extract_image_ressoures(data)
     image_ids = _extract_image_ids(data)
-    await node_helper.download_images(node, zip(
-        image_resources, image_ids), image_folder)
+    await node_helper.download_images(node, zip(image_resources, image_ids), image_folder)
 
     training_folder = _create_training_folder(project_folder, training_uuid)
     yolo_helper.create_backup_dir(training_folder)
 
-    image_folder_for_training = yolo_helper.create_image_links(
-        training_folder, image_folder, image_ids)
+    image_folder_for_training = yolo_helper.create_image_links(training_folder, image_folder, image_ids)
 
     yolo_helper.update_yolo_boxes(image_folder_for_training, data)
 
@@ -61,13 +58,16 @@ async def _prepare_training(node: Node, data: dict, training_uuid: str) -> None:
     box_category_count = len(box_category_names)
     yolo_helper.create_names_file(training_folder, box_category_names)
     yolo_helper.create_data_file(training_folder, box_category_count)
-    yolo_helper.create_train_and_test_file(
-        training_folder, image_folder_for_training, data['images'])
+    yolo_helper.create_train_and_test_file(training_folder, image_folder_for_training, data['images'])
 
-    node_helper.download_model(node, training_folder, node.status.organization,
-                               node.status.project, node.status.model['id'])
-    yolo_cfg_helper.replace_classes_and_filters(
-        box_category_count, training_folder)
+    node_helper.download_model(
+        node,
+        training_folder,
+        node.status.organization,
+        node.status.project,
+        node.status.model['id']
+    )
+    yolo_cfg_helper.replace_classes_and_filters(box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
 
 
