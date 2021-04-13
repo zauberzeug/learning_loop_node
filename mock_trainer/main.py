@@ -18,10 +18,8 @@ node = Node(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
 
 
 @node.begin_training
-async def begin_training(data):
-    node.status.box_categories = data['box_categories']
-    node.status.train_images = [i for i in data['images'] if i['set'] == 'train']
-    node.status.test_images = [i for i in data['images'] if i['set'] == 'test']
+async def begin_training():
+    pass
 
 
 @node.stop_training

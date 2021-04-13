@@ -4,13 +4,13 @@ from learning_loop_node.node import Node, State
 
 
 async def increment_time(node: Node):
-    if node.status.state != State.Running or getattr(node.status, 'box_categories') is None:
+    if node.status.state != State.Running or node.training_data is None or node.training_data.box_categories is None:
         return
 
     node.status.uptime = node.status.uptime + 5
     print('---- time', node.status.uptime, flush=True)
     confusion_matrix = {}
-    for category in node.status.box_categories:
+    for category in node.training_data.box_categories:
         try:
             minimum = node.status.model['confusion_matrix'][category['id']]['tp']
         except:
@@ -26,8 +26,8 @@ async def increment_time(node: Node):
         'hyperparameters': node.status.hyperparameters,
         'confusion_matrix': confusion_matrix,
         'parent_id': node.status.model['id'],
-        'train_image_count': len(node.status.train_images),
-        'test_image_count': len(node.status.test_images),
+        'train_image_count': node.training_data.train_image_count(),
+        'test_image_count': node.training_data.test_image_count(),
         'trainer_id': node.status.id,
     }
 
