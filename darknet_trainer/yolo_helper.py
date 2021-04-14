@@ -1,9 +1,12 @@
+from learning_loop_node.training_data import TrainingData
 import subprocess
 from typing import List
 import helper
 import os
 from glob import glob
 from mAP_parser import MAPParser
+import aiohttp
+from node import Node
 
 
 def to_yolo(learning_loop_box, image_width, image_height, categories):
@@ -33,19 +36,28 @@ def create_data_file(training_folder: str, number_of_classes: int) -> None:
         f.write('\n'.join(data_object))
 
 
-def update_yolo_boxes(image_folder_for_training: str, data: dict) -> None:
-    category_ids = helper.get_box_category_ids(data)
+async def update_yolo_boxes(node: Node, image_folder_for_training: str, training_data: TrainingData) -> None:
+    category_ids = helper.get_box_category_ids(training_data)
+    image_ids = training_data.image_ids()
 
-    for image in data['images']:
-        image_width, image_height = image['width'], image['height']
-        image_id = image['id']
-        yolo_boxes = []
-        for box in image['box_annotations']:
-            yolo_box = to_yolo(box, image_width, image_height, category_ids)
-            yolo_boxes.append(yolo_box)
+    chunk_size = 10
+    for i in range(0, len(image_ids), chunk_size):
+        chunk_ids = image_ids[i:i+chunk_size]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'{node.url}/api/zauberzeug/projects/pytest/images?ids={",".join(chunk_ids)}', headers=node.headers) as response:
+                assert response.status == 200
+                images_data = (await response.json())['images']
 
-        with open(f'{image_folder_for_training}/{image_id}.txt', 'w') as f:
-            f.write('\n'.join(yolo_boxes))
+                for image in images_data:
+                    image_width, image_height = image['width'], image['height']
+                    image_id = image['id']
+                    yolo_boxes = []
+                    for box in image['box_annotations']:
+                        yolo_box = to_yolo(box, image_width, image_height, category_ids)
+                        yolo_boxes.append(yolo_box)
+
+                    with open(f'{image_folder_for_training}/{image_id}.txt', 'w') as f:
+                        f.write('\n'.join(yolo_boxes))
 
 
 def create_names_file(training_folder: str, categories: List[str]) -> None:
@@ -64,7 +76,7 @@ def create_image_links(training_folder: str, image_folder: str, image_ids: List[
     return training_images_path
 
 
-def create_train_and_test_file(training_folder: str, image_folder_for_training: str, images: List) -> None:
+def create_train_and_test_file(training_folder: str, image_folder_for_training: str, images: List[dict]) -> None:
     with open(f'{training_folder}/train.txt', 'w') as f:
         for image in images:
             if image['set'] == 'train':

@@ -1,3 +1,5 @@
+from typing import Optional
+from learning_loop_node.training_data import TrainingData
 from fastapi import FastAPI
 import socketio
 import asyncio
@@ -7,6 +9,8 @@ import requests
 import os
 import base64
 from icecream import ic
+import node_helper
+from training_data import TrainingData
 
 SERVER_BASE_URL_DEFAULT = 'http://backend'
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
@@ -25,6 +29,8 @@ class Node(FastAPI):
         self.project = os.environ.get('PROJECT', BASE_PROJECT)
         self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
         self.headers = {}
+        self.training_data = None
+
         if self.username:
             import base64
             self.headers["Authorization"] = "Basic " + \
@@ -82,16 +88,10 @@ class Node(FastAPI):
             self.status.organization = organization
             self.status.project = project
 
-            uri_base = f'{self.url}/api/{organization}/projects/{project}'
-            # response = requests.get(uri_base + '/data?state=complete&mode=boxes', headers=self.headers)
-            response = requests.get(uri_base + '/training_data', headers=self.headers)
-            assert response.status_code == 200
-            data = response.json()
-
             loop = asyncio.get_event_loop()
 
             loop.set_debug(True)
-            loop.create_task(self._begin_training(data))
+            loop.create_task(self._prepare_training_and_start())
             await self.update_state(State.Running)
             return True
 
@@ -140,6 +140,18 @@ class Node(FastAPI):
 
     def stop_training(self, func):
         self._stop_training = func
+
+    async def _prepare_training_and_start(self):
+        uri_base = f'{self.url}/api/{ self.status.organization}/projects/{ self.status.project}'
+
+        response = requests.get(uri_base + '/data/data2?state=complete', headers=self.headers)
+        assert response.status_code == 200
+        data = response.json()
+        image_data = await node_helper.download_images_data(self.url, self.headers, data['image_ids'])
+        self.training_data = TrainingData(image_data=image_data,
+                                          box_categories=data['box_categories'])
+
+        await self._begin_training()
 
     async def update_state(self, state: State):
         self.status.state = state
