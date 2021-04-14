@@ -353,7 +353,7 @@ async def _start_training(training_uuid):
     await main._start_training(training_uuid)
 
 
-def _is_any_darknet_running():
+def _is_any_darknet_running() -> bool:
     p = subprocess.Popen('pgrep darknet', shell=True)
     p.communicate()
     return p.returncode == 0
