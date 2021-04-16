@@ -13,57 +13,62 @@ import json
 import pytest
 import time
 from helper import data_dir
+from ctypes import *
 
 base_path = '/model'
 image_path = f'{base_path}/2462abd538f8_2021-01-17_08-33-49.800.jpg'
 
 
+# def test_export_weights():
+#     return_code = detections_helper.export_weights(helper.find_cfg_file(base_path), helper.find_weight_file(base_path))
+#     assert return_code == 0
+
+
+def test_get_number_of_classes():
+    classes = detections_helper.get_number_of_classes(base_path)
+    assert classes == 9
+
+
+def test_create_darknet_image():
+    image = cv2.imread(image_path)
+    img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    darknet_image = detections_helper.create_darknet_image(img_rgb)
+    assert darknet_image.w == 1600
+    assert darknet_image.h == 1200
+    assert darknet_image.c == 3
+
+
+def test_detect_image():
+    image = cv2.imread(image_path)
+    img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    darknet_image = detections_helper.create_darknet_image(img_rgb)
+    model_id = detections_helper.get_model_id(base_path)
+    detections = detections_helper.detect_image(main.node.net, darknet_image, model_id)
+    assert len(detections) == 7
+    assert detections[0] == ('dirt', 0.852836549282074, 1366.3819580078125,
+                             1017.0836181640625, 36.920166015625, 24.57421875, 'some_weightfile')
+
+
+def test_parse_detections():
+    image = cv2.imread(image_path)
+    img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    darknet_image = detections_helper.create_darknet_image(img_rgb)
+    model_id = detections_helper.get_model_id(base_path)
+    detections = detections_helper.detect_image(main.node.net, darknet_image, model_id)
+    parsed_detections = detections_helper.parse_detections(detections)
+    assert len(parsed_detections) == 7
+    assert parsed_detections[0].__dict__ == {'category_name': 'dirt',
+                                             'confidence': 85.3,
+                                             'height': 24,
+                                             'model_name': 'some_weightfile',
+                                             'width': 36,
+                                             'x': 1366,
+                                             'y': 1017}
+
+
 def test_get_model_id():
-    model_id = detections_helper._get_model_id(base_path)
+    model_id = detections_helper.get_model_id(base_path)
     assert model_id == 'some_weightfile'
-
-
-def test_get_names():
-    names = detections_helper.get_category_names(base_path)
-    assert names == ['dirt', 'obstacle', 'animal', 'person', 'robot', 'marker_vorne',
-                     'marker_mitte', 'marker_hinten_links', 'marker_hinten_rechts']
-
-
-def test_get_network_input_image_size():
-    width, height = detections_helper.get_network_input_image_size(base_path)
-    assert width == 800
-    assert height == 800
-
-
-def test_load_network():
-    net = main.node.net
-    assert len(net.getLayerNames()) == 94
-
-
-def test_get_inferences():
-    net = main.node.model
-    image = detections_helper._read_image(image_path)
-    classes, confidences, boxes = detections_helper.get_inferences(net, image)
-    assert len(classes) == 8
-
-
-def test_parse_inferences():
-    model = main.node.model
-    category_names = detections_helper.get_category_names(main.node.path)
-    image = detections_helper._read_image(image_path)
-    classes, confidences, boxes = detections_helper.get_inferences(model, image)
-    net_id = detections_helper._get_model_id(main.node.path)
-    net = main.node.net
-    inferences = detections_helper.parse_detections(
-        zip(classes, confidences, boxes), net, category_names, net_id)
-    assert len(inferences) == 8
-    assert inferences[0].__dict__ == {'category_name': 'dirt',
-                                      'confidence': 85.5,
-                                      'height': 24,
-                                      'model_name': 'some_weightfile',
-                                      'width': 37,
-                                      'x': 1366,
-                                      'y': 1017}
 
 
 @pytest.mark.asyncio()

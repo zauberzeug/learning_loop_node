@@ -21,14 +21,20 @@ import os
 import PIL.Image
 import asyncio
 from helper import data_dir
+from threading import Thread
+from queue import Queue
 
 
 node = Node(uuid='12d7750b-4f0c-4d8d-86c6-c5ad04e19d57', name='detection node')
 node.path = '/model'
+node.tkdnn_path = '/tkDNN'
 try:
-    node.net = detections_helper.load_network(
-        helper.find_cfg_file(node.path), helper.find_weight_file(node.path))
-    node.model = detections_helper.setup_model(node.net, node.path)
+    if not helper.layers_exported(f'{node.tkdnn_path}/darknet/layers'):
+        detections_helper.export_weights(helper.find_cfg_file(node.path), helper.find_weight_file(node.path))
+    if not helper.rt_file_exists(node.tkdnn_path):
+        detections_helper.create_rt_file()
+
+    node.net = detections_helper.load_network_file(f'{node.tkdnn_path}/darknet_fp16.rt', node.path)
 except Exception as e:
     ic(f'Error: could not load model: {e}')
 
@@ -66,21 +72,21 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
         raise Exception(f'Uploaded file {file.filename} is no image file.')
 
     image = cv2.imdecode(np_image, cv2.IMREAD_COLOR)
-    detections = get_detections(image)
+    img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    loop = asyncio.get_event_loop()
-    loop.create_task(learn(detections, mac, tags, file, str(file.filename)))
+    detections = get_detections(img_rgb, node)
+    # queue = Queue()
+    # t = Thread(target=get_detections, args=(img_rgb, node, queue), daemon=True)
+    # t.start()
+    # t.join()
+    # detections = queue.get()
 
     return JSONResponse({'box_detections': jsonable_encoder(detections)})
 
 
-def get_detections(image: Any) -> List[Detection]:
-    category_names = detections_helper.get_category_names(node.path)
-    classes, confidences, boxes = detections_helper.get_inferences(node.model, image)
-    net_id = detections_helper._get_model_id(node.path)
-    detections = detections_helper.parse_detections(
-        zip(classes, confidences, boxes), node.net, category_names, net_id)
-
+def get_detections(image: Any, node: Node) -> List[Detection]:
+    detections = detections_helper.get_detections(image, node.net, node.path)
+    # queue.put(detections)
     return detections
 
 

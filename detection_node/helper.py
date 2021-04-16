@@ -16,6 +16,20 @@ import os
 data_dir = '/data'
 
 
+def layers_exported(path: str) -> bool:
+    files = glob(f'{path}/*', recursive=True)
+    if files:
+        return True
+    return False
+
+
+def rt_file_exists(path: str) -> bool:
+    rt_file = glob(f'{path}/*.rt', recursive=True)
+    if rt_file:
+        return True
+    return False
+
+
 def find_weight_file(path: str) -> str:
     return glob(f'{path}/*.weights', recursive=True)[0]
 

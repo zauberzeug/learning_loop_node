@@ -1,72 +1,124 @@
 import cv2
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union
+from typing import Union as UNION
 from icecream import ic
 import numpy as np
 import helper
 import os
 import detection as d
+import subprocess
+from ctypes import *
+import c_classes
+import json
+import time
+
+lib = CDLL("/tkDNN/build/libdarknetRT.so", RTLD_GLOBAL)
 
 
-def get_category_names(model_path: str) -> List[str]:
+load_network = lib.load_network
+load_network.argtypes = [c_char_p, c_int, c_int]
+load_network.restype = c_void_p
+
+copy_image_from_bytes = lib.copy_image_from_bytes
+copy_image_from_bytes.argtypes = [c_classes.IMAGE, c_char_p]
+
+make_image = lib.make_image
+make_image.argtypes = [c_int, c_int, c_int]
+make_image.restype = c_classes.IMAGE
+
+do_inference = lib.do_inference
+do_inference.argtypes = [c_void_p, c_classes.IMAGE]
+
+get_network_boxes = lib.get_network_boxes
+get_network_boxes.argtypes = [c_void_p, c_float, POINTER(c_int)]
+get_network_boxes.restype = POINTER(c_classes.DETECTION)
+
+
+def get_number_of_classes(model_path: str) -> int:
     with open(f'{model_path}/names.txt', 'r') as f:
         names = f.read().rstrip('\n').split('\n')
-    return names
+    return len(names)
 
 
-def load_network(cfg_file_path: str, weightfile_path: str) -> cv2.dnn_Net:
-    net = cv2.dnn.readNetFromDarknet(cfg_file_path, weightfile_path)
-    net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-    net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+def export_weights(cfg_file_path: str, weightfile_path: str):
+    cmd = f'cd /tkDNN/darknet; ./darknet export {cfg_file_path} {weightfile_path} layers'
+    p = subprocess.Popen(cmd, shell=True)
+    _, err = p.communicate()
+    if p.returncode != 0:
+        raise Exception(f'Failed to export weights: {err}')
+    return p.returncode
+
+
+def create_rt_file():
+    cmd = f'cd /tkDNN/build; ./test_yolo4tiny'
+    p = subprocess.Popen(cmd, shell=True)
+    _, err = p.communicate()
+    if p.returncode != 0:
+        raise Exception(f'Failed to create .rt file: {err}')
+    return p.returncode
+
+
+def load_network_file(rt_file_path: str, model_path: str) -> None:
+    net = load_network(rt_file_path.encode("ascii"), get_number_of_classes(model_path), 1)
     return net
 
 
-def setup_model(net: cv2.dnn_Net, node_path: str) -> cv2.dnn_DetectionModel:
-    model = cv2.dnn_DetectionModel(net)
-    net_input_image_width, net_input_image_height = get_network_input_image_size(node_path)
-    model.setInputParams(size=(net_input_image_width, net_input_image_height), scale=1/255, swapRB=True)
-    return model
+def create_darknet_image(image: Any) -> None:
+    try:
+        height, width, channels = image.shape
+        darknet_image = make_image(width, height, channels)
+        frame_data = image.ctypes.data_as(c_char_p)
+        copy_image_from_bytes(darknet_image, frame_data)
+    except Exception as e:
+        print(e)
+
+    return darknet_image
 
 
-def get_inferences(model: cv2.dnn_DetectionModel, image: Any) -> List[Any]:
-    classes, confidences, boxes = model.detect(image, confThreshold=0.2, nmsThreshold=1.0)
-    return classes, confidences, boxes
+def get_detections(image: Any, net: bytes, model_path: str) -> List[d.Detection]:
+    darknet_image = create_darknet_image(image)
+    net_id = get_model_id(model_path)
+    detections = detect_image(net, darknet_image, net_id)
+    parsed_detections = parse_detections(detections)
+    return parsed_detections
 
 
-def parse_detections(outs: List[int], net: cv2.dnn_Net, category_names: List[str], net_id: str) -> List[d.Detection]:
+def detect_image(net, darknet_image, net_id, thresh=.2):
+    num = c_int(0)
+
+    pnum = pointer(num)
+    do_inference(net, darknet_image)
+    dets = get_network_boxes(net, thresh, pnum)
     detections = []
-    for (class_id, confidence, box) in outs:
-        category_name = category_names[int(class_id)]
-        left = int(box[0])
-        top = int(box[1])
-        width = int(box[2])
-        height = int(box[3])
-        confidence = round(float(confidence), 3) * 100
-        detection = d.Detection(category_name, left, top, width, height, net_id, confidence)
-        detections.append(detection)
+    for i in range(pnum[0]):
+        bbox = dets[i].bbox
+        detections.append((dets[i].name.decode("ascii"), dets[i].prob, bbox.x, bbox.y, bbox.w, bbox.h, net_id))
 
     return detections
+
+
+def parse_detections(detections: List[UNION[int, str]]) -> List[d.Detection]:
+    parsed_detections = []
+    for detection in detections:
+        category_name = detection[0]
+        confidence = round(detection[1], 3) * 100
+        left = int(detection[2])
+        top = int(detection[3])
+        width = int(detection[4])
+        height = int(detection[5])
+        net_id = detection[6]
+        detection = d.Detection(category_name, left, top, width, height, net_id, confidence)
+        parsed_detections.append(detection)
+
+    return parsed_detections
+
 
 
 def _read_image(image_path: str) -> List[int]:
     return cv2.imread(image_path)
 
 
-def _get_model_id(model_path: str) -> str:
+def get_model_id(model_path: str) -> str:
     weightfile = helper.find_weight_file(model_path)
     return os.path.basename(weightfile).split('.')[0]
 
-
-def get_network_input_image_size(model_path: str) -> Tuple[int, int]:
-    with open(f'{model_path}/training.cfg', 'r') as f:
-        content = f.readlines()
-
-    for line in content:
-        if line.startswith('width'):
-            width = line.split('=')[-1].strip()
-        if line.startswith('height'):
-            height = line.split('=')[-1].strip()
-
-    if not width or not height:
-        raise Exception("width or height are missing in cfg file.")
-
-    return int(width), int(height)
