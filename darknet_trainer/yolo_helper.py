@@ -95,7 +95,7 @@ def create_backup_dir(training_folder: str):
 
 
 def kill_all_darknet_processes():
-    @retry(AssertionError, tries=5, delay=0.01)
+    @retry(AssertionError, tries=5, delay=0.1)
     def assert_no_darknet_running():
         assert _is_any_darknet_running() == False
         return True
