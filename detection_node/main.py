@@ -75,18 +75,15 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
     img_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     detections = get_detections(img_rgb, node)
-    # queue = Queue()
-    # t = Thread(target=get_detections, args=(img_rgb, node, queue), daemon=True)
-    # t.start()
-    # t.join()
-    # detections = queue.get()
+
+    loop = asyncio.get_event_loop()
+    loop.create_task(learn(detections, mac, tags, file, str(file.filename)))
 
     return JSONResponse({'box_detections': jsonable_encoder(detections)})
 
 
 def get_detections(image: Any, node: Node) -> List[Detection]:
     detections = detections_helper.get_detections(image, node.net, node.path)
-    # queue.put(detections)
     return detections
 
 
