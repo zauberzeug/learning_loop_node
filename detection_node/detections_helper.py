@@ -42,16 +42,16 @@ def export_weights(cfg_file_path: str, weightfile_path: str):
     cmd = f'cd /tkDNN/darknet; ./darknet export {cfg_file_path} {weightfile_path} layers'
     p = subprocess.Popen(cmd, shell=True)
     _, err = p.communicate()
-    if p.returncode != 0:
+    if err:
         raise Exception(f'Failed to export weights: {err}')
     return p.returncode
 
 
 def create_rt_file():
-    cmd = f'cd /tkDNN/build; ./test_yolo4tiny'
+    cmd = f'cd /tkDNN/build; export TKDNN_MODE=FP16; ./test_yolo4tiny'
     p = subprocess.Popen(cmd, shell=True)
     _, err = p.communicate()
-    if p.returncode != 0:
+    if err:
         raise Exception(f'Failed to create .rt file: {err}')
     return p.returncode
 
