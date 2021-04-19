@@ -100,16 +100,18 @@ async def test_get_files_for_model_on_save():
                               'training_id': training_uuid}
     main.node.status.train_images = []
     main.node.status.test_images = []
-    main.node.status.box_categories = get_box_categories()
+    data = test_helper.get_data2()
+    main.node.status.box_categories = data['box_categories']
+    _, image_folder, training_folder = test_helper.create_needed_folders(training_uuid)
 
-    data = test_helper.get_data()
-    await main._prepare_training(main.node, data, training_uuid)
+    training_data = await main.download_data(main.node, data, image_folder, training_folder)
 
-    _, _, training_path = test_helper.create_needed_folders(training_uuid)
-    shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
+    await main._prepare_training(main.node, training_folder, image_folder,  training_data, training_uuid)
 
-    yolo_helper.create_backup_dir(training_path)
-    open(f'{training_path}/backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights', 'a').close()
+    shutil.copy('darknet_tests/test_data/last_training.log', f'{training_folder}/last_training.log')
+
+    yolo_helper.create_backup_dir(training_folder)
+    open(f'{training_folder}/backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights', 'a').close()
 
     await main._check_state()
 
@@ -124,7 +126,7 @@ async def test_get_files_for_model_on_save():
 
 
 def get_box_categories():
-    content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/data').json()
+    content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/data/data2').json()
     categories = content['box_categories']
     return categories
 

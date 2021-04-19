@@ -9,6 +9,7 @@ import main
 from node import Node
 import node
 from typing import List
+import asyncio
 
 
 class LiveServerSession(Session):
@@ -37,6 +38,12 @@ def get_data2() -> dict:
     return response.json()
 
 
+async def download_images(training_data, image_folder):
+    urls, ids = node_helper.create_resource_urls(main.node.url, 'zauberzeug', 'pytest', training_data.image_ids())
+    loop = asyncio.get_event_loop()
+    await node_helper.download_images(loop, urls, ids, {}, image_folder)
+
+
 def get_files_from_data_folder():
     files = [entry for entry in glob('../data/**/*', recursive=True) if os.path.isfile(entry)]
     files.sort()
@@ -44,9 +51,9 @@ def get_files_from_data_folder():
 
 
 def create_needed_folders(training_uuid='some_uuid'):
-    project_folder = main._create_project_folder('zauberzeug', 'pytest')
-    image_folder = main._create_image_folder(project_folder)
-    training_folder = main._create_training_folder(project_folder, training_uuid)
+    project_folder = Node.create_project_folder('zauberzeug', 'pytest')
+    image_folder = Node.create_image_folder(project_folder)
+    training_folder = Node.create_training_folder(project_folder, training_uuid)
 
     return project_folder, image_folder, training_folder
 

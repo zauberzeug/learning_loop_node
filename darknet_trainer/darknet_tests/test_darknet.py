@@ -48,8 +48,7 @@ async def test_download_images():
 
     training_data = await test_helper.get_training_data(main.node)
     assert len(training_data.image_data) == 3
-
-    await node_helper.download_images(main.node.url, main.node.headers, training_data.image_data, image_folder)
+    await test_helper.download_images(training_data, image_folder)
     assert len(test_helper.get_files_from_data_folder()) == 3
 
 
@@ -118,7 +117,7 @@ async def test_create_image_links():
     _, image_folder, trainings_folder = test_helper.create_needed_folders()
     training_data = await test_helper.get_training_data(main.node)
 
-    await node_helper.download_images(main.node.url, main.node.headers,  training_data.image_data, image_folder)
+    await test_helper.download_images(training_data, image_folder)
 
     yolo_helper.create_image_links(trainings_folder, image_folder, training_data.image_ids())
 
@@ -212,9 +211,13 @@ async def test_create_anchors():
     main.node.status.organization = 'zauberzeug'
     main.node.status.project = 'pytest'
 
-    training_data = await test_helper.get_training_data(main.node)
     training_uuid = str(uuid4())
-    await main._prepare_training(main.node, training_data, training_uuid)
+
+    data = test_helper.get_data2()
+    project_folder, image_folder, training_folder = test_helper.create_needed_folders(training_uuid=training_uuid)
+    training_data = await main.download_data(main.node, data, image_folder, training_folder)
+
+    await main._prepare_training(main.node, training_folder, image_folder, training_data, training_uuid)
 
     anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
     original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
@@ -233,11 +236,11 @@ async def test_start_training():
     # NOTE: /proc/{pid}/comm needs some time to show correct process name
     await asyncio.sleep(1)
 
-    assert _is_any_darknet_running() == True, 'Training is not running'
+    assert yolo_helper._is_any_darknet_running() == True, 'Training is not running'
     assert _wait_until_first_iteration_reached(training_uuid, timeout=40) == True, 'No iteration created.'
     main._stop_training(training_uuid)
     time.sleep(1)
-    assert _is_any_darknet_running() == False
+    assert yolo_helper._is_any_darknet_running() == False
 
 
 @pytest.mark.asyncio
@@ -294,7 +297,8 @@ async def test_reset_to_idle_after_crash():
     await asyncio.sleep(3)  # TODO how to wait here?
     _assert_trainer_state(State.Running)
 
-    yolo_helper.kill_all_darknet_processes()
+    assert yolo_helper.kill_all_darknet_processes()
+    assert yolo_helper._is_any_darknet_running() == False
     await main._check_state()
     _assert_trainer_state(State.Idle)
 
@@ -348,15 +352,12 @@ async def _start_training(training_uuid):
     main.node.status.organization = 'zauberzeug'
     main.node.status.project = 'pytest'
     data = test_helper.get_data2()
-    training_data = await test_helper.get_training_data(main.node)
-    await main._prepare_training(main.node, training_data, training_uuid)
+    project_folder, image_folder, training_folder = test_helper.create_needed_folders(training_uuid=training_uuid)
+
+    training_data = await main.download_data(main.node, data, image_folder, training_folder)
+
+    await main._prepare_training(main.node, training_folder, image_folder, training_data, training_uuid)
     await main._start_training(training_uuid)
-
-
-def _is_any_darknet_running() -> bool:
-    p = subprocess.Popen('pgrep darknet', shell=True)
-    p.communicate()
-    return p.returncode == 0
 
 
 def _wait_until_first_iteration_reached(training_uuid: str, timeout: int) -> bool:
@@ -367,7 +368,7 @@ def _wait_until_first_iteration_reached(training_uuid: str, timeout: int) -> boo
 
         if '(next mAP calculation at 1000 iterations)' in content:
             return True
-        if not _is_any_darknet_running():
+        if not yolo_helper._is_any_darknet_running():
             log = None
             try:
                 with open(f'{training_folder}/last_training.log', 'r') as f:
@@ -405,4 +406,5 @@ def _assert_trainer_state(state: State) -> None:
     assert training_response.status_code == 200
     trainers = training_response.json()['trainers']
     darknet_trainer = [trainer for trainer in trainers if trainer['name'] == 'darknet trainer'][0]
+    ic(darknet_trainer)
     assert darknet_trainer['state'] == state

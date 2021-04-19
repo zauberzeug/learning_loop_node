@@ -1,5 +1,3 @@
-from typing import Optional
-from learning_loop_node.training_data import TrainingData
 from fastapi import FastAPI
 import socketio
 import asyncio
@@ -7,10 +5,7 @@ from status import Status, State
 import asyncio
 import requests
 import os
-import base64
 from icecream import ic
-import node_helper
-from training_data import TrainingData
 
 SERVER_BASE_URL_DEFAULT = 'http://backend'
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
@@ -88,10 +83,16 @@ class Node(FastAPI):
             self.status.organization = organization
             self.status.project = project
 
+            uri_base = f'{self.url}/api/{ self.status.organization}/projects/{ self.status.project}'
+
+            response = requests.get(uri_base + '/data/data2?state=complete', headers=self.headers)
+            assert response.status_code == 200
+            data = response.json()
+
             loop = asyncio.get_event_loop()
 
             loop.set_debug(True)
-            loop.create_task(self._prepare_training_and_start())
+            loop.create_task(self._begin_training(data))
             await self.update_state(State.Running)
             return True
 
@@ -141,18 +142,6 @@ class Node(FastAPI):
     def stop_training(self, func):
         self._stop_training = func
 
-    async def _prepare_training_and_start(self):
-        uri_base = f'{self.url}/api/{ self.status.organization}/projects/{ self.status.project}'
-
-        response = requests.get(uri_base + '/data/data2?state=complete', headers=self.headers)
-        assert response.status_code == 200
-        data = response.json()
-        image_data = await node_helper.download_images_data(self.url, self.headers, self.status.organization, self.status.project, data['image_ids'])
-        self.training_data = TrainingData(image_data=image_data,
-                                          box_categories=data['box_categories'])
-
-        await self._begin_training()
-
     async def update_state(self, state: State):
         self.status.state = state
         if self.status.state != State.Offline:
@@ -184,3 +173,21 @@ class Node(FastAPI):
         result = await self.sio.call('update_trainer', content)
         if not result == True:
             raise Exception(result)
+
+    @staticmethod
+    def create_project_folder(organization: str, project: str) -> str:
+        project_folder = f'/data/{organization}/{project}'
+        os.makedirs(project_folder, exist_ok=True)
+        return project_folder
+
+    @staticmethod
+    def create_image_folder(project_folder: str) -> str:
+        image_folder = f'{project_folder}/images'
+        os.makedirs(image_folder, exist_ok=True)
+        return image_folder
+
+    @staticmethod
+    def create_training_folder(project_folder: str, trainings_id: str) -> str:
+        training_folder = f'{project_folder}/trainings/{trainings_id}'
+        os.makedirs(training_folder, exist_ok=True)
+        return training_folder

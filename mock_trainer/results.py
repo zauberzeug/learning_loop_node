@@ -5,7 +5,7 @@ from learning_loop_node.node import Node, State
 
 async def increment_time(node: Node):
     if node.status.state != State.Running or node.training_data is None or node.training_data.box_categories is None:
-        return
+        raise Exception("Could not imcrement time.")
 
     node.status.uptime = node.status.uptime + 5
     print('---- time', node.status.uptime, flush=True)
