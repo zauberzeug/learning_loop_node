@@ -1,16 +1,14 @@
 import cv2
-from typing import List, Tuple, Any, Union
+from typing import List, Any
 from typing import Union as UNION
 from icecream import ic
-import numpy as np
 import helper
 import os
 import detection as d
 import subprocess
 from ctypes import *
 import c_classes
-import json
-import time
+
 
 lib = CDLL("/tkDNN/build/libdarknetRT.so", RTLD_GLOBAL)
 
@@ -113,12 +111,6 @@ def parse_detections(detections: List[UNION[int, str]]) -> List[d.Detection]:
     return parsed_detections
 
 
-
-def _read_image(image_path: str) -> List[int]:
-    return cv2.imread(image_path)
-
-
 def get_model_id(model_path: str) -> str:
     weightfile = helper.find_weight_file(model_path)
     return os.path.basename(weightfile).split('.')[0]
-
