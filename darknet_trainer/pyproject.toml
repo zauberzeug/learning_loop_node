@@ -12,6 +12,7 @@ psutil = "^5.8.0"
 pytest-asyncio = "^0.14.0"
 debugpy = "^1.2.1"
 aiofiles = "^0.6.0"
+retry = "^0.9.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"

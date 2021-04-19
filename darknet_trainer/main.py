@@ -31,23 +31,40 @@ node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
 
 
 @node.begin_training
-async def begin_training() -> None:
+async def begin_training(data: dict) -> None:
     try:
         training_uuid = str(uuid4())
-        await _prepare_training(node, node.training_data, training_uuid)
+
+        project_folder = Node.create_project_folder(node.status.organization, node.status.project)
+        image_folder = Node.create_image_folder(project_folder)
+        training_folder = Node.create_training_folder(project_folder, training_uuid)
+        training_data = await download_data(node, data, image_folder, training_folder)
+
+        await _prepare_training(node, training_folder, image_folder, training_data, training_uuid)
         await _start_training(training_uuid)
     except Exception as e:
         traceback.print_exc()
 
 
-async def _prepare_training(node: Node, training_data: TrainingData, training_uuid: str) -> None:
-    project_folder = _create_project_folder(
-        node.status.organization, node.status.project)
-    image_folder = _create_image_folder(project_folder)
+async def download_data(node: Node, data: dict, image_folder, training_folder):
+    loop = asyncio.get_event_loop()
+    image_data_coroutine = node_helper.download_images_data(
+        node.url, node.headers, node.status.organization, node.status.project,  data['image_ids'])
 
-    await node_helper.download_images(node.url, node.headers, training_data.image_data, image_folder)
+    image_data_task = loop.create_task(image_data_coroutine)
 
-    training_folder = _create_training_folder(project_folder, training_uuid)
+    urls, ids = node_helper.create_resource_urls(
+        node.url, node.status.organization, node.status.project, data['image_ids'])
+    await node_helper.download_images(loop, urls, ids, node.headers, image_folder)
+
+    image_data = await image_data_task
+    ic(f'Done downloading image_data for {len(image_data)} images.')
+    node_helper.download_model(node.url, node.headers, training_folder, node.status.organization,
+                               node.status.project, node.status.model['id'])
+    return TrainingData(image_data=image_data, box_categories=data['box_categories'])
+
+
+async def _prepare_training(node: Node, training_folder, image_folder, training_data: TrainingData, training_uuid: str) -> None:
     yolo_helper.create_backup_dir(training_folder)
 
     image_folder_for_training = yolo_helper.create_image_links(
@@ -62,43 +79,9 @@ async def _prepare_training(node: Node, training_data: TrainingData, training_uu
     yolo_helper.create_train_and_test_file(
         training_folder, image_folder_for_training, training_data.image_data)
 
-    node_helper.download_model(node.url, node.headers, training_folder, node.status.organization,
-                               node.status.project, node.status.model['id'])
     yolo_cfg_helper.replace_classes_and_filters(
         box_category_count, training_folder)
     yolo_cfg_helper.update_anchors(training_folder)
-
-
-def _get_train_and_test_images(images: dict) -> None:
-    train_image_count = [image for image in images if image['set'] == 'train']
-    test_image_count = [image for image in images if image['set'] == 'test']
-    return train_image_count, test_image_count
-
-
-def _create_project_folder(organization: str, project: str) -> str:
-    project_folder = f'/data/{organization}/{project}'
-    os.makedirs(project_folder, exist_ok=True)
-    return project_folder
-
-
-def _extract_image_ressoures(data: dict) -> List[tuple]:
-    return [i['resource'] for i in data['images']]
-
-
-def _extract_image_ids(data: dict) -> List[str]:
-    return [i['id'] for i in data['images']]
-
-
-def _create_image_folder(project_folder: str) -> str:
-    image_folder = f'{project_folder}/images'
-    os.makedirs(image_folder, exist_ok=True)
-    return image_folder
-
-
-def _create_training_folder(project_folder: str, trainings_id: str) -> str:
-    training_folder = f'{project_folder}/trainings/{trainings_id}'
-    os.makedirs(training_folder, exist_ok=True)
-    return training_folder
 
 
 async def _start_training(training_id: str) -> None:

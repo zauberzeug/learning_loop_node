@@ -10,38 +10,45 @@ import aiohttp
 import aiofiles
 from icecream import ic
 from training_data import TrainingData
+import asyncio
 
 
 async def download_images_data(base_url: str, headers: dict, organization: str, project: str, image_ids: List[str]) -> List[dict]:
     images_data = []
     chunk_size = 100
+    url = f'{base_url}/api/{organization}/projects/{project}/images'
     for i in range(0, len(image_ids), chunk_size):
         chunk_ids = image_ids[i:i+chunk_size]
         async with aiohttp.ClientSession() as session:
-            async with session.get(f'{base_url}/api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}', headers=headers) as response:
+            async with session.get(f'{url}?ids={",".join(chunk_ids)}', headers=headers) as response:
                 assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
                 images_data += (await response.json())['images']
                 ic(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
     return images_data
 
 
-async def download_images(base_url: str, headers: dict, images_data: List[dict], image_folder: str) -> None:
-    chunk_size = 10
-    for i in range(0, len(images_data), chunk_size):
-        chunk_data = images_data[i:i+chunk_size]
-        for image_information in chunk_data:
-            resource = image_information['resource']
-            id = image_information['id']
-            await _download_resource(base_url, headers, resource, id, image_folder)
-        ic(f'[+] Downloading images: {i+chunk_size} / {len(images_data)}')
+def create_resource_urls(base_url: str, organization_name: str, project_name: str, image_ids: List[str]) -> List[str]:
+    url_ids = [(f'{base_url}/api/{organization_name}/projects/{project_name}/images/{id}/main', id)
+               for id in image_ids]
+    urls, ids = list(zip(*url_ids))
+    return urls, ids
 
 
-async def _download_resource(base_url: str, headers: dict, image_resource: str, image_id: str, image_folder: str) -> None:
+async def download_images(loop: asyncio.BaseEventLoop, urls: List[str], image_ids: List[str],  headers: dict, image_folder: str) -> None:
+    tasks = []
+    for i in range(len(urls)):
+        # ic(urls[i], image_ids[i])
+        task = loop.create_task(download_one_image(urls[i], image_ids[i], headers, image_folder))
+        tasks.append(task)
+
+    await asyncio.gather(*tasks)
+
+
+async def download_one_image(url: str, image_id: str, headers: dict, image_folder: str):
     async with aiohttp.ClientSession() as session:
-        resource_url = f"{base_url}/api{image_resource}"
-        async with session.get(resource_url, headers=headers) as response:
-            assert response.status == 200
-            async with aiofiles.open(f'/{image_folder}/{image_id}.jpg', 'wb') as out_file:
+        async with session.get(url, headers=headers) as response:
+            assert response.status == 200, f'{response.status} for {url}'
+            async with aiofiles.open(f'{image_folder}/{image_id}.jpg', 'wb') as out_file:
                 await out_file.write(await response.read())
 
 

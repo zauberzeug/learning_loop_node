@@ -7,6 +7,7 @@ from glob import glob
 from mAP_parser import MAPParser
 import aiohttp
 from node import Node
+from retry import retry
 
 
 def to_yolo(learning_loop_box, image_width, image_height, categories):
@@ -94,7 +95,18 @@ def create_backup_dir(training_folder: str):
 
 
 def kill_all_darknet_processes():
+    @retry(AssertionError, tries=5, delay=0.01)
+    def assert_no_darknet_running():
+        assert _is_any_darknet_running() == False
+        return True
+
     p = subprocess.Popen('kill -9 `pgrep darknet`', shell=True)
+    p.communicate()
+    return p.returncode == 0 and assert_no_darknet_running()
+
+
+def _is_any_darknet_running() -> bool:
+    p = subprocess.Popen('pgrep darknet', shell=True)
     p.communicate()
     return p.returncode == 0
 
