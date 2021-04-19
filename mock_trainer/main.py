@@ -1,3 +1,5 @@
+from learning_loop_node import node_helper
+from learning_loop_node.training_data import TrainingData
 import uvicorn
 import sys
 import asyncio
@@ -19,6 +21,8 @@ node = Node(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
 
 @node.begin_training
 async def begin_training(data: dict):
+    image_data = await node_helper.download_images_data(node.url, node.headers, node.status.organization, node.status.project, data['image_ids'])
+    node.training_data = TrainingData(image_data=image_data, box_categories=data['box_categories'])
     pass
 
 
