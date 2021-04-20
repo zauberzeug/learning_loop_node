@@ -35,13 +35,14 @@ def create_resource_urls(base_url: str, organization_name: str, project_name: st
 
 
 async def download_images(loop: asyncio.BaseEventLoop, urls: List[str], image_ids: List[str],  headers: dict, image_folder: str) -> None:
-    tasks = []
-    for i in range(len(urls)):
-        # ic(urls[i], image_ids[i])
-        task = loop.create_task(download_one_image(urls[i], image_ids[i], headers, image_folder))
-        tasks.append(task)
-
-    await asyncio.gather(*tasks)
+    chunk_size = 10
+    for i in range(0, len(image_ids), chunk_size):
+        chunk_urls = urls[i:i+chunk_size]
+        chunk_ids = image_ids[i:i+chunk_size]
+        tasks = []
+        for j in range(len(chunk_urls)):
+            task = loop.create_task(download_one_image(chunk_urls[j], chunk_ids[j], headers, image_folder))
+        await asyncio.gather(*tasks)
 
 
 async def download_one_image(url: str, image_id: str, headers: dict, image_folder: str):
