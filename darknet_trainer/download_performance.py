@@ -31,7 +31,7 @@ async def main(loop: asyncio.BaseEventLoop, host_base_url, organization_name, pr
     ic(f'downloaded {len(ids)} ids. Time : {time.time() - t}')
 
     image_data_coroutine = node_helper.download_images_data(
-        host_base_url, headers, organization_name, project_name, ids)
+        host_base_url, headers, organization_name, project_name, ids, 100)
     image_data_task = loop.create_task(image_data_coroutine)
 
     # urls, ids = node_helper.create_resource_urls(
