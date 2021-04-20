@@ -11,11 +11,12 @@ import aiofiles
 from icecream import ic
 from training_data import TrainingData
 import asyncio
+import time
 
 
-async def download_images_data(base_url: str, headers: dict, organization: str, project: str, image_ids: List[str]) -> List[dict]:
+async def download_images_data(base_url: str, headers: dict, organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
     images_data = []
-    chunk_size = 100
+    starttime = time.time()
     url = f'{base_url}/api/{organization}/projects/{project}/images'
     for i in range(0, len(image_ids), chunk_size):
         chunk_ids = image_ids[i:i+chunk_size]
@@ -24,6 +25,8 @@ async def download_images_data(base_url: str, headers: dict, organization: str, 
                 assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
                 images_data += (await response.json())['images']
                 ic(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
+                total_time = time.time() - starttime
+                ic(f'[+] Performance: {total_time} total. {total_time} per 100 : {total_time / len(images_data) * 100}')
     return images_data
 
 
