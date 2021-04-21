@@ -14,7 +14,7 @@ import asyncio
 import time
 
 
-async def download_images_data(base_url: str, headers: dict, organization: str, project: str, image_ids: List[str], chunk_size: int = 10) -> List[dict]:
+async def download_images_data(base_url: str, headers: dict, organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
     images_data = []
     starttime = time.time()
     url = f'{base_url}/api/{organization}/projects/{project}/images'
