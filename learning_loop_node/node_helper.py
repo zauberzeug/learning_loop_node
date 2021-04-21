@@ -47,7 +47,7 @@ async def download_images(loop: asyncio.BaseEventLoop, urls: List[str], image_id
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []
         for j in range(len(chunk_urls)):
-            task = loop.create_task(download_one_image(chunk_urls[j], chunk_ids[j], headers, image_folder))
+            tasks.append(loop.create_task(download_one_image(chunk_urls[j], chunk_ids[j], headers, image_folder)))
         await asyncio.gather(*tasks)
 
 
