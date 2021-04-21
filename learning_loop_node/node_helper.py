@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import requests
 import shutil
 from io import BytesIO
@@ -33,10 +33,13 @@ async def download_images_data(base_url: str, headers: dict, organization: str, 
     return images_data
 
 
-def create_resource_urls(base_url: str, organization_name: str, project_name: str, image_ids: List[str]) -> List[str]:
+def create_resource_urls(base_url: str, organization_name: str, project_name: str, image_ids: List[str]) -> Tuple[List[str], List[str]]:
+    if not image_ids:
+        return [], []
     url_ids = [(f'{base_url}/api/{organization_name}/projects/{project_name}/images/{id}/main', id)
                for id in image_ids]
-    urls, ids = list(zip(*url_ids))
+    urls, ids = list(map(list, zip(*url_ids)))
+
     return urls, ids
 
 
