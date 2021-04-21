@@ -25,11 +25,11 @@ async def download_images_data(base_url: str, headers: dict, organization: str, 
                 assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
                 images_data += (await response.json())['images']
                 ic(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
-                total_time = time.time() - starttime
+                total_time = round(time.time() - starttime, 1)
                 if(images_data):
-                    ic(f'[+] Performance: {total_time} total. {total_time} per 100 : {total_time / len(images_data ) * 100}')
+                    ic(f'[+] Performance: {total_time} sec total. Per 100 : {(total_time / len(images_data ) * 100):.1f} sec')
                 else:
-                    ic(f'[+] Performance: {total_time} total.')
+                    ic(f'[+] Performance: {total_time} sec total.')
     return images_data
 
 
@@ -40,8 +40,8 @@ def create_resource_urls(base_url: str, organization_name: str, project_name: st
     return urls, ids
 
 
-async def download_images(loop: asyncio.BaseEventLoop, urls: List[str], image_ids: List[str],  headers: dict, image_folder: str) -> None:
-    chunk_size = 10
+async def download_images(loop: asyncio.BaseEventLoop, urls: List[str], image_ids: List[str],  headers: dict, image_folder: str, chunk_size: int = 10) -> None:
+    starttime = time.time()
     for i in range(0, len(image_ids), chunk_size):
         chunk_urls = urls[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
@@ -49,6 +49,9 @@ async def download_images(loop: asyncio.BaseEventLoop, urls: List[str], image_id
         for j in range(len(chunk_urls)):
             tasks.append(loop.create_task(download_one_image(chunk_urls[j], chunk_ids[j], headers, image_folder)))
         await asyncio.gather(*tasks)
+        total_time = round(time.time() - starttime, 1)
+        ic(f'Downnloaed {i + len(tasks)} image files.')
+        ic(f'[+] Performance (image files): {total_time} sec total. Per 100 : {(total_time / (i + len(tasks)) * 100):.1f}')
 
 
 async def download_one_image(url: str, image_id: str, headers: dict, image_folder: str):

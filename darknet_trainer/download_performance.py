@@ -34,13 +34,11 @@ async def main(loop: asyncio.BaseEventLoop, host_base_url, organization_name, pr
         host_base_url, headers, organization_name, project_name, ids, 100)
     image_data_task = loop.create_task(image_data_coroutine)
 
-    # urls, ids = node_helper.create_resource_urls(
-    #     host_base_url, organization_name, project_name, ids)
-    # await node_helper.download_images(loop, urls, ids, headers, "/data")
+    urls, ids = node_helper.create_resource_urls(
+        host_base_url, organization_name, project_name, ids)
+    await node_helper.download_images(loop, urls, ids, headers, "/data", 20)
 
     image_data = await image_data_task
-    ic(f'Done downloading image_data for {len(image_data)} images.')
-
     ic(f'Done downloading image_data for {len(image_data)} images.')
 
 
