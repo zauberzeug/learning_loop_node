@@ -52,9 +52,8 @@ async def download_data(node: Node, data: dict, image_folder, training_folder):
         node.url, node.headers, node.status.organization, node.status.project,  data['image_ids'])
 
     image_data_task = loop.create_task(image_data_coroutine)
-
     urls, ids = node_helper.create_resource_urls(
-        node.url, node.status.organization, node.status.project, data['image_ids'])
+        node.url, node.status.organization, node.status.project, filter_needed_image_ids(data['image_ids'], image_folder))
     await node_helper.download_images(loop, urls, ids, node.headers, image_folder)
 
     image_data = await image_data_task
@@ -62,6 +61,11 @@ async def download_data(node: Node, data: dict, image_folder, training_folder):
     node_helper.download_model(node.url, node.headers, training_folder, node.status.organization,
                                node.status.project, node.status.model['id'])
     return TrainingData(image_data=image_data, box_categories=data['box_categories'])
+
+
+def filter_needed_image_ids(all_image_ids, image_folder):
+    ids = [os.path.splitext(os.path.basename(image))[0] for image in glob(f'{image_folder}/*.jpg')]
+    return [id for id in all_image_ids if id not in ids]
 
 
 async def _prepare_training(node: Node, training_folder, image_folder, training_data: TrainingData, training_uuid: str) -> None:
