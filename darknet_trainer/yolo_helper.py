@@ -40,7 +40,6 @@ def create_data_file(training_folder: str, number_of_classes: int) -> None:
 
 async def update_yolo_boxes(node: Node, image_folder_for_training: str, training_data: TrainingData) -> None:
     category_ids = helper.get_box_category_ids(training_data)
-    image_ids = training_data.image_ids()
 
     for image in training_data.image_data:
         image_width, image_height = image['width'], image['height']
