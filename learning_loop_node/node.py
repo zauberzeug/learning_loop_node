@@ -14,6 +14,8 @@ BASE_ORGANIZATION = 'zauberzeug'
 
 
 class Node(FastAPI):
+    name: str
+    uuid: str
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
@@ -26,6 +28,9 @@ class Node(FastAPI):
         self.headers = {}
         self.training_data = None
 
+        self.name = name
+        self.uuid = uuid
+
         if self.username:
             import base64
             self.headers["Authorization"] = "Basic " + \
@@ -36,11 +41,12 @@ class Node(FastAPI):
             request_timeout=0.5,
             # logger=True, engineio_logger=True
         )
+        self.reset()
 
-        def reset():
-            self.status = Status(id=uuid, name=name, state=State.Offline)
-        reset()
+        self.register_lifecycle_events()
+        self.register_sio_events()
 
+    def register_lifecycle_events(self):
         @self.on_event("startup")
         async def startup():
             print('startup', flush=True)
@@ -51,6 +57,7 @@ class Node(FastAPI):
             print('shutting down', flush=True)
             await self.sio.disconnect()
 
+    def register_sio_events(self):
         @self.sio.on('save')
         def on_save(organization, project, model):
             print('---- saving model', model['id'], flush=True)
@@ -107,12 +114,15 @@ class Node(FastAPI):
         @self.sio.on('connect')
         async def on_connect():
             ic('recieved "on_connect" event.')
-            reset()
+            self.reset()
             await self.update_state(State.Idle)
 
         @self.sio.on('disconnect')
         async def on_disconnect():
             await self.update_state(State.Offline)
+
+    def reset(self):
+        self.status = Status(id=self.uuid, name=self.name, state=State.Offline)
 
     async def connect(self):
         try:
