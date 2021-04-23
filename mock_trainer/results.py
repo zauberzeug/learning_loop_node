@@ -1,18 +1,22 @@
+from learning_loop_node.trainer.model import Model
 import uuid
 import random
-from learning_loop_node.node import Node, State
+from learning_loop_node.trainer.trainer import Training, Trainer, TrainingData
+from fastapi.encoders import jsonable_encoder
 
 
-async def increment_time(node: Node):
-    if node.status.state != State.Running or node.training_data is None or node.training_data.box_categories is None:
+async def increment_time(trainer: Trainer):
+
+    if not trainer.training or not trainer.training.data:
         raise Exception("Could not imcrement time.")
 
-    node.status.uptime = node.status.uptime + 5
-    print('---- time', node.status.uptime, flush=True)
+    trainer.status.uptime = trainer.status.uptime + 5
+    print('---- time', trainer.status.uptime, flush=True)
     confusion_matrix = {}
-    for category in node.training_data.box_categories:
+    for category in trainer.training.data.box_categories:
         try:
-            minimum = node.status.model['confusion_matrix'][category['id']]['tp']
+            # todo
+            minimum = trainer.training.last_produced_model['confusion_matrix'][category['id']]['tp']
         except:
             minimum = 0
         maximum = minimum + 1
@@ -21,18 +25,21 @@ async def increment_time(node: Node):
             'fp': max(random.randint(10-maximum, 10-minimum), 2),
             'fn': max(random.randint(10-maximum, 10-minimum), 2),
         }
-    new_model = {
-        'id': str(uuid.uuid4()),
-        'hyperparameters': node.status.hyperparameters,
-        'confusion_matrix': confusion_matrix,
-        'parent_id': node.status.model['id'],
-        'train_image_count': node.training_data.train_image_count(),
-        'test_image_count': node.training_data.test_image_count(),
-        'trainer_id': node.status.id,
-    }
 
-    result = await node.sio.call('update_model', (node.status.organization, node.status.project, new_model))
+    new_model = Model(
+        id=str(uuid.uuid4()),
+        hyperparameters=trainer.training.last_known_model. hyperparameters,
+        confusion_matrix=confusion_matrix,
+        parent_id=trainer.training.last_known_model.id,
+        train_image_count=trainer.training.data.train_image_count(),
+        test_image_count=trainer.training.data.test_image_count(),
+        trainer_id=trainer.uuid,
+    )
+
+    result = await trainer.sio.call('update_model', (trainer.training.organization, trainer.training.project, jsonable_encoder(new_model)))
     if result != True:
         raise Exception('could not update model: ' + str(result))
-    node.status.model = new_model
-    await node.update_state(State.Running)
+    trainer.training.last_produced_model = new_model
+    from learning_loop_node.status import State
+    await trainer.update_state(State.Running)
+    return new_model

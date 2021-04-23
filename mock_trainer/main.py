@@ -1,38 +1,29 @@
 from learning_loop_node import node_helper
-from learning_loop_node.training_data import TrainingData
+from learning_loop_node.trainer.training_data import TrainingData
 import uvicorn
-import sys
-import asyncio
-import threading
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from threading import Thread
 import backdoor_controls
 from fastapi_utils.tasks import repeat_every
-import simplejson as json
-import requests
-import io
-from learning_loop_node.node import Node, State
 import results
 from typing import List
-from learning_loop_node.trainer import Trainer
+from learning_loop_node.trainer.trainer import Trainer
+from typing import Optional
 
-node = Trainer(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
-
-
-@node.begin_training
-async def begin_training(data: dict):
-    image_data = await node_helper.download_images_data(node.url, node.headers, node.status.organization, node.status.project, data['image_ids'])
-    node.training_data = TrainingData(image_data=image_data, box_categories=data['box_categories'])
+trainer = Trainer(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
 
 
-@node.stop_training
+@trainer.begin_training
+async def begin_training(data):
+    image_data = await node_helper.download_images_data(trainer.url, trainer.headers, trainer.training.organization, trainer.training.project, data['image_ids'])
+    trainer.training.data = TrainingData(image_data=image_data, box_categories=data['box_categories'])
+
+
+@trainer.stop_training
 def stop():
     # nothing to do for the mock trainer
     pass
 
 
-@node.get_model_files
+@trainer.get_model_files
 def get_model_files(ogranization: str, project: str, model_id: str) -> List[str]:
 
     fake_weight_file = '/tmp/weightfile.weights'
@@ -46,15 +37,20 @@ def get_model_files(ogranization: str, project: str, model_id: str) -> List[str]
     return [fake_weight_file, more_data_file]
 
 
-@node.on_event("startup")
+@trainer.on_event("startup")
 @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
 async def step() -> None:
+    await _step()
+
+
+async def _step() -> Optional[dict]:
     """creating new model every 5 seconds for the demo project"""
-    if node.status.model and node.status.project == 'demo':
-        await results.increment_time(node)
+    if trainer.training and trainer.training.project in ['demo', 'pytest']:
+        return await results.increment_time(trainer)
+
 
 # setting up backdoor_controls
-node.include_router(backdoor_controls.router, prefix="")
+trainer.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
-    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
+    uvicorn.run("main:trainer", host="0.0.0.0", port=80, lifespan='on', reload=True)

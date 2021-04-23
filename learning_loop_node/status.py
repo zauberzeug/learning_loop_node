@@ -1,12 +1,13 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
+from learning_loop_node.trainer.model import Model
 
 
 class State(str, Enum):
     Idle = "idle"
-    Running = "running"
     Offline = "offline"
+    Running = "running"
 
 
 class Status(BaseModel):
@@ -14,10 +15,7 @@ class Status(BaseModel):
     name: str
     state: Optional[State] = State.Offline
     uptime: Optional[int] = 0
-    organization: Optional[str]
-    project: Optional[str]
-    model: Optional[dict]
-    hyperparameters: Optional[str]
-    box_categories: Optional[dict]
-    train_images: Optional[List[dict]]
-    test_images: Optional[List[dict]]
+
+
+class TrainingStatus(Status):
+    latest_produced_model_id: Optional[str]

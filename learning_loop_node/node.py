@@ -1,7 +1,8 @@
+from learning_loop_node.status import Status
 from fastapi import FastAPI
 import socketio
 import asyncio
-from status import Status, State
+from status import State
 import asyncio
 import requests
 import os
@@ -26,7 +27,6 @@ class Node(FastAPI):
         self.project = os.environ.get('PROJECT', BASE_PROJECT)
         self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
         self.headers = {}
-        self.training_data = None
 
         self.name = name
         self.uuid = uuid
@@ -68,7 +68,7 @@ class Node(FastAPI):
             await self.sio.disconnect()
 
     def reset(self):
-        self.status = Status(id=self.uuid, name=self.name, state=State.Offline)
+        self.status = Status(id=self.uuid, name=self.name)
 
     async def connect(self):
         try:
@@ -89,15 +89,6 @@ class Node(FastAPI):
                 await asyncio.sleep(0.2)
                 await self.connect()
 
-    def get_model_files(self, func):
-        self._get_model_files = func
-
-    def begin_training(self, func):
-        self._begin_training = func
-
-    def stop_training(self, func):
-        self._stop_training = func
-
     async def update_state(self, state: State):
         self.status.state = state
         if self.status.state != State.Offline:
@@ -107,43 +98,19 @@ class Node(FastAPI):
         self.status.id = new_status.id
         self.status.name = new_status.name
         self.status.uptime = new_status.uptime
-        self.status.model = new_status.model
-        self.status.hyperparameters = new_status.hyperparameters
-        self.status.box_categories = new_status.box_categories
-        self.status.train_images = new_status.train_images
-        self.status.test_images = new_status.test_images
 
         if self.status.state != State.Offline:
             self.status.state = State.Idle
-            await self.send_status()
+        await self.send_status()
 
     async def send_status(self):
-        content = self.status.dict()
-        if self.status.model:
-            content['latest_produced_model_id'] = self.status.model['id']
-        del content['model']
-        del content['train_images']
-        del content['test_images']
+        raise Exception("Override this in subclass")
 
-        print('sending status', content, flush=True)
-        result = await self.sio.call('update_trainer', content)
-        if not result == True:
-            raise Exception(result)
+    def stop_training(self, func):
+        self._stop_training = func
 
     @staticmethod
     def create_project_folder(organization: str, project: str) -> str:
         project_folder = f'/data/{organization}/{project}'
         os.makedirs(project_folder, exist_ok=True)
         return project_folder
-
-    @staticmethod
-    def create_image_folder(project_folder: str) -> str:
-        image_folder = f'{project_folder}/images'
-        os.makedirs(image_folder, exist_ok=True)
-        return image_folder
-
-    @staticmethod
-    def create_training_folder(project_folder: str, trainings_id: str) -> str:
-        training_folder = f'{project_folder}/trainings/{trainings_id}'
-        os.makedirs(training_folder, exist_ok=True)
-        return training_folder

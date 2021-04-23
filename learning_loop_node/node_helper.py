@@ -9,7 +9,7 @@ from icecream import ic
 import aiohttp
 import aiofiles
 from icecream import ic
-from training_data import TrainingData
+from trainer.training_data import TrainingData
 import asyncio
 import time
 
