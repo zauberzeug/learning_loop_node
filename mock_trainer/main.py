@@ -15,8 +15,9 @@ import io
 from learning_loop_node.node import Node, State
 import results
 from typing import List
+from learning_loop_node.trainer import Trainer
 
-node = Node(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
+node = Trainer(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer')
 
 
 @node.begin_training
