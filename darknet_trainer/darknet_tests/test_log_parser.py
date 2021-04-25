@@ -1,8 +1,4 @@
-import shutil
-from mAP_parser import MAPParser
-import pytest
-import main
-import darknet_tests.test_helper as test_helper
+from log_parser import LogParser
 from uuid import uuid4
 data = """
 
@@ -46,11 +42,11 @@ Loaded: 0.061675 seconds
  (next mAP calculation at 1001 iterations)
  """
 
-parser = MAPParser(MAPParser.extract_iteration_log(data))
+parser = LogParser(LogParser.extract_iteration_log(data))
 
 
 def test_extract_iteration_log():
-    iteration_log = MAPParser.extract_iteration_log(data)
+    iteration_log = LogParser.extract_iteration_log(data)
     assert iteration_log[1].startswith(
         ' 2: 109.290443, 99.471283 avg loss, 0.000001 rate, 70.404934 seconds, 135808 images, 11070.078691 hours left')
     assert iteration_log[-1] == 'Loaded: 0.061675 seconds'

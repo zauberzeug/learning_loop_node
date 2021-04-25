@@ -1,6 +1,6 @@
 import asyncio
 import shutil
-from mAP_parser import MAPParser
+from log_parser import LogParser
 from threading import Thread
 import backdoor_controls
 from fastapi_utils.tasks import repeat_every
@@ -58,11 +58,11 @@ def _parse_latest_iteration(training_id: str, node: Node) -> Union[dict, None]:
     with open(log_file_path, 'r') as f:
         log = f.read()
 
-    iteration_log = MAPParser.extract_iteration_log(log)
+    iteration_log = LogParser.extract_iteration_log(log)
     if not iteration_log:
         return None
 
-    parser = MAPParser(iteration_log)
+    parser = LogParser(iteration_log)
     iteration = parser.parse_iteration()
 
     confusion_matrices = {}

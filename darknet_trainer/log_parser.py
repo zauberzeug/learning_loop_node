@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 
-class MAPParser:
+class LogParser:
     def __init__(self, iteration_log_lines: List[str]):
         self.iteration_log_lines = iteration_log_lines
 
@@ -43,11 +43,11 @@ class MAPParser:
                 return iteration
         return None
 
-    def parse_classes(self) -> List:
+    def parse_classes(self) -> List[dict]:
         classes = []
         for line in self.iteration_log_lines:
             if line.startswith("class_id"):
-                classes.append(MAPParser._parse_class(line))
+                classes.append(LogParser._parse_class(line))
         return classes
 
     @staticmethod

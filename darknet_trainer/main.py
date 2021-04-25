@@ -1,8 +1,9 @@
-from learning_loop_node.training_data import TrainingData
+from learning_loop_node.trainer.training_data import TrainingData
+from learning_loop_node.trainer.trainer import Trainer
 import uvicorn
 import asyncio
 import shutil
-from mAP_parser import MAPParser
+from log_parser import LogParser
 from threading import Thread
 import backdoor_controls
 from fastapi_utils.tasks import repeat_every

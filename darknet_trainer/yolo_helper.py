@@ -1,11 +1,11 @@
 import aiofiles
-from learning_loop_node.training_data import TrainingData
+from learning_loop_node.trainer.training_data import TrainingData
 import subprocess
 from typing import List
 import helper
 import os
 from glob import glob
-from mAP_parser import MAPParser
+from log_parser import LogParser
 import aiohttp
 from node import Node
 from retry import retry
@@ -106,7 +106,7 @@ def _is_any_darknet_running() -> bool:
 
 def parse_yolo_lines(lines: str, iteration: int = None) -> dict:
 
-    parser = MAPParser(lines)
+    parser = LogParser(lines)
     data = parser.parse_mAP()
     data['classes'] = parser.parse_classes()
 

@@ -1,6 +1,6 @@
 import shutil
 import uuid
-from mAP_parser import MAPParser
+from log_parser import LogParser
 import pytest
 import main
 import darknet_tests.test_helper as test_helper

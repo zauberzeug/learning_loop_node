@@ -1,5 +1,4 @@
-from learning_loop_node import training_data
-from learning_loop_node.training_data import TrainingData
+from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node import node_helper
 from requests import Session
 from urllib.parse import urljoin
