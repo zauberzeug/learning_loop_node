@@ -27,40 +27,37 @@ import traceback
 import model_updater
 
 
-node = Node(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
-            name='darknet trainer')
+node = Trainer(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
+               name='darknet trainer')
 
 
 @node.begin_training
 async def begin_training(data: dict) -> None:
     try:
-        training_uuid = str(uuid4())
+        training = node.training
+        training_data = await download_data(node, data, training.images_folder, training.training_folder)
 
-        project_folder = Node.create_project_folder(node.status.organization, node.status.project)
-        image_folder = Node.create_image_folder(project_folder)
-        training_folder = Node.create_training_folder(project_folder, training_uuid)
-        training_data = await download_data(node, data, image_folder, training_folder)
-
-        await _prepare_training(node, training_folder, image_folder, training_data, training_uuid)
-        await _start_training(training_uuid)
+        await _prepare_training(node, training.training_folder, training.images_folder, training_data, training.id)
+        await _start_training(training.id)
     except Exception as e:
         traceback.print_exc()
+        raise e
 
 
-async def download_data(node: Node, data: dict, image_folder, training_folder):
+async def download_data(node: Trainer, data: dict, image_folder, training_folder):
     loop = asyncio.get_event_loop()
     image_data_coroutine = node_helper.download_images_data(
-        node.url, node.headers, node.status.organization, node.status.project,  data['image_ids'])
+        node.url, node.headers, node.training.organization, node.training.project,  data['image_ids'])
 
     image_data_task = loop.create_task(image_data_coroutine)
     urls, ids = node_helper.create_resource_urls(
-        node.url, node.status.organization, node.status.project, filter_needed_image_ids(data['image_ids'], image_folder))
+        node.url, node.training.organization, node.training.project, filter_needed_image_ids(data['image_ids'], image_folder))
     await node_helper.download_images(loop, urls, ids, node.headers, image_folder)
 
     image_data = await image_data_task
     ic(f'Done downloading image_data for {len(image_data)} images.')
-    node_helper.download_model(node.url, node.headers, training_folder, node.status.organization,
-                               node.status.project, node.status.model['id'])
+    node_helper.download_model(node.url, node.headers, training_folder, node.training.organization,
+                               node.training.project, node.training.base_model.id)
     return TrainingData(image_data=image_data, box_categories=data['box_categories'])
 
 
@@ -100,8 +97,6 @@ async def _start_training(training_id: str) -> None:
     _, err = p.communicate()
     if p.returncode != 0:
         raise Exception(f'Failed to start training with error: {err}')
-
-    node.status.model['training_id'] = training_id
 
 
 def find_weightfile(training_path: str) -> str:
@@ -150,13 +145,12 @@ async def check_state() -> None:
 
 async def _check_state() -> None:
     ic(f"checking state: {node.status.state}")
-    if node.status.model and node.status.model.get('training_id'):
-        training_id = node.status.model['training_id']
-        ic(training_id,)
-        if training_id:
 
-            await model_updater.check_state(training_id, node)
-            await _check_training_state(training_id)
+    if node.training:
+        training_id = node.training.id
+        ic(training_id,)
+        await model_updater.check_state(training_id, node)
+        await _check_training_state(training_id)
 
 
 async def _check_training_state(training_id: str) -> None:

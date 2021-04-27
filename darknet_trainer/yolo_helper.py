@@ -87,7 +87,7 @@ def create_backup_dir(training_folder: str):
     os.makedirs(backup_path, exist_ok=True)
 
 
-def kill_all_darknet_processes():
+def kill_all_darknet_processes() -> bool:
     @retry(AssertionError, tries=5, delay=0.1)
     def assert_no_darknet_running():
         assert _is_any_darknet_running() == False
@@ -95,7 +95,8 @@ def kill_all_darknet_processes():
 
     p = subprocess.Popen('kill -9 `pgrep darknet`', shell=True)
     p.communicate()
-    return p.returncode == 0 and assert_no_darknet_running()
+    assert assert_no_darknet_running(), 'No training should run.'
+    return True
 
 
 def _is_any_darknet_running() -> bool:
