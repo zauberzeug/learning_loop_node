@@ -26,6 +26,8 @@ class Node(FastAPI):
         self.password = os.environ.get('PASSWORD', None)
         self.project = os.environ.get('PROJECT', BASE_PROJECT)
         self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
+        self.db_user = os.environ.get('DBNAME', None)
+        self.db_pw = os.environ.get('DBPW', None)
         self.headers = {}
 
         self.name = name
@@ -78,7 +80,7 @@ class Node(FastAPI):
 
         print('connecting to Learning Loop', flush=True)
         try:
-            await self.sio.connect(f"{self.ws_url}", headers=self.headers, socketio_path="/ws/socket.io")
+            await self.sio.connect(f"{self.ws_url}", auth={'username': self.db_user, 'password': self.db_pw}, headers=self.headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
