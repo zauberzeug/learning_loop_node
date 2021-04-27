@@ -32,14 +32,17 @@ class Trainer(Node):
             assert response.status_code == 200
             data = response.json()
 
-            self.training = Training(id=str(uuid4()),
-                                     base_model=source_model,
-                                     organization=organization,
-                                     project=project,
-                                     project_folder="",
-                                     images_folder="",
-                                     training_folder=""
-                                     )
+            training_uuid = str(uuid4())
+            project_folder = Node.create_project_folder(organization, project)
+            self.training = Training(
+                id=training_uuid,
+                base_model=source_model,
+                organization=organization,
+                project=project,
+                project_folder=project_folder,
+                images_folder=Node.create_project_folder(organization, project),
+                training_folder=Trainer.create_training_folder(project_folder, training_uuid)
+            )
             loop = asyncio.get_event_loop()
 
             loop.set_debug(True)

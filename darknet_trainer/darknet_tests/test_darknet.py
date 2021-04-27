@@ -14,6 +14,8 @@ from icecream import ic
 import learning_loop_node.node_helper as node_helper
 from status import State
 import asyncio
+from learning_loop_node.trainer.training import Training
+from learning_loop_node.trainer.model import Model
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -207,11 +209,17 @@ def test_replace_classes_and_filters():
 async def test_create_anchors():
     model_id = test_helper.assert_upload_model()
 
-    main.node.status.model = {'id': model_id}
-    main.node.status.organization = 'zauberzeug'
-    main.node.status.project = 'pytest'
+    data = test_helper.get_data2()
 
     training_uuid = str(uuid4())
+    main.node.training = Training(id=str(uuid4()),
+                                  base_model=Model(id=model_id),
+                                  organization='zauberzeug',
+                                  project='pytest',
+                                  project_folder="",
+                                  images_folder="",
+                                  training_folder=""
+                                  )
 
     data = test_helper.get_data2()
     project_folder, image_folder, training_folder = test_helper.create_needed_folders(training_uuid=training_uuid)
@@ -269,7 +277,7 @@ async def test_check_crashed_training_state():
 async def test_cleanup_after_crash():
     training_uuid = str(uuid4())
     await _start_training(training_uuid)
-    assert main.node.status.model['training_id'] == training_uuid
+    assert main.node.training.id == training_uuid
 
     state = main.get_training_state(training_uuid)
     assert state == 'running'
@@ -289,12 +297,12 @@ async def test_reset_to_idle_after_crash():
     _assert_trainer_state(State.Idle)
 
     model_id = test_helper.assert_upload_model()
-    main.node.status.model = {'id': model_id}
     model = {'id': model_id}
     begin_training_handler = main.node.sio.handlers['/']['begin_training']
 
     await begin_training_handler('zauberzeug', 'pytest', model)
     await asyncio.sleep(3)  # TODO how to wait here?
+    assert yolo_helper._is_any_darknet_running() == True
     _assert_trainer_state(State.Running)
 
     assert yolo_helper.kill_all_darknet_processes()
@@ -348,12 +356,18 @@ def test_find_cfg_file(target_cfg_file):
 
 async def _start_training(training_uuid):
     model_id = test_helper.assert_upload_model()
-    main.node.status.model = {'id': model_id}
-    main.node.status.organization = 'zauberzeug'
-    main.node.status.project = 'pytest'
     data = test_helper.get_data2()
-    project_folder, image_folder, training_folder = test_helper.create_needed_folders(training_uuid=training_uuid)
 
+    main.node.training = Training(id=training_uuid,
+                                  base_model=Model(id=model_id),
+                                  organization='zauberzeug',
+                                  project='pytest',
+                                  project_folder="",
+                                  images_folder="",
+                                  training_folder=""
+                                  )
+
+    project_folder, image_folder, training_folder = test_helper.create_needed_folders(training_uuid=training_uuid)
     training_data = await main.download_data(main.node, data, image_folder, training_folder)
 
     await main._prepare_training(main.node, training_folder, image_folder, training_data, training_uuid)

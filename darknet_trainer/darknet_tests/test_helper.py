@@ -1,5 +1,6 @@
-from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node import node_helper
+from learning_loop_node.trainer.training_data import TrainingData
+from learning_loop_node.trainer.trainer import Trainer
 from requests import Session
 from urllib.parse import urljoin
 from glob import glob
@@ -51,8 +52,8 @@ def get_files_from_data_folder():
 
 def create_needed_folders(training_uuid='some_uuid'):
     project_folder = Node.create_project_folder('zauberzeug', 'pytest')
-    image_folder = Node.create_image_folder(project_folder)
-    training_folder = Node.create_training_folder(project_folder, training_uuid)
+    image_folder = Trainer.create_image_folder(project_folder)
+    training_folder = Trainer.create_training_folder(project_folder, training_uuid)
 
     return project_folder, image_folder, training_folder
 
