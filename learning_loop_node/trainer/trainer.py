@@ -54,7 +54,7 @@ class Trainer(Node):
         async def stop():
             print('---- stopping', flush=True)
             if hasattr(self, '_stop_training'):
-                self._stop_training()
+                await self._stop_training()
             await self.update_state(State.Idle)
             return True
 
@@ -96,10 +96,6 @@ class Trainer(Node):
         if not result == True:
             raise Exception(result)
         print('status send', flush=True)
-
-    async def update_status(self, status: Status):
-        self.training = None
-        await super().update_status(status)
 
     def get_model_files(self, func):
         self._get_model_files = func

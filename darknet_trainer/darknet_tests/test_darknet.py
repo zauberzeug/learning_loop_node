@@ -43,6 +43,15 @@ def init_node():
     main.node.project = 'pytest'
 
 
+@pytest.fixture()
+async def connect_node():
+    if not main.node.sio.connected:
+        await main.node.connect()
+        await main.node.sio.sleep(1.0)
+
+    await main.node.update_state(State.Idle)
+
+
 @pytest.mark.asyncio
 async def test_download_images():
     _, image_folder, _ = test_helper.create_needed_folders()
@@ -237,7 +246,7 @@ async def test_create_anchors():
 
 
 @pytest.mark.asyncio
-async def test_start_training():
+async def test_start_training(connect_node):
     training_uuid = str(uuid4())
     await _start_training(training_uuid)
 
@@ -246,7 +255,7 @@ async def test_start_training():
 
     assert yolo_helper._is_any_darknet_running() == True, 'Training is not running'
     assert _wait_until_first_iteration_reached(training_uuid, timeout=40) == True, 'No iteration created.'
-    main._stop_training(training_uuid)
+    await main._stop_training(main.node, training_uuid)
     time.sleep(1)
     assert yolo_helper._is_any_darknet_running() == False
 
@@ -274,7 +283,7 @@ async def test_check_crashed_training_state():
 
 
 @pytest.mark.asyncio
-async def test_cleanup_after_crash():
+async def test_cleanup_after_crash(connect_node):
     training_uuid = str(uuid4())
     await _start_training(training_uuid)
     assert main.node.training.id == training_uuid
@@ -286,14 +295,12 @@ async def test_cleanup_after_crash():
 
     await main._check_state()
     assert _pid_file_exists(training_uuid) == False
-    assert main.node.status.model == None
+    assert main.node.training == None
 
 
 @pytest.mark.asyncio
-async def test_reset_to_idle_after_crash():
-    await main.node.connect()
-    await main.node.sio.sleep(1.0)
-    await main.node.update_state(State.Idle)
+async def test_reset_to_idle_after_crash(connect_node):
+
     _assert_trainer_state(State.Idle)
 
     model_id = test_helper.assert_upload_model()
@@ -312,7 +319,7 @@ async def test_reset_to_idle_after_crash():
 
 
 @pytest.mark.asyncio
-async def test_get_files_for_model_id():
+async def test_get_files_for_model_id(connect_node):
     training_uuid = uuid4()
     _, _, training_path = test_helper.create_needed_folders(training_uuid)
     new_model_id = uuid4()
@@ -419,6 +426,8 @@ def _assert_trainer_state(state: State) -> None:
         f'/api/zauberzeug/projects/pytest/trainings')
     assert training_response.status_code == 200
     trainers = training_response.json()['trainers']
-    darknet_trainer = [trainer for trainer in trainers if trainer['name'] == 'darknet trainer'][0]
+    darknet_trainers = [trainer for trainer in trainers if trainer['name'] == 'darknet trainer']
+    assert len(darknet_trainers) == 1, "There should be a darknet trainer."
+    darknet_trainer = darknet_trainers[0]
     ic(darknet_trainer)
     assert darknet_trainer['state'] == state

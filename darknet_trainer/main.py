@@ -120,10 +120,21 @@ def find_cfg_file(training_path: str) -> str:
 
 @node.stop_training
 def stop() -> None:
-    _stop_training(node.status.model['training_id'])
+    _stop_training(node, node.training.id)
 
 
-def _stop_training(training_id: str) -> None:
+async def _stop_training(node: Trainer, training_id: str) -> None:
+    try:
+        _kill_training_process(training_id)
+    except Exception as e:
+        print(e, flush=True)
+    node.training = None
+
+    new_status = Status(id=node.status.id, name=node.status.name)
+    await node.update_status(new_status)
+
+
+def _kill_training_process(training_id: str) -> None:
     training_path = helper.get_training_path_by_id(training_id)
 
     cmd = f'cd {training_path};kill -9 `cat last_training.pid`; rm last_training.pid'
@@ -150,20 +161,14 @@ async def _check_state() -> None:
         training_id = node.training.id
         ic(training_id,)
         await model_updater.check_state(training_id, node)
-        await _check_training_state(training_id)
+        await _check_training_state(node, training_id)
 
 
-async def _check_training_state(training_id: str) -> None:
+async def _check_training_state(node: Trainer, training_id: str) -> None:
     state = get_training_state(training_id)
     ic(state, )
     if state == 'crashed':
-        try:
-            _stop_training(training_id)
-        except Exception as e:
-            print(e)
-            pass
-        new_status = Status(id=node.status.id, name=node.status.name)
-        await node.update_status(new_status)
+        await _stop_training(node, training_id)
 
 
 def get_training_state(training_id):

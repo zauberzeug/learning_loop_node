@@ -106,9 +106,6 @@ class Node(FastAPI):
     async def send_status(self):
         raise Exception("Override this in subclass")
 
-    def stop_training(self, func):
-        self._stop_training = func
-
     @staticmethod
     def create_project_folder(organization: str, project: str) -> str:
         project_folder = f'/data/{organization}/{project}'
