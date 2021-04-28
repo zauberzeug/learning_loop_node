@@ -45,11 +45,15 @@ def init_node():
 
 @pytest.fixture()
 async def connect_node():
-    if not main.node.sio.connected:
-        await main.node.connect()
-        await main.node.sio.sleep(1.0)
+    import importlib
+    importlib.reload(main)
 
+    await main.node.connect()
     await main.node.update_state(State.Idle)
+
+    yield
+
+    await main.node.sio.disconnect()
 
 
 @pytest.mark.asyncio
@@ -300,9 +304,6 @@ async def test_cleanup_after_crash(connect_node):
 
 @pytest.mark.asyncio
 async def test_reset_to_idle_after_crash(connect_node):
-
-    _assert_trainer_state(State.Idle)
-
     model_id = test_helper.assert_upload_model()
     model = {'id': model_id}
     begin_training_handler = main.node.sio.handlers['/']['begin_training']
