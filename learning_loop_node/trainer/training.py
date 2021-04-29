@@ -17,7 +17,7 @@ class Training(BaseModel):
 
     data: Optional[TrainingData]
     last_produced_model: Optional[Model]
-    # training_status = 'running'
+    last_published_iteration: Optional[int]
 
     @property
     def last_known_model(self):

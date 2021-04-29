@@ -22,12 +22,15 @@ from status import Status
 from uuid import uuid4
 import traceback
 import helper
+from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.model import Model
+from fastapi.encoders import jsonable_encoder
 
 
-async def check_state(training_id: str, node: Node) -> None:
+async def check_state(training_id: str, node: Trainer) -> None:
     model = _parse_latest_iteration(training_id, node)
     if model:
-        last_published_iteration = node.status.model.get('last_published_iteration')
+        last_published_iteration = node.training.last_published_iteration
         if not last_published_iteration or model['iteration'] > last_published_iteration:
             model_id = str(uuid4())
             training_path = helper.get_training_path_by_id(training_id)
@@ -37,21 +40,21 @@ async def check_state(training_id: str, node: Node) -> None:
             weightfile_path = f'{training_path}/{weightfile_name}'
             shutil.move(weightfile_path, f'{training_path}/{model_id}.weights')
 
-            new_model = {
-                'id': model_id,
-                'hyperparameters': node.status.hyperparameters,
-                'confusion_matrix': model['confusion_matrix'],
-                'parent_id': node.status.model['id'],
-                'train_image_count': len(node.status.train_images),
-                'test_image_count': len(node.status.test_images),
-                'trainer_id': node.status.id,
-            }
-            await node.sio.call('update_model', (node.status.organization, node.status.project, new_model))
-            node.status.model.update(new_model)
-            node.status.model['last_published_iteration'] = model['iteration']
+            new_model = Model(
+                id=model_id,
+                hyperparameters=node.training.last_known_model.hyperparameters,
+                confusion_matrix=node.training.last_known_model.confusion_matrix,
+                parent_id=node.training.last_known_model.id,
+                train_image_count=node.training.last_known_model.train_image_count,
+                test_image_count=node.training.last_known_model.test_image_count,
+                trainer_id=node.status.id,
+            )
+            await node.sio.call('update_model', (node.training.organization, node.training.project, jsonable_encoder(new_model)))
+            node.training.last_produced_model = new_model
+            node.training.last_published_iteration = model['iteration']
 
 
-def _parse_latest_iteration(training_id: str, node: Node) -> Union[dict, None]:
+def _parse_latest_iteration(training_id: str, node: Trainer) -> Union[dict, None]:
     training_path = helper.get_training_path_by_id(training_id)
     log_file_path = f'{training_path}/last_training.log'
 
@@ -68,7 +71,7 @@ def _parse_latest_iteration(training_id: str, node: Node) -> Union[dict, None]:
     confusion_matrices = {}
     for parsed_class in parser.parse_classes():
         name = parsed_class['name']
-        id = _get_id_of_category_from_name(name, node.status.box_categories)
+        id = _get_id_of_category_from_name(name, node.training.data.box_categories)
         del parsed_class['id']
         del parsed_class['name']
         confusion_matrices[id] = parsed_class

@@ -1,6 +1,4 @@
 import shutil
-import uuid
-from log_parser import LogParser
 import pytest
 import main
 import darknet_tests.test_helper as test_helper
@@ -9,6 +7,8 @@ import yolo_helper
 import os
 import asyncio
 import model_updater
+from learning_loop_node.trainer.training import Training
+from learning_loop_node.trainer.model import Model
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -25,29 +25,31 @@ async def connect_node_fixture():
     await main.node.sio.disconnect()
 
 
-@pytest.fixture(autouse=True, scope='module')
-def create_project():
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 2, 'image_style': 'beautiful',
-                             'categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'detections': 3, 'annotations': 0, 'skeleton': False}
-    assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
-                                                json=project_configuration).status_code == 200
-    yield
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
-
-
-def test_parse_latest_confusion_matrix():
+@pytest.mark.asyncio
+async def test_parse_latest_confusion_matrix():
     training_uuid = "some_uuid"
-    _, _, training_path = test_helper.create_needed_folders(training_uuid)
+    model_id = test_helper.assert_upload_model()
+    main.node.training = Training(id=training_uuid,
+                                  base_model=Model(id=model_id),
+                                  organization='zauberzeug',
+                                  project='pytest',
+                                  project_folder="",
+                                  images_folder="",
+                                  training_folder=""
+                                  )
+
+    _, image_folder, training_path = test_helper.create_needed_folders(training_uuid)
+    data = test_helper.get_data2()
+    main.node.training.data = await main.download_data(main.node, data, image_folder, training_path)
+
     shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
 
-    main.node.status.box_categories = get_box_categories()
     new_model = model_updater._parse_latest_iteration(training_uuid, main.node)
     assert new_model
     assert new_model['iteration'] == 1089
     confusion_matrix = new_model['confusion_matrix']
     assert len(confusion_matrix) == 2
-    purple_matrix = confusion_matrix[main.node.status.box_categories[0]['id']]
+    purple_matrix = confusion_matrix[main.node.training.data.box_categories[0]['id']]
 
     assert purple_matrix['ap'] == 42
     assert purple_matrix['tp'] == 1
@@ -65,24 +67,28 @@ async def test_model_is_updated():
     model_ids = get_model_ids_from__latest_training()
     assert(len(model_ids)) == 1
 
-    training_uuid = uuid4()
-    _, _, training_path = test_helper.create_needed_folders(training_uuid)
+    training_uuid = str(uuid4())
+    main.node.training = Training(id=training_uuid,
+                                  base_model=Model(id=model_id),
+                                  organization='zauberzeug',
+                                  project='pytest',
+                                  project_folder="",
+                                  images_folder="",
+                                  training_folder=""
+                                  )
+
+    _, image_folder, training_path = test_helper.create_needed_folders(training_uuid)
+    data = test_helper.get_data2()
+    main.node.training.data = await main.download_data(main.node, data, image_folder, training_path)
+
     shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
 
     yolo_helper.create_backup_dir(training_path)
     open(f'{training_path}/backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights', 'a').close()
 
-    main.node.status.organization = 'zauberzeug'
-    main.node.status.project = 'pytest'
-    main.node.status.model = {'id': model_id,
-                              'training_id': training_uuid}
-    main.node.status.train_images = []
-    main.node.status.test_images = []
-    main.node.status.box_categories = get_box_categories()
-
-    assert main.node.status.model.get('last_published_iteration') == None
+    assert main.node.training.last_published_iteration == None
     await main._check_state()
-    assert main.node.status.model.get('last_published_iteration') == 1089
+    assert main.node.training.last_published_iteration == 1089
     model_ids = get_model_ids_from__latest_training()
     assert(len(model_ids)) == 2
 
@@ -93,25 +99,28 @@ async def test_model_is_updated():
 @pytest.mark.asyncio
 async def test_get_files_for_model_on_save():
     model_id = test_helper.assert_upload_model()
-    training_uuid = uuid4()
-    main.node.status.organization = 'zauberzeug'
-    main.node.status.project = 'pytest'
-    main.node.status.model = {'id': model_id,
-                              'training_id': training_uuid}
-    main.node.status.train_images = []
-    main.node.status.test_images = []
-    data = test_helper.get_data2()
-    main.node.status.box_categories = data['box_categories']
+    training_uuid = str(uuid4())
+
+    main.node.training = Training(id=training_uuid,
+                                  base_model=Model(id=model_id),
+                                  organization='zauberzeug',
+                                  project='pytest',
+                                  project_folder="",
+                                  images_folder="",
+                                  training_folder=""
+                                  )
+
     _, image_folder, training_folder = test_helper.create_needed_folders(training_uuid)
-
+    data = test_helper.get_data2()
     training_data = await main.download_data(main.node, data, image_folder, training_folder)
-
     await main._prepare_training(main.node, training_folder, image_folder,  training_data, training_uuid)
 
     shutil.copy('darknet_tests/test_data/last_training.log', f'{training_folder}/last_training.log')
 
     yolo_helper.create_backup_dir(training_folder)
     open(f'{training_folder}/backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights', 'a').close()
+
+    main.node.training.data = training_data
 
     await main._check_state()
 
