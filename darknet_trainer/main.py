@@ -119,8 +119,8 @@ def find_cfg_file(training_path: str) -> str:
 
 
 @node.stop_training
-def stop() -> None:
-    _stop_training(node, node.training.id)
+async def stop() -> None:
+    return await _stop_training(node, node.training.id)
 
 
 async def _stop_training(node: Trainer, training_id: str) -> None:
