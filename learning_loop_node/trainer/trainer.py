@@ -10,6 +10,7 @@ from uuid import uuid4
 from fastapi.encoders import jsonable_encoder
 from learning_loop_node.status import Status
 from learning_loop_node.status import TrainingStatus
+import traceback
 
 
 class Trainer(Node):
@@ -52,10 +53,22 @@ class Trainer(Node):
 
         @self.sio.on('stop_training')
         async def stop():
-            print('---- stopping', flush=True)
-            if hasattr(self, '_stop_training'):
-                await self._stop_training()
-            await self.update_state(State.Idle)
+            try:
+                print('---- stopping', flush=True)
+                if not hasattr(self, '_stop_training'):
+                    msg = 'node does not provide a begin_training function'
+                    raise Exception(msg)
+
+                result = await self._stop_training()
+                if not result == True:
+                    raise Exception(f'Stopping training failed with msg: {result}')
+
+                await self.update_state(State.Idle)
+            except Exception as e:
+                msg = str(e)
+                print(f'stop_training event failed: {msg}', flush=True)
+                return str(e)
+
             return True
 
         @self.sio.on('save')
@@ -102,10 +115,14 @@ class Trainer(Node):
         return func
 
     def begin_training(self, func):
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError('Must be a coroutine')
         self._begin_training = func
         return func
 
     def stop_training(self, func):
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError('Must be a coroutine')
         self._stop_training = func
         return func
 

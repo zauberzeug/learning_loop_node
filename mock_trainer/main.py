@@ -18,9 +18,8 @@ async def begin_training(data):
 
 
 @trainer.stop_training
-def stop():
-    # nothing to do for the mock trainer
-    pass
+async def stop():
+    return True
 
 
 @trainer.get_model_files
