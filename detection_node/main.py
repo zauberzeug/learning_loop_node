@@ -63,7 +63,9 @@ async def compute_detections(request: Request, file: UploadFile = File(...), mac
     """
     Example Usage
 
-        curl --request POST -F 'file=@example1.jpg' localhost:8004/images
+        curl --request POST -H 'mac: FF:FF' -F 'file=@test.jpg' localhost:8004/detect
+
+        for i in `seq 1 10`; do time curl --request POST -H 'mac: FF:FF' -F 'file=@test.jpg' localhost:8004/detect; done
     """
 
     try:
