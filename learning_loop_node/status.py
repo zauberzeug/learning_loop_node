@@ -8,6 +8,7 @@ class State(str, Enum):
     Idle = "idle"
     Offline = "offline"
     Running = "running"
+    Preparing = "preparing"
 
 
 class Status(BaseModel):

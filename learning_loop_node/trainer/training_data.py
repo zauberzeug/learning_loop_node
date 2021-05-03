@@ -4,7 +4,7 @@ from typing import List
 
 
 class TrainingData(BaseModel):
-    image_data: Optional[List[dict]]
+    image_data: List[dict]
     box_categories: List[dict]
 
     def image_ids(self):

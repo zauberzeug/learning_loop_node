@@ -1,11 +1,8 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 
-from fastapi import APIRouter, Body, Request, Depends, HTTPException
-from typing import List, Optional
-from pydantic import BaseModel
+from fastapi import APIRouter,  Request,  HTTPException
 import asyncio
 from learning_loop_node.status import Status, State
-import results
 
 router = APIRouter()
 
@@ -38,4 +35,6 @@ async def add_steps(request: Request):
     steps = int(str(await request.body(), 'utf-8'))
     print(f'moving {steps} forward', flush=True)
     for i in range(0, steps):
-        await results.increment_time(request.app)
+        result = await request.app.check_state()
+        if result:
+            raise HTTPException(status_code=500, detail=result)
