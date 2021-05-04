@@ -40,13 +40,13 @@ class Trainer(BaseModel):
             training_folder=Trainer.create_training_folder(project_folder, training_uuid)
         )
 
-    async def start_training() -> None:
+    async def start_training(self) -> None:
         raise NotImplementedError()
 
-    def stop_training(training: Training) -> None:
+    def stop_training(self) -> None:
         raise NotImplementedError()
 
-    def is_training_alive() -> bool:
+    def is_training_alive(self) -> bool:
         raise NotImplementedError()
 
     async def save_model(self, host_url, organization, project, model_id) -> bool:
