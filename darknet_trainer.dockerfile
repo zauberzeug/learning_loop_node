@@ -50,7 +50,7 @@ RUN ln -s /learning_loop_node /app/learning_loop_node && ls -lha learning_loop_n
 
 COPY ./darknet_trainer/pyproject.toml ./darknet_trainer/poetry.lock* ./
 
-RUN poetry update
+RUN poetry update -vvv
 
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
