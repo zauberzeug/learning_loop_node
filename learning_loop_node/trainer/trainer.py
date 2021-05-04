@@ -20,9 +20,18 @@ class Trainer(BaseModel):
     downloader: Optional[Downloader]
 
     async def begin_training(self, context: Context, source_model: dict, downloader: Downloader) -> None:
+
+        self.downloader = downloader
+        self.training = Trainer.generate_training(context, source_model)
+        self.training.data = await self.downloader.download_data(self.training.images_folder, self.training.training_folder, self.training.base_model.id)
+
+        await self.start_training()
+
+    @staticmethod
+    def generate_training(context: Context, source_model: dict) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context.organization, context.project)
-        self.training = Training(
+        return Training(
             id=training_uuid,
             base_model=source_model,
             context=context,
@@ -30,11 +39,6 @@ class Trainer(BaseModel):
             images_folder=Trainer.create_image_folder(project_folder),
             training_folder=Trainer.create_training_folder(project_folder, training_uuid)
         )
-        self.downloader = downloader
-
-        self.training.data = await self.downloader.download_data(self.training.images_folder, self.training.training_folder, self.training.base_model.id)
-
-        await self.start_training()
 
     async def start_training() -> None:
         raise NotImplementedError()
