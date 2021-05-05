@@ -1,3 +1,4 @@
+from learning_loop_node.trainer.model import Model
 from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.trainer.trainer import Trainer
@@ -9,10 +10,12 @@ from fastapi.encoders import jsonable_encoder
 from typing import Union
 from fastapi_utils.tasks import repeat_every
 import traceback
+from uuid import uuid4
 
 
 class TrainerNode(Node):
     trainer: Trainer
+    latest_known_model_id: str
 
     def __init__(self, name: str, uuid: str, trainer: Trainer):
         super().__init__(name, uuid)
@@ -52,7 +55,7 @@ class TrainerNode(Node):
             self.trainer.stop_training()
             await self.update_state(State.Idle)
             return
-
+        self.latest_known_model_id = source_model['id']
         await self.update_state(State.Running)
 
     async def stop_training(self) -> Union[bool, str]:
@@ -75,15 +78,24 @@ class TrainerNode(Node):
     async def check_state(self):
         current_training = self.trainer.training
         if current_training:
-            new_model = self.trainer.get_new_model()
-            if new_model:
-                new_model.trainer_id = self.uuid
+            model = self.trainer.get_new_model()
+            if model:
+                new_model = Model(
+                    id=str(uuid4()),
+                    confusion_matrix=model.confusion_matrix,
+                    parent_id=self.latest_known_model_id,
+                    train_image_count=self.trainer.training.data.train_image_count(),
+                    test_image_count=self.trainer.training.data.test_image_count(),
+                    trainer_id=self.uuid,
+                )
+
                 result = await self.sio.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
                 if result != True:
                     msg = f'could not update model: {str(result)}'
                     print(msg)
                     return msg  # for backdoor
-                current_training.last_produced_model = new_model
+                self.trainer.on_model_published(model, new_model.id)
+                self.latest_produced_model_id = new_model.id
                 await self.send_status()
 
     async def send_status(self):
@@ -91,10 +103,9 @@ class TrainerNode(Node):
             id=self.uuid,
             name=self.name,
             state=self.status.state,
-            uptime=self.status.uptime
+            uptime=self.status.uptime,
+            latest_produced_model_id=self.latest_produced_model_id
         )
-        if self.trainer.training and self.trainer.training.last_produced_model:
-            status.latest_produced_model_id = self.trainer.training.last_produced_model.id
 
         print('sending status', status, flush=True)
         result = await self.sio.call('update_trainer', jsonable_encoder(status), timeout=1)

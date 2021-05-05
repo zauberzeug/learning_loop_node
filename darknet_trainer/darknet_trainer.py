@@ -1,6 +1,7 @@
-from learning_loop_node.trainer.model import Model
+import shutil
+from learning_loop_node.trainer.model import BasicModel, Model
 import traceback
-from typing import List, Optional
+from typing import List, Optional, Union
 from learning_loop_node.trainer.trainer import Trainer
 import yolo_helper
 import helper
@@ -12,10 +13,11 @@ import model_updater
 
 
 class DarknetTrainer(Trainer):
+    latest_published_iteration: Union[int, None]
 
     async def start_training(self) -> None:
         await self.prepare_training()
-        training_path = helper.get_training_path_by_id(self.training.id)
+        training_path = self.training.training_folder
         weightfile = yolo_helper.find_weightfile(training_path)
         cfg_file = yolo_cfg_helper._find_cfg_file(training_path)
 
@@ -72,8 +74,15 @@ class DarknetTrainer(Trainer):
         cfg_file_path = yolo_cfg_helper._find_cfg_file(training_path)
         return [weightfile_path, f'{cfg_file_path}', f'{training_path}/names.txt']
 
-    def get_new_model(self) -> Optional[Model]:
-        return model_updater.check_state(self.training.id, self.training)
+    def get_new_model(self) -> Optional[BasicModel]:
+        return model_updater.check_state(self.training.id, self.training.data, self.latest_published_iteration)
+
+    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
+        self.latest_published_iteration = basic_model.meta_information['iteration']
+        weightfile_path = basic_model.meta_information['weightfile_path']
+        path = weightfile_path.rsplit('/', 2)[0]
+        new_filename = path + f'/{uuid}.weights'
+        shutil.move(weightfile_path, new_filename)
 
     def stop_training(self) -> None:
         cmd = f'cd {self.training.training_folder};kill -9 `cat last_training.pid`; rm last_training.pid'

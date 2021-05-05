@@ -1,11 +1,12 @@
-from typing import List, Optional
-from learning_loop_node.trainer.model import Model
+from typing import List, Optional, Union
+from learning_loop_node.trainer.model import BasicModel, Model
 from learning_loop_node.trainer.trainer import Trainer
 import results
 
 
 class MockTrainer(Trainer):
     is_training_running: bool = False
+    latest_known_confusion_matrix: dict = {}
 
     async def start_training(self) -> None:
         self.is_training_running = True
@@ -24,8 +25,12 @@ class MockTrainer(Trainer):
 
         return [fake_weight_file, more_data_file]
 
-    def get_new_model(self) -> Optional[Model]:
-        return results.increment_time(self)
+    def get_new_model(self) -> Optional[BasicModel]:
+        return results.increment_time(self, self.latest_known_confusion_matrix)
+
+    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
+        self.latest_known_confusion_matrix = basic_model.confusion_matrix
 
     def stop_training(self) -> None:
         self.is_training_running = False
+        self.latest_known_confusion_matrix = None

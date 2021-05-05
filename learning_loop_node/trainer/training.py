@@ -7,7 +7,6 @@ from learning_loop_node.context import Context
 
 class Training(BaseModel):
     id: str
-    base_model: Model
     context: Context
 
     project_folder: str
@@ -16,8 +15,6 @@ class Training(BaseModel):
     training_folder: Optional[str]
 
     data: Optional[TrainingData]
-    last_produced_model: Optional[Model]
-    last_published_iteration: Optional[int]
 
     @property
     def last_known_model(self):

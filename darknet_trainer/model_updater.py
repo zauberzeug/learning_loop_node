@@ -8,29 +8,25 @@ from uuid import uuid4
 from glob import glob
 from uuid import uuid4
 import helper
-from learning_loop_node.trainer.model import Model
+from learning_loop_node.trainer.model import BasicModel
 
 
-def check_state(training_id: str, training: Training) -> None:
-    model = _parse_latest_iteration(training_id, training.data)
+def check_state(training_id: str, training_data: TrainingData, last_published_iteration) -> BasicModel:
+    model = _parse_latest_iteration(training_id, training_data)
     if model:
-        last_published_iteration = training.last_published_iteration
         if not last_published_iteration or model['iteration'] > last_published_iteration:
-            model_id = str(uuid4())
             training_path = helper.get_training_path_by_id(training_id)
             weightfile_name = model['weightfile']
             if not weightfile_name:
                 return
-            weightfile_path = f'{training_path}/{weightfile_name}'
-            shutil.move(weightfile_path, f'{training_path}/{model_id}.weights')
 
-            new_model = Model(
-                id=model_id,
-                hyperparameters=training.last_known_model.hyperparameters,
-                confusion_matrix=training.last_known_model.confusion_matrix,
-                parent_id=training.last_known_model.id,
-                train_image_count=training.data.train_image_count(),
-                test_image_count=training.data.test_image_count(),
+            weightfile_path = f'{training_path}/{weightfile_name}'
+            new_model = BasicModel(
+                confusion_matrix=model['confusion_matrix'],
+                meta_information={
+                    'weightfile_path': weightfile_path,
+                    'iteration': model['iteration']
+                },
             )
             return new_model
 

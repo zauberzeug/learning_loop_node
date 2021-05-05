@@ -6,15 +6,13 @@ import requests
 from learning_loop_node.trainer.downloader import Downloader
 from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.training import Training
-from learning_loop_node.trainer.model import Model
+from learning_loop_node.trainer.model import BasicModel
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 from icecream import ic
 
 
 class Trainer(BaseModel):
-    uuid: str
-    name: str
     training: Optional[Training]
     capability: Capability
     downloader: Optional[Downloader]
@@ -22,7 +20,7 @@ class Trainer(BaseModel):
     async def begin_training(self, context: Context, source_model: dict, downloader: Downloader) -> None:
         self.downloader = downloader
         self.training = Trainer.generate_training(context, source_model)
-        self.training.data = await self.downloader.download_data(self.training.images_folder, self.training.training_folder, self.training.base_model.id)
+        self.training.data = await self.downloader.download_data(self.training.images_folder, self.training.training_folder, source_model['id'])
 
         await self.start_training()
 
@@ -69,7 +67,10 @@ class Trainer(BaseModel):
     def get_model_files(self, model_id) -> List[str]:
         raise NotImplementedError()
 
-    def get_new_model(self) -> Optional[Model]:
+    def get_new_model(self) -> Optional[BasicModel]:
+        raise NotImplementedError()
+
+    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
         raise NotImplementedError()
 
     @staticmethod

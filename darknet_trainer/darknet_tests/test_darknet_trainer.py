@@ -1,15 +1,9 @@
-from learning_loop_node.trainer.trainer import Trainer
-from learning_loop_node import node
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
-from learning_loop_node.trainer.downloader import Downloader
-from darknet_trainer import DarknetTrainer
 from learning_loop_node.context import Context
 import pytest
 from typing import Generator
 import learning_loop_node.tests.test_helper as test_helper
 import learning_loop_node.trainer.tests.trainer_test_helper as trainer_test_helper
 import darknet_tests.test_helper as darknet_test_helper
-
 import shutil
 import os
 
@@ -78,3 +72,11 @@ async def test_get_new_model():
 
     model = darknet_trainer.get_new_model()
     assert model is not None
+
+    # test: store weightfile for further use.
+    with pytest.raises(Exception):
+        files = darknet_trainer.get_model_files('some_model_uuid')
+
+    darknet_trainer.on_model_published(model, 'some_model_uuid')
+    files = darknet_trainer.get_model_files('some_model_uuid')
+    assert len(files) == 3
