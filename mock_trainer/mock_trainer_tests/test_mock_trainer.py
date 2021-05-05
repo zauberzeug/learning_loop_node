@@ -5,11 +5,7 @@ from learning_loop_node.trainer.training import Training
 from learning_loop_node.trainer.mock_trainer import MockTrainer
 import pytest
 from typing import Generator
-from requests import Session
-from urllib.parse import urljoin
 import mock_trainer_tests.test_helper as test_helper
-import main
-import asyncio
 from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.model import Model
 from uuid import uuid4
