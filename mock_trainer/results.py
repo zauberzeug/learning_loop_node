@@ -4,9 +4,8 @@ import random
 
 
 def increment_time(trainer: Trainer, latest_known_confusion_matrix: dict) -> BasicModel:
-
     if not trainer.training or not trainer.training.data:
-        raise Exception("Could not imcrement time.")
+        return None
 
     confusion_matrix = {}
     for category in trainer.training.data.box_categories:
