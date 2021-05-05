@@ -15,11 +15,12 @@ from uuid import uuid4
 
 class TrainerNode(Node):
     trainer: Trainer
-    latest_known_model_id: str
+    latest_known_model_id: Union[str, None]
 
     def __init__(self, name: str, uuid: str, trainer: Trainer):
         super().__init__(name, uuid)
         self.trainer = trainer
+        self.latest_known_model_id = None
 
         @self.sio.on('begin_training')
         async def on_begin_training(organization, project, source_model):
@@ -66,7 +67,7 @@ class TrainerNode(Node):
         except Exception as e:
             traceback.print_exc()
             return str(e)
-
+        self.latest_known_model_id = None
         return True
 
     async def save_model(self, organization, project, model_id):
@@ -104,7 +105,7 @@ class TrainerNode(Node):
             name=self.name,
             state=self.status.state,
             uptime=self.status.uptime,
-            latest_produced_model_id=self.latest_produced_model_id
+            latest_produced_model_id=self.latest_known_model_id
         )
 
         print('sending status', status, flush=True)
