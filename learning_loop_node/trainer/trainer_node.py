@@ -71,7 +71,7 @@ class TrainerNode(Node):
 
     async def save_model(self, organization, project, model_id):
         try:
-            await self.trainer.save_model(self.url, organization, project, model_id)
+            await self.trainer.save_model(self.url, self.headers, organization, project, model_id)
         except Exception as e:
             traceback.print_exc()
 

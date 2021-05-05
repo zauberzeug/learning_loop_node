@@ -46,7 +46,7 @@ class Trainer(BaseModel):
     def is_training_alive(self) -> bool:
         raise NotImplementedError()
 
-    async def save_model(self, host_url, organization, project, model_id) -> bool:
+    async def save_model(self, host_url, headers, organization, project, model_id) -> bool:
         # TODO remove the need of host_url. Create an uploader?
 
         uri_base = f'{host_url}/api/{organization}/projects/{project}'
@@ -56,7 +56,7 @@ class Trainer(BaseModel):
 
         response = requests.put(
             f'{uri_base}/models/{model_id}/file',
-            files=data
+            files=data, headers=headers
         )
         if response.status_code != 200:
             msg = f'---- could not save model with id {model_id}'
