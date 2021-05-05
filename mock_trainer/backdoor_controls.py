@@ -9,6 +9,11 @@ router = APIRouter()
 
 @router.put("/socketio")
 async def switch_socketio(request: Request):
+    '''
+    Example Usage
+
+        curl -X PUT -d "on" http://localhost:8001/socketio
+    '''
     state = str(await request.body(), 'utf-8')
     print(request.app.status, flush=True)
     if state == 'off':
