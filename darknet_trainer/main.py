@@ -24,4 +24,4 @@ async def shutdown():
 if __name__ == "__main__":
     import signal
     signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
+    uvicorn.run("main:trainer_node", host="0.0.0.0", port=80, lifespan='on', reload=True)
