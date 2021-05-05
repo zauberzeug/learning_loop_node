@@ -11,6 +11,7 @@ from typing import Union
 from fastapi_utils.tasks import repeat_every
 import traceback
 from uuid import uuid4
+from icecream import ic
 
 
 class TrainerNode(Node):
@@ -42,8 +43,8 @@ class TrainerNode(Node):
 
         @self.on_event("startup")
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
-        def check_state():
-            self.check_state()
+        async def check_state():
+            await self.check_state()
 
     async def begin_training(self, organization: str, project: str, source_model: dict):
         await self.update_state(State.Preparing)
@@ -77,6 +78,7 @@ class TrainerNode(Node):
             traceback.print_exc()
 
     async def check_state(self):
+        ic(f'checking state: {self.trainer.training != None}')
         current_training = self.trainer.training
         if current_training:
             model = self.trainer.get_new_model()
@@ -96,7 +98,7 @@ class TrainerNode(Node):
                     print(msg)
                     return msg  # for backdoor
                 self.trainer.on_model_published(model, new_model.id)
-                self.latest_produced_model_id = new_model.id
+                self.latest_known_model_id = new_model.id
                 await self.send_status()
 
     async def send_status(self):
