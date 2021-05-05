@@ -38,7 +38,7 @@ def create_data_file(training_folder: str, number_of_classes: int) -> None:
         f.write('\n'.join(data_object))
 
 
-async def update_yolo_boxes(node: Node, image_folder_for_training: str, training_data: TrainingData) -> None:
+async def update_yolo_boxes(image_folder_for_training: str, training_data: TrainingData) -> None:
     category_ids = helper.get_box_category_ids(training_data)
 
     for image in training_data.image_data:
@@ -118,3 +118,14 @@ def parse_yolo_lines(lines: str, iteration: int = None) -> dict:
 
     # print(data)
     return data
+
+
+def find_weightfile(training_path: str) -> str:
+    weightfiles = glob(f'{training_path}/*.weights', recursive=True)
+    if not weightfiles or len(weightfiles) > 1:
+        raise Exception('Number of present weightfiles must be 1.')
+    weightfile = weightfiles[0].split('/')[-1]
+    if weightfile == 'fake_weightfile.weights':
+        return ""
+    else:
+        return weightfile

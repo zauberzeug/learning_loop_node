@@ -58,6 +58,7 @@ class TrainerNode(Node):
     async def stop_training(self) -> Union[bool, str]:
         try:
             self.trainer.stop_training()
+            self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
             traceback.print_exc()
@@ -76,6 +77,7 @@ class TrainerNode(Node):
         if current_training:
             new_model = self.trainer.get_new_model()
             if new_model:
+                new_model.trainer_id = self.uuid
                 result = await self.sio.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
                 if result != True:
                     msg = f'could not update model: {str(result)}'
@@ -90,7 +92,6 @@ class TrainerNode(Node):
             name=self.name,
             state=self.status.state,
             uptime=self.status.uptime
-
         )
         if self.trainer.training and self.trainer.training.last_produced_model:
             status.latest_produced_model_id = self.trainer.training.last_produced_model.id

@@ -1,55 +1,40 @@
+from learning_loop_node.trainer.capability import Capability
+from learning_loop_node.node import Node
+from learning_loop_node.trainer.downloader_factory import DownloaderFactory
+from learning_loop_node.trainer.downloader import Downloader
+from learning_loop_node.context import Context
+from learning_loop_node.trainer.trainer import Trainer
 import shutil
 import pytest
 import main
 import darknet_tests.test_helper as test_helper
-from uuid import uuid4
-import yolo_helper
-import os
-import asyncio
 import model_updater
-from learning_loop_node.trainer.training import Training
-from learning_loop_node.trainer.model import Model
+import learning_loop_node.trainer.tests.trainer_test_helper as trainer_test_helper
+from learning_loop_node import node
 
 
-@pytest.fixture(autouse=True, scope="module")
-def event_loop():
-    loop = asyncio.get_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(autouse=True, scope="module")
-async def connect_node_fixture():
-    await main.node.connect()
-    yield
-    await main.node.sio.disconnect()
+@pytest.fixture
+def downloader() -> Downloader:
+    context = Context(organization='zauberzeug', project='pytest')
+    return DownloaderFactory.create(server_base_url=node.SERVER_BASE_URL_DEFAULT, headers={}, context=context, capability=Capability.Box)
 
 
 @pytest.mark.asyncio
-async def test_parse_latest_confusion_matrix():
-    training_uuid = "some_uuid"
-    model_id = test_helper.assert_upload_model()
-    main.node.training = Training(id=training_uuid,
-                                  base_model=Model(id=model_id),
-                                  organization='zauberzeug',
-                                  project='pytest',
-                                  project_folder="",
-                                  images_folder="",
-                                  training_folder=""
-                                  )
+async def test_parse_latest_confusion_matrix(downloader: Downloader):
+    model_id = trainer_test_helper.assert_upload_model(
+        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
+    context = Context(organization='zauberzeug', project='pytest')
+    training = Trainer.generate_training(context, {'id': 'some_uuid'})
+    training.data = await downloader.download_data(training.images_folder, training.training_folder, model_id)
 
-    _, image_folder, training_path = test_helper.create_needed_folders(training_uuid)
-    data = test_helper.get_data2()
-    main.node.training.data = await main.download_data(main.node, data, image_folder, training_path)
+    shutil.copy('darknet_tests/test_data/last_training.log', f'{training.training_folder}/last_training.log')
 
-    shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
-
-    new_model = model_updater._parse_latest_iteration(training_uuid, main.node)
+    new_model = model_updater._parse_latest_iteration(training.id, training.data)
     assert new_model
     assert new_model['iteration'] == 1089
     confusion_matrix = new_model['confusion_matrix']
     assert len(confusion_matrix) == 2
-    purple_matrix = confusion_matrix[main.node.training.data.box_categories[0]['id']]
+    purple_matrix = confusion_matrix[training.data.box_categories[0]['id']]
 
     assert purple_matrix['ap'] == 42
     assert purple_matrix['tp'] == 1
@@ -58,80 +43,6 @@ async def test_parse_latest_confusion_matrix():
 
     weightfile = new_model['weightfile']
     assert weightfile == 'backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights'
-
-
-@pytest.mark.asyncio
-async def test_model_is_updated():
-    model_id = test_helper.assert_upload_model()
-
-    model_ids = get_model_ids_from__latest_training()
-    assert(len(model_ids)) == 1
-
-    training_uuid = str(uuid4())
-    main.node.training = Training(id=training_uuid,
-                                  base_model=Model(id=model_id),
-                                  organization='zauberzeug',
-                                  project='pytest',
-                                  project_folder="",
-                                  images_folder="",
-                                  training_folder=""
-                                  )
-
-    _, image_folder, training_path = test_helper.create_needed_folders(training_uuid)
-    data = test_helper.get_data2()
-    main.node.training.data = await main.download_data(main.node, data, image_folder, training_path)
-
-    shutil.copy('darknet_tests/test_data/last_training.log', f'{training_path}/last_training.log')
-
-    yolo_helper.create_backup_dir(training_path)
-    open(f'{training_path}/backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights', 'a').close()
-
-    assert main.node.training.last_published_iteration == None
-    await main._check_state()
-    assert main.node.training.last_published_iteration == 1089
-    model_ids = get_model_ids_from__latest_training()
-    assert(len(model_ids)) == 2
-
-    new_model_id = [id for id in model_ids if id != model_id][0]
-    assert os.path.exists(f'{training_path}/{new_model_id}.weights'), 'there is no weightfile for this model'
-
-
-@pytest.mark.asyncio
-async def test_get_files_for_model_on_save():
-    model_id = test_helper.assert_upload_model()
-    training_uuid = str(uuid4())
-
-    main.node.training = Training(id=training_uuid,
-                                  base_model=Model(id=model_id),
-                                  organization='zauberzeug',
-                                  project='pytest',
-                                  project_folder="",
-                                  images_folder="",
-                                  training_folder=""
-                                  )
-
-    _, image_folder, training_folder = test_helper.create_needed_folders(training_uuid)
-    data = test_helper.get_data2()
-    training_data = await main.download_data(main.node, data, image_folder, training_folder)
-    await main._prepare_training(main.node, training_folder, image_folder,  training_data, training_uuid)
-
-    shutil.copy('darknet_tests/test_data/last_training.log', f'{training_folder}/last_training.log')
-
-    yolo_helper.create_backup_dir(training_folder)
-    open(f'{training_folder}/backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights', 'a').close()
-
-    main.node.training.data = training_data
-
-    await main._check_state()
-
-    model_ids = get_model_ids_from__latest_training()
-    assert(len(model_ids)) == 2
-
-    new_model_id = [id for id in model_ids if id != model_id][0]
-
-    save_model_handler = main.node.sio.handlers['/']['save']
-    model_to_save = {'id': new_model_id}
-    assert save_model_handler('zauberzeug', 'pytest', model_to_save) == True
 
 
 def get_box_categories():

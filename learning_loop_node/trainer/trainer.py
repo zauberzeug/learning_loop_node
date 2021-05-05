@@ -20,7 +20,6 @@ class Trainer(BaseModel):
     downloader: Optional[Downloader]
 
     async def begin_training(self, context: Context, source_model: dict, downloader: Downloader) -> None:
-
         self.downloader = downloader
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await self.downloader.download_data(self.training.images_folder, self.training.training_folder, self.training.base_model.id)
