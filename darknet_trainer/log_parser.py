@@ -65,5 +65,5 @@ class LogParser:
     def parse_weightfile(self) -> Optional[str]:
         for line in self.iteration_log_lines:
             if line.startswith('Saving weights to'):
-                return line.split('Saving weights to')[-1].strip()
+                return line.split('Saving weights to')[-1].strip().replace('//', '/')
         return None

@@ -42,7 +42,7 @@ async def test_parse_latest_confusion_matrix(downloader: Downloader):
     assert purple_matrix['fn'] == 3
 
     weightfile = new_model['weightfile']
-    assert weightfile == 'backup//tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights'
+    assert weightfile == 'backup/tiny_yolo_best_mAP_0.000000_iteration_1089_avgloss_-nan_.weights'
 
 
 def get_box_categories():
