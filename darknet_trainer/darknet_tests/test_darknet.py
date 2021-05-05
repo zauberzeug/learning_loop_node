@@ -1,9 +1,3 @@
-from learning_loop_node import node
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
-from learning_loop_node.trainer.downloader import Downloader
-from learning_loop_node.context import Context
-from learning_loop_node.trainer.capability import Capability
-from darknet_trainer import DarknetTrainer
 import pytest
 import shutil
 import pytest
@@ -13,29 +7,18 @@ import yolo_cfg_helper
 import os
 import learning_loop_node.trainer.tests.trainer_test_helper as trainer_test_helper
 import helper
-
-
-def create_darknet_trainer() -> DarknetTrainer:
-    return DarknetTrainer(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
-                          name='darknet trainer', capability=Capability.Box)
-
-
-@pytest.fixture
-def downloader() -> Downloader:
-    context = Context(organization='zauberzeug', project='pytest')
-    return DownloaderFactory.create(server_base_url=node.SERVER_BASE_URL_DEFAULT, headers={}, context=context, capability=Capability.Box)
+import darknet_tests.test_helper as darknet_test_helper
 
 
 @pytest.mark.asyncio
-async def test_yolo_box_creation(downloader: Downloader):
-    model_id = trainer_test_helper.assert_upload_model(
-        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
-
-    _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
-    training_data = await downloader.download_data(image_folder, training_folder, model_id)
+async def test_yolo_box_creation():
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    await darknet_test_helper.downlaod_data(darknet_trainer)
+    training = darknet_trainer.training
+    training_data = training.data
 
     image_folder_for_training = yolo_helper.create_image_links(
-        training_folder, image_folder, training_data.image_ids())
+        training. training_folder, training.images_folder, training_data.image_ids())
 
     await yolo_helper.update_yolo_boxes(image_folder_for_training,  training_data)
     assert len(test_helper.get_files_from_data_folder()) == 11  # 3 images, 3 image_links, 3 txt files, .cfg, .weights
@@ -87,43 +70,42 @@ def test_create_data_file():
 
 
 @pytest.mark.asyncio
-async def test_create_image_links(downloader: Downloader):
+async def test_create_image_links():
     assert len(test_helper.get_files_from_data_folder()) == 0
 
-    model_id = trainer_test_helper.assert_upload_model(
-        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    await darknet_test_helper.downlaod_data(darknet_trainer)
+    training = darknet_trainer.training
+    training_data = training.data
+    training_id = training.id
 
-    _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
-    training_data = await downloader.download_data(image_folder, training_folder, model_id)
-    yolo_helper.create_image_links(training_folder, image_folder, training_data.image_ids())
+    yolo_helper.create_image_links(training.training_folder, training.images_folder, training_data.image_ids())
 
     files = test_helper.get_files_from_data_folder()
     assert len(files) == 8
     assert files[0] == '../data/zauberzeug/pytest/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
     assert files[1] == '../data/zauberzeug/pytest/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
     assert files[2] == '../data/zauberzeug/pytest/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg'
-    assert files[3] == '../data/zauberzeug/pytest/trainings/some_uuid/fake_weightfile.weights'
-    assert files[4] == '../data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
-    assert files[5] == '../data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
-    assert files[6] == '../data/zauberzeug/pytest/trainings/some_uuid/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg'
-    assert files[7] == '../data/zauberzeug/pytest/trainings/some_uuid/tiny_yolo.cfg'
+    assert files[3] == f'../data/zauberzeug/pytest/trainings/{training_id}/fake_weightfile.weights'
+    assert files[4] == f'../data/zauberzeug/pytest/trainings/{training_id}/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg'
+    assert files[5] == f'../data/zauberzeug/pytest/trainings/{training_id}/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg'
+    assert files[6] == f'../data/zauberzeug/pytest/trainings/{training_id}/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg'
+    assert files[7] == f'../data/zauberzeug/pytest/trainings/{training_id}/tiny_yolo.cfg'
 
 
 @pytest.mark.asyncio
-async def test_create_train_and_test_file(downloader: Downloader):
+async def test_create_train_and_test_file():
     assert len(test_helper.get_files_from_data_folder()) == 0
-    _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
-
-    model_id = trainer_test_helper.assert_upload_model(
-        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
-
-    _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
-    training_data = await downloader.download_data(image_folder, training_folder, model_id)
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    await darknet_test_helper.downlaod_data(darknet_trainer)
+    training = darknet_trainer.training
+    training_data = training.data
 
     images_folder_for_training = yolo_helper.create_image_links(
-        training_folder, image_folder, training_data.image_ids())
+        training.  training_folder, training.images_folder, training_data.image_ids())
 
-    yolo_helper.create_train_and_test_file(training_folder, images_folder_for_training, training_data.image_data)
+    yolo_helper.create_train_and_test_file(
+        training.training_folder, images_folder_for_training, training_data.image_data)
 
     files = [file for file in test_helper.get_files_from_data_folder() if file.endswith('test.txt')
              or file.endswith('train.txt')]
@@ -132,18 +114,18 @@ async def test_create_train_and_test_file(downloader: Downloader):
     train_file = files[1]
     assert train_file.endswith('train.txt')
     assert test_file.endswith('test.txt')
-    with open(f'{training_folder}/train.txt', 'r') as f:
+    with open(f'{training.training_folder}/train.txt', 'r') as f:
         content = f.readlines()
 
     assert len(content) == 2
-    assert content[0] == '/data/zauberzeug/pytest/trainings/some_uuid/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg\n'
-    assert content[1] == '/data/zauberzeug/pytest/trainings/some_uuid/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg\n'
+    assert content[0] == f'{training.training_folder}/images/04e9b13d-9f5b-02c5-af46-5bf40b1ca0a7.jpg\n'
+    assert content[1] == f'{training.training_folder}/images/d99747e9-7c6f-5753-2769-4184f870f18b.jpg\n'
 
-    with open(f'{training_folder}/test.txt', 'r') as f:
+    with open(f'{training.training_folder}/test.txt', 'r') as f:
         content = f.readlines()
 
     assert len(content) == 1
-    assert content[0] == '/data/zauberzeug/pytest/trainings/some_uuid/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg\n'
+    assert content[0] == f'{training.training_folder}/images/94d1c90f-9ea5-abda-2696-6ab322d1e243.jpg\n'
 
 
 def test_replace_classes_and_filters():
@@ -172,31 +154,30 @@ def test_replace_classes_and_filters():
 
 
 @pytest.mark.asyncio
-async def test_create_anchors(downloader: Downloader):
+async def test_create_anchors():
     assert len(test_helper.get_files_from_data_folder()) == 0
 
-    model_id = trainer_test_helper.assert_upload_model(
-        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
-
-    _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
-    training_data = await downloader.download_data(image_folder, training_folder, model_id)
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    await darknet_test_helper.downlaod_data(darknet_trainer)
+    training = darknet_trainer.training
+    training_data = training.data
 
     image_folder_for_training = yolo_helper.create_image_links(
-        training_folder, image_folder, training_data.image_ids())
+        training.  training_folder, training.images_folder, training_data.image_ids())
     await yolo_helper.update_yolo_boxes(image_folder_for_training, training_data)
     box_category_names = helper.get_box_category_names(training_data)
-    yolo_helper.create_names_file(training_folder, box_category_names)
-    yolo_helper.create_data_file(training_folder, len(box_category_names))
+    yolo_helper.create_names_file(training.training_folder, box_category_names)
+    yolo_helper.create_data_file(training.training_folder, len(box_category_names))
     yolo_helper.create_train_and_test_file(
-        training_folder, image_folder_for_training, training_data.image_data)
-    yolo_cfg_helper.update_anchors(training_folder)
+        training. training_folder, image_folder_for_training, training_data.image_data)
+    yolo_cfg_helper.update_anchors(training.training_folder)
 
     anchor_line = 'anchors = 10,14,  23,27,  37,58,  81,82,  135,169,  344,319'
     original_cfg_file_path = yolo_cfg_helper._find_cfg_file('darknet_tests/test_data')
     _assert_anchors(original_cfg_file_path, anchor_line)
 
     new_anchors = 'anchors=1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400,1.6000,1.8400'
-    cfg_file_path = yolo_cfg_helper._find_cfg_file(f'../data/zauberzeug/pytest/trainings/some_uuid')
+    cfg_file_path = yolo_cfg_helper._find_cfg_file(training.training_folder)
     _assert_anchors(cfg_file_path, new_anchors)
 
 

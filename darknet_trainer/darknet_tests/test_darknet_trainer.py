@@ -7,8 +7,9 @@ from learning_loop_node.context import Context
 import pytest
 from typing import Generator
 import learning_loop_node.tests.test_helper as test_helper
-from learning_loop_node.trainer.capability import Capability
 import learning_loop_node.trainer.tests.trainer_test_helper as trainer_test_helper
+import darknet_tests.test_helper as darknet_test_helper
+
 import shutil
 import os
 
@@ -30,40 +31,27 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-def create_darknet_trainer() -> DarknetTrainer:
-    return DarknetTrainer(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4',
-                          name='darknet trainer', capability=Capability.Box)
-
-
-@pytest.fixture
-def downloader() -> Downloader:
-    context = Context(organization='zauberzeug', project='pytest')
-    return DownloaderFactory.create(server_base_url=node.SERVER_BASE_URL_DEFAULT, headers={}, context=context, capability=Capability.Box)
-
-
 @pytest.mark.asyncio
-async def test_start_training(downloader: Downloader) -> DarknetTrainer:
+async def test_start_stop_training():
     model_id = trainer_test_helper.assert_upload_model(
         ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
 
-    darknet_trainer = create_darknet_trainer()
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    downloader = darknet_test_helper.create_downloader()
 
     assert darknet_trainer.is_training_alive() == False
     context = Context(organization='zauberzeug', project='pytest')
     await darknet_trainer.begin_training(context=context, source_model={'id': model_id}, downloader=downloader)
     assert darknet_trainer.is_training_alive() == True
-    return darknet_trainer
+
+    darknet_trainer.stop_training()
+    assert darknet_trainer.is_training_alive() == False
 
 
 @pytest.mark.asyncio
-async def test_get_model_files(downloader: Downloader):
-    darknet_trainer = create_darknet_trainer()
-    model_id = trainer_test_helper.assert_upload_model(
-        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
-    context = Context(organization='zauberzeug', project='pytest')
-    training = Trainer.generate_training(context, {'id': model_id})
-    training.data = await downloader.download_data(training.images_folder, training.training_folder, model_id)
-    darknet_trainer.training = training
+async def test_get_model_files():
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    await darknet_test_helper.downlaod_data(darknet_trainer)
 
     shutil.copy('darknet_tests/test_data/fake_weightfile.weights',
                 f'{darknet_trainer.training.training_folder}/some_model_uuid.weights')
@@ -77,23 +65,9 @@ async def test_get_model_files(downloader: Downloader):
 
 
 @pytest.mark.asyncio
-async def test_stop_training(downloader: Downloader):
-    darknet_trainer = await test_start_training(downloader)
-
-    assert darknet_trainer.is_training_alive() == True
-    darknet_trainer.stop_training()
-    assert darknet_trainer.is_training_alive() == False
-
-
-@pytest.mark.asyncio
-async def test_get_new_model(downloader: Downloader):
-    darknet_trainer = create_darknet_trainer()
-    model_id = trainer_test_helper.assert_upload_model(
-        ['darknet_tests/test_data/tiny_yolo.cfg', 'darknet_tests/test_data/fake_weightfile.weights'])
-    context = Context(organization='zauberzeug', project='pytest')
-    training = Trainer.generate_training(context, {'id': model_id})
-    training.data = await downloader.download_data(training.images_folder, training.training_folder, model_id)
-    darknet_trainer.training = training
+async def test_get_new_model():
+    darknet_trainer = darknet_test_helper.create_darknet_trainer()
+    await darknet_test_helper.downlaod_data(darknet_trainer)
 
     path = f'{darknet_trainer.training.training_folder}/backup/'
     os.makedirs(path)

@@ -1,6 +1,6 @@
 import pytest
 from typing import Generator
-import darknet_tests.test_helper as test_helper
+from learning_loop_node.tests import test_helper
 import shutil
 import yolo_helper
 
