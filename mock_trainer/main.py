@@ -4,7 +4,7 @@ import uvicorn
 from learning_loop_node.trainer.trainer_node import TrainerNode
 from learning_loop_node.trainer.mock_trainer import MockTrainer
 
-# TODO remove doublicated uuid and name properties.
+
 mock_trainer = MockTrainer(capability=Capability.Box)
 trainer_node = TrainerNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer', trainer=mock_trainer)
 
