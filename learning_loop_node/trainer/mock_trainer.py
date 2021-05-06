@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 from learning_loop_node.trainer.model import BasicModel, Model
 from learning_loop_node.trainer.trainer import Trainer
-import results
+import progress_simulator
 
 
 class MockTrainer(Trainer):
@@ -26,7 +26,7 @@ class MockTrainer(Trainer):
         return [fake_weight_file, more_data_file]
 
     def get_new_model(self) -> Optional[BasicModel]:
-        return results.increment_time(self, self.latest_known_confusion_matrix)
+        return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
     def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
