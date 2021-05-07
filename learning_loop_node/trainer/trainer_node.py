@@ -78,9 +78,9 @@ class TrainerNode(Node):
             traceback.print_exc()
 
     async def check_state(self):
-        ic(f'checking state: {self.trainer.training != None}')
+        ic(f'checking state: {self.trainer.training != None}, state: {self.status.state}')
         current_training = self.trainer.training
-        if current_training:
+        if self.status.state == State.Running and current_training:
             model = self.trainer.get_new_model()
             if model:
                 new_model = Model(
