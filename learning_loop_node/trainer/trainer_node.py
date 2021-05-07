@@ -97,6 +97,7 @@ class TrainerNode(Node):
                     msg = f'could not update model: {str(result)}'
                     print(msg)
                     return msg  # for backdoor
+                ic(f'successfully uploaded model {jsonable_encoder(new_model)}')
                 self.trainer.on_model_published(model, new_model.id)
                 self.latest_known_model_id = new_model.id
                 await self.send_status()
