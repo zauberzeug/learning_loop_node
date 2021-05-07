@@ -6,6 +6,7 @@ import learning_loop_node.trainer.tests.trainer_test_helper as trainer_test_help
 import darknet_tests.test_helper as darknet_test_helper
 import shutil
 import os
+import asyncio
 
 
 @pytest.fixture()
@@ -36,6 +37,7 @@ async def test_start_stop_training():
     assert darknet_trainer.is_training_alive() == False
     context = Context(organization='zauberzeug', project='pytest')
     await darknet_trainer.begin_training(context=context, source_model={'id': model_id}, downloader=downloader)
+    await asyncio.sleep(1)
     assert darknet_trainer.is_training_alive() == True
 
     darknet_trainer.stop_training()

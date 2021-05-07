@@ -43,6 +43,7 @@ class DarknetTrainer(Trainer):
         yolo_helper.create_data_file(training_folder, len(box_category_names))
         yolo_helper.create_train_and_test_file(
             training_folder, image_folder_for_training, training_data.image_data)
+        yolo_cfg_helper.replace_classes_and_filters(len(box_category_names), training_folder)
         yolo_cfg_helper.update_anchors(training_folder)
 
     def is_training_alive(self) -> bool:
@@ -90,3 +91,9 @@ class DarknetTrainer(Trainer):
         _, err = p.communicate()
         if p.returncode != 0:
             raise Exception(f'Failed to stop training with error: {err}')
+
+    def _show_log(self) -> str:
+        if not self.training:
+            raise Exception('no training running')
+        with open(f'{self.training.training_folder}/last_training.log', 'r') as f:
+            return f.read()
