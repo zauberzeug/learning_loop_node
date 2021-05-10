@@ -17,6 +17,7 @@ from icecream import ic
 class TrainerNode(Node):
     trainer: Trainer
     latest_known_model_id: Union[str, None]
+    skip_check_state: bool = False
 
     def __init__(self, name: str, uuid: str, trainer: Trainer):
         super().__init__(name, uuid)
@@ -44,7 +45,8 @@ class TrainerNode(Node):
         @self.on_event("startup")
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def check_state():
-            await self.check_state()
+            if not self.skip_check_state:
+                await self.check_state()
 
     async def begin_training(self, organization: str, project: str, source_model: dict):
         await self.update_state(State.Preparing)
