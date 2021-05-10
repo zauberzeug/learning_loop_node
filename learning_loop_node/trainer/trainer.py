@@ -10,6 +10,7 @@ from learning_loop_node.trainer.model import BasicModel
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 from icecream import ic
+import aiohttp
 
 
 class Trainer(BaseModel):
@@ -50,19 +51,18 @@ class Trainer(BaseModel):
         # TODO remove the need of host_url. Create an uploader?
 
         uri_base = f'{host_url}/api/{organization}/projects/{project}'
-        data = []
-        for file_name in self.get_model_files(model_id):
-            data.append(('files',  open(file_name, 'rb')))
+        data = aiohttp.FormData()
 
-        response = requests.put(
-            f'{uri_base}/models/{model_id}/file',
-            files=data, headers=headers
-        )
-        if response.status_code != 200:
-            msg = f'---- could not save model with id {model_id}'
-            raise Exception(msg)
-        else:
-            ic(f'---- uploaded model with id {model_id}')
+        for file_name in self.get_model_files(model_id):
+            data.add_field('files',  open(file_name, 'rb'))
+
+        async with aiohttp.ClientSession() as session:
+            async with session.put(f'{uri_base}/models/{model_id}/file', data=data, headers=headers) as response:
+                if response.status != 200:
+                    msg = f'---- could not save model with id {model_id}'
+                    raise Exception(msg)
+                else:
+                    ic(f'---- uploaded model with id {model_id}')
 
     def get_model_files(self, model_id) -> List[str]:
         raise NotImplementedError()

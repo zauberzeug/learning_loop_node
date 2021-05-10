@@ -29,9 +29,10 @@ def downloader() -> Downloader:
     return DownloaderFactory.create(server_base_url=node.SERVER_BASE_URL_DEFAULT, headers={}, context=context, capability=Capability.Box)
 
 
-def test_download_model(downloader: Downloader):
+@pytest.mark.asyncio
+async def test_download_model(downloader: Downloader):
     _, _, trainings_folder = trainer_test_helper.create_needed_folders()
-    model_id = trainer_test_helper.assert_upload_model()
+    model_id = await trainer_test_helper.assert_upload_model()
 
     downloader.download_model(trainings_folder, model_id)
 
@@ -75,7 +76,7 @@ async def test_download_training_data(downloader: Downloader):
 
 @pytest.mark.asyncio
 async def test_download_everything(downloader: Downloader):
-    model_id = trainer_test_helper.assert_upload_model()
+    model_id = await trainer_test_helper.assert_upload_model()
     _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
     training_data = await downloader.download_data(image_folder, training_folder, model_id)
 
