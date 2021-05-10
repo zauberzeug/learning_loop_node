@@ -1,5 +1,6 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 
+from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from fastapi import APIRouter,  Request,  HTTPException
 import asyncio
 from learning_loop_node.status import Status, State
@@ -41,6 +42,12 @@ async def switch_socketio(request: Request):
 async def set_status(new_status: Status, request: Request):
     print('new status is', new_status, flush=True)
     await request.app.update_status(new_status)
+
+
+@router.put("/error_configuration")
+def set_error_configuration(error_configuration: ErrorConfiguration, request: Request):
+    print(f'setting error configuration to: {error_configuration.json()}')
+    request.app.trainer.error_configuration = error_configuration
 
 
 @router.post("/steps")
