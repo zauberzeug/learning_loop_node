@@ -29,8 +29,7 @@ def create_project():
 
 
 def create_mock_trainer() -> MockTrainer:
-    return MockTrainer(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2',
-                       name='mocked trainer', capability=Capability.Box)
+    return MockTrainer(capability=Capability.Box)
 
 
 @pytest.mark.asyncio
