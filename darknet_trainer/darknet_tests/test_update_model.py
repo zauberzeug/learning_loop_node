@@ -48,7 +48,8 @@ async def test_parse_latest_confusion_matrix(downloader: Downloader):
 
 @pytest.mark.parametrize("filename,is_valid_model", [
     ('last_training.log', True),
-    ('last_training_invalid_iteration.log', False),
+    ('last_training_missing_weightfile.log', False),
+    ('last_training_missing_confusion_matrix.log', False)
 ])
 @pytest.mark.asyncio
 async def test_iteration_needs_weightfile_to_be_valid(filename: str, is_valid_model: bool, downloader: Downloader):

@@ -11,14 +11,16 @@ import helper
 from learning_loop_node.trainer.model import BasicModel
 
 
-def check_state(training_id: str, training_data: TrainingData, last_published_iteration) -> BasicModel:
+def check_state(training_id: str, training_data: TrainingData, last_published_iteration) -> Union[BasicModel, None]:
     model = _parse_latest_iteration(training_id, training_data)
     if model:
         if not last_published_iteration or model['iteration'] > last_published_iteration:
             training_path = helper.get_training_path_by_id(training_id)
             weightfile_name = model['weightfile']
             if not weightfile_name:
-                return
+                return None
+            if not model['confusion_matrix']:
+                return None
 
             weightfile_path = f'{training_path}/{weightfile_name}'
             new_model = BasicModel(
