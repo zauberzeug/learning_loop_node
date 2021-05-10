@@ -27,7 +27,6 @@ class TrainerNode(Node):
         @self.sio.on('begin_training')
         async def on_begin_training(organization, project, source_model):
             loop = asyncio.get_event_loop()
-            loop.set_debug(True)
             loop.create_task(self.begin_training(organization, project, source_model))
             return True
 
@@ -38,7 +37,6 @@ class TrainerNode(Node):
         @self.sio.on('save')
         def on_save(organization, project, model):
             loop = asyncio.get_event_loop()
-            loop.set_debug(True)
             loop.create_task(self.save_model(organization, project, model['id']))
             return True
 
