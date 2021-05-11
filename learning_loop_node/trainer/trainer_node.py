@@ -54,8 +54,8 @@ class TrainerNode(Node):
             downloader = DownloaderFactory.create(self.url, self.headers, context, self.trainer.capability)
             await self.trainer.begin_training(context, source_model, downloader)
         except Exception as e:
-            self.status.latest_error = f'Could not start training: {str(e)})'
             traceback.print_exc()
+            self.status.latest_error = f'Could not start training: {str(e)})'
             self.trainer.stop_training()
             await self.update_state(State.Idle)
             return
@@ -71,6 +71,7 @@ class TrainerNode(Node):
             self.status.latest_error = f'Could not stop training: {str(e)})'
             traceback.print_exc()
             await self.send_status()
+
             return False
         self.latest_known_model_id = None
         await self.send_status()
@@ -81,33 +82,44 @@ class TrainerNode(Node):
             await self.trainer.save_model(self.url, self.headers, organization, project, model_id)
         except Exception as e:
             traceback.print_exc()
-            self.status.latest_error = f'Could not save model: {str(e)}'
-            await self.send_status()
+            await self.update_error_msg(f'Could not save model: {str(e)}')
 
     async def check_state(self):
         ic(f'checking state: {self.trainer.training != None}, state: {self.status.state}')
-        current_training = self.trainer.training
-        if self.status.state == State.Running and current_training:
-            model = self.trainer.get_new_model()
-            if model:
-                new_model = Model(
-                    id=str(uuid4()),
-                    confusion_matrix=model.confusion_matrix,
-                    parent_id=self.latest_known_model_id,
-                    train_image_count=self.trainer.training.data.train_image_count(),
-                    test_image_count=self.trainer.training.data.test_image_count(),
-                    trainer_id=self.uuid,
-                )
+        try:
+            if self.status.state == State.Running and not self.trainer.is_training_alive:
+                raise Exception()
+        except:
+            await self.update_error_msg(f'training crashed.')
 
-                result = await self.sio.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
-                if result != True:
-                    msg = f'could not update model: {str(result)}'
-                    print(msg)
-                    return msg  # for backdoor
-                ic(f'successfully uploaded model {jsonable_encoder(new_model)}')
-                self.trainer.on_model_published(model, new_model.id)
-                self.latest_known_model_id = new_model.id
-                await self.send_status()
+        await self.try_get_new_model()
+
+    async def try_get_new_model(self) -> None:
+        try:
+            current_training = self.trainer.training
+            if self.status.state == State.Running and current_training:
+                model = self.trainer.get_new_model()
+                if model:
+                    new_model = Model(
+                        id=str(uuid4()),
+                        confusion_matrix=model.confusion_matrix,
+                        parent_id=self.latest_known_model_id,
+                        train_image_count=self.trainer.training.data.train_image_count(),
+                        test_image_count=self.trainer.training.data.test_image_count(),
+                        trainer_id=self.uuid,
+                    )
+
+                    result = await self.sio.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
+                    if result != True:
+                        await self.update_error_msg(f'Could not update_model: {result}')
+                        return
+
+                    ic(f'successfully uploaded model {jsonable_encoder(new_model)}')
+                    self.trainer.on_model_published(model, new_model.id)
+                    self.latest_known_model_id = new_model.id
+                    await self.send_status()
+        except Exception as e:
+            await self.update_error_msg(f'Could not get new model: {str(e)}')
 
     async def send_status(self):
         status = TrainingStatus(
@@ -124,3 +136,7 @@ class TrainerNode(Node):
         if not result == True:
             raise Exception(result)
         print('status send', flush=True)
+
+    async def update_error_msg(self, msg: str) -> None:
+        self.status.latest_error = msg
+        await self.send_status()
