@@ -47,6 +47,10 @@ async def set_status(new_status: Status, request: Request):
 
 @router.put("/error_configuration")
 def set_error_configuration(error_configuration: ErrorConfiguration, request: Request):
+    '''
+    Example Usage
+        curl -X PUT -d '{"save_model": "True"}' http://localhost:8001/error_configuration
+    '''
     print(f'setting error configuration to: {error_configuration.json()}')
     request.app.trainer.error_configuration = error_configuration
 
