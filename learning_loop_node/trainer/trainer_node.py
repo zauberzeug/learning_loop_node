@@ -87,10 +87,10 @@ class TrainerNode(Node):
     async def check_state(self):
         ic(f'checking state: {self.trainer.training != None}, state: {self.status.state}')
         try:
-            if self.status.state == State.Running and not self.trainer.is_training_alive:
+            if self.status.state == State.Running and not self.trainer.is_training_alive():
                 raise Exception()
         except:
-            await self.update_error_msg(f'training crashed.')
+            await self.update_error_msg(f'Training crashed.')
 
         await self.try_get_new_model()
 
