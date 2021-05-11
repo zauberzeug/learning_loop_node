@@ -59,6 +59,7 @@ async def add_steps(request: Request):
     steps = int(str(await request.body(), 'utf-8'))
     print(f'moving {steps} forward', flush=True)
     for i in range(0, steps):
-        result = await request.app.check_state()
-        if result:
-            raise HTTPException(status_code=500, detail=result)
+        await request.app.check_state()
+        latest_error = request.app.status.latest_error
+        if latest_error:
+            raise HTTPException(status_code=500, detail=latest_error)
