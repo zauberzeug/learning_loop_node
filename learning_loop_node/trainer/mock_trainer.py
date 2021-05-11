@@ -12,9 +12,13 @@ class MockTrainer(Trainer):
     error_configuration: ErrorConfiguration = ErrorConfiguration()
 
     async def start_training(self) -> None:
+        if self.error_configuration.begin_training:
+            raise Exception()
         self.is_training_running = True
 
     def is_training_alive(self) -> bool:
+        if self.error_configuration.crash_training:
+            return False
         return self.is_training_running
 
     def get_model_files(self, model_id) -> List[str]:
@@ -32,11 +36,15 @@ class MockTrainer(Trainer):
         return [fake_weight_file, more_data_file]
 
     def get_new_model(self) -> Optional[BasicModel]:
+        if self.error_configuration.get_new_model:
+            raise Exception()
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
     def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
 
     def stop_training(self) -> None:
+        if self.error_configuration.stop_training:
+            raise Exception()
         self.is_training_running = False
         self.latest_known_confusion_matrix = None

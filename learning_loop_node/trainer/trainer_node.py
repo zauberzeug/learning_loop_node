@@ -54,7 +54,7 @@ class TrainerNode(Node):
             downloader = DownloaderFactory.create(self.url, self.headers, context, self.trainer.capability)
             await self.trainer.begin_training(context, source_model, downloader)
         except Exception as e:
-            self.status.latest_error = f'Could not start Training: {str(e)})'
+            self.status.latest_error = f'Could not start training: {str(e)})'
             traceback.print_exc()
             self.trainer.stop_training()
             await self.update_state(State.Idle)
@@ -68,9 +68,12 @@ class TrainerNode(Node):
             self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
+            self.status.latest_error = f'Could not stop training: {str(e)})'
             traceback.print_exc()
-            return str(e)
+            await self.send_status()
+            return False
         self.latest_known_model_id = None
+        await self.send_status()
         return True
 
     async def save_model(self, organization, project, model_id):
