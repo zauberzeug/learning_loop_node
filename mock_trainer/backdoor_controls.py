@@ -32,6 +32,7 @@ async def switch_socketio(request: Request):
     value = str(await request.body(), 'utf-8')
     if value == 'off':
         request.app.skip_check_state = True
+        request.app.status.latest_error = None
         print(f'turning automatically check_state {value}', flush=True)
     if value == 'on':
         request.app.skip_check_state = False
