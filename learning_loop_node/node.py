@@ -47,13 +47,13 @@ class Node(FastAPI):
 
         @self.sio.on('connect')
         async def on_connect():
-            ic('recieved "on_connect" from constructor event.')
+            ic('received "on_connect" from constructor event.')
             self.reset()
             await self.update_state(State.Idle)
 
         @self.sio.on('disconnect')
         async def on_disconnect():
-            ic('recieved "on_disconnect" from constructor event.')
+            ic('received "on_disconnect" from constructor event.')
             await self.update_state(State.Offline)
 
         self.register_lifecycle_events()
@@ -61,7 +61,7 @@ class Node(FastAPI):
     def register_lifecycle_events(self):
         @self.on_event("startup")
         async def startup():
-            print('recieved "startup" event', flush=True)
+            print('received "startup" event', flush=True)
             await self.connect()
 
         @self.on_event("shutdown")
