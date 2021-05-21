@@ -1,0 +1,33 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.pythonPath": "/bin/python"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.vscode-pylance",
+      "ms-python.python",
+      "himanoa.python-autopep8",
+      "esbenp.prettier-vscode",
+      "littlefoxteam.vscode-python-test-adapter"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Darknet Trainer Uvicorn/FastAPI",
+        "type": "python",
+        "request": "attach",
+
+        "connect": {
+          "port": 5680
+        }
+      }
+    ]
+  }
+}

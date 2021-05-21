@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "detection_node"
+version = "0.1.0"
+description = "AI detections for the Zauberzeug Learning Loop"
+authors = ["Zauberzeug <info@zauberzeug.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+learning_loop_node = { path = "learning_loop_node/", develop = true }
+Pillow = "^8.1.2"
+python-multipart = "^0.0.5"
+icecream = "^2.1.0"
+numpy = "1.19.4"
+aiohttp = "^3.7.4"
+debugpy = "^1.2.1"
+aiofiles = "^0.6.0"
+filelock = "^3.0.12"
+pytest-asyncio = "^0.14.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.1"
+autopep8 = "^1.5.5"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
