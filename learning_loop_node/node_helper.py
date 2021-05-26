@@ -65,7 +65,7 @@ async def download_one_image(url: str, image_id: str, headers: dict, image_folde
                 await out_file.write(await response.read())
 
 
-def download_model(base_url: str, headers: dict, training_folder: str, organization: str, project: str, model_id: str):
+def download_model(base_url: str, headers: dict, target_folder: str, organization: str, project: str, model_id: str) -> List[str]:
     # download model
     download_response = requests.get(
         f'{base_url}/api/{organization}/projects/{project}/models/{model_id}/file', headers=headers)
@@ -74,13 +74,32 @@ def download_model(base_url: str, headers: dict, training_folder: str, organizat
         "Content-Disposition").split("filename=")[1].strip('"')
 
     # unzip and place downloaded model
-    target_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
-    shutil.rmtree(target_path, ignore_errors=True)
+    tmp_paht = f'/tmp/{os.path.splitext(provided_filename)[0]}'
+    shutil.rmtree(tmp_paht, ignore_errors=True)
     filebytes = BytesIO(download_response.content)
     with zipfile.ZipFile(filebytes, 'r') as zip:
-        zip.extractall(target_path)
+        zip.extractall(tmp_paht)
 
-    files = glob(f'{target_path}/**/*', recursive=True)
+    created_files = []
+    files = glob(f'{tmp_paht}/**/*', recursive=True)
     for file in files:
         ic(f'moving model file {os.path.basename(file)} to training folder.')
-        shutil.move(file, training_folder)
+        new_file = shutil.move(file, target_folder)
+        created_files.append(new_file)
+    return created_files
+
+
+async def upload_model(base_url: str, headers: dict, organization: str, project: str, files: List[str], model_id: str) -> None:
+    uri_base = f'{base_url}/api/{organization}/projects/{project}'
+    data = aiohttp.FormData()
+
+    for file_name in files:
+        data.add_field('files',  open(file_name, 'rb'))
+
+    async with aiohttp.ClientSession() as session:
+        async with session.put(f'{uri_base}/models/{model_id}/file', data=data, headers=headers) as response:
+            if response.status != 200:
+                msg = f'---- could not save model with id {model_id}'
+                raise Exception(msg)
+            else:
+                ic(f'---- uploaded model with id {model_id}')

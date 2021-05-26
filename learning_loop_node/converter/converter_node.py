@@ -1,3 +1,4 @@
+from learning_loop_node.synchronizer.model_syncronizer import ModelSynchronizer
 from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.converter.converter import Converter
 from learning_loop_node.trainer.downloader_factory import DownloaderFactory
@@ -37,10 +38,10 @@ class ConverterNode(Node):
 
         context = Context(organization=organization, project=project)
 
-        downloader = DownloaderFactory.create(self.url, self.headers, context,
-                                              Capability.Box)  # TODO make Capability optional?
-        await self.converter.convert(context, source_model, downloader)
-        await self.converter.save_model(self.url, self.headers, organization, project, source_model['id'])
+        synchronizer = ModelSynchronizer(server_base_url=self.url, headers=self.headers, context=context)
+
+        await self.converter.convert(context, source_model, synchronizer)
+        await self.converter.save_model(source_model['id'], synchronizer)
         await self.update_state(State.Idle)
 
     async def check_state(self):
