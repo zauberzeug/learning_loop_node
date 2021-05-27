@@ -1,7 +1,4 @@
-from learning_loop_node.synchronizer.model_syncronizer import ModelSynchronizer
-from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.converter.converter import Converter
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
@@ -36,12 +33,9 @@ class ConverterNode(Node):
         self.status.latest_error = None
         await self.update_state(State.Running)
 
-        context = Context(organization=organization, project=project)
+        await self.converter.convert(self.url, self.headers, organization, project, source_model['id'])
+        await self.converter.upload_model(self.url, self.headers, organization, project, source_model['id'])
 
-        synchronizer = ModelSynchronizer(server_base_url=self.url, headers=self.headers, context=context)
-
-        await self.converter.convert(context, source_model, synchronizer)
-        await self.converter.save_model(source_model['id'], synchronizer)
         await self.update_state(State.Idle)
 
     async def check_state(self):

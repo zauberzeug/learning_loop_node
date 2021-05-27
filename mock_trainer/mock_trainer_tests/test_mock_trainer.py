@@ -29,7 +29,7 @@ def create_project():
 
 
 def create_mock_trainer() -> MockTrainer:
-    return MockTrainer(capability=Capability.Box)
+    return MockTrainer(capability=Capability.Box, model_format='mocked')
 
 
 @pytest.mark.asyncio

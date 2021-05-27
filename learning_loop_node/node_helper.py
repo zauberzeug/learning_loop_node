@@ -65,10 +65,10 @@ async def download_one_image(url: str, image_id: str, headers: dict, image_folde
                 await out_file.write(await response.read())
 
 
-def download_model(base_url: str, headers: dict, target_folder: str, organization: str, project: str, model_id: str) -> List[str]:
+def download_model(base_url: str, headers: dict, target_folder: str, organization: str, project: str, model_id: str, format: str) -> List[str]:
     # download model
     download_response = requests.get(
-        f'{base_url}/api/{organization}/projects/{project}/models/{model_id}/file', headers=headers)
+        f'{base_url}/api/{organization}/projects/{project}/models/{model_id}/{format}/file', headers=headers)
     assert download_response.status_code == 200,  download_response.status_code
     provided_filename = download_response.headers.get(
         "Content-Disposition").split("filename=")[1].strip('"')
@@ -89,7 +89,7 @@ def download_model(base_url: str, headers: dict, target_folder: str, organizatio
     return created_files
 
 
-async def upload_model(base_url: str, headers: dict, organization: str, project: str, files: List[str], model_id: str) -> None:
+async def upload_model(base_url: str, headers: dict, organization: str, project: str, files: List[str], model_id: str, format: str) -> None:
     uri_base = f'{base_url}/api/{organization}/projects/{project}'
     data = aiohttp.FormData()
 
@@ -97,7 +97,7 @@ async def upload_model(base_url: str, headers: dict, organization: str, project:
         data.add_field('files',  open(file_name, 'rb'))
 
     async with aiohttp.ClientSession() as session:
-        async with session.put(f'{uri_base}/models/{model_id}/file', data=data, headers=headers) as response:
+        async with session.put(f'{uri_base}/models/{model_id}/{format}/file', data=data, headers=headers) as response:
             if response.status != 200:
                 msg = f'---- could not save model with id {model_id}'
                 raise Exception(msg)

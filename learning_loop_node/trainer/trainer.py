@@ -1,29 +1,55 @@
+from learning_loop_node.trainer.downloader_factory import DownloaderFactory
+from learning_loop_node import node_helper
 from typing import List, Optional
 from uuid import uuid4
 import os
 from pydantic.main import BaseModel
-import requests
-from learning_loop_node.trainer.downloader import Downloader
 from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.training import Training
 from learning_loop_node.trainer.model import BasicModel
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 from icecream import ic
-import aiohttp
 
 
 class Trainer(BaseModel):
     training: Optional[Training]
     capability: Capability
-    downloader: Optional[Downloader]
+    model_format: str
 
-    async def begin_training(self, context: Context, source_model: dict, downloader: Downloader) -> None:
-        self.downloader = downloader
+    async def begin_training(self, base_url: str, headers: str, organization: str, project: str, source_model: dict) -> None:
+        context = Context(organization=organization, project=project)
+        downloader = DownloaderFactory.create(base_url, headers, context, self.capability)
+
         self.training = Trainer.generate_training(context, source_model)
-        self.training.data = await self.downloader.download_data(self.training.images_folder, self.training.training_folder, source_model['id'])
+        self.training.data = await downloader.download_data(self.training.images_folder)
+
+        node_helper.download_model(base_url, headers,  self.training.training_folder,
+                                   organization, project, source_model['id'], self.model_format)
 
         await self.start_training()
+
+    async def start_training(self) -> None:
+        raise NotImplementedError()
+
+    def stop_training(self) -> None:
+        raise NotImplementedError()
+
+    def is_training_alive(self) -> bool:
+        raise NotImplementedError()
+
+    async def save_model(self, base_url: str, headers: dict, organization: str, project: str,  model_id) -> None:
+        files = self.get_model_files(model_id)
+        await node_helper.upload_model(base_url, headers, organization, project, files, model_id, self.model_format)
+
+    def get_model_files(self, model_id) -> List[str]:
+        raise NotImplementedError()
+
+    def get_new_model(self) -> Optional[BasicModel]:
+        raise NotImplementedError()
+
+    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
+        raise NotImplementedError()
 
     @staticmethod
     def generate_training(context: Context, source_model: dict) -> Training:
@@ -37,41 +63,6 @@ class Trainer(BaseModel):
             images_folder=Trainer.create_image_folder(project_folder),
             training_folder=Trainer.create_training_folder(project_folder, training_uuid)
         )
-
-    async def start_training(self) -> None:
-        raise NotImplementedError()
-
-    def stop_training(self) -> None:
-        raise NotImplementedError()
-
-    def is_training_alive(self) -> bool:
-        raise NotImplementedError()
-
-    async def save_model(self, host_url, headers, organization, project, model_id) -> bool:
-        # TODO remove the need of host_url. Create an uploader?
-
-        uri_base = f'{host_url}/api/{organization}/projects/{project}'
-        data = aiohttp.FormData()
-
-        for file_name in self.get_model_files(model_id):
-            data.add_field('files',  open(file_name, 'rb'))
-
-        async with aiohttp.ClientSession() as session:
-            async with session.put(f'{uri_base}/models/{model_id}/file', data=data, headers=headers) as response:
-                if response.status != 200:
-                    msg = f'---- could not save model with id {model_id}'
-                    raise Exception(msg)
-                else:
-                    ic(f'---- uploaded model with id {model_id}')
-
-    def get_model_files(self, model_id) -> List[str]:
-        raise NotImplementedError()
-
-    def get_new_model(self) -> Optional[BasicModel]:
-        raise NotImplementedError()
-
-    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
-        raise NotImplementedError()
 
     @staticmethod
     def create_image_folder(project_folder: str) -> str:

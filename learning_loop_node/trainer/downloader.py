@@ -12,7 +12,7 @@ from glob import glob
 from learning_loop_node.trainer.basic_data import BasicData
 
 
-class Downloader(BaseModel):
+class DataDownloader(BaseModel):
     server_base_url: str
     headers: dict
     context: Context
@@ -21,10 +21,9 @@ class Downloader(BaseModel):
     def get_data_url(self) -> str:
         return f'{self.server_base_url}/api/{self.context.organization}/projects/{self.context.project}/data/data2?{self.data_query_params}'
 
-    async def download_data(self, image_folder: str, training_folder: str, model_id: str) -> TrainingData:
+    async def download_data(self, image_folder: str) -> TrainingData:
         basic_data = self.download_basic_data()
         training_data = await self.download_images_and_annotations(basic_data, image_folder)
-        self.download_model(training_folder, model_id)
         return training_data
 
     def download_basic_data(self) -> BasicData:
@@ -32,10 +31,6 @@ class Downloader(BaseModel):
         assert response.status_code == 200
         basic_data = BasicData.parse_obj(response.json())
         return basic_data
-
-    def download_model(self, training_folder: str, model_id: str) -> None:
-        node_helper.download_model(self.server_base_url, self.headers, training_folder, self.context.organization,
-                                   self.context.project, model_id)
 
     async def download_images_and_annotations(self, basic_data: BasicData, image_folder) -> TrainingData:
         loop = asyncio.get_event_loop()

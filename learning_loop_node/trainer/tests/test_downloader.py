@@ -3,8 +3,8 @@ from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 import pytest
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.tests import trainer_test_helper
-from learning_loop_node.trainer.downloader import Downloader
-from learning_loop_node import context, node
+from learning_loop_node.trainer.downloader import DataDownloader
+from learning_loop_node import context, node, node_helper
 from learning_loop_node.context import Context
 from learning_loop_node.conftest import create_project
 from icecream import ic
@@ -24,17 +24,18 @@ def create_project_for_module():
 
 
 @pytest.fixture
-def downloader() -> Downloader:
+def downloader() -> DataDownloader:
     context = Context(organization='zauberzeug', project='pytest')
     return DownloaderFactory.create(server_base_url=node.SERVER_BASE_URL_DEFAULT, headers={}, context=context, capability=Capability.Box)
 
 
 @pytest.mark.asyncio
-async def test_download_model(downloader: Downloader):
+async def test_download_model():
     _, _, trainings_folder = trainer_test_helper.create_needed_folders()
     model_id = await trainer_test_helper.assert_upload_model()
 
-    downloader.download_model(trainings_folder, model_id)
+    node_helper.download_model(node.SERVER_BASE_URL_DEFAULT, {}, trainings_folder,
+                               'zauberzeug', 'pytest', model_id, 'mocked')
 
     files = test_helper.get_files_in_folder('/data')
     assert len(files) == 2
@@ -47,7 +48,7 @@ async def test_download_model(downloader: Downloader):
 
 
 @pytest.mark.asyncio
-def test_download_basic_data(downloader: Downloader):
+def test_download_basic_data(downloader: DataDownloader):
     basic_data = downloader.download_basic_data()
 
     assert len(basic_data.image_ids) == 3
@@ -55,7 +56,7 @@ def test_download_basic_data(downloader: Downloader):
 
 
 @pytest.mark.asyncio
-async def test_download_images(downloader: Downloader):
+async def test_download_images(downloader: DataDownloader):
     _, image_folder, _ = trainer_test_helper.create_needed_folders()
 
     basic_data = downloader.download_basic_data()
@@ -66,38 +67,9 @@ async def test_download_images(downloader: Downloader):
 
 
 @pytest.mark.asyncio
-async def test_download_training_data(downloader: Downloader):
+async def test_download_training_data(downloader: DataDownloader):
     _, image_folder, _ = trainer_test_helper.create_needed_folders()
     basic_data = downloader.download_basic_data()
     image_data = await downloader.download_image_data(basic_data.image_ids)
 
     assert len(image_data) == 3
-
-
-@pytest.mark.asyncio
-async def test_download_everything(downloader: Downloader):
-    model_id = await trainer_test_helper.assert_upload_model()
-    _, image_folder, training_folder = trainer_test_helper.create_needed_folders()
-    training_data = await downloader.download_data(image_folder, training_folder, model_id)
-
-    # test_download_model
-    files = test_helper.get_files_in_folder('/data/zauberzeug/pytest/trainings')
-    assert len(files) == 2
-
-    assert files[0] == "/data/zauberzeug/pytest/trainings/some_uuid/file_1.txt"
-    assert files[1] == "/data/zauberzeug/pytest/trainings/some_uuid/file_2.txt"
-
-    assert open(files[0], 'r').read() == 'content of file one'
-    assert open(files[1], 'r').read() == 'content of file two'
-
-    # test_download_basic_data
-    assert len(training_data.image_ids()) == 3
-    assert len(training_data.box_categories) == 2
-
-    # test_download_images
-    _, image_folder, _ = trainer_test_helper.create_needed_folders()
-    files = test_helper.get_files_in_folder('/data/zauberzeug/pytest/images')
-    assert len(files) == 3
-
-    # test_download_training_data
-    assert len(training_data.image_data) == 3

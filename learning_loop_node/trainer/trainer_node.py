@@ -1,8 +1,6 @@
 from learning_loop_node.trainer.model import Model
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.trainer.trainer import Trainer
-from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 import asyncio
 from status import State
@@ -50,9 +48,7 @@ class TrainerNode(Node):
         self.status.latest_error = None
         await self.update_state(State.Preparing)
         try:
-            context = Context(organization=organization, project=project)
-            downloader = DownloaderFactory.create(self.url, self.headers, context, self.trainer.capability)
-            await self.trainer.begin_training(context, source_model, downloader)
+            await self.trainer.begin_training(self.url, self.headers, organization, project, source_model)
         except Exception as e:
             traceback.print_exc()
             self.status.latest_error = f'Could not start training: {str(e)})'

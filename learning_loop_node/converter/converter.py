@@ -1,22 +1,23 @@
-from learning_loop_node.synchronizer.model_syncronizer import ModelSynchronizer
-import aiohttp
 from typing import List, Optional
 import os
 from pydantic.main import BaseModel
-from learning_loop_node.trainer.downloader import Downloader
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 from icecream import ic
+from learning_loop_node import node_helper
 
 
 class Converter(BaseModel):
     model_folder: Optional[str]
+    source_format: str
+    target_format: str
 
-    async def convert(self, context: Context, source_model: dict, model_synchronizer: ModelSynchronizer) -> None:
-        project_folder = Node.create_project_folder(context.organization, context.project)
+    async def convert(self, base_url: str, headers: dict, organization: str, project: str, model_id: str) -> bool:
+        project_folder = Node.create_project_folder(organization, project)
 
-        self.model_folder = Converter.create_model_folder(project_folder, source_model['id'])
-        model_synchronizer.download(self.model_folder, source_model['id'])
+        self.model_folder = Converter.create_model_folder(project_folder, model_id)
+        node_helper.download_model(base_url, headers, self.model_folder, organization,
+                                   project, model_id, self.source_format)
 
         await self._convert()
 
@@ -29,9 +30,9 @@ class Converter(BaseModel):
     def get_converted_files(self, model_id) -> List[str]:
         raise NotImplementedError()
 
-    async def save_model(self, model_id: str, model_synchronizer: ModelSynchronizer) -> bool:
+    async def upload_model(self, base_url: str, headers: dict, organization: str, project: str, model_id: str) -> bool:
         files = self.get_converted_files(model_id)
-        await model_synchronizer.upload(files, model_id)
+        await node_helper.upload_model(base_url, headers, organization, project, files, model_id, self.target_format)
 
     @staticmethod
     def create_convert_folder(project_folder: str) -> str:

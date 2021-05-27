@@ -18,7 +18,7 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
         data.add_field('files',  open(path, 'rb'))
 
     async with aiohttp.ClientSession() as session:
-        async with session.post(f'{node.SERVER_BASE_URL_DEFAULT}/api/zauberzeug/projects/pytest/models', data=data, ) as upload_response:
+        async with session.post(f'{node.SERVER_BASE_URL_DEFAULT}/api/zauberzeug/projects/pytest/models/mocked', data=data, ) as upload_response:
             assert upload_response.status == 200
             return (await upload_response.json())['id']
 
