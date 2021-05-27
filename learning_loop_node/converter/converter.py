@@ -24,9 +24,6 @@ class Converter(BaseModel):
     async def _convert(self) -> None:
         raise NotImplementedError()
 
-    def is_conversion_alive(self) -> bool:
-        raise NotImplementedError()
-
     def get_converted_files(self, model_id) -> List[str]:
         raise NotImplementedError()
 

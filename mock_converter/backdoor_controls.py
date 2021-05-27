@@ -27,7 +27,26 @@ async def switch_socketio(request: Request):
             asyncio.create_task(request.app.connect())
 
 
+@router.put("/check_state")
+async def switch_socketio(request: Request):
+    value = str(await request.body(), 'utf-8')
+    if value == 'off':
+        request.app.skip_check_state = True
+        print(f'turning automatically check_state {value}', flush=True)
+    if value == 'on':
+        request.app.skip_check_state = False
+        print(f'turning automatically check_state {value}', flush=True)
+
+
 @router.put("/status")
 async def set_status(new_status: Status, request: Request):
     print('new status is', new_status, flush=True)
     await request.app.update_status(new_status)
+
+
+@router.post("/step")
+async def add_steps(request: Request):
+    if request.app.status.state == State.Running:
+        raise HTTPException(status_code=409, detail="converter is already running")
+
+    await request.app.check_state()

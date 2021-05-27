@@ -1,3 +1,5 @@
+from pydantic.main import BaseModel
+import requests
 from learning_loop_node.converter.converter import Converter
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.context import Context
@@ -9,6 +11,12 @@ from fastapi_utils.tasks import repeat_every
 from icecream import ic
 
 
+class ModelInformation(BaseModel):
+    organization: str
+    project: str
+    model_id: str
+
+
 class ConverterNode(Node):
     converter: Converter
     skip_check_state: bool = False
@@ -17,49 +25,45 @@ class ConverterNode(Node):
         super().__init__(name, uuid)
         self.converter = converter
 
-        @self.sio.on('begin_training')
-        async def on_convert_model(organization, project, source_model):
-            loop = asyncio.get_event_loop()
-            loop.create_task(self.convert_model(organization, project, source_model))
-            return True
-
         @self.on_event("startup")
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def check_state():
             if not self.skip_check_state:
                 await self.check_state()
 
-    async def convert_model(self, organization: str, project: str, source_model: dict):
-        self.status.latest_error = None
-        await self.update_state(State.Running)
-
-        await self.converter.convert(self.url, self.headers, organization, project, source_model['id'])
-        await self.converter.upload_model(self.url, self.headers, organization, project, source_model['id'])
-
-        await self.update_state(State.Idle)
+    async def convert_model(self, organization: str, project: str, model_id: str):
+        await self.converter.convert(self.url, self.headers, organization, project, model_id)
+        await self.converter.upload_model(self.url, self.headers, organization, project, model_id)
 
     async def check_state(self):
         ic(f'checking state: {self.status.state}')
-        try:
-            if self.status.state == State.Running and not self.converter.is_conversion_alive():
-                raise Exception()
-        except:
-            await self.update_error_msg(f'Conversion crashed.')
 
-    async def send_status(self):
-        status = TrainingStatus(
-            id=self.uuid,
-            name=self.name,
-            state=self.status.state,
-            uptime=self.status.uptime,
-            latest_error=self.status.latest_error
-        )
+        if self.status.state == State.Running:
+            return
+        self.status.state = State.Running
 
-        result = await self.sio.call('update_trainer', jsonable_encoder(status), timeout=1)
-        if not result == True:
-            raise Exception(result)
-        print('status send', flush=True)
+        model = self.find_model_to_convert()
+        if model:
+            await self.convert_model(model.organization, model.project, model.model_id)
+        self.status.state = State.Idle
 
-    async def update_error_msg(self, msg: str) -> None:
-        self.status.latest_error = msg
-        await self.send_status()
+    def find_model_to_convert(self) -> ModelInformation:
+        response = requests.get(f'{self.url}/api/projects', headers=self.headers)
+        assert response.status_code == 200
+
+        projects = response.json()['projects']
+
+        for project in projects:
+            organization_id = project['organization_id']
+            project_id = project['project_id']
+            url = f'{self.url}/api{project["resource"]}/models'
+
+            models_response = requests.get(url, headers=self.headers)
+            assert models_response.status_code == 200
+            models = models_response.json()['models']
+
+            for model in models:
+                if model['version']:
+                    ic(model)
+                    if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
+                        return ModelInformation(organization=organization_id, project=project_id, model_id=model['id'])
