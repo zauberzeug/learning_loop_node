@@ -68,7 +68,7 @@ async def test_iteration_needs_weightfile_to_be_valid(filename: str, is_valid_mo
 
 
 def get_box_categories():
-    content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/data/data2').json()
+    content = test_helper.LiveServerSession().get('/api/zauberzeug/projects/pytest/data').json()
     categories = content['box_categories']
     return categories
 

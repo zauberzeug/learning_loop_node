@@ -14,7 +14,7 @@ import time
 
 
 async def download_ids(base_url, organization_name, project_name, headers) -> dict:
-    ids_url = f'{base_url}/api/{organization_name}/projects/{project_name}/data/data2'
+    ids_url = f'{base_url}/api/{organization_name}/projects/{project_name}/data'
     async with aiohttp.ClientSession() as session:
         ic()
         async with session.get(ids_url, headers=headers) as response:

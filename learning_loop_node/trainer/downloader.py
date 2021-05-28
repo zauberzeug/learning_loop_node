@@ -19,7 +19,7 @@ class DataDownloader(BaseModel):
     data_query_params: str
 
     def get_data_url(self) -> str:
-        return f'{self.server_base_url}/api/{self.context.organization}/projects/{self.context.project}/data/data2?{self.data_query_params}'
+        return f'{self.server_base_url}/api/{self.context.organization}/projects/{self.context.project}/data?{self.data_query_params}'
 
     async def download_data(self, image_folder: str) -> TrainingData:
         basic_data = self.download_basic_data()
