@@ -22,8 +22,10 @@ jobs:
         id: get_version
         run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
       - name: set version
+        working-directory: ./learning_loop_node
         run: poetry version ${{ steps.get_version.outputs.VERSION }}
       - name: publish
+        working-directory: ./learning_loop_node
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
         run: poetry publish --build
