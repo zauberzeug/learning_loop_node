@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "learning_loop_node"
 version = "0.1.0"
-description = ""
+description = "Python Library for Nodes which connect to the Zauberzeug Learning Loop"
 authors = ["Zauberzeug GmbH <info@zauberzeug.com>"]
 packages = [
     { include = "*.py" },
