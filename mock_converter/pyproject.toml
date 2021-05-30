@@ -6,7 +6,7 @@ authors = ["Zauberzeug <info@zauberzeug.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-learning_loop_node = { path = "learning_loop_node/", develop = true }
+learning_loop_node = { path = "../", develop = true }
 icecream = "^2.1.0"
 debugpy = "^1.2.1"
 aiofiles = "^0.6.0"

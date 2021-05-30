@@ -295,7 +295,7 @@ uvicorn = "^0.13.3"
 
 [package.source]
 type = "directory"
-url = "../learning_loop_node"
+url = ".."
 
 [[package]]
 name = "multidict"
@@ -646,7 +646,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "1a5181a4fbabafbf95624bf151503dd62db0280a7613f971fbcf3c166f593887"
+content-hash = "ebb5982c276f79e1cfcbabb879ddb4896c5d778b13a5c40605e55870486e2641"
 
 [metadata.files]
 aiofiles = [
