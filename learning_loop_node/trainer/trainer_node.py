@@ -1,15 +1,14 @@
-from learning_loop_node.trainer.model import Model
-from learning_loop_node.status import TrainingStatus
-from learning_loop_node.trainer.trainer import Trainer
-from learning_loop_node.node import Node
 import asyncio
-from status import State
+import traceback
+from fastapi_utils.tasks import repeat_every
 from fastapi.encoders import jsonable_encoder
 from typing import Union
-from fastapi_utils.tasks import repeat_every
-import traceback
 from uuid import uuid4
 from icecream import ic
+from .model import Model
+from .trainer import Trainer
+from learning_loop_node.status import TrainingStatus
+from learning_loop_node.node import Node, State
 
 
 class TrainerNode(Node):

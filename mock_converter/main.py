@@ -1,6 +1,6 @@
-from learning_loop_node.converter.mock_converter import MockConverter
 import uvicorn
 from learning_loop_node.converter.converter_node import ConverterNode
+from learning_loop_node.converter.mock_converter import MockConverter
 import backdoor_controls
 
 mock_converter = MockConverter(source_format='mocked', target_format='mocked_converted')

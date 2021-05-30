@@ -1,6 +1,6 @@
-from learning_loop_node.trainer.capability import Capability
 import backdoor_controls
 import uvicorn
+from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.trainer_node import TrainerNode
 from learning_loop_node.trainer.mock_trainer import MockTrainer
 

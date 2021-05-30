@@ -1,11 +1,10 @@
 from pydantic.main import BaseModel
 import requests
 from learning_loop_node.converter.converter import Converter
-from learning_loop_node.status import TrainingStatus
+from learning_loop_node.status import TrainingStatus, State
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 import asyncio
-from status import State
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from icecream import ic
