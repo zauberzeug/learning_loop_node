@@ -3,12 +3,12 @@ name = "learning_loop_node"
 version = "0.1.0"
 description = "Python Library for Nodes which connect to the Zauberzeug Learning Loop"
 authors = ["Zauberzeug GmbH <info@zauberzeug.com>"]
-packages = [
-    { include = "*.py" },
-]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/zauberzeug/learning_loop_node"
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7"
 requests = "^2.25.1"
 python-socketio = {extras = ["asyncio_client"], version = "^5.0.4"}
 fastapi-socketio = "^0.0.6"
