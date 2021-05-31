@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "trainer"
+name = "mock_converter"
 version = "0.1.0"
-description = "AI Trainer for the Zauberzeug Learning Loop"
+description = "AI converter for the Zauberzeug Learning Loop"
 authors = ["Zauberzeug <info@zauberzeug.com>"]
 
 [tool.poetry.dependencies]

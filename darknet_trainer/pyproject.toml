@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "trainer"
+name = "darknet_trainer"
 version = "0.1.0"
 description = "AI Trainer for the Zauberzeug Learning Loop"
 authors = ["Zauberzeug <info@zauberzeug.com>"]
