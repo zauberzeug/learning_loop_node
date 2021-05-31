@@ -9,7 +9,7 @@ python = "^3.7"
 learning_loop_node = { path = "../", develop = true }
 icecream = "^2.1.0"
 debugpy = "^1.2.1"
-aiofiles = "^0.7.0"
+aiofiles = "^0.6.0"
 python-socketio = {extras = ["asyncio_client"], version = "^5.0.4"}
 pytest-asyncio = "^0.15.1"
 pytest-watch = "^4.2.0"
