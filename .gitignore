@@ -4,3 +4,8 @@ images_and_detections/*
 
 !images_and_detections/.gitkeep
 !detection_node_data/.gitkeep
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
