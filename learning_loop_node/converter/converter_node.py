@@ -66,3 +66,7 @@ class ConverterNode(Node):
                     ic(model)
                     if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
                         return ModelInformation(organization=organization_id, project=project_id, model_id=model['id'])
+
+    async def send_status(self):
+        # NOTE not yet implemented
+        pass
