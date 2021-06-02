@@ -1,10 +1,8 @@
 import pytest
-from learning_loop_node import __version__
 from learning_loop_node import node_helper
 from typing import List
 
 
-def test_version():
     assert __version__ == '0.1.0'
 
 
