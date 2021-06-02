@@ -1,4 +1,4 @@
-from .status import Status, State
+from learning_loop_node.status import Status, State
 from fastapi import FastAPI
 import socketio
 import asyncio
