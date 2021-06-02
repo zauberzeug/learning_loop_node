@@ -1,9 +1,8 @@
 from typing import List, Optional
-from learning_loop_node.tests.test_helper import LiveServerSession
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 import aiohttp
-import node
+from learning_loop_node import node
 
 
 async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:

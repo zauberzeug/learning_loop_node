@@ -1,6 +1,6 @@
 from requests import Session
 from urllib.parse import urljoin
-import node
+from learning_loop_node import node
 
 
 class LiveServerSession(Session):
