@@ -5,7 +5,7 @@ from learning_loop_node.trainer.training import Training
 from mock_trainer import MockTrainer
 import pytest
 from typing import Generator
-import mock_trainer_tests.test_helper as test_helper
+from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.model import Model
 from uuid import uuid4

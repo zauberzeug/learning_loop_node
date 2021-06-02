@@ -8,6 +8,7 @@ import asyncio
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from icecream import ic
+from learning_loop_node.loop import LoopHttp
 
 
 class ModelInformation(BaseModel):
@@ -31,8 +32,8 @@ class ConverterNode(Node):
                 await self.check_state()
 
     async def convert_model(self, organization: str, project: str, model_id: str):
-        await self.converter.convert(self.url, self.headers, organization, project, model_id)
-        await self.converter.upload_model(self.url, self.headers, organization, project, model_id)
+        await self.converter.convert(organization, project, model_id)
+        await self.converter.upload_model(organization, project, model_id)
 
     async def check_state(self):
         ic(f'checking state: {self.status.state}')
@@ -41,31 +42,31 @@ class ConverterNode(Node):
             return
         self.status.state = State.Running
 
-        model = self.find_model_to_convert()
+        model = await self.find_model_to_convert()
         if model:
             await self.convert_model(model.organization, model.project, model.model_id)
         self.status.state = State.Idle
 
-    def find_model_to_convert(self) -> ModelInformation:
-        response = requests.get(f'{self.url}/api/projects', headers=self.headers)
-        assert response.status_code == 200
-
-        projects = response.json()['projects']
+    async def find_model_to_convert(self) -> ModelInformation:
+        async with LoopHttp().get('api/projects') as response:
+            assert response.status == 200
+            content = await response.json()
+            projects = content['projects']
 
         for project in projects:
             organization_id = project['organization_id']
             project_id = project['project_id']
-            url = f'{self.url}/api{project["resource"]}/models'
+            path = f'api{project["resource"]}/models'
+            async with LoopHttp().get(path) as models_response:
+                assert models_response.status == 200
+                content = await models_response.json()
+                models = content['models']
 
-            models_response = requests.get(url, headers=self.headers)
-            assert models_response.status_code == 200
-            models = models_response.json()['models']
-
-            for model in models:
-                if model['version']:
-                    ic(model)
-                    if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
-                        return ModelInformation(organization=organization_id, project=project_id, model_id=model['id'])
+                for model in models:
+                    if model['version']:
+                        ic(model)
+                        if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
+                            return ModelInformation(organization=organization_id, project=project_id, model_id=model['id'])
 
     async def send_status(self):
         # NOTE not yet implemented

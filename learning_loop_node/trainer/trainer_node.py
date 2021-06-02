@@ -47,7 +47,7 @@ class TrainerNode(Node):
         self.status.latest_error = None
         await self.update_state(State.Preparing)
         try:
-            await self.trainer.begin_training(self.url, self.headers, organization, project, source_model)
+            await self.trainer.begin_training(organization, project, source_model)
         except Exception as e:
             traceback.print_exc()
             self.status.latest_error = f'Could not start training: {str(e)})'
@@ -74,7 +74,7 @@ class TrainerNode(Node):
 
     async def save_model(self, organization, project, model_id):
         try:
-            await self.trainer.save_model(self.url, self.headers, organization, project, model_id)
+            await self.trainer.save_model(organization, project, model_id)
         except Exception as e:
             traceback.print_exc()
             await self.update_error_msg(f'Could not save model: {str(e)}')

@@ -1,6 +1,6 @@
 from glob import glob
 import os
-from learning_loop_node import node
+from learning_loop_node import loop
 from urllib.parse import urljoin
 from requests import Session
 
@@ -10,7 +10,7 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = node.SERVER_BASE_URL_DEFAULT
+        self.prefix_url = loop.SERVER_BASE_URL_DEFAULT
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)

@@ -17,15 +17,15 @@ class Trainer(BaseModel):
     capability: Capability
     model_format: str
 
-    async def begin_training(self, base_url: str, headers: str, organization: str, project: str, source_model: dict) -> None:
+    async def begin_training(self, organization: str, project: str, source_model: dict) -> None:
         context = Context(organization=organization, project=project)
-        downloader = DownloaderFactory.create(base_url, headers, context, self.capability)
+        downloader = DownloaderFactory.create(context, self.capability)
 
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await downloader.download_data(self.training.images_folder)
 
-        node_helper.download_model(base_url, headers,  self.training.training_folder,
-                                   organization, project, source_model['id'], self.model_format)
+        await node_helper.download_model(self.training.training_folder,
+                                         organization, project, source_model['id'], self.model_format)
 
         await self.start_training()
 
@@ -38,9 +38,9 @@ class Trainer(BaseModel):
     def is_training_alive(self) -> bool:
         raise NotImplementedError()
 
-    async def save_model(self, base_url: str, headers: dict, organization: str, project: str,  model_id) -> None:
+    async def save_model(self,  organization: str, project: str, model_id) -> None:
         files = self.get_model_files(model_id)
-        await node_helper.upload_model(base_url, headers, organization, project, files, model_id, self.model_format)
+        await node_helper.upload_model(organization, project, files, model_id, self.model_format)
 
     def get_model_files(self, model_id) -> List[str]:
         raise NotImplementedError()

@@ -12,11 +12,11 @@ class Converter(BaseModel):
     source_format: str
     target_format: str
 
-    async def convert(self, base_url: str, headers: dict, organization: str, project: str, model_id: str) -> bool:
+    async def convert(self, organization: str, project: str, model_id: str) -> bool:
         project_folder = Node.create_project_folder(organization, project)
 
         self.model_folder = Converter.create_model_folder(project_folder, model_id)
-        node_helper.download_model(base_url, headers, self.model_folder, organization,
+        node_helper.download_model(self.model_folder, organization,
                                    project, model_id, self.source_format)
 
         await self._convert()
@@ -27,9 +27,9 @@ class Converter(BaseModel):
     def get_converted_files(self, model_id) -> List[str]:
         raise NotImplementedError()
 
-    async def upload_model(self, base_url: str, headers: dict, organization: str, project: str, model_id: str) -> bool:
+    async def upload_model(self, organization: str, project: str, model_id: str) -> bool:
         files = self.get_converted_files(model_id)
-        await node_helper.upload_model(base_url, headers, organization, project, files, model_id, self.target_format)
+        await node_helper.upload_model(organization, project, files, model_id, self.target_format)
 
     @staticmethod
     def create_convert_folder(project_folder: str) -> str:

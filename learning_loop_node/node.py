@@ -3,11 +3,10 @@ from fastapi import FastAPI
 import socketio
 import asyncio
 import asyncio
-import requests
 import os
 from icecream import ic
 
-SERVER_BASE_URL_DEFAULT = 'http://backend'
+
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
 BASE_PROJECT = 'demo'
 BASE_ORGANIZATION = 'zauberzeug'
@@ -19,7 +18,6 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        self.url = os.environ.get('SERVER_BASE_URL', SERVER_BASE_URL_DEFAULT)
         self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
         self.username = os.environ.get('USERNAME', None)
         self.password = os.environ.get('PASSWORD', None)

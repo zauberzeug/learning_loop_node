@@ -2,7 +2,7 @@ from typing import List, Optional
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 import aiohttp
-from learning_loop_node import node
+from learning_loop_node import loop
 
 
 async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
@@ -15,11 +15,9 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
 
     for path in file_paths:
         data.add_field('files',  open(path, 'rb'))
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(f'{node.SERVER_BASE_URL_DEFAULT}/api/zauberzeug/projects/pytest/models/mocked', data=data, ) as upload_response:
-            assert upload_response.status == 200
-            return (await upload_response.json())['id']
+    async with loop.LoopHttp().post('api/zauberzeug/projects/pytest/models/mocked', data) as response:
+        assert response.status == 200
+        return (await response.json())['id']
 
 
 def create_needed_folders(training_uuid='some_uuid'):
