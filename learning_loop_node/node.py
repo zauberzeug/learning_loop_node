@@ -81,6 +81,7 @@ class Node(FastAPI):
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
+            ic(self.__dict__)
             ic(e)
             if 'Already connected' in str(e):
                 print('we are already connected')
