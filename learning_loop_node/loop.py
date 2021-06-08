@@ -17,8 +17,8 @@ class LoopHttp():
 
     async def get_token(self):
         credentials = {
-            'username': 'mock',
-            'password': 'test1',
+            'username': self.db_user,
+            'password': self.db_pw,
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
@@ -35,7 +35,6 @@ class LoopHttp():
     @asynccontextmanager
     async def get(self, path):
         headers = await self.get_headers()
-        # headers = {}
         async with aiohttp.ClientSession() as session:
             async with session.get(f'{self.base_url}/{path}', headers=headers) as response:
                 yield response
