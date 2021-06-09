@@ -16,7 +16,7 @@ class Converter(BaseModel):
         project_folder = Node.create_project_folder(organization, project)
 
         self.model_folder = Converter.create_model_folder(project_folder, model_id)
-        node_helper.download_model(self.model_folder, organization,
+        await node_helper.download_model(self.model_folder, organization,
                                    project, model_id, self.source_format)
 
         await self._convert()
