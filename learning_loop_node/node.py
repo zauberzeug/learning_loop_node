@@ -21,19 +21,11 @@ class Node(FastAPI):
         self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
         self.username = os.environ.get('USERNAME', None)
         self.password = os.environ.get('PASSWORD', None)
-        self.project = os.environ.get('PROJECT', BASE_PROJECT)
         self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
-        self.db_user = os.environ.get('DBNAME', None)
-        self.db_pw = os.environ.get('DBPW', None)
-        self.headers = {}
+        self.project = os.environ.get('PROJECT', BASE_PROJECT)
 
         self.name = name
         self.uuid = uuid
-
-        if self.username:
-            import base64
-            self.headers["Authorization"] = "Basic " + \
-                base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
 
         self.sio = socketio.AsyncClient(
             reconnection_delay=0,
@@ -77,11 +69,10 @@ class Node(FastAPI):
 
         print('connecting to Learning Loop', flush=True)
         try:
-            await self.sio.connect(f"{self.ws_url}", auth={'username': self.db_user, 'password': self.db_pw}, headers=self.headers, socketio_path="/ws/socket.io")
+            await self.sio.connect(f"{self.ws_url}", auth={'username': self.username, 'password': self.password}, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
-            ic(self.__dict__)
             ic(e)
             if 'Already connected' in str(e):
                 print('we are already connected')

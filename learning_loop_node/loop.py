@@ -12,13 +12,11 @@ class LoopHttp():
         self.base_url: str = os.environ.get('SERVER_BASE_URL', SERVER_BASE_URL_DEFAULT)
         self.username: str = os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('PASSWORD', None)
-        self.db_user: str = os.environ.get('DBNAME', None)
-        self.db_pw: str = os.environ.get('DBPW', None)
 
     async def get_token(self):
         credentials = {
-            'username': self.db_user,
-            'password': self.db_pw,
+            'username': self.username,
+            'password': self.password,
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
