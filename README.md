@@ -2,6 +2,17 @@
 
 This Python library helps you to write your own Detection Nodes, Training Nodes and Converter Nodes for the Zauberzeug Learning Loop.
 
+## General Usage
+
+You can configure connection to the learning loop by specifying the following environment variables before starting:
+
+- SERVER_BASE_URL=https://learning-loop.ai
+- WEBSOCKET_BASE_URL_DEFAULT=wss://learning-loop.ai
+- ORGANIZATION=<your organization>
+- PROJECT=<your project>
+- USERNAME=<your username>
+- PASSWORD=<your password>
+
 ## Converter Node
 
 A Conveter Node converts models from one format into another.
