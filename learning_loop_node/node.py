@@ -76,6 +76,8 @@ class Node(FastAPI):
             ic(e)
             if 'Already connected' in str(e):
                 print('we are already connected')
+            if 'Connection refused' in str(e):
+                print(f'Could not connect to "{self.ws_url}"')
             else:
                 await asyncio.sleep(0.2)
                 await self.connect()
