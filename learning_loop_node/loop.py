@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+from async_generator import asynccontextmanager
 from aiohttp.client_reqrep import ClientResponse
 import aiohttp
 import os
