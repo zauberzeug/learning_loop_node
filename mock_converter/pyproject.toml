@@ -5,7 +5,7 @@ description = "AI converter for the Zauberzeug Learning Loop"
 authors = ["Zauberzeug <info@zauberzeug.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.6"
 learning_loop_node = { path = "../", develop = true }
 icecream = "^2.1.0"
 debugpy = "^1.2.1"
