@@ -41,6 +41,14 @@ six = "*"
 test = ["astroid", "pytest"]
 
 [[package]]
+name = "async-generator"
+version = "1.10"
+description = "Async generators and context managers for Python 3.5+"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[[package]]
 name = "async-timeout"
 version = "3.0.1"
 description = "Timeout context manager for asyncio programs"
@@ -298,16 +306,19 @@ python-versions = "*"
 [[package]]
 name = "learning-loop-node"
 version = "0.1.0"
-description = ""
+description = "Python Library for Nodes which connect to the Zauberzeug Learning Loop"
 category = "main"
 optional = false
 python-versions = "^3.6"
-develop = true
+develop = false
 
 [package.dependencies]
+aiofiles = "^0.7.0"
+async_generator = "^1.10"
 fastapi = "^0.63.0"
 fastapi-socketio = "^0.0.6"
 fastapi-utils = "^0.2.1"
+icecream = "^2.1.0"
 python-socketio = {version = "^5.0.4", extras = ["asyncio_client"]}
 requests = "^2.25.1"
 simplejson = "^3.17.2"
@@ -667,7 +678,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "d31cb2cad61d298c006b5691b8f3186ae5951cdf0e4eee156b8e993bcf4ab55a"
+content-hash = "fb07400093eaa0ece3dbe1ba3c1589f086f10ba39f0d9410e5456d1da07147b6"
 
 [metadata.files]
 aiofiles = [
@@ -716,6 +727,10 @@ aiohttp = [
 asttokens = [
     {file = "asttokens-2.0.5-py2.py3-none-any.whl", hash = "sha256:0844691e88552595a6f4a4281a9f7f79b8dd45ca4ccea82e5e05b4bbdb76705c"},
     {file = "asttokens-2.0.5.tar.gz", hash = "sha256:9a54c114f02c7a9480d56550932546a3f1fe71d8a02f1bc7ccd0ee3ee35cf4d5"},
+]
+async-generator = [
+    {file = "async_generator-1.10-py3-none-any.whl", hash = "sha256:01c7bf666359b4967d2cda0000cc2e4af16a0ae098cbffcb8472fb9e8ad6585b"},
+    {file = "async_generator-1.10.tar.gz", hash = "sha256:6ebb3d106c12920aaae42ccb6f787ef5eefdcdd166ea3d628fa8476abe712144"},
 ]
 async-timeout = [
     {file = "async-timeout-3.0.1.tar.gz", hash = "sha256:0c3c816a028d47f659d6ff5c745cb2acf1f966da1fe5c19c77a70282b25f4c5f"},
