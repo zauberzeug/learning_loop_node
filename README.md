@@ -13,6 +13,10 @@ You can configure connection to the learning loop by specifying the following en
 - USERNAME=<your username>
 - PASSWORD=<your password>
 
+## Detector Node
+
+## Trainer Node
+
 ## Converter Node
 
 A Conveter Node converts models from one format into another.
