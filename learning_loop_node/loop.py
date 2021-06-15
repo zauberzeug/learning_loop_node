@@ -50,3 +50,6 @@ class LoopHttp():
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/{path}', headers=headers, data=data) as response:
                 yield response
+
+
+instance = LoopHttp()

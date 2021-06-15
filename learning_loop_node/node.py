@@ -5,7 +5,7 @@ import asyncio
 import asyncio
 import os
 from icecream import ic
-
+import learning_loop_node.loop as loop
 
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
 BASE_PROJECT = 'demo'
@@ -19,8 +19,6 @@ class Node(FastAPI):
     def __init__(self, name: str, uuid: str):
         super().__init__()
         self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
-        self.username = os.environ.get('USERNAME', None)
-        self.password = os.environ.get('PASSWORD', None)
         self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
         self.project = os.environ.get('PROJECT', BASE_PROJECT)
 
@@ -69,7 +67,8 @@ class Node(FastAPI):
 
         print('connecting to Learning Loop', flush=True)
         try:
-            await self.sio.connect(f"{self.ws_url}", auth={'username': self.username, 'password': self.password}, socketio_path="/ws/socket.io")
+            headers = await loop.instance.get_headers()
+            await self.sio.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             print('my sid is', self.sio.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
@@ -77,6 +76,8 @@ class Node(FastAPI):
             if 'Already connected' in str(e):
                 print('we are already connected')
             if 'Connection refused' in str(e):
+                print(f'Could not connect to "{self.ws_url}"')
+            elif 'Unexpected status code' in str(e):
                 print(f'Could not connect to "{self.ws_url}"')
             else:
                 await asyncio.sleep(0.2)
