@@ -12,10 +12,15 @@ COPY pyproject.toml poetry.lock* README.md /
 WORKDIR /app/
 
 COPY ./mock_trainer/pyproject.toml ./mock_trainer/poetry.lock* ./
+
+RUN python3 -m pip install --upgrade pip
+
 RUN poetry config experimental.new-installer false
-# Allow installing dev dependencies to run tests
-ARG INSTALL_DEV=false
-RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install -vvv --no-root ; else poetry install --vvv --no-root --no-dev ; fi"
+
+ENV PIP_USE_FEATURE=in-tree-build 
+#python3 -m pip install -vvv ../
+
+RUN poetry install --no-root
 
 COPY ./mock_trainer/ /app
 ENV PYTHONPATH=/app

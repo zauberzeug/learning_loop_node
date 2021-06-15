@@ -13,6 +13,10 @@ WORKDIR /app/
 
 COPY ./mock_converter/pyproject.toml ./mock_converter/poetry.lock* ./
 
+RUN poetry config experimental.new-installer false
+
+ENV PIP_USE_FEATURE=in-tree-build
+
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
