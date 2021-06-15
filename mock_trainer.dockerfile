@@ -12,7 +12,7 @@ COPY pyproject.toml poetry.lock* README.md /
 WORKDIR /app/
 
 COPY ./mock_trainer/pyproject.toml ./mock_trainer/poetry.lock* ./
-
+RUN poetry config experimental.new-installer false
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --no-dev ; fi"
