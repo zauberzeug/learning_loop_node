@@ -32,6 +32,14 @@ async def switch_socketio(request: Request):
     value = str(await request.body(), 'utf-8')
     if value == 'off':
         request.app.skip_check_state = True
+        for i in range(5):
+            if request.app.status.state != State.Idle:
+                await asyncio.sleep(0.5)
+            else:
+                break
+        if request.app.status.state != State.Idle:
+            raise HTTPException(status_code=409, detail="Could not skip auto checking. State is still not idle")
+
         print(f'turning automatically check_state {value}', flush=True)
     if value == 'on':
         request.app.skip_check_state = False
