@@ -60,7 +60,6 @@ class ConverterNode(Node):
 
                 for model in models:
                     if model['version']:
-                        ic(model)
                         if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
                             return ModelInformation(organization=organization_id, project=project_id, model_id=model['id'])
 
