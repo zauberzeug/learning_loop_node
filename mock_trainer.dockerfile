@@ -18,7 +18,6 @@ RUN python3 -m pip install --upgrade pip
 RUN poetry config experimental.new-installer false
 
 ENV PIP_USE_FEATURE=in-tree-build 
-#python3 -m pip install -vvv ../
 
 RUN poetry install --no-root
 

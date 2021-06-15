@@ -13,6 +13,8 @@ WORKDIR /app/
 
 COPY ./mock_converter/pyproject.toml ./mock_converter/poetry.lock* ./
 
+RUN python3 -m pip install --upgrade pip
+
 RUN poetry config experimental.new-installer false
 
 ENV PIP_USE_FEATURE=in-tree-build
