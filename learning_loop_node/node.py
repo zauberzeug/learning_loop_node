@@ -1,3 +1,4 @@
+import aiohttp
 from learning_loop_node.status import Status, State
 from fastapi import FastAPI
 import socketio
@@ -82,6 +83,11 @@ class Node(FastAPI):
             else:
                 await asyncio.sleep(0.2)
                 await self.connect()
+        except aiohttp.client_exceptions.ClientConnectorError as e:
+            # NOTE can happen when backend is not yet ready
+            ic(e)
+            await asyncio.sleep(0.2)
+            await self.connect()
 
     async def update_state(self, state: State):
         self.status.state = state
