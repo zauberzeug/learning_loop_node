@@ -15,7 +15,7 @@ class AccessToken():
         self.local_expire_date = local_expire_date
 
     def is_still_valid(self) -> bool:
-        return (self.local_expire_date - timedelta(hours=1)) < datetime.now()
+        return (self.local_expire_date - timedelta(hours=1)) > datetime.now()
 
 
 async def token_from_response(response: ClientResponse) -> AccessToken:
