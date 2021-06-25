@@ -1,6 +1,5 @@
 from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node.context import Context
-from pydantic.main import BaseModel
 from learning_loop_node.trainer.training import Training
 from mock_trainer import MockTrainer
 import pytest

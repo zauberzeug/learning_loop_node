@@ -3,6 +3,7 @@ import os
 from learning_loop_node import loop
 from urllib.parse import urljoin
 from requests import Session
+import asyncio
 
 
 class LiveServerSession(Session):
@@ -14,7 +15,13 @@ class LiveServerSession(Session):
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
-        return super(LiveServerSession, self).request(method, url, *args, **kwargs)
+        headers = {}
+        if 'token' in url:
+            return super(LiveServerSession, self).request(method, url, *args, **kwargs)
+
+        eventloop = asyncio.get_event_loop()
+        headers = eventloop.run_until_complete(loop.instance.get_headers())
+        return super(LiveServerSession, self).request(method, url, headers=headers, *args, **kwargs)
 
 
 def get_files_in_folder(folder: str):
