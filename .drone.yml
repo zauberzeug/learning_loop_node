@@ -11,4 +11,4 @@ steps:
         from_secret: drone_token
       fork: true
       repositories:
-        - zauberzeug/loop@dev
+        - zauberzeug/loop@main
