@@ -19,7 +19,7 @@ simplejson = "^3.17.2"
 icecream = "^2.1.0"
 aiofiles = "^0.7.0"
 async_generator = "^1.10"
-Werkzeug = "^2.0.1"
+werkzeug = "^2.0.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
