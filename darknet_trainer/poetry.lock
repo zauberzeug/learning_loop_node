@@ -276,7 +276,7 @@ uvicorn = "^0.13.3"
 
 [package.source]
 type = "directory"
-url = "../learning_loop_node"
+url = ".."
 
 [[package]]
 name = "multidict"

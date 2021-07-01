@@ -40,17 +40,22 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
     ln -s /opt/poetry/bin/poetry && \
     poetry config virtualenvs.create false
 
-WORKDIR /learning_loop_node/
-
-COPY ./learning_loop_node/ ./
+ADD ./learning_loop_node /learning_loop_node
+COPY pyproject.toml poetry.lock* README.md /
 
 WORKDIR /app/
-
-RUN ln -s /learning_loop_node /app/learning_loop_node && ls -lha learning_loop_node/
-
 COPY ./darknet_trainer/pyproject.toml ./darknet_trainer/poetry.lock* ./
 
-RUN poetry update -vvv
+RUN python3 -m pip install --upgrade pip
+
+RUN poetry update
+
+RUN poetry config experimental.new-installer false
+
+ENV PIP_USE_FEATURE=in-tree-build 
+
+RUN poetry install --no-root
+
 
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
