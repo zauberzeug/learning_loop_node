@@ -7,7 +7,7 @@ import os
 from glob import glob
 from log_parser import LogParser
 import aiohttp
-from node import Node
+from learning_loop_node.node import Node
 from retry import retry
 
 

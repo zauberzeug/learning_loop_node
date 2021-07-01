@@ -10,14 +10,14 @@ from icecream import ic
 import aiofiles
 import asyncio
 import time
-
+from learning_loop_node import loop
 
 async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
     images_data = []
     starttime = time.time()
     for i in range(0, len(image_ids), chunk_size):
         chunk_ids = image_ids[i:i+chunk_size]
-        async with LoopHttp().get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
+        async with loop.instance.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
             assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
             images_data += (await response.json())['images']
             ic(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
@@ -54,7 +54,7 @@ async def download_images(loop: asyncio.BaseEventLoop, paths: List[str], image_i
 
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
-    async with LoopHttp().get(path) as response:
+    async with loop.instance.get(path) as response:
         assert response.status == 200, f'{response.status} for {path}'
         async with aiofiles.open(f'{image_folder}/{image_id}.jpg', 'wb') as out_file:
             await out_file.write(await response.read())
@@ -62,7 +62,7 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
 
 async def download_model(target_folder: str, organization: str, project: str, model_id: str, format: str) -> List[str]:
     # download model
-    async with LoopHttp().get(f'api/{organization}/projects/{project}/models/{model_id}/{format}/file') as response:
+    async with loop.instance.get(f'api/{organization}/projects/{project}/models/{model_id}/{format}/file') as response:
         assert response.status == 200,  response.status
         provided_filename = response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
         content = await response.read()
@@ -88,7 +88,7 @@ async def upload_model(organization: str, project: str, files: List[str], model_
 
     for file_name in files:
         data.add_field('files',  open(file_name, 'rb'))
-    async with LoopHttp().put(f'api/{organization}/projects/{project}/models/{model_id}/{format}/file', data=data) as response:
+    async with loop.instance.put(f'api/{organization}/projects/{project}/models/{model_id}/{format}/file', data=data) as response:
         if response.status != 200:
             msg = f'---- could not save model with id {model_id}'
             raise Exception(msg)

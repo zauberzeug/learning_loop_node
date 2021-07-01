@@ -1,3 +1,4 @@
+#
 from learning_loop_node.loop import LoopHttp
 from learning_loop_node.context import Context
 from pydantic.main import BaseModel
@@ -10,6 +11,7 @@ from icecream import ic
 import os
 from glob import glob
 from learning_loop_node.trainer.basic_data import BasicData
+from learning_loop_node import loop
 
 
 class DataDownloader(BaseModel):
@@ -22,8 +24,8 @@ class DataDownloader(BaseModel):
         return training_data
 
     async def download_basic_data(self) -> BasicData:
-        async with LoopHttp().get(f'api/{self.context.organization}/projects/{self.context.project}/data?{self.data_query_params}') as response:
-            assert response.status == 200
+        async with loop.instance.get(f'api/{self.context.organization}/projects/{self.context.project}/data?{self.data_query_params}') as response:
+            assert response.status == 200, response
             basic_data = BasicData.parse_obj(await response.json())
             return basic_data
 

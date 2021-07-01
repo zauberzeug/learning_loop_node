@@ -5,6 +5,7 @@ from aiohttp.client_reqrep import ClientResponse
 import aiohttp
 import os
 import werkzeug
+from icecream import ic
 
 SERVER_BASE_URL_DEFAULT = 'http://backend'
 
