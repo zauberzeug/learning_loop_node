@@ -74,6 +74,7 @@ class TrainerNode(Node):
 
     async def save_model(self, organization, project, model_id):
         try:
+            await asyncio.sleep(1)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
             await self.trainer.save_model(organization, project, model_id)
         except Exception as e:
             traceback.print_exc()
