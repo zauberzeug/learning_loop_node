@@ -25,7 +25,7 @@ class MockTrainer(Trainer):
         if self.error_configuration.save_model:
             raise Exception()
 
-        time.sleep(1000)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
+        time.sleep(1)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
         fake_weight_file = '/tmp/weightfile.weights'
         with open(fake_weight_file, 'wb') as f:
             f.write(b'\x42')
