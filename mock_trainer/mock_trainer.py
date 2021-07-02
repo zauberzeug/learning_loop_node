@@ -1,9 +1,9 @@
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-
-from typing import List, Optional, Union
-from learning_loop_node.trainer.model import BasicModel, Model
+from typing import List, Optional
+from learning_loop_node.trainer.model import BasicModel
 from learning_loop_node.trainer.trainer import Trainer
 import progress_simulator
+import time
 
 
 class MockTrainer(Trainer):
@@ -25,6 +25,7 @@ class MockTrainer(Trainer):
         if self.error_configuration.save_model:
             raise Exception()
 
+        time.sleep(1000)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
         fake_weight_file = '/tmp/weightfile.weights'
         with open(fake_weight_file, 'wb') as f:
             f.write(b'\x42')
