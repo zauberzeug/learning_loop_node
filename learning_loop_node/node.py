@@ -26,20 +26,20 @@ class Node(FastAPI):
         self.name = name
         self.uuid = uuid
 
-        self.sio = socketio.AsyncClient(
+        self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
             # logger=True, engineio_logger=True
         )
         self.reset()
 
-        @self.sio.on('connect')
+        @self.sio_client.on('connect')
         async def on_connect():
             ic('received "on_connect" from constructor event.')
             self.reset()
             await self.update_state(State.Idle)
 
-        @self.sio.on('disconnect')
+        @self.sio_client.on('disconnect')
         async def on_disconnect():
             ic('received "on_disconnect" from constructor event.')
             await self.update_state(State.Offline)
@@ -55,22 +55,22 @@ class Node(FastAPI):
         @self.on_event("shutdown")
         async def shutdown():
             print('received "shutdown" event', flush=True)
-            await self.sio.disconnect()
+            await self.sio_client.disconnect()
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)
 
     async def connect(self):
         try:
-            await self.sio.disconnect()
+            await self.sio_client.disconnect()
         except:
             pass
 
         print('connecting to Learning Loop', flush=True)
         try:
             headers = await loop.instance.get_headers()
-            await self.sio.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
-            print('my sid is', self.sio.sid, flush=True)
+            await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
+            print('my sid is', self.sio_client.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
             ic(e)

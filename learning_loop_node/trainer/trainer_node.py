@@ -21,17 +21,17 @@ class TrainerNode(Node):
         self.trainer = trainer
         self.latest_known_model_id = None
 
-        @self.sio.on('begin_training')
+        @self.sio_client.on('begin_training')
         async def on_begin_training(organization, project, source_model):
             loop = asyncio.get_event_loop()
             loop.create_task(self.begin_training(organization, project, source_model))
             return True
 
-        @self.sio.on('stop_training')
+        @self.sio_client.on('stop_training')
         async def stop():
             return await self.stop_training()
 
-        @self.sio.on('save')
+        @self.sio_client.on('save')
         def on_save(organization, project, model):
             loop = asyncio.get_event_loop()
             loop.create_task(self.save_model(organization, project, model['id']))
@@ -104,7 +104,7 @@ class TrainerNode(Node):
                         trainer_id=self.uuid,
                     )
 
-                    result = await self.sio.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
+                    result = await self.sio_client.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
                     if result != True:
                         await self.update_error_msg(f'Could not update_model: {result}')
                         return
@@ -127,7 +127,7 @@ class TrainerNode(Node):
         )
 
         print('sending status', status, flush=True)
-        result = await self.sio.call('update_trainer', jsonable_encoder(status), timeout=1)
+        result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
         if not result == True:
             raise Exception(result)
         print('status send', flush=True)

@@ -14,7 +14,7 @@ trainer_node = TrainerNode(uuid='c34dc41f-9b76-4aa9-8b8d-9d27e33a19e4', name='da
 async def shutdown():
 
     def restart():
-        asyncio.create_task(trainer_node.sio.disconnect())
+        asyncio.create_task(trainer_node.sio_client.disconnect())
 
     Thread(target=restart).start()
 

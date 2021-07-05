@@ -20,7 +20,7 @@ async def switch_socketio(request: Request):
     if state == 'off':
         if request.app.status.state != State.Offline:
             print('turning socketio off', flush=True)
-            asyncio.create_task(request.app.sio.disconnect())
+            asyncio.create_task(request.app.sio_client.disconnect())
     if state == 'on':
         if request.app.status.state == State.Offline:
             print('turning socketio on', flush=True)
