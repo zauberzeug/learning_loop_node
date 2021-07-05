@@ -42,11 +42,9 @@ class LoopHttp():
         self.token_future = asyncio.Future()
 
         credentials = {
-            'username': os.environ.get('USERNAME', None),
-            'password': os.environ.get('PASSWORD', None),
+            'username': self.username,
+            'password': self.password,
         }
-        if credentials['username'] is None:
-            return None
 
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
@@ -58,12 +56,13 @@ class LoopHttp():
                 return token
 
     async def get_headers(self) -> dict:
-        if not self.access_token or not self.access_token.is_still_valid():
-            self.access_token = await self.download_token()
-
         headers = {}
-        if self.access_token is not None:
-            headers['Authorization'] = f'Bearer {self.access_token.token}'
+        if self.username is not None:
+            if self.access_token is None or not self.access_token.is_still_valid():
+                self.access_token = await self.download_token()
+
+            if self.access_token is not None:
+                headers['Authorization'] = f'Bearer {self.access_token.token}'
         return headers
 
     @asynccontextmanager

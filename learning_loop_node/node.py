@@ -8,10 +8,9 @@ import os
 from icecream import ic
 import learning_loop_node.loop as loop
 
-WEBSOCKET_BASE_URL_DEFAULT = 'ws://backend'
+WEBSOCKET_BASE_URL_DEFAULT = 'ws://preview.learning-loop.ai'
 BASE_PROJECT = 'demo'
 BASE_ORGANIZATION = 'zauberzeug'
-
 
 class Node(FastAPI):
     name: str
