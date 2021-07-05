@@ -20,9 +20,11 @@ icecream = "^2.1.0"
 aiofiles = "^0.7.0"
 async_generator = "^1.10"
 werkzeug = "^2.0.1"
+pytest-watch = "^4.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
+pytest-asyncio = "^0.15.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

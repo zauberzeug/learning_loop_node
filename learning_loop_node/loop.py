@@ -7,7 +7,7 @@ import os
 import werkzeug
 from icecream import ic
 
-SERVER_BASE_URL_DEFAULT = 'http://backend'
+SERVER_BASE_URL_DEFAULT = 'https://preview.learning-loop.ai'
 
 
 class AccessToken():
@@ -45,6 +45,9 @@ class LoopHttp():
             'username': os.environ.get('USERNAME', None),
             'password': os.environ.get('PASSWORD', None),
         }
+        if credentials['username'] is None:
+            return None
+
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
                 assert response.status == 200
@@ -59,7 +62,8 @@ class LoopHttp():
             self.access_token = await self.download_token()
 
         headers = {}
-        headers['Authorization'] = f'Bearer {self.access_token.token}'
+        if self.access_token is not None:
+            headers['Authorization'] = f'Bearer {self.access_token.token}'
         return headers
 
     @asynccontextmanager
