@@ -53,8 +53,9 @@ class LoopHttp():
 
                 token = await token_from_response(response)
                 self.token_future.set_result(token)
-                self.token_future = None
-                return token
+                if self.token_future.done():
+                    self.token_future = None
+                    return token
 
     async def get_headers(self) -> dict:
         headers = {}
