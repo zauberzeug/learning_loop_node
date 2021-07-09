@@ -48,6 +48,7 @@ class LoopHttp():
 
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
+                print(f'Request token from {self.base_url}')
                 assert response.status == 200
 
                 token = await token_from_response(response)
