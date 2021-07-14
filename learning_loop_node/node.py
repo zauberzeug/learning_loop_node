@@ -1,3 +1,4 @@
+import logging
 import aiohttp
 from learning_loop_node.status import Status, State
 from fastapi import FastAPI
@@ -7,6 +8,7 @@ import asyncio
 import os
 from icecream import ic
 import learning_loop_node.loop as loop
+from aiohttp.client_exceptions import ClientConnectorError
 
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://preview.learning-loop.ai'
 BASE_PROJECT = 'demo'
@@ -72,20 +74,16 @@ class Node(FastAPI):
             print('my sid is', self.sio_client.sid, flush=True)
             print('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
-            ic(e)
-            if 'Already connected' in str(e):
-                print('we are already connected')
-            if 'Connection refused' in str(e):
-                print(f'Could not connect to "{self.ws_url}"')
-            elif 'Unexpected status code' in str(e):
-                print(f'Could not connect to "{self.ws_url}"')
-            else:
-                await asyncio.sleep(0.2)
+            logging.error(f'socket.io connection error to "{self.ws_url}"')
+            if not ('Already connected' in str(e) or 'Connection refused' in str(e) or 'Unexpected status code' in str(e)):
+                await asyncio.sleep(0.5)
                 await self.connect()
-        except aiohttp.client_exceptions.ClientConnectorError as e:
-            # NOTE can happen when backend is not yet ready
-            ic(e)
-            await asyncio.sleep(0.2)
+        except ConnectionRefusedError or ClientConnectorError:
+            await asyncio.sleep(0.5)
+            await self.connect()
+        except Exception:
+            logging.error(f'error while connecting to "{self.ws_url}"')
+            await asyncio.sleep(0.5)
             await self.connect()
 
     async def update_state(self, state: State):

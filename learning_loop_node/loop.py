@@ -18,6 +18,8 @@ class AccessToken():
     def is_still_valid(self) -> bool:
         return (self.local_expire_date - timedelta(hours=1)) > datetime.now()
 
+    def is_invalid(self) -> bool:
+        return not self.is_still_valid
 
 async def token_from_response(response: ClientResponse) -> AccessToken:
     content = await response.json()
@@ -34,13 +36,9 @@ class LoopHttp():
         self.username: str = os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('PASSWORD', None)
         self.access_token = None
-        self.token_future = None
 
     async def download_token(self):
-        if self.token_future:
-            return self.token_future
-        self.token_future = asyncio.Future()
-
+      
         credentials = {
             'username': self.username,
             'password': self.password,
@@ -51,21 +49,19 @@ class LoopHttp():
                 print(f'Request token from {self.base_url}')
                 assert response.status == 200
 
-                token = await token_from_response(response)
-                self.token_future.set_result(token)
-                if self.token_future.done():
-                    self.token_future = None
-                    return token
-
+                return await token_from_response(response)
+    
     async def get_headers(self) -> dict:
         headers = {}
-        if self.username is not None:
-            if self.access_token is None or not self.access_token.is_still_valid():
-                self.access_token = await self.download_token()
+        if self.username is None:
+            return headers
 
-            if self.access_token is not None:
-                headers['Authorization'] = f'Bearer {self.access_token.token}'
+        if self.access_token is None or self.access_token.is_invalid():
+            self.access_token = await self.download_token()
+
+        headers['Authorization'] = f'Bearer {self.access_token.token}'
         return headers
+        
 
     @asynccontextmanager
     async def get(self, path):
