@@ -2,6 +2,7 @@ import uvicorn
 from learning_loop_node.converter.converter_node import ConverterNode
 from mock_converter import MockConverter
 import backdoor_controls
+import os
 
 mock_converter = MockConverter(source_format='mocked', target_format='mocked_converted')
 converter_node = ConverterNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f3',
@@ -12,4 +13,5 @@ converter_node.include_router(backdoor_controls.router, prefix="")
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:converter_node", host="0.0.0.0", port=80, lifespan='on', reload=True, reload_dirs=['./restart'])
+    reload_dirs = ['./restart'] if os.environ.get('MANUAL_RESTART', None) else None
+    uvicorn.run("main:converter_node", host="0.0.0.0", port=80, lifespan='on', reload=True, reload_dirs=reload_dirs)
