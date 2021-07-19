@@ -5,7 +5,6 @@ from aiohttp.client_reqrep import ClientResponse
 import aiohttp
 import os
 import werkzeug
-from . import defaults
 from icecream import ic
 import logging
 
@@ -32,7 +31,7 @@ async def token_from_response(response: ClientResponse) -> AccessToken:
 
 class Loop():
     def __init__(self) -> None:
-        self.base_url: str = 'http://' + os.environ.get('HOST', defaults.HOST)
+        self.base_url: str = 'http://' + os.environ.get('HOST', 'learning-loop.ai')
         self.username: str = os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('PASSWORD', None)
         self.access_token = None

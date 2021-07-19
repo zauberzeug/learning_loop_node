@@ -1,4 +1,3 @@
-from .node import Node
 from .trainer.capability import Capability
 from .trainer.trainer_node import TrainerNode
 from .detector.detector_node import DetectorNode

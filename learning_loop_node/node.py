@@ -9,7 +9,6 @@ import os
 from icecream import ic
 from .loop import loop
 from aiohttp.client_exceptions import ClientConnectorError
-from . import defaults
 import logging
 
 
@@ -19,7 +18,7 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        self.ws_url = 'ws://' + os.environ.get('HOST', defaults.HOST)
+        self.ws_url = 'ws://' + os.environ.get('HOST', 'learning-loop.ai')
         self.organization = os.environ.get('ORGANIZATION', None)
         self.project = os.environ.get('PROJECT', None)
 
