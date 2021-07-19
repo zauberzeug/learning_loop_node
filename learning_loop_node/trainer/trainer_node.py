@@ -80,7 +80,7 @@ class TrainerNode(Node):
             await self.update_error_msg(f'Could not save model: {str(e)}')
 
     async def check_state(self):
-        logging.info(f'training running: {"no" if self.trainer.training == None else "yes"}, state: {self.status.state}')
+        logging.debug(f'training {"none" if self.trainer.training == None else "running"}, state: {self.status.state}')
         try:
             if self.status.state == State.Running and not self.trainer.is_training_alive():
                 raise Exception()

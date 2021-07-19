@@ -6,8 +6,7 @@ This Python library helps you to write your own Detection Nodes, Training Nodes 
 
 You can configure connection to the learning loop by specifying the following environment variables before starting:
 
-- SERVER_BASE_URL=https://learning-loop.ai
-- WEBSOCKET_BASE_URL=wss://learning-loop.ai
+- HOST=learning-loop.ai
 - ORGANIZATION=<your organization>
 - PROJECT=<your project>
 - USERNAME=<your username>

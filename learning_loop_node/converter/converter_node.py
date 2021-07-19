@@ -1,10 +1,10 @@
 from pydantic.main import BaseModel
-from learning_loop_node.converter.converter import Converter
-from learning_loop_node.status import State
-from learning_loop_node.node import Node
+from ..converter.converter import Converter
+from ..status import State
+from ..node import Node
 from fastapi_utils.tasks import repeat_every
 from icecream import ic
-from learning_loop_node.loop import LoopHttp
+from ..loop import loop
 import logging
 
 
@@ -45,7 +45,7 @@ class ConverterNode(Node):
         self.status.state = State.Idle
 
     async def find_model_to_convert(self) -> ModelInformation:
-        async with LoopHttp().get('api/projects') as response:
+        async with loop.get('api/projects') as response:
             assert response.status == 200
             content = await response.json()
             projects = content['projects']
@@ -54,7 +54,7 @@ class ConverterNode(Node):
             organization_id = project['organization_id']
             project_id = project['project_id']
             path = f'api{project["resource"]}/models'
-            async with LoopHttp().get(path) as models_response:
+            async with loop.get(path) as models_response:
                 assert models_response.status == 200
                 content = await models_response.json()
                 models = content['models']

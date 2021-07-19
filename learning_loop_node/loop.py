@@ -5,9 +5,9 @@ from aiohttp.client_reqrep import ClientResponse
 import aiohttp
 import os
 import werkzeug
+from . import defaults
 from icecream import ic
-
-SERVER_BASE_URL_DEFAULT = 'https://learning-loop.ai'
+import logging
 
 
 class AccessToken():
@@ -30,9 +30,9 @@ async def token_from_response(response: ClientResponse) -> AccessToken:
     return AccessToken(content['access_token'], local_expire_time)
 
 
-class LoopHttp():
+class Loop():
     def __init__(self) -> None:
-        self.base_url: str = os.environ.get('SERVER_BASE_URL', SERVER_BASE_URL_DEFAULT)
+        self.base_url: str = 'http://' + os.environ.get('HOST', defaults.HOST)
         self.username: str = os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('PASSWORD', None)
         self.access_token = None
@@ -46,7 +46,7 @@ class LoopHttp():
 
         async with aiohttp.ClientSession() as session:
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
-                print(f'Request token from {self.base_url}')
+                logging.debug(f'received token from {self.base_url}')
                 assert response.status == 200
 
                 return await token_from_response(response)
@@ -85,4 +85,4 @@ class LoopHttp():
                 yield response
 
 
-instance = LoopHttp()
+loop = Loop()

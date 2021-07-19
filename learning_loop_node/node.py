@@ -1,19 +1,17 @@
 import logging
 import aiohttp
-from learning_loop_node.status import Status, State
+from .status import Status, State
 from fastapi import FastAPI
 import socketio
 import asyncio
 import asyncio
 import os
 from icecream import ic
-import learning_loop_node.loop as loop
+from .loop import loop
 from aiohttp.client_exceptions import ClientConnectorError
+from . import defaults
 import logging
 
-WEBSOCKET_BASE_URL_DEFAULT = 'ws://learning-loop.ai'
-BASE_PROJECT = 'demo'
-BASE_ORGANIZATION = 'zauberzeug'
 
 class Node(FastAPI):
     name: str
@@ -21,9 +19,9 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        self.ws_url = os.environ.get('WEBSOCKET_BASE_URL', WEBSOCKET_BASE_URL_DEFAULT)
-        self.organization = os.environ.get('ORGANIZATION', BASE_ORGANIZATION)
-        self.project = os.environ.get('PROJECT', BASE_PROJECT)
+        self.ws_url = 'ws://' + os.environ.get('HOST', defaults.HOST)
+        self.organization = os.environ.get('ORGANIZATION', None)
+        self.project = os.environ.get('PROJECT', None)
 
         self.name = name
         self.uuid = uuid
@@ -70,12 +68,12 @@ class Node(FastAPI):
 
         logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
-            headers = await loop.instance.get_headers()
+            headers = await loop.get_headers()
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
-            logging.debug('my sid is', self.sio_client.sid, flush=True)
-            logging.info('connected to Learning Loop', flush=True)
+            logging.debug(f'my sid is {self.sio_client.sid}')
+            logging.info('connected to Learning Loop')
         except socketio.exceptions.ConnectionError as e:
-            logging.error(f'socket.io connection error to "{self.ws_url}"')
+            logging.exception(f'socket.io connection error to "{self.ws_url}"')
             if not ('Already connected' in str(e) or 'Connection refused' in str(e) or 'Unexpected status code' in str(e)):
                 await asyncio.sleep(0.5)
                 await self.connect()
