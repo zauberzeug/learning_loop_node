@@ -11,7 +11,7 @@ import learning_loop_node.loop as loop
 from aiohttp.client_exceptions import ClientConnectorError
 import logging
 
-WEBSOCKET_BASE_URL_DEFAULT = 'ws://preview.learning-loop.ai'
+WEBSOCKET_BASE_URL_DEFAULT = 'ws://learning-loop.ai'
 BASE_PROJECT = 'demo'
 BASE_ORGANIZATION = 'zauberzeug'
 
@@ -72,8 +72,8 @@ class Node(FastAPI):
         try:
             headers = await loop.instance.get_headers()
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
-            print('my sid is', self.sio_client.sid, flush=True)
-            print('connected to Learning Loop', flush=True)
+            logging.debug('my sid is', self.sio_client.sid, flush=True)
+            logging.info('connected to Learning Loop', flush=True)
         except socketio.exceptions.ConnectionError as e:
             logging.error(f'socket.io connection error to "{self.ws_url}"')
             if not ('Already connected' in str(e) or 'Connection refused' in str(e) or 'Unexpected status code' in str(e)):
@@ -83,8 +83,8 @@ class Node(FastAPI):
             await asyncio.sleep(0.5)
             await self.connect()
         except Exception:
-            logging.error(f'error while connecting to "{self.ws_url}"')
-            await asyncio.sleep(0.5)
+            logging.exception(f'error while connecting to "{self.ws_url}"')
+            await asyncio.sleep(2)
             await self.connect()
 
     async def update_state(self, state: State):

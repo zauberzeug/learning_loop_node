@@ -7,7 +7,7 @@ import os
 import werkzeug
 from icecream import ic
 
-SERVER_BASE_URL_DEFAULT = 'https://preview.learning-loop.ai'
+SERVER_BASE_URL_DEFAULT = 'https://learning-loop.ai'
 
 
 class AccessToken():
