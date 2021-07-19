@@ -11,6 +11,7 @@ import aiofiles
 import asyncio
 import time
 from learning_loop_node import loop
+import logging
 
 async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
     images_data = []
@@ -20,12 +21,12 @@ async def download_images_data(organization: str, project: str, image_ids: List[
         async with loop.instance.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
             assert response.status == 200, f'Error during downloading list of images. Statuscode is {response.status}'
             images_data += (await response.json())['images']
-            ic(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
+            logging.info(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
             total_time = round(time.time() - starttime, 1)
             if(images_data):
-                ic(f'[+] Performance: {total_time} sec total. Per 100 : {(total_time / len(images_data ) * 100):.1f} sec')
+                logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {(total_time / len(images_data ) * 100):.1f} sec')
             else:
-                ic(f'[+] Performance: {total_time} sec total.')
+                logging.debug(f'[+] Performance: {total_time} sec total.')
     return images_data
 
 
@@ -49,8 +50,8 @@ async def download_images(loop: asyncio.BaseEventLoop, paths: List[str], image_i
             tasks.append(loop.create_task(download_one_image(chunk_paths[j], chunk_ids[j], image_folder)))
         await asyncio.gather(*tasks)
         total_time = round(time.time() - starttime, 1)
-        ic(f'Downnloaed {i + len(tasks)} image files.')
-        ic(f'[+] Performance (image files): {total_time} sec total. Per 100 : {(total_time / (i + len(tasks)) * 100):.1f}')
+        logging.info(f'Downnloaed {i + len(tasks)} image files.')
+        logging.debug(f'[+] Performance (image files): {total_time} sec total. Per 100 : {(total_time / (i + len(tasks)) * 100):.1f}')
 
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
@@ -77,7 +78,7 @@ async def download_model(target_folder: str, organization: str, project: str, mo
     created_files = []
     files = glob(f'{tmp_paht}/**/*', recursive=True)
     for file in files:
-        ic(f'moving model file {os.path.basename(file)} to training folder.')
+        logging.debug(f'moving model file {os.path.basename(file)} to training folder.')
         new_file = shutil.move(file, target_folder)
         created_files.append(new_file)
     return created_files
@@ -93,4 +94,4 @@ async def upload_model(organization: str, project: str, files: List[str], model_
             msg = f'---- could not save model with id {model_id}'
             raise Exception(msg)
         else:
-            ic(f'---- uploaded model with id {model_id}')
+            logging.info(f'---- uploaded model with id {model_id}')

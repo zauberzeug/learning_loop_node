@@ -9,7 +9,7 @@ from .model import Model
 from .trainer import Trainer
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.node import Node, State
-
+import logging
 
 class TrainerNode(Node):
     trainer: Trainer
@@ -80,7 +80,7 @@ class TrainerNode(Node):
             await self.update_error_msg(f'Could not save model: {str(e)}')
 
     async def check_state(self):
-        ic(f'checking state: {self.trainer.training != None}, state: {self.status.state}')
+        logging.info(f'training running: {"no" if self.trainer.training == None else "yes"}, state: {self.status.state}')
         try:
             if self.status.state == State.Running and not self.trainer.is_training_alive():
                 raise Exception()
@@ -109,7 +109,7 @@ class TrainerNode(Node):
                         await self.update_error_msg(f'Could not update_model: {result}')
                         return
 
-                    ic(f'successfully uploaded model {jsonable_encoder(new_model)}')
+                    logging.info(f'successfully uploaded model {jsonable_encoder(new_model)}')
                     self.trainer.on_model_published(model, new_model.id)
                     self.latest_known_model_id = new_model.id
                     await self.send_status()

@@ -5,6 +5,7 @@ from learning_loop_node.node import Node
 from fastapi_utils.tasks import repeat_every
 from icecream import ic
 from learning_loop_node.loop import LoopHttp
+import logging
 
 
 class ModelInformation(BaseModel):
@@ -32,7 +33,7 @@ class ConverterNode(Node):
         await self.converter.upload_model(organization, project, model_id)
 
     async def check_state(self):
-        ic(f'checking state: {self.status.state}')
+        logging.debug(f'checking state: {self.status.state}')
 
         if self.status.state == State.Running:
             return

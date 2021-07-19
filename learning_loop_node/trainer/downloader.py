@@ -12,6 +12,7 @@ import os
 from glob import glob
 from learning_loop_node.trainer.basic_data import BasicData
 from learning_loop_node import loop
+import logging
 
 
 class DataDownloader(BaseModel):
@@ -37,7 +38,7 @@ class DataDownloader(BaseModel):
         await self.download_images(loop, basic_data.image_ids, image_folder)
 
         image_data = await image_data_task
-        ic(f'Done downloading image_data for {len(image_data)} images.')
+        logging.info(f'Done downloading image_data for {len(image_data)} images.')
         return TrainingData(image_data=image_data, box_categories=basic_data.box_categories)
 
     async def download_image_data(self, ids: List[str]) -> List[dict]:

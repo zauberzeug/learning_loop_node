@@ -9,6 +9,7 @@ import os
 from icecream import ic
 import learning_loop_node.loop as loop
 from aiohttp.client_exceptions import ClientConnectorError
+import logging
 
 WEBSOCKET_BASE_URL_DEFAULT = 'ws://preview.learning-loop.ai'
 BASE_PROJECT = 'demo'
@@ -36,13 +37,13 @@ class Node(FastAPI):
 
         @self.sio_client.on('connect')
         async def on_connect():
-            ic('received "on_connect" from constructor event.')
+            logging.debug('received "on_connect" from constructor event.')
             self.reset()
             await self.update_state(State.Idle)
 
         @self.sio_client.on('disconnect')
         async def on_disconnect():
-            ic('received "on_disconnect" from constructor event.')
+            logging.debug('received "on_disconnect" from constructor event.')
             await self.update_state(State.Offline)
 
         self.register_lifecycle_events()
@@ -50,12 +51,12 @@ class Node(FastAPI):
     def register_lifecycle_events(self):
         @self.on_event("startup")
         async def startup():
-            print('received "startup" event', flush=True)
+            logging.debug('received "startup" event')
             await self.connect()
 
         @self.on_event("shutdown")
         async def shutdown():
-            print('received "shutdown" event', flush=True)
+            logging.debug('received "shutdown" event')
             await self.sio_client.disconnect()
 
     def reset(self):
@@ -67,7 +68,7 @@ class Node(FastAPI):
         except:
             pass
 
-        print('connecting to Learning Loop', flush=True)
+        logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
             headers = await loop.instance.get_headers()
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
