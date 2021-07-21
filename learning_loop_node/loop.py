@@ -67,7 +67,6 @@ class Loop():
         
         if self.session is None:
             self.session = aiohttp.ClientSession(headers=headers)
-            self.request.headers.update(headers)
         else:
             self.session.headers.update(headers)
         

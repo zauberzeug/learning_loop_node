@@ -1,3 +1,4 @@
+from http import HTTPStatus
 import aiohttp
 from typing import List, Tuple
 import shutil
@@ -55,7 +56,8 @@ async def download_images(loop: asyncio.BaseEventLoop, paths: List[str], image_i
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
     async with loop.get(path) as response:
-        assert response.status == 200, f'{response.status} for {path}'
+        if response.status != HTTPStatus.OK:
+            logging.error(f'bad status code {response.status} for {path}: {await response.read()}')
         async with aiofiles.open(f'{image_folder}/{image_id}.jpg', 'wb') as out_file:
             await out_file.write(await response.read())
 
