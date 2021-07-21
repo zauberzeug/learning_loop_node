@@ -63,7 +63,6 @@ class Loop():
                 self.access_token = await self.download_token()
 
             headers['Authorization'] = f'Bearer {self.access_token.token}'
-            headers['Content-Type'] = 'application/json'
         
         if self.session is None:
             self.session = aiohttp.ClientSession(headers=headers)
