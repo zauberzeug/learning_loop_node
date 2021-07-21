@@ -31,10 +31,12 @@ async def token_from_response(response: ClientResponse) -> AccessToken:
 
 class Loop():
     def __init__(self) -> None:
-        self.base_url: str = 'http://' + os.environ.get('HOST', 'learning-loop.ai')
+        host = os.environ.get('HOST', 'learning-loop.ai')
+        self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
         self.username: str = os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('PASSWORD', None)
         self.access_token = None
+        self.session = None
 
     async def download_token(self):
       
@@ -47,41 +49,47 @@ class Loop():
             async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
                 logging.debug(f'received token from {self.base_url}')
                 assert response.status == 200
-
                 return await token_from_response(response)
+
     
-    async def get_headers(self) -> dict:
-        headers = {}
-        if self.username is None:
-            return headers
+    async def ensure_session(self) -> dict:
+        '''Create one session for all requests.
+        See https://docs.aiohttp.org/en/stable/client_quickstart.html#make-a-request.
+        '''
+         
+        headers = {}  
+        if self.username is not None:
+            if self.access_token is None or self.access_token.is_invalid():
+                self.access_token = await self.download_token()
 
-        if self.access_token is None or self.access_token.is_invalid():
-            self.access_token = await self.download_token()
-
-        headers['Authorization'] = f'Bearer {self.access_token.token}'
-        return headers
+            headers['Authorization'] = f'Bearer {self.access_token.token}'
         
+        if self.session is None:
+            self.session = aiohttp.ClientSession(headers=headers)
+        else:
+            self.session.headers.update(headers)
+        
+    async def get_headers(self):
+        await self.ensure_session()
+        return self.session.headers
 
     @asynccontextmanager
     async def get(self, path):
-        headers = await self.get_headers()
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f'{self.base_url}/{path}', headers=headers) as response:
-                yield response
+        await self.ensure_session()
+        async with self.session.get(f'{self.base_url}/{path}') as response:
+            yield response
 
     @asynccontextmanager
     async def put(self, path, data):
-        headers = await self.get_headers()
-        async with aiohttp.ClientSession() as session:
-            async with session.put(f'{self.base_url}/{path}', headers=headers, data=data) as response:
-                yield response
+        await self.ensure_session()
+        async with self.session.put(f'{self.base_url}/{path}', data=data) as response:
+            yield response
 
     @asynccontextmanager
     async def post(self, path, data):
-        headers = await self.get_headers()
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f'{self.base_url}/{path}', headers=headers, data=data) as response:
-                yield response
+        await self.ensure_session()
+        async with self.session.post(f'{self.base_url}/{path}', data=data) as response:
+            yield response
 
 
 loop = Loop()

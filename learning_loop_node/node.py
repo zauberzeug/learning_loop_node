@@ -18,7 +18,8 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        self.ws_url = 'ws://' + os.environ.get('HOST', 'learning-loop.ai')
+        host = os.environ.get('HOST', 'learning-loop.ai')
+        self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
         self.organization = os.environ.get('ORGANIZATION', None)
         self.project = os.environ.get('PROJECT', None)
 
