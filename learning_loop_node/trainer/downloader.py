@@ -30,23 +30,22 @@ class DataDownloader(BaseModel):
             return basic_data
 
     async def download_images_and_annotations(self, basic_data: BasicData, image_folder) -> TrainingData:
-        loop = asyncio.get_event_loop()
-        image_data_coroutine = self.download_image_data(basic_data.image_ids)
+        event_loop = asyncio.get_event_loop()
 
-        image_data_task = loop.create_task(image_data_coroutine)
-        await self.download_images(loop, basic_data.image_ids, image_folder)
+        image_data_task = event_loop.create_task(self.download_image_data(basic_data.image_ids))
+        await self.download_images(event_loop, basic_data.image_ids, image_folder)
 
-        image_data = await image_data_task
+        image_data = [i for i in await image_data_task if os.path.isfile(f'{image_folder}/{i["id"]}.jpg')]
         logging.info(f'Done downloading image_data for {len(image_data)} images.')
         return TrainingData(image_data=image_data, box_categories=basic_data.box_categories)
 
     async def download_image_data(self, ids: List[str]) -> List[dict]:
         return await download_images_data(self.context.organization, self.context.project, ids)
 
-    async def download_images(self, loop, image_ids: List[str], image_folder: str) -> None:
+    async def download_images(self, event_loop, image_ids: List[str], image_folder: str) -> None:
         paths, ids = create_resource_paths(self.context.organization, self.context.project,
                                            self.filter_needed_image_ids(image_ids, image_folder))
-        await node_helper.download_images(loop, paths, ids, image_folder)
+        await node_helper.download_images(event_loop, paths, ids, image_folder)
 
     @staticmethod
     def filter_needed_image_ids(all_image_ids, image_folder) -> List[str]:
