@@ -13,20 +13,22 @@ import time
 from .loop import loop
 import logging
 
+
 async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
     images_data = []
     starttime = time.time()
     for i in range(0, len(image_ids), chunk_size):
         chunk_ids = image_ids[i:i+chunk_size]
         async with loop.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
-            if response.status != HTTPStatus.Ok:
+            if response.status != 200:
                 logging.error(f'Error during downloading list of images. Statuscode is {response.status}')
                 continue
             images_data += (await response.json())['images']
             logging.info(f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
             total_time = round(time.time() - starttime, 1)
             if(images_data):
-                logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {(total_time / len(images_data ) * 100):.1f} sec')
+                per100 = total_time / len(images_data) * 100
+                logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {per100:.1f} sec')
             else:
                 logging.debug(f'[+] Performance: {total_time} sec total.')
     return images_data
@@ -53,7 +55,8 @@ async def download_images(loop: asyncio.BaseEventLoop, paths: List[str], image_i
         await asyncio.gather(*tasks)
         total_time = round(time.time() - starttime, 1)
         logging.info(f'Downnloaed {i + len(tasks)} image files.')
-        logging.debug(f'[+] Performance (image files): {total_time} sec total. Per 100 : {(total_time / (i + len(tasks)) * 100):.1f}')
+        per100 = total_time / (i + len(tasks)) * 100
+        logging.debug(f'[+] Performance (image files): {total_time} sec total. Per 100 : {per100:.1f}')
 
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
