@@ -23,10 +23,13 @@ class ConverterNode(Node):
         self.converter = converter
 
         @self.on_event("startup")
-        @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
+        @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
         async def check_state():
             if not self.skip_check_state:
-                await self.check_state()
+                try:
+                    await self.check_state()
+                except:
+                    logging.error('could not check state. Is loop reachable?')
 
     async def convert_model(self, organization: str, project: str, model_id: str):
         await self.converter.convert(organization, project, model_id)

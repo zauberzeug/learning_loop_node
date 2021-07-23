@@ -73,7 +73,7 @@ class Node(FastAPI):
             logging.debug(f'my sid is {self.sio_client.sid}')
             logging.info('connected to Learning Loop')
         except socketio.exceptions.ConnectionError as e:
-            logging.exception(f'socket.io connection error to "{self.ws_url}"')
+            logging.error(f'socket.io connection error to "{self.ws_url}"')
             if not ('Already connected' in str(e) or 'Connection refused' in str(e) or 'Unexpected status code' in str(e)):
                 await asyncio.sleep(0.5)
                 await self.connect()
@@ -81,7 +81,7 @@ class Node(FastAPI):
             await asyncio.sleep(0.5)
             await self.connect()
         except Exception:
-            logging.exception(f'error while connecting to "{self.ws_url}"')
+            logging.error(f'error while connecting to "{self.ws_url}"')
             await asyncio.sleep(2)
             await self.connect()
 
