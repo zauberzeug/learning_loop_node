@@ -1,6 +1,6 @@
 from glob import glob
 import os
-from learning_loop_node import loop
+from ..loop import loop
 from urllib.parse import urljoin
 from requests import Session
 import asyncio
@@ -20,7 +20,7 @@ class LiveServerSession(Session):
             return super(LiveServerSession, self).request(method, url, *args, **kwargs)
 
         eventloop = asyncio.get_event_loop()
-        headers = eventloop.run_until_complete(loop.instance.get_headers())
+        headers = eventloop.run_until_complete(loop.get_headers())
         return super(LiveServerSession, self).request(method, url, headers=headers, *args, **kwargs)
 
 

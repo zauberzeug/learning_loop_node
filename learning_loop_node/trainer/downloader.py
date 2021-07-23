@@ -35,7 +35,7 @@ class DataDownloader(BaseModel):
         image_data_task = event_loop.create_task(self.download_image_data(basic_data.image_ids))
         await self.download_images(event_loop, basic_data.image_ids, image_folder)
 
-        image_data = [i for i in await image_data_task if os.path.isfile(f'{image_folder}/{i["id"]}.jpg')]
+        image_data = [i for i in await image_data_task if await self.is_valid_image(f'{image_folder}/{i["id"]}.jpg')]
         logging.info(f'Done downloading image_data for {len(image_data)} images.')
         return TrainingData(image_data=image_data, box_categories=basic_data.box_categories)
 
@@ -51,3 +51,13 @@ class DataDownloader(BaseModel):
     def filter_needed_image_ids(all_image_ids, image_folder) -> List[str]:
         ids = [os.path.splitext(os.path.basename(image))[0] for image in glob(f'{image_folder}/*.jpg')]
         return [id for id in all_image_ids if id not in ids]
+
+    async def is_valid_image(self, file):
+        if not os.path.isfile(file):
+            return False
+        info = await asyncio.create_subprocess_shell(
+            f'jpeginfo -c {file}',
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE)
+        out, err = await info.communicate()
+        return "[OK]" in out.decode()
