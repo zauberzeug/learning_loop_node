@@ -42,9 +42,16 @@ class ConverterNode(Node):
             return
         self.status.state = State.Running
 
-        model = await self.find_model_to_convert()
+        try:
+            model = await self.find_model_to_convert()
+        except:
+            logging.error(f'could not find models for conversion')
         if model:
-            await self.convert_model(model.organization, model.project, model.model_id)
+            try:
+                await self.convert_model(model.organization, model.project, model.model_id)
+            except:
+                logging.error(f'could not convert model {model}')
+
         self.status.state = State.Idle
 
     async def find_model_to_convert(self) -> ModelInformation:
