@@ -18,6 +18,9 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
     ln -s /opt/poetry/bin/poetry && \
     poetry config virtualenvs.create false
 
+# while development this will be mounted but in deployment we need the latest code baked into the image
+ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
+
 WORKDIR /app/
 
 COPY ./mock_trainer/pyproject.toml ./mock_trainer/poetry.lock* ./
