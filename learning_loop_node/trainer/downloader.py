@@ -1,6 +1,4 @@
-#
-from pydantic.main import BaseModel
-from typing import List
+from typing import Any, List
 import asyncio
 from icecream import ic
 import os
@@ -12,11 +10,22 @@ from ..node_helper import download_images_data, create_resource_paths
 from ..trainer.basic_data import BasicData
 from ..trainer.training_data import TrainingData
 import logging
+import shutil
 
 
-class DataDownloader(BaseModel):
+class DataDownloader():
     context: Context
     data_query_params: str
+
+    def __init__(self, context: Context, data_query_params: str):
+        self.context = context
+        self.data_query_params = data_query_params
+        
+        self.check_jpeg = shutil.which('jpeginfo') is not None
+        if self.check_jpeg:
+            logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
+        else:
+            logging.info('Detected command line tool "jpeginfo". Images will be checked for validity')
 
     async def download_data(self, image_folder: str) -> TrainingData:
         basic_data = await self.download_basic_data()
@@ -55,6 +64,9 @@ class DataDownloader(BaseModel):
     async def is_valid_image(self, file):
         if not os.path.isfile(file):
             return False
+        if not self.check_jpeg:
+            return True
+
         info = await asyncio.create_subprocess_shell(
             f'jpeginfo -c {file}',
             stdout=asyncio.subprocess.PIPE,

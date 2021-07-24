@@ -49,8 +49,8 @@ class TrainerNode(Node):
         try:
             await self.trainer.begin_training(organization, project, source_model)
         except Exception as e:
-            traceback.print_exc()
             self.status.latest_error = f'Could not start training: {str(e)})'
+            logging.exception(self.status.latest_error)
             self.trainer.stop_training()
             await self.update_state(State.Idle)
             return
@@ -63,8 +63,8 @@ class TrainerNode(Node):
             self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
+            logging.exception(self.status.latest_error)
             self.status.latest_error = f'Could not stop training: {str(e)})'
-            traceback.print_exc()
             await self.send_status()
 
             return False
@@ -114,6 +114,7 @@ class TrainerNode(Node):
                     self.latest_known_model_id = new_model.id
                     await self.send_status()
         except Exception as e:
+            logging.exception(f'Could not get new model: {str(e)}')
             await self.update_error_msg(f'Could not get new model: {str(e)}')
 
     async def send_status(self):
@@ -126,11 +127,11 @@ class TrainerNode(Node):
             latest_error=self.status.latest_error
         )
 
-        print('sending status', status, flush=True)
+        logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
         if not result == True:
             raise Exception(result)
-        print('status send', flush=True)
+        logging.info('status send')
 
     async def update_error_msg(self, msg: str) -> None:
         self.status.latest_error = msg

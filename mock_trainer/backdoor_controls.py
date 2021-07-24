@@ -61,7 +61,7 @@ async def add_steps(request: Request):
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
-    print(f'moving {steps} forward', flush=True)
+    print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
         await request.app.check_state()
         latest_error = request.app.status.latest_error
