@@ -15,6 +15,8 @@ You can configure connection to the learning loop by specifying the following en
 ## Detector Node
 
 ## Trainer Node
+  
+- if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
 ## Converter Node
 
