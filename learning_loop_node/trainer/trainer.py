@@ -17,15 +17,14 @@ class Trainer(BaseModel):
     capability: Capability
     model_format: str
 
-    async def begin_training(self, organization: str, project: str, source_model: dict) -> None:
-        context = Context(organization=organization, project=project)
+    async def begin_training(self, context: Context, source_model: dict) -> None:
         downloader = DownloaderFactory.create(context, self.capability)
 
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await downloader.download_data(self.training.images_folder)
 
         await node_helper.download_model(self.training.training_folder,
-                                         organization, project, source_model['id'], self.model_format)
+                                         context, source_model['id'], self.model_format)
 
         await self.start_training()
 

@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from learning_loop_node.context import Context
 import aiohttp
 from typing import List, Tuple
 import shutil
@@ -68,9 +69,9 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
             await out_file.write(await response.read())
 
 
-async def download_model(target_folder: str, organization: str, project: str, model_id: str, format: str) -> List[str]:
+async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
     # download model
-    async with loop.get(f'api/{organization}/projects/{project}/models/{model_id}/{format}/file') as response:
+    async with loop.get(f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file') as response:
         assert response.status == 200,  response.status
         provided_filename = response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
         content = await response.read()

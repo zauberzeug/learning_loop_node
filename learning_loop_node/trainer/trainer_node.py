@@ -1,4 +1,5 @@
 import asyncio
+from learning_loop_node.context import Context
 import traceback
 from fastapi_utils.tasks import repeat_every
 from fastapi.encoders import jsonable_encoder
@@ -10,6 +11,7 @@ from .trainer import Trainer
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.node import Node, State
 import logging
+
 
 class TrainerNode(Node):
     trainer: Trainer
@@ -24,7 +26,7 @@ class TrainerNode(Node):
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization, project, source_model):
             loop = asyncio.get_event_loop()
-            loop.create_task(self.begin_training(organization, project, source_model))
+            loop.create_task(self.begin_training(Context(organization=organization, project=project), source_model))
             return True
 
         @self.sio_client.on('stop_training')
@@ -43,11 +45,11 @@ class TrainerNode(Node):
             if not self.skip_check_state:
                 await self.check_state()
 
-    async def begin_training(self, organization: str, project: str, source_model: dict):
+    async def begin_training(self, context: Context, source_model: dict):
         self.status.latest_error = None
         await self.update_state(State.Preparing)
         try:
-            await self.trainer.begin_training(organization, project, source_model)
+            await self.trainer.begin_training(context, source_model)
         except Exception as e:
             self.status.latest_error = f'Could not start training: {str(e)})'
             logging.exception(self.status.latest_error)

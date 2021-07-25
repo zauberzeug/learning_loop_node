@@ -15,7 +15,7 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
 
     for path in file_paths:
         data.add_field('files',  open(path, 'rb'))
-    async with loop.LoopHttp().post('api/zauberzeug/projects/pytest/models/mocked', data) as response:
+    async with loop.post('api/zauberzeug/projects/pytest/models/mocked', data) as response:
         assert response.status == 200
         return (await response.json())['id']
 
