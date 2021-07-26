@@ -1,3 +1,4 @@
+from learning_loop_node.context import Context
 from typing import List, Optional
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
@@ -21,7 +22,7 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
 
 
 def create_needed_folders(training_uuid='some_uuid'):
-    project_folder = Node.create_project_folder('zauberzeug', 'pytest')
+    project_folder = Node.create_project_folder(Context(organization='zauberzeug', project='pytest'))
     image_folder = Trainer.create_image_folder(project_folder)
     training_folder = Trainer.create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder

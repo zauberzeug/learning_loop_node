@@ -37,9 +37,9 @@ class Trainer(BaseModel):
     def is_training_alive(self) -> bool:
         raise NotImplementedError()
 
-    async def save_model(self,  organization: str, project: str, model_id) -> None:
+    async def save_model(self,  context:Context, model_id:str) -> None:
         files = self.get_model_files(model_id)
-        await node_helper.upload_model(organization, project, files, model_id, self.model_format)
+        await node_helper.upload_model(context, files, model_id, self.model_format)
 
     def get_model_files(self, model_id) -> List[str]:
         raise NotImplementedError()
@@ -53,7 +53,7 @@ class Trainer(BaseModel):
     @staticmethod
     def generate_training(context: Context, source_model: dict) -> Training:
         training_uuid = str(uuid4())
-        project_folder = Node.create_project_folder(context.organization, context.project)
+        project_folder = Node.create_project_folder(context)
         return Training(
             id=training_uuid,
             base_model=source_model,

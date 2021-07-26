@@ -36,7 +36,7 @@ class TrainerNode(Node):
         @self.sio_client.on('save')
         def on_save(organization, project, model):
             loop = asyncio.get_event_loop()
-            loop.create_task(self.save_model(organization, project, model['id']))
+            loop.create_task(self.save_model(Context(organization=organization, project=project), model['id']))
             return True
 
         @self.on_event("startup")
@@ -74,9 +74,9 @@ class TrainerNode(Node):
         await self.send_status()
         return True
 
-    async def save_model(self, organization, project, model_id):
+    async def save_model(self, context:Context, model_id:str):
         try:
-            await self.trainer.save_model(organization, project, model_id)
+            await self.trainer.save_model(context, model_id)
         except Exception as e:
             traceback.print_exc()
             await self.update_error_msg(f'Could not save model: {str(e)}')
