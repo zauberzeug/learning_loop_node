@@ -23,9 +23,9 @@ class DataDownloader():
         
         self.check_jpeg = shutil.which('jpeginfo') is not None
         if self.check_jpeg:
-            logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
-        else:
             logging.info('Detected command line tool "jpeginfo". Images will be checked for validity')
+        else:
+            logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
 
     async def download_data(self, image_folder: str) -> TrainingData:
         basic_data = await self.download_basic_data()
