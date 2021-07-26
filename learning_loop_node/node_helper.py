@@ -92,12 +92,12 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     return created_files
 
 
-async def upload_model(organization: str, project: str, files: List[str], model_id: str, format: str) -> None:
+async def upload_model(context: Context, files: List[str], model_id: str, format: str) -> None:
     data = aiohttp.FormData()
 
     for file_name in files:
         data.add_field('files',  open(file_name, 'rb'))
-    async with loop.put(f'api/{organization}/projects/{project}/models/{model_id}/{format}/file', data=data) as response:
+    async with loop.put(f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file', data=data) as response:
         if response.status != 200:
             msg = f'---- could not save model with id {model_id}'
             raise Exception(msg)

@@ -1,3 +1,4 @@
+from learning_loop_node.context import Context
 from pydantic.main import BaseModel
 from ..converter.converter import Converter
 from ..status import State
@@ -13,6 +14,9 @@ class ModelInformation(BaseModel):
     project: str
     model_id: str
 
+    @property
+    def context(self):
+        return Context(organization=self.organization, project=self.project)
 
 class ConverterNode(Node):
     converter: Converter
@@ -31,9 +35,9 @@ class ConverterNode(Node):
                 except:
                     logging.error('could not check state. Is loop reachable?')
 
-    async def convert_model(self, organization: str, project: str, model_id: str):
-        await self.converter.convert(organization, project, model_id)
-        await self.converter.upload_model(organization, project, model_id)
+    async def convert_model(self, context:Context, model_id: str):
+        await self.converter.convert(context, model_id)
+        await self.converter.upload_model(context, model_id)
 
     async def check_state(self):
         logging.debug(f'checking state: {self.status.state}')
@@ -48,9 +52,9 @@ class ConverterNode(Node):
             logging.error(f'could not find models for conversion')
         if model:
             try:
-                await self.convert_model(model.organization, model.project, model.model_id)
+                await self.convert_model(model.context, model.model_id)
             except:
-                logging.error(f'could not convert model {model}')
+                logging.exception(f'could not convert model {model}')
 
         self.status.state = State.Idle
 

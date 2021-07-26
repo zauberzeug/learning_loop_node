@@ -1,3 +1,4 @@
+from learning_loop_node.context import Context
 import logging
 import aiohttp
 from .status import Status, State
@@ -104,7 +105,7 @@ class Node(FastAPI):
         raise Exception("Override this in subclass")
 
     @staticmethod
-    def create_project_folder(organization: str, project: str) -> str:
-        project_folder = f'/data/{organization}/{project}'
+    def create_project_folder(context:Context) -> str:
+        project_folder = f'/data/{context.organization}/{context.project}'
         os.makedirs(project_folder, exist_ok=True)
         return project_folder
