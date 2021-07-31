@@ -4,7 +4,6 @@ from icecream import ic
 import os
 from glob import glob
 from ..context import Context
-from .. import node_helper
 from ..loop import loop
 from ..node_helper import download_images_data, create_resource_paths
 from ..trainer.basic_data import BasicData

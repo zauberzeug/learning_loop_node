@@ -21,6 +21,7 @@ aiofiles = "^0.7.0"
 async_generator = "^1.10"
 werkzeug = "^2.0.1"
 pytest-watch = "^4.2.0"
+python-multipart = "^0.0.5"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.1"
