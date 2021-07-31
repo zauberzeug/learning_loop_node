@@ -5,7 +5,7 @@ import os
 from glob import glob
 from ..context import Context
 from ..loop import loop
-from ..node_helper import download_images_data, create_resource_paths
+from ..node_helper import download_images, download_images_data, create_resource_paths
 from ..trainer.basic_data import BasicData
 from ..trainer.training_data import TrainingData
 import logging
@@ -53,7 +53,7 @@ class DataDownloader():
     async def download_images(self, event_loop, image_ids: List[str], image_folder: str) -> None:
         paths, ids = create_resource_paths(self.context.organization, self.context.project,
                                            self.filter_needed_image_ids(image_ids, image_folder))
-        await node_helper.download_images(event_loop, paths, ids, image_folder)
+        await download_images(event_loop, paths, ids, image_folder)
 
     @staticmethod
     def filter_needed_image_ids(all_image_ids, image_folder) -> List[str]:
