@@ -48,8 +48,9 @@ class ConverterNode(Node):
 
         try:
             model = await self.find_model_to_convert()
-        except:
+        except Exception as e:
             logging.error(f'could not find models for conversion')
+            logging.error(f'Exception: {str(e)}')
         if model:
             try:
                 await self.convert_model(model.context, model.model_id)
