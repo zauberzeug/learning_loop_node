@@ -49,8 +49,7 @@ class ConverterNode(Node):
         try:
             model = await self.find_model_to_convert()
         except Exception as e:
-            logging.error(f'could not find models for conversion')
-            logging.error(f'Exception: {str(e)}')
+            logging.error(f'could not find models for conversion. Detail: {str(e)}')
         if model:
             try:
                 await self.convert_model(model.context, model.model_id)
@@ -61,7 +60,7 @@ class ConverterNode(Node):
 
     async def find_model_to_convert(self) -> ModelInformation:
         async with loop.get('api/projects') as response:
-            assert response.status == 200
+            assert response.status == 200, f'Assert statuscode 200, but was {response.status}.'
             content = await response.json()
             projects = content['projects']
 
