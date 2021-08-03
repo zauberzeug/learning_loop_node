@@ -138,3 +138,8 @@ class TrainerNode(Node):
     async def update_error_msg(self, msg: str) -> None:
         self.status.latest_error = msg
         await self.send_status()
+    
+    async def get_state(self):
+        if self.trainer.is_training_alive():
+            return State.Running
+        return State.Idle

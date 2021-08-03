@@ -81,3 +81,6 @@ class ConverterNode(Node):
     async def send_status(self):
         # NOTE not yet implemented
         pass
+
+    async def get_state(self):
+        return State.Idle
