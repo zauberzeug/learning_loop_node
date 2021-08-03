@@ -38,7 +38,10 @@ class Node(FastAPI):
         async def on_connect():
             logging.debug('received "on_connect" from constructor event.')
             self.reset()
-            await self.update_state(State.Idle)
+            if self.trainer.is_training_alive():
+                await self.update_state(State.Running)
+            else:
+                await self.update_state(State.Idle)
 
         @self.sio_client.on('disconnect')
         async def on_disconnect():
