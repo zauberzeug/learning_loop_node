@@ -20,6 +20,7 @@ class AccessToken():
     def is_invalid(self) -> bool:
         return not self.is_still_valid
 
+
 async def token_from_response(response: ClientResponse) -> AccessToken:
     content = await response.json()
     server_time = werkzeug.http.parse_date(response.headers['date'])
@@ -39,7 +40,7 @@ class Loop():
         self.session = None
 
     async def download_token(self):
-      
+
         credentials = {
             'username': self.username,
             'password': self.password,
@@ -51,24 +52,23 @@ class Loop():
                 assert response.status == 200
                 return await token_from_response(response)
 
-    
     async def ensure_session(self) -> dict:
         '''Create one session for all requests.
         See https://docs.aiohttp.org/en/stable/client_quickstart.html#make-a-request.
         '''
-         
-        headers = {}  
+
+        headers = {}
         if self.username is not None:
             if self.access_token is None or self.access_token.is_invalid():
                 self.access_token = await self.download_token()
 
             headers['Authorization'] = f'Bearer {self.access_token.token}'
-        
+
         if self.session is None:
             self.session = aiohttp.ClientSession(headers=headers)
         else:
             self.session.headers.update(headers)
-        
+
     async def get_headers(self):
         await self.ensure_session()
         return self.session.headers

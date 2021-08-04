@@ -13,6 +13,7 @@ import asyncio
 import time
 from .loop import loop
 import logging
+from fastapi.encoders import jsonable_encoder
 
 
 async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
@@ -70,8 +71,6 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
 
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
-    shutil.rmtree(target_folder, ignore_errors=True) # cleanup 
-
     # download model
     async with loop.get(f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file') as response:
         assert response.status == 200,  response.status
@@ -101,7 +100,7 @@ async def upload_model(context: Context, files: List[str], model_id: str, format
         data.add_field('files',  open(file_name, 'rb'))
     async with loop.put(f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file', data=data) as response:
         if response.status != 200:
-            msg = f'---- could not save model with id {model_id}'
+            msg = f'---- could not save model with id {model_id}. Details: {jsonable_encoder(response.content)}'
             raise Exception(msg)
         else:
             logging.info(f'---- uploaded model with id {model_id}')

@@ -1,4 +1,3 @@
-from learning_loop_node.context import Context
 from pydantic.main import BaseModel
 from ..converter.converter import Converter
 from ..status import State
@@ -7,16 +6,8 @@ from fastapi_utils.tasks import repeat_every
 from icecream import ic
 from ..loop import loop
 import logging
+from ..converter.model_information import ModelInformation
 
-
-class ModelInformation(BaseModel):
-    organization: str
-    project: str
-    model_id: str
-
-    @property
-    def context(self):
-        return Context(organization=self.organization, project=self.project)
 
 class ConverterNode(Node):
     converter: Converter
@@ -35,9 +26,13 @@ class ConverterNode(Node):
                 except:
                     logging.error('could not check state. Is loop reachable?')
 
-    async def convert_model(self, context:Context, model_id: str):
-        await self.converter.convert(context, model_id)
-        await self.converter.upload_model(context, model_id)
+    async def convert_model(self, model_information: ModelInformation):
+        try:
+            await self.converter.convert(model_information)
+            await self.converter.upload_model(model_information.context, model_information.model_id)
+        except Exception as e:
+            logging.error(
+                f'could not convert model {model_information.model_id} for {model_information.context.organization}/{model_information.context.project}. Details: {str(e)}.')
 
     async def check_state(self):
         logging.debug(f'checking state: {self.status.state}')
@@ -45,20 +40,15 @@ class ConverterNode(Node):
         if self.status.state == State.Running:
             return
         self.status.state = State.Running
-
         try:
-            model = await self.find_model_to_convert()
+            await self.convert_models()
         except Exception as e:
-            logging.error(f'could not find models for conversion. Detail: {str(e)}')
-        if model:
-            try:
-                await self.convert_model(model.context, model.model_id)
-            except:
-                logging.exception(f'could not convert model {model}')
+            logging.error(str(e))
 
         self.status.state = State.Idle
 
-    async def find_model_to_convert(self) -> ModelInformation:
+    async def convert_models(self) -> None:
+
         async with loop.get('api/projects') as response:
             assert response.status == 200, f'Assert statuscode 200, but was {response.status}.'
             content = await response.json()
@@ -67,6 +57,10 @@ class ConverterNode(Node):
         for project in projects:
             organization_id = project['organization_id']
             project_id = project['project_id']
+
+            async with loop.get(f'api{project["resource"]}') as response:
+                project_categories = (await response.json())['box_categories']
+
             path = f'api{project["resource"]}/models'
             async with loop.get(path) as models_response:
                 assert models_response.status == 200
@@ -75,8 +69,11 @@ class ConverterNode(Node):
 
                 for model in models:
                     if model['version']:
-                        if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
-                            return ModelInformation(organization=organization_id, project=project_id, model_id=model['id'])
+                        # and not self.converter.target_format in model['formats']:
+                        if self.converter.source_format in model['formats']:
+                            model_information = ModelInformation(
+                                organization=organization_id, project=project_id, model_id=model['id'], project_categories=project_categories, version=model['version'])
+                            await self.convert_model(model_information)
 
     async def send_status(self):
         # NOTE not yet implemented
