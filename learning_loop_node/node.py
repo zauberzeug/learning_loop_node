@@ -38,7 +38,8 @@ class Node(FastAPI):
         async def on_connect():
             logging.debug('received "on_connect" from constructor event.')
             self.reset()
-            await self.update_state(State.Idle)
+            state = await self.get_state()
+            await self.update_state(state)
 
         @self.sio_client.on('disconnect')
         async def on_disconnect():
@@ -60,6 +61,9 @@ class Node(FastAPI):
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)
+    
+    async def get_state(self):
+        raise Exception("Override this in subclass")
 
     async def connect(self):
         try:
