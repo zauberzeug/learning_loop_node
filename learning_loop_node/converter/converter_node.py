@@ -1,4 +1,3 @@
-from pydantic.main import BaseModel
 from ..converter.converter import Converter
 from ..status import State
 from ..node import Node
@@ -12,13 +11,14 @@ from ..converter.model_information import ModelInformation
 class ConverterNode(Node):
     converter: Converter
     skip_check_state: bool = False
+    bad_model_ids = []
 
     def __init__(self, name: str, uuid: str, converter: Converter):
         super().__init__(name, uuid)
         self.converter = converter
 
         @self.on_event("startup")
-        @repeat_every(seconds=5, raise_exceptions=True, wait_first=True)
+        @repeat_every(seconds=60, raise_exceptions=True, wait_first=False)
         async def check_state():
             if not self.skip_check_state:
                 try:
@@ -27,10 +27,15 @@ class ConverterNode(Node):
                     logging.error('could not check state. Is loop reachable?')
 
     async def convert_model(self, model_information: ModelInformation):
+        if model_information.model_id in self.bad_model_ids:
+            logging.info(
+                f'skipping bad model model {model_information.model_id} for {model_information.context.organization}/{model_information.context.project}.')
+            return
         try:
             await self.converter.convert(model_information)
             await self.converter.upload_model(model_information.context, model_information.model_id)
         except Exception as e:
+            self.bad_model_ids.append(model_information.model_id)
             logging.error(
                 f'could not convert model {model_information.model_id} for {model_information.context.organization}/{model_information.context.project}. Details: {str(e)}.')
 
