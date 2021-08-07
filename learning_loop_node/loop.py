@@ -36,6 +36,9 @@ class Loop():
         self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
         self.username: str = os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('PASSWORD', None)
+        self.organization = os.environ.get('ORGANIZATION', None)
+        self.project = os.environ.get('PROJECT', None)
+
         self.access_token = None
         self.session = None
 
@@ -75,9 +78,28 @@ class Loop():
 
     @asynccontextmanager
     async def get(self, path):
+        url = f'{self.base_url}{path}'
         await self.ensure_session()
-        async with self.session.get(f'{self.base_url}/{path}') as response:
+        async with self.session.get(url) as response:
             yield response
+
+    async def get_json_async(self, path):
+        async with self.get(f'{loop.project_path}{path}') as response:
+            if response.status != 200:
+                raise Exception('bad response: ' + str(response))
+            return await response.json()
+            
+    def get_json(self, path):
+        return asyncio.get_event_loop().run_until_complete(self.get_json_async(path))
+
+    async def get_data_async(self, path):
+        async with self.get(f'{loop.project_path}{path}') as response:
+            if response.status != 200:
+                raise Exception('bad response: ' + str(response))
+            return await response.read()
+            
+    def get_data(self, path):
+        return asyncio.get_event_loop().run_until_complete(self.get_data_async(path))
 
     @asynccontextmanager
     async def put(self, path, data):
@@ -91,5 +113,8 @@ class Loop():
         async with self.session.post(f'{self.base_url}/{path}', data=data) as response:
             yield response
 
+    @property
+    def project_path(self):
+        return f'/api/{self.organization}/projects/{self.project}'
 
 loop = Loop()
