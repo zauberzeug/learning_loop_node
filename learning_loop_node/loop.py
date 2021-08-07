@@ -78,7 +78,7 @@ class Loop():
 
     @asynccontextmanager
     async def get(self, path):
-        url = f'{self.base_url}{path}'
+        url = f'{self.base_url}/{path}'
         await self.ensure_session()
         async with self.session.get(url) as response:
             yield response
@@ -88,7 +88,7 @@ class Loop():
             if response.status != 200:
                 raise Exception('bad response: ' + str(response))
             return await response.json()
-            
+
     def get_json(self, path):
         return asyncio.get_event_loop().run_until_complete(self.get_json_async(path))
 
@@ -97,7 +97,7 @@ class Loop():
             if response.status != 200:
                 raise Exception('bad response: ' + str(response))
             return await response.read()
-            
+
     def get_data(self, path):
         return asyncio.get_event_loop().run_until_complete(self.get_data_async(path))
 
@@ -116,5 +116,6 @@ class Loop():
     @property
     def project_path(self):
         return f'/api/{self.organization}/projects/{self.project}'
+
 
 loop = Loop()
