@@ -74,7 +74,7 @@ class TrainerNode(Node):
         await self.send_status()
         return True
 
-    async def save_model(self, context:Context, model_id:str):
+    async def save_model(self, context: Context, model_id: str):
         try:
             await self.trainer.save_model(context, model_id)
         except Exception as e:
@@ -83,10 +83,14 @@ class TrainerNode(Node):
 
     async def check_state(self):
         logging.debug(f'training {"none" if self.trainer.training == None else "running"}, state: {self.status.state}')
-        try:
-            if self.status.state == State.Running and not self.trainer.is_training_alive():
-                raise Exception()
-        except:
+        if self.status.state != State.Running:
+            return
+
+        error = self.trainer.get_error()
+        if error is not None:
+            await self.update_error_msg(error)
+
+        if not self.trainer.executor.is_process_running():
             await self.update_error_msg(f'Training crashed.')
 
         await self.try_get_new_model()
@@ -138,8 +142,8 @@ class TrainerNode(Node):
     async def update_error_msg(self, msg: str) -> None:
         self.status.latest_error = msg
         await self.send_status()
-    
+
     async def get_state(self):
-        if self.trainer.is_training_alive():
+        if self.trainer.executor is not None and self.trainer.executor.is_process_running():
             return State.Running
         return State.Idle

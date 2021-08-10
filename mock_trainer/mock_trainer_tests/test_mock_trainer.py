@@ -31,15 +31,6 @@ def create_mock_trainer() -> MockTrainer:
     return MockTrainer(capability=Capability.Box, model_format='mocked')
 
 
-@pytest.mark.asyncio
-async def test_start_training():
-    mock_trainer = create_mock_trainer()
-
-    assert mock_trainer.is_training_alive() == False
-    await mock_trainer.start_training()
-    assert mock_trainer.is_training_alive() == True
-
-
 def test_get_model_files():
     mock_trainer = create_mock_trainer()
     files = mock_trainer.get_model_files('some_model_id')
@@ -47,16 +38,6 @@ def test_get_model_files():
     assert len(files) == 2
     assert 'weightfile.weights' in files[0]
     assert 'some_more_data.txt' in files[1]
-
-
-@pytest.mark.asyncio
-async def test_stop_training():
-    mock_trainer = create_mock_trainer()
-    assert mock_trainer.is_training_alive() == False
-    await mock_trainer.start_training()
-    assert mock_trainer.is_training_alive() == True
-    mock_trainer.stop_training()
-    assert mock_trainer.is_training_alive() == False
 
 
 @pytest.mark.asyncio

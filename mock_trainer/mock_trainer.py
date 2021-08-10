@@ -16,9 +16,9 @@ class MockTrainer(Trainer):
             raise Exception()
         self.is_training_running = True
 
-    def is_training_alive(self) -> bool:
+    def get_error(self) -> str:
         if self.error_configuration.crash_training:
-            return False
+            return 'mocked error'
         return self.is_training_running
 
     def get_model_files(self, model_id) -> List[str]:
