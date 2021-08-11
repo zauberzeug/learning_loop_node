@@ -72,20 +72,25 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
     # download model
-    async with loop.get(f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file') as response:
-        assert response.status == 200,  response.status
-        provided_filename = response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
-        content = await response.read()
+    path = f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
+    async with loop.get(path) as response:
+        if response.status != 200:
+            raise Exception(f'could not download model from {loop.base_url}/{path}: {await response.read()}')
+        try:
+            provided_filename = response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
+            content = await response.read()
+        except:
+            logging.exception(await response.read())
+            raise
 
     # unzip and place downloaded model
-    tmp_paht = f'/tmp/{os.path.splitext(provided_filename)[0]}'
-    shutil.rmtree(tmp_paht, ignore_errors=True)
-    filebytes = BytesIO(content)
-    with zipfile.ZipFile(filebytes, 'r') as zip:
-        zip.extractall(tmp_paht)
+    tmp_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
+    shutil.rmtree(tmp_path, ignore_errors=True)
+    with zipfile.ZipFile(BytesIO(content), 'r') as zip:
+        zip.extractall(tmp_path)
 
     created_files = []
-    files = glob(f'{tmp_paht}/**/*', recursive=True)
+    files = glob(f'{tmp_path}/**/*', recursive=True)
     for file in files:
         logging.debug(f'moving model file {os.path.basename(file)} to training folder.')
         new_file = shutil.move(file, target_folder)

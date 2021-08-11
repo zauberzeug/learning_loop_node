@@ -82,16 +82,17 @@ class TrainerNode(Node):
             await self.update_error_msg(f'Could not save model: {str(e)}')
 
     async def check_state(self):
-        logging.debug(f'training {"none" if self.trainer.training == None else "running"}, state: {self.status.state}')
+        logging.debug(f'{self.status.state}')
         if self.status.state != State.Running:
             return
 
         error = self.trainer.get_error()
+        await self.update_error_msg(error)
         if error is not None:
-            await self.update_error_msg(error)
-
-        if not self.trainer.executor.is_process_running():
+            logging.info(error + '\n\n' + self.trainer.get_log()[-1000:])
+        elif not self.trainer.executor.is_process_running():
             await self.update_error_msg(f'Training crashed.')
+            logging.info(self.trainer.get_log()[-1000:])
 
         await self.try_get_new_model()
 
@@ -141,9 +142,10 @@ class TrainerNode(Node):
 
     async def update_error_msg(self, msg: str) -> None:
         self.status.latest_error = msg
+        self.status.state = self.get_state()
         await self.send_status()
 
-    async def get_state(self):
+    def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
             return State.Running
         return State.Idle

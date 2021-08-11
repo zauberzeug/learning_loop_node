@@ -8,5 +8,5 @@ class DetectorNode(Node):
         # NOTE not yet implemented
         pass
 
-    async def get_state(self):
+    def get_state(self):
         return State.Running

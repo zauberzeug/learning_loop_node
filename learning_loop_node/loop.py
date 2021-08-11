@@ -79,6 +79,7 @@ class Loop():
     @asynccontextmanager
     async def get(self, path):
         url = f'{self.base_url}/{path}'
+        logging.debug(url)
         await self.ensure_session()
         async with self.session.get(url) as response:
             yield response

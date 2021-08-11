@@ -38,7 +38,7 @@ class Node(FastAPI):
         async def on_connect():
             logging.debug('received "on_connect" from constructor event.')
             self.reset()
-            state = await self.get_state()
+            state = self.get_state()
             await self.update_state(state)
 
         @self.sio_client.on('disconnect')
@@ -61,7 +61,7 @@ class Node(FastAPI):
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)
-    
+
     async def get_state(self):
         raise Exception("Override this in subclass")
 
@@ -109,7 +109,7 @@ class Node(FastAPI):
         raise Exception("Override this in subclass")
 
     @staticmethod
-    def create_project_folder(context:Context) -> str:
+    def create_project_folder(context: Context) -> str:
         project_folder = f'/data/{context.organization}/{context.project}'
         os.makedirs(project_folder, exist_ok=True)
         return project_folder

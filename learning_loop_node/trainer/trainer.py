@@ -27,7 +27,7 @@ class Trainer():
 
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await downloader.download_data(self.training.images_folder)
-        self.executor = Executor(self.training)
+        self.executor = Executor(self.training.training_folder)
 
         await node_helper.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
 
@@ -41,6 +41,9 @@ class Trainer():
 
     def get_error(self) -> str:
         raise NotImplementedError()
+
+    def get_log(self) -> str:
+        return self.executor.get_log()
 
     async def save_model(self,  context: Context, model_id: str) -> None:
         files = self.get_model_files(model_id)

@@ -6,7 +6,7 @@ import aiohttp
 from learning_loop_node import loop
 
 
-async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
+async def assert_upload_model(file_paths: Optional[List[str]] = None, format:str = 'mocked') -> str:
     if not file_paths:
         file_paths = ['learning_loop_node/trainer/tests/test_data/file_1.txt',
                       'learning_loop_node/trainer/tests/test_data/file_2.txt']
@@ -16,9 +16,10 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None) -> str:
 
     for path in file_paths:
         data.add_field('files',  open(path, 'rb'))
-    async with loop.post('api/zauberzeug/projects/pytest/models/mocked', data) as response:
+    async with loop.post(f'api/zauberzeug/projects/pytest/models/{format}', data) as response:
         assert response.status == 200
-        return (await response.json())['id']
+        model = await response.json()
+        return model['id']
 
 
 def create_needed_folders(training_uuid='some_uuid'):
