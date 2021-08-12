@@ -4,6 +4,7 @@ from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from fastapi import APIRouter,  Request,  HTTPException
 import asyncio
 from learning_loop_node.status import Status, State
+import logging
 
 router = APIRouter()
 
@@ -41,6 +42,11 @@ async def switch_socketio(request: Request):
 
 @router.put("/status")
 async def set_status(new_status: Status, request: Request):
+    if new_status.state == State.Running:
+        raise Exception('start a training to switch into running state')
+    if new_status.state == State.Idle:
+        raise Exception('stop training to switch into idle state')
+
     print('new status is', new_status, flush=True)
     await request.app.update_status(new_status)
 
