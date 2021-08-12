@@ -2,6 +2,7 @@
 import psutil
 import os
 import subprocess
+from icecream import ic
 
 
 class Executor:
@@ -24,7 +25,7 @@ class Executor:
     def is_process_running(self):
         if self.process is None:
             return False
-        
+
         if self.process.poll() is not None:
             return False
 
@@ -40,6 +41,8 @@ class Executor:
             return f.read()
 
     def stop(self):
+        if self.process is None:
+            return
         try:
             self.process.terminate()
             out, err = self.process.communicate(timeout=3)

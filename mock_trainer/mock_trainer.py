@@ -7,19 +7,17 @@ import time
 
 
 class MockTrainer(Trainer):
-    is_training_running: bool = False
     latest_known_confusion_matrix: dict = {}
     error_configuration: ErrorConfiguration = ErrorConfiguration()
 
     async def start_training(self) -> None:
         if self.error_configuration.begin_training:
             raise Exception()
-        self.is_training_running = True
+        self.executor.start('while true; do sleep 1; done')
 
     def get_error(self) -> str:
         if self.error_configuration.crash_training:
-            return 'mocked error'
-        return self.is_training_running
+            return 'mocked crash'
 
     def get_model_files(self, model_id) -> List[str]:
         if self.error_configuration.save_model:
@@ -47,5 +45,5 @@ class MockTrainer(Trainer):
     def stop_training(self) -> None:
         if self.error_configuration.stop_training:
             raise Exception()
-        self.is_training_running = False
+        self.executor.stop()
         self.latest_known_confusion_matrix = None
