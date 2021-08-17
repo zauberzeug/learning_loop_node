@@ -78,14 +78,15 @@ class Loop():
 
     @asynccontextmanager
     async def get(self, path):
-        url = f'{self.base_url}/{path}'
+        url = f'{self.base_url}/{path.lstrip("/")}'
         logging.debug(url)
         await self.ensure_session()
         async with self.session.get(url) as response:
             yield response
 
     async def get_json_async(self, path):
-        async with self.get(f'{loop.project_path}{path}') as response:
+        url = f'{loop.project_path}{path}'
+        async with self.get(url) as response:
             if response.status != 200:
                 raise Exception('bad response: ' + str(response))
             return await response.json()
