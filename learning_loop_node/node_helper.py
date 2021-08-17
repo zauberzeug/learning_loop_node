@@ -64,7 +64,8 @@ async def download_images(loop: asyncio.BaseEventLoop, paths: List[str], image_i
 async def download_one_image(path: str, image_id: str, image_folder: str):
     async with loop.get(path) as response:
         if response.status != HTTPStatus.OK:
-            logging.error(f'bad status code {response.status} for {path}: {await response.read()}')
+            content = await response.read()
+            logging.error(f'bad status code {response.status} for {path}: {content}')
             return
         async with aiofiles.open(f'{image_folder}/{image_id}.jpg', 'wb') as out_file:
             await out_file.write(await response.read())
@@ -75,7 +76,8 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     path = f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
     async with loop.get(path) as response:
         if response.status != 200:
-            raise Exception(f'could not download model from {loop.base_url}/{path}: {await response.read()}')
+            content = await response.read()
+            raise Exception(f'could not download model from {loop.base_url}/{path}: {content}')
         try:
             provided_filename = response.headers.get("Content-Disposition").split("filename=")[1].strip('"')
             content = await response.read()
