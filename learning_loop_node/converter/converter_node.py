@@ -73,8 +73,8 @@ class ConverterNode(Node):
 
                 for model in models:
                     if model['version']:
-                        # if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
-                        if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
+                        if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
+                        # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                             model_information = ModelInformation(
                                 organization=organization_id, project=project_id, model_id=model['id'], project_categories=project_categories, version=model['version'])
                             await self.convert_model(model_information)
