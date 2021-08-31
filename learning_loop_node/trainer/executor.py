@@ -4,7 +4,7 @@ import os
 import subprocess
 import signal
 from icecream import ic
-
+import logging
 
 class Executor:
 
@@ -47,11 +47,17 @@ class Executor:
             return
         try:
             logging.info('terminating process')
-            os.kill(self.process.pid, signal.SIGTERM)
+            try:
+                os.kill(self.process.pid, signal.SIGTERM)
+            except:
+                pass
             self.process.terminate()
             out, err = self.process.communicate(timeout=3)
         except subprocess.TimeoutExpired:
-            os.kill(self.process.pid, signal.SIGKILL)
+            try:
+                os.kill(self.process.pid, signal.SIGKILL)
+            except:
+                pass
             logging.info('could not terminate process -- trying to kill')
             self.process.kill()
             out, err = self.process.communicate()
