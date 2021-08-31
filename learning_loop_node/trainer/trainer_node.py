@@ -43,7 +43,10 @@ class TrainerNode(Node):
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def check_state():
             if not self.skip_check_state:
-                await self.check_state()
+                try:
+                    await self.check_state()
+                except:
+                    logging.exception('could not check state')
 
     async def begin_training(self, context: Context, source_model: dict):
         self.status.latest_error = None
