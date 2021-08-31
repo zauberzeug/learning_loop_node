@@ -2,6 +2,7 @@
 import psutil
 import os
 import subprocess
+import signal
 from icecream import ic
 
 
@@ -42,10 +43,15 @@ class Executor:
 
     def stop(self):
         if self.process is None:
+            logging.info('no process running ... nothing to stop')
             return
         try:
+            logging.info('terminating process')
+            os.kill(self.process.pid, signal.SIGTERM)
             self.process.terminate()
             out, err = self.process.communicate(timeout=3)
         except subprocess.TimeoutExpired:
+            os.kill(self.process.pid, signal.SIGKILL)
+            logging.info('could not terminate process -- trying to kill')
             self.process.kill()
             out, err = self.process.communicate()
