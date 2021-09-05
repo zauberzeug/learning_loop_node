@@ -82,3 +82,20 @@ After a short time the converted model should be available as well.
   ]
 }
 ```
+
+## About Models (the currency between Nodes)
+
+- Models are packed in zips and saved on the Learning Loop (one for each format)
+- Nodes and users can upload and download models with which they want to work
+- In each zip there is a file called `model.json` which contains the metadata to interpret the other files in the package
+- for base models (pretrained models from external sources) no `model.json` has to be sent, ie. these models should simply be zipped in such a way that the respective trainer can work with them.
+- the loop adds or corrects the following properties in the `model.json` after receiving; it also creates the file if it is missing:
+  - `host`: uri to the loop
+  - `organization`: the ID of the organization
+  - `project`: the id of the project
+  - `version`: the version number that the loop assigned for this model (e.g. 1.3)
+  - `id`: the model UUID (currently not needed by anyone, since host, org, project, version clearly identify the model)
+  - `format`: the format e.g. yolo, tkdnn, yolor etc.
+- Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
+  - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, ` resolution_x`` resolution_y ` would also be conceivable or `resolutions` to give a list of possible resolutions)
+  - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
