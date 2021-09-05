@@ -7,6 +7,8 @@ import os
 import werkzeug
 from icecream import ic
 import logging
+import requests
+from http import HTTPStatus
 
 
 class AccessToken():
@@ -21,8 +23,8 @@ class AccessToken():
         return not self.is_still_valid
 
 
-async def token_from_response(response: ClientResponse) -> AccessToken:
-    content = await response.json()
+def token_from_response(response: werkzeug.Response) -> AccessToken:
+    content = response.json()
     server_time = werkzeug.http.parse_date(response.headers['date'])
     expires_time = datetime.fromtimestamp(content['expires'], tz=server_time.tzinfo)
     # we do not care about the few seconds wich ellapsed during request.
@@ -41,40 +43,36 @@ class Loop():
 
         self.access_token = None
         self.session = None
+        self.web = requests.Session()
 
-    async def download_token(self):
+    def download_token(self):
 
-        credentials = {
-            'username': self.username,
-            'password': self.password,
-        }
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f'{self.base_url}/api/token', data=credentials) as response:
-                logging.debug(f'received token from {self.base_url}')
-                assert response.status == 200
-                return await token_from_response(response)
+        response = self.web.post(
+            self.base_url + '/api/token',
+            data={'username': self.username, 'password': self.password}
+        )
+        response.raise_for_status()
+        return token_from_response(response)
 
     async def ensure_session(self) -> dict:
         '''Create one session for all requests.
         See https://docs.aiohttp.org/en/stable/client_quickstart.html#make-a-request.
         '''
 
-        headers = {}
-        if self.username is not None:
-            if self.access_token is None or self.access_token.is_invalid():
-                self.access_token = await self.download_token()
-
-            headers['Authorization'] = f'Bearer {self.access_token.token}'
-
+        headers = await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
         if self.session is None:
             self.session = aiohttp.ClientSession(headers=headers)
         else:
             self.session.headers.update(headers)
 
-    async def get_headers(self):
-        await self.ensure_session()
-        return self.session.headers
+    def get_headers(self):
+        headers = {}
+        if self.username is not None:
+            if self.access_token is None or self.access_token.is_invalid():
+                self.access_token = self.download_token()
+
+            headers['Authorization'] = f'Bearer {self.access_token.token}'
+        return headers
 
     @asynccontextmanager
     async def get(self, path):
