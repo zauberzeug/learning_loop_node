@@ -2,6 +2,7 @@ import logging
 from learning_loop_node.tests import test_helper
 import pytest
 import shutil
+import asyncio
 import icecream
 icecream.install()
 logging.basicConfig(level=logging.DEBUG)

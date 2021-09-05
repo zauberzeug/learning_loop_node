@@ -6,7 +6,6 @@ from learning_loop_node.trainer.tests import trainer_test_helper
 from learning_loop_node.trainer.downloader import DataDownloader
 from learning_loop_node import node, node_helper
 from learning_loop_node.context import Context
-from learning_loop_node.conftest import create_project
 from icecream import ic
 import asyncio
 
@@ -68,7 +67,6 @@ async def test_download_images(downloader: DataDownloader):
 
 @pytest.mark.asyncio
 async def test_download_training_data(downloader: DataDownloader):
-    _, image_folder, _ = trainer_test_helper.create_needed_folders()
     basic_data = await downloader.download_basic_data()
     image_data = await downloader.download_image_data(basic_data.image_ids)
 
