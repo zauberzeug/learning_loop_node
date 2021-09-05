@@ -1,6 +1,10 @@
+import logging
 from learning_loop_node.tests import test_helper
 import pytest
 import shutil
+import icecream
+icecream.install()
+logging.basicConfig(level=logging.DEBUG)
 
 
 @pytest.fixture()
@@ -14,8 +18,9 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-@pytest.fixture(autouse=True, scope='function')
-def cleanup_data_folder():
-    shutil.rmtree('../data', ignore_errors=True)
-    yield
-    shutil.rmtree('../data', ignore_errors=True)
+@pytest.fixture(scope='function')
+def data_folder():
+    path = '/tmp/learning_loop_lib_data'
+    shutil.rmtree(path, ignore_errors=True)
+    yield path
+    shutil.rmtree(path, ignore_errors=True)

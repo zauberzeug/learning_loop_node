@@ -110,6 +110,6 @@ class Node(FastAPI):
 
     @staticmethod
     def create_project_folder(context: Context) -> str:
-        project_folder = f'/data/{context.organization}/{context.project}'
+        project_folder = f'{context.base_folder}/{context.organization}/{context.project}'
         os.makedirs(project_folder, exist_ok=True)
         return project_folder
