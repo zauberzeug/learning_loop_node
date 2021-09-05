@@ -4,18 +4,22 @@ This Python library helps you to write your own Detection Nodes, Training Nodes 
 
 ## General Usage
 
-You can configure connection to the learning loop by specifying the following environment variables before starting:
+You can configure connection to our Learning Loop by specifying the following environment variables before starting:
 
-- HOST=learning-loop.ai
-- ORGANIZATION=<your organization>
-- PROJECT=<your project>
-- USERNAME=<your username>
-- PASSWORD=<your password>
+- LOOP_HOST=learning-loop.ai
+- LOOP_ORGANIZATION=<your organization>
+- LOOP_PROJECT=<your project>
+- LOOP_USERNAME=<your username>
+- LOOP_PASSWORD=<your password>
 
 ## Detector Node
 
+Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop to make model deployments very easy. They also provide REST and Socket.io APIs to run inferences. By default the images will automatically used for active learning: high uncertain predictions will be submitted to the Learning Loop inbox.
+
 ## Trainer Node
-  
+
+Trainers fetch the images and anntoations from the Learning Loop to generate new and improved models.
+
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
 ## Converter Node
@@ -57,8 +61,8 @@ but not in the format_b
 }
 ```
 
-Connect the Node to the learning loop by simply starting the container.
-After a short time the converted Model should be available as well.
+Connect the Node to the Learning Loop by simply starting the container.
+After a short time the converted model should be available as well.
 `curl https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_b`
 
 ```
