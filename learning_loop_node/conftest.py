@@ -32,3 +32,5 @@ def data_folder():
 @pytest.fixture(autouse=True, scope='function')
 def loop_session():
     loop.session = None
+    yield
+    loop.session = None
