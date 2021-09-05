@@ -32,12 +32,13 @@ async def token_from_response(response: ClientResponse) -> AccessToken:
 
 class Loop():
     def __init__(self) -> None:
-        host = os.environ.get('HOST', 'learning-loop.ai')
+        host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
-        self.username: str = os.environ.get('USERNAME', None)
-        self.password: str = os.environ.get('PASSWORD', None)
-        self.organization = os.environ.get('ORGANIZATION', None)
-        self.project = os.environ.get('PROJECT', None)
+        self.username: str = os.environ.get('LOOP_USERNAME', None) or os.environ.get('USERNAME', None)
+        self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
+        ic(self.username, self.password)
+        self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
+        self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
 
         self.access_token = None
         self.session = None
