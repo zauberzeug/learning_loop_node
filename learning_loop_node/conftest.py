@@ -1,9 +1,11 @@
 import logging
 from learning_loop_node.tests import test_helper
+from learning_loop_node.loop import loop
 import pytest
 import shutil
 import asyncio
 import icecream
+
 icecream.install()
 logging.basicConfig(level=logging.DEBUG)
 
@@ -25,3 +27,8 @@ def data_folder():
     shutil.rmtree(path, ignore_errors=True)
     yield path
     shutil.rmtree(path, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True, scope='function')
+def loop_session():
+    loop.session = None

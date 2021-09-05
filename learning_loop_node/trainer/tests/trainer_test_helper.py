@@ -9,8 +9,8 @@ import logging
 
 async def assert_upload_model(file_paths: Optional[List[str]] = None, format: str = 'mocked') -> str:
     if not file_paths:
-        file_paths = ['learning_loop_node/trainer/tests/test_data/file_1.txt',
-                      'learning_loop_node/trainer/tests/test_data/file_2.txt']
+        file_paths = ['trainer/tests/test_data/file_1.txt',
+                      'trainer/tests/test_data/file_2.txt']
     data = [('files', open(path, 'rb')) for path in file_paths]
 
     data = aiohttp.FormData()
