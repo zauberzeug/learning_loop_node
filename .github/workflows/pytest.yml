@@ -1,0 +1,48 @@
+name: Run Tests
+
+on: [push]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+      - name: set up Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: "1.1.6"
+      - name: install curl ssl
+        run: |
+          sudo apt-get update
+          sudo apt-get install libcurl4-openssl-dev libssl-dev
+      - name: install dependencies
+        run: |
+          poetry config virtualenvs.create false --local
+          poetry install
+      - name: test
+        run: pytest -v
+
+  slack:
+    needs:
+      - pytest
+    if: always() # also execute when pytest fails
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine if we need to notify
+        uses: Jimdo/should-i-notify-action@main
+        id: should_notify
+        with:
+          needs_context: ${{ toJson(needs) }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Slack workflow notification
+        if: steps.should_notify.outputs.should_send_message == 'yes'
+        uses: Gamesight/slack-workflow-status@master
+        with:
+          repo_token: ${{ secrets.GIT_HUB_TOKEN }}
+          slack_webhook_url: ${{ secrets.SLACK_ROBOTICS_CI_WEBHOOK }}
+          channel: "deeplearning-ci"
+          name: "Learning Loop Node"
