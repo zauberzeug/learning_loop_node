@@ -24,7 +24,9 @@ jobs:
           poetry config virtualenvs.create false --local
           poetry install
       - name: test
-        run: pytest -v
+        run: |
+          cd learning_loop_node
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest -v
 
   slack:
     needs:
@@ -43,6 +45,6 @@ jobs:
         uses: Gamesight/slack-workflow-status@master
         with:
           repo_token: ${{ secrets.GIT_HUB_TOKEN }}
-          slack_webhook_url: ${{ secrets.SLACK_ROBOTICS_CI_WEBHOOK }}
+          slack_webhook_url: ${{ secrets.SLACK_DEEPLEARNING_CI_WEBHOOK }}
           channel: "deeplearning-ci"
           name: "Learning Loop Node"
