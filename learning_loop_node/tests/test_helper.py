@@ -19,8 +19,7 @@ class LiveServerSession(Session):
         if 'token' in url:
             return super(LiveServerSession, self).request(method, url, *args, **kwargs)
 
-        eventloop = asyncio.get_event_loop()
-        headers = eventloop.run_until_complete(loop.get_headers())
+        headers = loop.get_headers()
         return super(LiveServerSession, self).request(method, url, headers=headers, *args, **kwargs)
 
 

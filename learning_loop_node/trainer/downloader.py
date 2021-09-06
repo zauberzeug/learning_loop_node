@@ -6,6 +6,7 @@ from glob import glob
 from ..context import Context
 from ..loop import loop
 from ..node_helper import download_images, download_images_data, create_resource_paths
+from ..task_logger import create_task
 from ..trainer.basic_data import BasicData
 from ..trainer.training_data import TrainingData
 import logging
@@ -38,10 +39,8 @@ class DataDownloader():
             return basic_data
 
     async def download_images_and_annotations(self, basic_data: BasicData, image_folder) -> TrainingData:
-        event_loop = asyncio.get_event_loop()
-
-        image_data_task = event_loop.create_task(self.download_image_data(basic_data.image_ids))
-        await self.download_images(event_loop, basic_data.image_ids, image_folder)
+        image_data_task = create_task(self.download_image_data(basic_data.image_ids))
+        await self.download_images(basic_data.image_ids, image_folder)
 
         training_data = TrainingData(image_data=[], box_categories=basic_data.box_categories)
         image_data = await image_data_task
@@ -56,10 +55,10 @@ class DataDownloader():
     async def download_image_data(self, ids: List[str]) -> List[dict]:
         return await download_images_data(self.context.organization, self.context.project, ids)
 
-    async def download_images(self, event_loop, image_ids: List[str], image_folder: str) -> None:
+    async def download_images(self, image_ids: List[str], image_folder: str) -> None:
         paths, ids = create_resource_paths(self.context.organization, self.context.project,
                                            self.filter_needed_image_ids(image_ids, image_folder))
-        await download_images(event_loop, paths, ids, image_folder)
+        await download_images(paths, ids, image_folder)
 
     @staticmethod
     def filter_needed_image_ids(all_image_ids, image_folder) -> List[str]:

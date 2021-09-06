@@ -19,10 +19,10 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str):
         super().__init__()
-        host = os.environ.get('HOST', 'learning-loop.ai')
+        host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
-        self.organization = os.environ.get('ORGANIZATION', None)
-        self.project = os.environ.get('PROJECT', None)
+        self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
+        self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
 
         self.name = name
         self.uuid = uuid
@@ -73,7 +73,7 @@ class Node(FastAPI):
 
         logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
-            headers = await loop.get_headers()
+            headers = await asyncio.get_event_loop().run_in_executor(None, loop.get_headers)
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             logging.debug(f'my sid is {self.sio_client.sid}')
             logging.info('connected to Learning Loop')
@@ -110,6 +110,6 @@ class Node(FastAPI):
 
     @staticmethod
     def create_project_folder(context: Context) -> str:
-        project_folder = f'/data/{context.organization}/{context.project}'
+        project_folder = f'{context.base_folder}/{context.organization}/{context.project}'
         os.makedirs(project_folder, exist_ok=True)
         return project_folder

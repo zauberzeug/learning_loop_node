@@ -1,5 +1,6 @@
 from http import HTTPStatus
-from learning_loop_node.context import Context
+from .context import Context
+from .task_logger import create_task
 import aiohttp
 from typing import List, Tuple
 import shutil
@@ -46,14 +47,14 @@ def create_resource_paths(organization_name: str, project_name: str, image_ids: 
     return urls, ids
 
 
-async def download_images(loop: asyncio.BaseEventLoop, paths: List[str], image_ids: List[str], image_folder: str, chunk_size: int = 10) -> None:
+async def download_images(paths: List[str], image_ids: List[str], image_folder: str, chunk_size: int = 10) -> None:
     starttime = time.time()
     for i in range(0, len(image_ids), chunk_size):
         chunk_paths = paths[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []
         for j in range(len(chunk_paths)):
-            tasks.append(loop.create_task(download_one_image(chunk_paths[j], chunk_ids[j], image_folder)))
+            tasks.append(create_task(download_one_image(chunk_paths[j], chunk_ids[j], image_folder)))
         await asyncio.gather(*tasks)
         total_time = round(time.time() - starttime, 1)
         logging.info(f'Downnloaed {i + len(tasks)} image files.')

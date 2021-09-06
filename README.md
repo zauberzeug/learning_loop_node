@@ -4,18 +4,22 @@ This Python library helps you to write your own Detection Nodes, Training Nodes 
 
 ## General Usage
 
-You can configure connection to the learning loop by specifying the following environment variables before starting:
+You can configure connection to our Learning Loop by specifying the following environment variables before starting:
 
-- HOST=learning-loop.ai
-- ORGANIZATION=<your organization>
-- PROJECT=<your project>
-- USERNAME=<your username>
-- PASSWORD=<your password>
+- LOOP_HOST=learning-loop.ai
+- LOOP_ORGANIZATION=<your organization>
+- LOOP_PROJECT=<your project>
+- LOOP_USERNAME=<your username>
+- LOOP_PASSWORD=<your password>
 
 ## Detector Node
 
+Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop to make model deployments very easy. They also provide REST and Socket.io APIs to run inferences. By default the images will automatically used for active learning: high uncertain predictions will be submitted to the Learning Loop inbox.
+
 ## Trainer Node
-  
+
+Trainers fetch the images and anntoations from the Learning Loop to generate new and improved models.
+
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
 ## Converter Node
@@ -57,8 +61,8 @@ but not in the format_b
 }
 ```
 
-Connect the Node to the learning loop by simply starting the container.
-After a short time the converted Model should be available as well.
+Connect the Node to the Learning Loop by simply starting the container.
+After a short time the converted model should be available as well.
 `curl https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_b`
 
 ```
@@ -78,3 +82,20 @@ After a short time the converted Model should be available as well.
   ]
 }
 ```
+
+## About Models (the currency between Nodes)
+
+- Models are packed in zips and saved on the Learning Loop (one for each format)
+- Nodes and users can upload and download models with which they want to work
+- In each zip there is a file called `model.json` which contains the metadata to interpret the other files in the package
+- for base models (pretrained models from external sources) no `model.json` has to be sent, ie. these models should simply be zipped in such a way that the respective trainer can work with them.
+- the loop adds or corrects the following properties in the `model.json` after receiving; it also creates the file if it is missing:
+  - `host`: uri to the loop
+  - `organization`: the ID of the organization
+  - `project`: the id of the project
+  - `version`: the version number that the loop assigned for this model (e.g. 1.3)
+  - `id`: the model UUID (currently not needed by anyone, since host, org, project, version clearly identify the model)
+  - `format`: the format e.g. yolo, tkdnn, yolor etc.
+- Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
+  - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, ` resolution_x`` resolution_y ` would also be conceivable or `resolutions` to give a list of possible resolutions)
+  - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
