@@ -43,9 +43,15 @@ class DataDownloader():
         image_data_task = event_loop.create_task(self.download_image_data(basic_data.image_ids))
         await self.download_images(event_loop, basic_data.image_ids, image_folder)
 
-        image_data = [i for i in await image_data_task if await self.is_valid_image(f'{image_folder}/{i["id"]}.jpg')]
+        training_data = TrainingData(image_data=[], box_categories=basic_data.box_categories)
+        image_data = await image_data_task
+        for i in image_data:
+            if await self.is_valid_image(f'{image_folder}/{i["id"]}.jpg'):
+                training_data.image_data.append(i)
+            else:
+                training_data.skipped_image_count += 1
         logging.info(f'Done downloading image_data for {len(image_data)} images.')
-        return TrainingData(image_data=image_data, box_categories=basic_data.box_categories)
+        return training_data
 
     async def download_image_data(self, ids: List[str]) -> List[dict]:
         return await download_images_data(self.context.organization, self.context.project, ids)

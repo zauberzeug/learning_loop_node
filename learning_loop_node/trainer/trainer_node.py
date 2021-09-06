@@ -109,8 +109,8 @@ class TrainerNode(Node):
                         id=str(uuid4()),
                         confusion_matrix=model.confusion_matrix,
                         parent_id=self.latest_known_model_id,
-                        train_image_count=self.trainer.training.data.train_image_count(),
-                        test_image_count=self.trainer.training.data.test_image_count(),
+                        train_image_count=current_training.data.train_image_count(),
+                        test_image_count=current_training.data.test_image_count(),
                         trainer_id=self.uuid,
                     )
 
@@ -137,6 +137,11 @@ class TrainerNode(Node):
             latest_error=self.status.latest_error
         )
 
+        if self.trainer and self.trainer.training:
+            status.train_image_count = self.trainer.training.data.train_image_count()
+            status.test_image_count = self.trainer.training.data.test_image_count()
+            status.skipped_image_count = self.trainer.training.data.skipped_image_count
+        
         logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
         if not result == True:

@@ -22,3 +22,6 @@ class Status(BaseModel):
 
 class TrainingStatus(Status):
     latest_produced_model_id: Optional[str]
+    train_image_count: Optional[int]
+    test_image_count: Optional[int]
+    skipped_image_count: Optional[int]

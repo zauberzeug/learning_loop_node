@@ -6,6 +6,7 @@ from typing import List
 class TrainingData(BaseModel):
     image_data: List[dict]
     box_categories: List[dict]
+    skipped_image_count: Optional[int] = 0
 
     def image_ids(self):
         return [image['id'] for image in self.image_data]
