@@ -33,7 +33,7 @@ RUN poetry install --no-root
 # while development this will be mounted but in deployment we need the latest code baked into the image
 ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
 
-COPY ./mock_trainer/ /app
+ADD ./mock_trainer /app
 ENV PYTHONPATH=/app
 
 EXPOSE 80
