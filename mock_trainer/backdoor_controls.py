@@ -56,12 +56,11 @@ async def set_status(new_status: Status, request: Request):
 @router.post("/reset")
 async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
-    _switch_socketio('on', trainer_node)
+    await _switch_socketio('on', trainer_node)
     if trainer_node.status.state == State.Running:
         await trainer_node.stop_training()
 
     trainer_node.status.latest_error = None
-    trainer_node.trainer.error_configuration = None
 
 
 @router.put("/error_configuration")
