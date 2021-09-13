@@ -1,6 +1,5 @@
 from learning_loop_node.context import Context
 import logging
-import aiohttp
 from .status import Status, State
 from fastapi import FastAPI
 import socketio
@@ -11,13 +10,13 @@ from icecream import ic
 from .loop import loop
 from aiohttp.client_exceptions import ClientConnectorError
 import logging
+from uuid import uuid4
 
 
 class Node(FastAPI):
     name: str
-    uuid: str
 
-    def __init__(self, name: str, uuid: str):
+    def __init__(self, name: str):
         super().__init__()
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
@@ -25,7 +24,7 @@ class Node(FastAPI):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
 
         self.name = name
-        self.uuid = uuid
+        self.uuid = self.read_or_create_uuid()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
@@ -47,6 +46,17 @@ class Node(FastAPI):
             await self.update_state(State.Offline)
 
         self.register_lifecycle_events()
+
+    def read_or_create_uuid(self) -> str:
+        if not os.path.exists('/data/uuid.txt'):
+            uuid = str(uuid4())
+            with open('/data/uuid.txt', 'a+') as f:
+                f.write(uuid)
+        else:
+            with open('/data/uuid.txt', 'r') as f:
+                uuid = f.read()
+
+        return uuid
 
     def register_lifecycle_events(self):
         @self.on_event("startup")

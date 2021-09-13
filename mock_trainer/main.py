@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 
 mock_trainer = MockTrainer(capability=Capability.Box, model_format='mocked')
-trainer_node = TrainerNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer', trainer=mock_trainer)
+trainer_node = TrainerNode(name='mocked trainer', trainer=mock_trainer)
 
 
 # setting up backdoor_controls

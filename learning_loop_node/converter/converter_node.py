@@ -13,8 +13,8 @@ class ConverterNode(Node):
     skip_check_state: bool = False
     bad_model_ids = []
 
-    def __init__(self, name: str, uuid: str, converter: Converter):
-        super().__init__(name, uuid)
+    def __init__(self, name: str, converter: Converter):
+        super().__init__(name)
         self.converter = converter
 
         @self.on_event("startup")
