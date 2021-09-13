@@ -49,6 +49,7 @@ class Node(FastAPI):
 
     def read_or_create_uuid(self) -> str:
         if not os.path.exists('/data/uuid.txt'):
+            os.makedirs('/data', exist_ok=True)
             uuid = str(uuid4())
             with open('/data/uuid.txt', 'a+') as f:
                 f.write(uuid)
