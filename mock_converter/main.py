@@ -8,7 +8,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 mock_converter = MockConverter(source_format='mocked', target_format='mocked_converted')
-node = ConverterNode(name='mocked converter', converter=mock_converter)
+node = ConverterNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f3', name='mocked converter', converter=mock_converter)
 node.skip_check_state = True  # do not check states auotmatically for this mock
 
 # setting up backdoor_controls

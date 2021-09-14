@@ -18,8 +18,8 @@ class TrainerNode(Node):
     latest_known_model_id: Union[str, None]
     skip_check_state: bool = False
 
-    def __init__(self, name: str, trainer: Trainer):
-        super().__init__(name)
+    def __init__(self, name: str, trainer: Trainer, uuid: str = None):
+        super().__init__(name, uuid)
         self.trainer = trainer
         self.latest_known_model_id = None
 

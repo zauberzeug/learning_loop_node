@@ -15,8 +15,9 @@ from uuid import uuid4
 
 class Node(FastAPI):
     name: str
+    uuid: str
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, uuid: str = None):
         super().__init__()
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
@@ -24,7 +25,7 @@ class Node(FastAPI):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
 
         self.name = name
-        self.uuid = self.read_or_create_uuid()
+        self.uuid = self.read_or_create_uuid() if uuid is None else uuid
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,

@@ -42,12 +42,6 @@ async def check_state(request: Request):
     logging.debug(f'turning automatically check_state {value}')
 
 
-@router.get("/id")
-def get_id(request: Request):
-    trainer_node = trainer_node_from_request(request)
-    return trainer_node.uuid
-
-
 @router.put("/status")
 async def set_status(new_status: Status, request: Request):
     if new_status.state == State.Running:
