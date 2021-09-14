@@ -12,5 +12,10 @@ class DownloaderFactory:
                 context=context,
                 data_query_params='state=complete&mode=box'
             )
+        elif capability == Capability.Segmentations:
+            return DataDownloader(
+                context=context,
+                data_query_params='state=complete&mode=segmentations'
+            )
         else:
             raise NotImplementedError('Not implemented yet.')
