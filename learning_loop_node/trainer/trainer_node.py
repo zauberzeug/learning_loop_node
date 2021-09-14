@@ -18,7 +18,7 @@ class TrainerNode(Node):
     latest_known_model_id: Union[str, None]
     skip_check_state: bool = False
 
-    def __init__(self, name: str, uuid: str, trainer: Trainer):
+    def __init__(self, name: str, trainer: Trainer, uuid: str = None):
         super().__init__(name, uuid)
         self.trainer = trainer
         self.latest_known_model_id = None
@@ -141,7 +141,7 @@ class TrainerNode(Node):
             status.train_image_count = self.trainer.training.data.train_image_count()
             status.test_image_count = self.trainer.training.data.test_image_count()
             status.skipped_image_count = self.trainer.training.data.skipped_image_count
-        
+
         logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
         if not result == True:
