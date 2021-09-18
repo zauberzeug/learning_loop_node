@@ -48,7 +48,7 @@ class Loop():
     def download_token(self):
 
         response = self.web.post(
-            self.base_url + '/api/token',
+            (self.base_url + '/api/token').replace('//api', '/api'),
             data={'username': self.username, 'password': self.password}
         )
         response.raise_for_status()

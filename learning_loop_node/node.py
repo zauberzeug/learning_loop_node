@@ -9,6 +9,7 @@ import os
 from icecream import ic
 from .loop import loop
 from aiohttp.client_exceptions import ClientConnectorError
+from fastapi_utils.tasks import repeat_every
 import logging
 from uuid import uuid4
 
@@ -64,12 +65,18 @@ class Node(FastAPI):
         @self.on_event("startup")
         async def startup():
             logging.debug('received "startup" event')
-            await self.connect()
 
         @self.on_event("shutdown")
         async def shutdown():
             logging.debug('received "shutdown" event')
             await self.sio_client.disconnect()
+
+        @self.on_event("startup")
+        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
+        async def ensure_connected() -> None:
+            if not self.sio_client.connected:
+                await self.connect()
+
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)
@@ -91,16 +98,8 @@ class Node(FastAPI):
             logging.info('connected to Learning Loop')
         except socketio.exceptions.ConnectionError as e:
             logging.error(f'socket.io connection error to "{self.ws_url}"')
-            if not ('Already connected' in str(e) or 'Connection refused' in str(e) or 'Unexpected status code' in str(e)):
-                await asyncio.sleep(0.5)
-                await self.connect()
-        except ConnectionRefusedError or ClientConnectorError:
-            await asyncio.sleep(0.5)
-            await self.connect()
         except Exception:
-            logging.error(f'error while connecting to "{self.ws_url}"')
-            await asyncio.sleep(2)
-            await self.connect()
+            logging.exception(f'error while connecting to "{self.ws_url}"')
 
     async def update_state(self, state: State):
         self.status.state = state
