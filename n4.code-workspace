@@ -9,7 +9,6 @@
   },
   "extensions": {
     "recommendations": [
-      "ms-vsliveshare.vsliveshare",
       "ms-python.vscode-pylance",
       "ms-python.python",
       "himanoa.python-autopep8",
