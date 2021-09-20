@@ -11,7 +11,7 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = 'https://preview.learning-loop.ai'
+        self.prefix_url = loop.base_url
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
