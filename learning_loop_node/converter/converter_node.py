@@ -63,7 +63,7 @@ class ConverterNode(Node):
             project_id = project['project_id']
 
             async with loop.get(f'api{project["resource"]}') as response:
-                project_categories = (await response.json())['box_categories']
+                project_categories = (await response.json())['categories']
 
             path = f'api{project["resource"]}/models'
             async with loop.get(path) as models_response:

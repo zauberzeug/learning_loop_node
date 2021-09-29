@@ -20,7 +20,7 @@ class DataDownloader():
     def __init__(self, context: Context, data_query_params: str):
         self.context = context
         self.data_query_params = data_query_params
-        
+
         self.check_jpeg = shutil.which('jpeginfo') is not None
         if self.check_jpeg:
             logging.info('Detected command line tool "jpeginfo". Images will be checked for validity')
@@ -42,7 +42,7 @@ class DataDownloader():
         image_data_task = create_task(self.download_image_data(basic_data.image_ids))
         await self.download_images(basic_data.image_ids, image_folder)
 
-        training_data = TrainingData(image_data=[], box_categories=basic_data.box_categories)
+        training_data = TrainingData(image_data=[], categories=basic_data.categories)
         image_data = await image_data_task
         for i in image_data:
             if await self.is_valid_image(f'{image_folder}/{i["id"]}.jpg'):

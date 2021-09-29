@@ -53,6 +53,6 @@ async def test_get_new_model():
         context=context,
         project_folder="",
         images_folder="")
-    mock_trainer.training.data = TrainingData(image_data=[], box_categories=[])
+    mock_trainer.training.data = TrainingData(image_data=[], categories=[])
     model = mock_trainer.get_new_model()
     assert model is not None

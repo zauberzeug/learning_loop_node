@@ -5,7 +5,7 @@ from typing import List
 
 class TrainingData(BaseModel):
     image_data: List[dict]
-    box_categories: List[dict]
+    categories: List[dict]
     skipped_image_count: Optional[int] = 0
 
     def image_ids(self):

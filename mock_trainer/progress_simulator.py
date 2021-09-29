@@ -8,7 +8,7 @@ def increment_time(trainer: Trainer, latest_known_confusion_matrix: dict) -> Bas
         return None
 
     confusion_matrix = {}
-    for category in trainer.training.data.box_categories:
+    for category in trainer.training.data.categories:
         try:
             minimum = latest_known_confusion_matrix[category['id']]['tp']
         except:

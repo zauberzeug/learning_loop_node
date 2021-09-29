@@ -50,11 +50,11 @@ async def test_download_basic_data(downloader: DataDownloader):
     basic_data = await downloader.download_basic_data()
 
     assert len(basic_data.image_ids) == 3
-    assert len(basic_data.box_categories) == 2
+    assert len(basic_data.categories) == 2
 
 
 @pytest.mark.asyncio
-async def test_download_images(downloader: DataDownloader, data_folder:str):
+async def test_download_images(downloader: DataDownloader, data_folder: str):
     _, image_folder, _ = trainer_test_helper.create_needed_folders(data_folder)
 
     basic_data = await downloader.download_basic_data()
