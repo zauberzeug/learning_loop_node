@@ -6,7 +6,6 @@ from mock_trainer import MockTrainer
 import pytest
 from typing import Generator
 from learning_loop_node.tests import test_helper
-from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.model import Model
 from uuid import uuid4
 from learning_loop_node import conftest
@@ -30,7 +29,7 @@ def create_project():
 
 
 def create_mock_trainer() -> MockTrainer:
-    mock_trainer = MockTrainer(capability=Capability.Box, model_format='mocked')
+    mock_trainer = MockTrainer(model_format='mocked')
     mock_trainer.executor = Executor(conftest.data_folder_for_tests)
     return mock_trainer
 

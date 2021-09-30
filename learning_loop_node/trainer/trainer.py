@@ -4,8 +4,6 @@ from learning_loop_node import node_helper
 from typing import List, Optional
 from uuid import uuid4
 import os
-from pydantic.main import BaseModel
-from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.training import Training
 from learning_loop_node.trainer.model import BasicModel
 from learning_loop_node.context import Context
@@ -15,15 +13,13 @@ from icecream import ic
 
 class Trainer():
 
-    def __init__(self, capability:Capability, model_format: str) -> None:
-        self.capability: Capability = capability
+    def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
 
-
     async def begin_training(self, context: Context, source_model: dict) -> None:
-        downloader = DownloaderFactory.create(context, self.capability)
+        downloader = DownloaderFactory.create(context)
 
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await downloader.download_data(self.training.images_folder)

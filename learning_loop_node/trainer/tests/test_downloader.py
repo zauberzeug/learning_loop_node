@@ -1,13 +1,11 @@
-from learning_loop_node.trainer.capability import Capability
 from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 import pytest
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.tests import trainer_test_helper
 from learning_loop_node.trainer.downloader import DataDownloader
-from learning_loop_node import node, node_helper
+from learning_loop_node import node_helper
 from learning_loop_node.context import Context
 from icecream import ic
-import asyncio
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -25,7 +23,7 @@ def create_project_for_module():
 @pytest.fixture
 def downloader() -> DataDownloader:
     context = Context(organization='zauberzeug', project='pytest')
-    return DownloaderFactory.create(context=context, capability=Capability.Box)
+    return DownloaderFactory.create(context=context)
 
 
 @pytest.mark.asyncio
