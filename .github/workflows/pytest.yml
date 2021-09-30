@@ -25,6 +25,7 @@ jobs:
           poetry install
       - name: test
         run: |
+          cd learning_loop_node
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest -v
 
   slack:
