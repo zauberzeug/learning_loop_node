@@ -3,11 +3,12 @@ from learning_loop_node.tests import test_helper
 from learning_loop_node.loop import loop
 import pytest
 import shutil
-import asyncio
 import icecream
 
 icecream.install()
 logging.basicConfig(level=logging.DEBUG)
+
+data_folder_for_tests = '/tmp/learning_loop_lib_data'
 
 
 @pytest.fixture()
@@ -23,10 +24,9 @@ def create_project():
 
 @pytest.fixture(scope='function')
 def data_folder():
-    path = '/tmp/learning_loop_lib_data'
-    shutil.rmtree(path, ignore_errors=True)
-    yield path
-    shutil.rmtree(path, ignore_errors=True)
+    shutil.rmtree(data_folder_for_tests, ignore_errors=True)
+    yield data_folder_for_tests
+    shutil.rmtree(data_folder_for_tests, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True, scope='function')
