@@ -56,7 +56,7 @@ class Node(FastAPI):
             with open(f'{GLOBALS.data_folder}/uuid.txt', 'a+') as f:
                 f.write(uuid)
         else:
-            with open('{GLOBALS.data_folder}/uuid.txt', 'r') as f:
+            with open(f'{GLOBALS.data_folder}/uuid.txt', 'r') as f:
                 uuid = f.read()
 
         return uuid
