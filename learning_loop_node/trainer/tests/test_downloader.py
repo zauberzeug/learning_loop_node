@@ -1,3 +1,4 @@
+from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 import pytest
 from learning_loop_node.tests import test_helper
@@ -27,7 +28,8 @@ def downloader() -> DataDownloader:
 
 
 @pytest.mark.asyncio
-async def test_download_model(data_folder):
+async def test_download_model():
+    data_folder = GLOBALS.data_folder
     _, _, trainings_folder = trainer_test_helper.create_needed_folders(data_folder)
     model_id = await trainer_test_helper.assert_upload_model()
 
@@ -52,12 +54,12 @@ async def test_download_basic_data(downloader: DataDownloader):
 
 
 @pytest.mark.asyncio
-async def test_download_images(downloader: DataDownloader, data_folder: str):
-    _, image_folder, _ = trainer_test_helper.create_needed_folders(data_folder)
+async def test_download_images(downloader: DataDownloader):
+    _, image_folder, _ = trainer_test_helper.create_needed_folders(GLOBALS.data_folder)
 
     basic_data = await downloader.download_basic_data()
     await downloader.download_images(basic_data.image_ids, image_folder)
-    files = test_helper.get_files_in_folder(data_folder)
+    files = test_helper.get_files_in_folder(GLOBALS.data_folder)
 
     assert len(files) == 3
 
