@@ -4,11 +4,10 @@ from learning_loop_node.loop import loop
 import pytest
 import shutil
 import icecream
+from learning_loop_node.globals import GLOBALS
 
 icecream.install()
 logging.basicConfig(level=logging.DEBUG)
-
-data_folder_for_tests = '/tmp/learning_loop_lib_data'
 
 
 @pytest.fixture()
@@ -22,11 +21,12 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(autouse=True, scope='function')
 def data_folder():
-    shutil.rmtree(data_folder_for_tests, ignore_errors=True)
-    yield data_folder_for_tests
-    shutil.rmtree(data_folder_for_tests, ignore_errors=True)
+    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+    yield
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True, scope='function')

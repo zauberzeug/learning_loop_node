@@ -1,5 +1,6 @@
 from learning_loop_node.context import Context
 import logging
+from learning_loop_node.globals import GLOBALS
 from .status import Status, State
 from fastapi import FastAPI
 import socketio
@@ -8,7 +9,6 @@ import asyncio
 import os
 from icecream import ic
 from .loop import loop
-from aiohttp.client_exceptions import ClientConnectorError
 from fastapi_utils.tasks import repeat_every
 import logging
 from uuid import uuid4
@@ -50,13 +50,13 @@ class Node(FastAPI):
         self.register_lifecycle_events()
 
     def read_or_create_uuid(self) -> str:
-        if not os.path.exists('/data/uuid.txt'):
-            os.makedirs('/data', exist_ok=True)
+        if not os.path.exists(f'{GLOBALS.data_folder}/uuid.txt'):
+            os.makedirs(GLOBALS.data_folder, exist_ok=True)
             uuid = str(uuid4())
-            with open('/data/uuid.txt', 'a+') as f:
+            with open(f'{GLOBALS.data_folder}/uuid.txt', 'a+') as f:
                 f.write(uuid)
         else:
-            with open('/data/uuid.txt', 'r') as f:
+            with open(f'{GLOBALS.data_folder}/uuid.txt', 'r') as f:
                 uuid = f.read()
 
         return uuid
@@ -76,7 +76,6 @@ class Node(FastAPI):
         async def ensure_connected() -> None:
             if not self.sio_client.connected:
                 await self.connect()
-
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)
