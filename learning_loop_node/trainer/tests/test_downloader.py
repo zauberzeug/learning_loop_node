@@ -14,7 +14,7 @@ def create_project_for_module():
     # TODO can we use the 'create_project' fixture here?
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
-                             'box_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
+                             'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
     assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
@@ -50,7 +50,7 @@ async def test_download_basic_data(downloader: DataDownloader):
     basic_data = await downloader.download_basic_data()
 
     assert len(basic_data.image_ids) == 3
-    assert len(basic_data.categories) == 4, 'Two box and two segmentation categories'
+    assert len(basic_data.categories) == 6, 'Two box, two segmentation and two point categories'
 
 
 @pytest.mark.asyncio
