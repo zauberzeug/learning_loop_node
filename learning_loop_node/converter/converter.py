@@ -1,4 +1,4 @@
-from ..converter.model_information import ModelInformation
+from ..model_information import ModelInformation
 from typing import List, Optional
 import os
 from pydantic.main import BaseModel
@@ -16,8 +16,8 @@ class Converter(BaseModel):
     async def convert(self, model_information: ModelInformation) -> None:
         project_folder = Node.create_project_folder(model_information.context)
 
-        self.model_folder = Converter.create_model_folder(project_folder, model_information.model_id)
-        await node_helper.download_model(self.model_folder, model_information.context, model_information. model_id, self.source_format)
+        self.model_folder = Converter.create_model_folder(project_folder, model_information.id)
+        await node_helper.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
 
         await self._convert(model_information)
 

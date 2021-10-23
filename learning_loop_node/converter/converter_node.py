@@ -5,7 +5,7 @@ from fastapi_utils.tasks import repeat_every
 from icecream import ic
 from ..loop import loop
 import logging
-from ..converter.model_information import ModelInformation
+from ..model_information import ModelInformation
 
 
 class ConverterNode(Node):
@@ -27,17 +27,17 @@ class ConverterNode(Node):
                     logging.error('could not check state. Is loop reachable?')
 
     async def convert_model(self, model_information: ModelInformation):
-        if model_information.model_id in self.bad_model_ids:
+        if model_information.id in self.bad_model_ids:
             logging.info(
-                f'skipping bad model model {model_information.model_id} for {model_information.context.organization}/{model_information.context.project}.')
+                f'skipping bad model model {model_information.id} for {model_information.context.organization}/{model_information.context.project}.')
             return
         try:
             await self.converter.convert(model_information)
-            await self.converter.upload_model(model_information.context, model_information.model_id)
+            await self.converter.upload_model(model_information.context, model_information.id)
         except Exception as e:
-            self.bad_model_ids.append(model_information.model_id)
+            self.bad_model_ids.append(model_information.id)
             logging.error(
-                f'could not convert model {model_information.model_id} for {model_information.context.organization}/{model_information.context.project}. Details: {str(e)}.')
+                f'could not convert model {model_information.id} for {model_information.context.organization}/{model_information.context.project}. Details: {str(e)}.')
 
     async def check_state(self):
         logging.debug(f'checking state: {self.status.state}')
@@ -76,7 +76,13 @@ class ConverterNode(Node):
                         if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
                             # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                             model_information = ModelInformation(
-                                organization=organization_id, project=project_id, model_id=model['id'], project_categories=project_categories, version=model['version'])
+                                host=loop.base_url,
+                                organization=organization_id,
+                                project=project_id,
+                                id=model['id'],
+                                categories=project_categories,
+                                version=model['version'],
+                            )
                             await self.convert_model(model_information)
 
     async def send_status(self):
