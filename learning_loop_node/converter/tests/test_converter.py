@@ -7,7 +7,7 @@ from learning_loop_node.converter.converter import Converter
 from learning_loop_node.converter.converter_node import ConverterNode
 
 
-class TestConverter(Converter):
+class MockedConverter(Converter):
     models: List[ModelInformation] = []
 
     async def _convert(self, model_information: ModelInformation) -> None:
@@ -16,7 +16,7 @@ class TestConverter(Converter):
 
 @pytest.mark.asyncio
 async def test_meta_informations():
-    converter = TestConverter(source_format='mocked', target_format='test')
+    converter = MockedConverter(source_format='mocked', target_format='test')
     node = ConverterNode(name='test', converter=converter)
     await node.convert_models()
     assert len(converter.models) == 3
