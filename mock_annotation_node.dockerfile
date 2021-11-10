@@ -21,7 +21,7 @@ RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.4.6"
 
 ENV PIP_USE_FEATURE=in-tree-build 
 
-ADD ./app /app
+ADD ./mock_annotation_node /app
 ENV PYTHONPATH=/app
 
 EXPOSE 80
