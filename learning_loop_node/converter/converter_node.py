@@ -6,6 +6,7 @@ from icecream import ic
 from ..loop import loop
 import logging
 from ..model_information import ModelInformation
+from http import HTTPStatus
 
 
 class ConverterNode(Node):
@@ -63,6 +64,10 @@ class ConverterNode(Node):
             project_id = project['project_id']
 
             async with loop.get(f'api{project["resource"]}') as response:
+                if response.status != HTTPStatus.OK:
+                    logging.error(
+                        f'got bad response for {response.url}: {response.status}, {response.content}')
+                    continue
                 project_categories = (await response.json())['categories']
 
             path = f'api{project["resource"]}/models'
