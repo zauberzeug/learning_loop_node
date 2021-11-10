@@ -77,18 +77,20 @@ class ConverterNode(Node):
                 models = content['models']
 
                 for model in models:
-                    if model['version']:
-                        if self.converter.source_format in model['formats'] and not self.converter.target_format in model['formats']:
-                            # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
-                            model_information = ModelInformation(
-                                host=loop.base_url,
-                                organization=organization_id,
-                                project=project_id,
-                                id=model['id'],
-                                categories=project_categories,
-                                version=model['version'],
-                            )
-                            await self.convert_model(model_information)
+                    if (model['version']
+                            and self.converter.source_format in model['formats']
+                            and self.converter.target_format not in model['formats']
+                            ):
+                        # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
+                        model_information = ModelInformation(
+                            host=loop.base_url,
+                            organization=organization_id,
+                            project=project_id,
+                            id=model['id'],
+                            categories=project_categories,
+                            version=model['version'],
+                        )
+                        await self.convert_model(model_information)
 
     async def send_status(self):
         # NOTE not yet implemented
