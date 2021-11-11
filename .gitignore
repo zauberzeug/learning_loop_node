@@ -9,3 +9,5 @@ images_and_detections/*
 __pycache__/
 *.py[cod]
 *$py.class
+
+.env
