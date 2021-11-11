@@ -30,18 +30,20 @@ class AnnotationNode(Node):
             ic(f'received user input: {jsonable_encoder(user_input)}')
             data = user_input['data']
             event_type = data['event_type']
-
-            if event_type == 'mouse_down':
-                coordinates = data['coordinates']
-                self.box = SvgBox(x=coordinates['x'], y=coordinates['y'], x2=coordinates['x'], y2=coordinates['y'])
-                return str(self.box)
-            if event_type == 'mouse_move':
-                coordinates = data['coordinates']
-                self.box.x2 = coordinates['x']
-                self.box.y2 = coordinates['y']
-                return str(self.box)
-            if event_type == 'mouse_up':
-                self.box = None
+            try:
+                if event_type == 'mouse_down':
+                    coordinates = data['coordinates']
+                    self.box = SvgBox(x=coordinates['x'], y=coordinates['y'], x2=coordinates['x'], y2=coordinates['y'])
+                    return str(self.box)
+                if event_type == 'mouse_move':
+                    coordinates = data['coordinates']
+                    self.box.x2 = coordinates['x']
+                    self.box.y2 = coordinates['y']
+                    return str(self.box)
+                if event_type == 'mouse_up':
+                    self.box = None
+                    return ""
+            except:
                 return ""
 
             return "some_svg_response_from_node"
