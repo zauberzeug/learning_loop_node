@@ -7,6 +7,7 @@ from ..loop import loop
 import logging
 from ..model_information import ModelInformation
 from http import HTTPStatus
+from fastapi.encoders import jsonable_encoder
 
 
 class ConverterNode(Node):
@@ -33,7 +34,10 @@ class ConverterNode(Node):
                 f'skipping bad model model {model_information.id} for {model_information.context.organization}/{model_information.context.project}.')
             return
         try:
+            logging.info(
+                f'converting model {jsonable_encoder(model_information)}')
             await self.converter.convert(model_information)
+            logging.info('uploading model ')
             await self.converter.upload_model(model_information.context, model_information.id)
         except Exception as e:
             self.bad_model_ids.append(model_information.id)
