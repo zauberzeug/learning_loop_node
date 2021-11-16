@@ -4,7 +4,7 @@
       "path": "."
     },
     {
-      "path": "/usr/local/lib/python3.8/dist-packages/learning_loop_node"
+      "path": "/usr/local/lib/python3.7/site-packages/learning_loop_node"
     }
   ],
   "settings": {
