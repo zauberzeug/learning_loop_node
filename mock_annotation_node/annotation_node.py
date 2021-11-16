@@ -25,8 +25,8 @@ class AnnotationNode(Node):
         super().__init__('Annotation Node ' + os.uname()[1], '00000000-1111-2222-3333-444444444444')
         self.box: SvgBox = None
 
-        @self.sio_client.on('save')
-        def on_user_input(organization, project, user_input):
+        @self.sio_client.on('handle_user_input')
+        def on_handle_user_input(organization, project, user_input):
             ic(f'received user input: {jsonable_encoder(user_input)}')
             data = user_input['data']
             event_type = data['event_type']
