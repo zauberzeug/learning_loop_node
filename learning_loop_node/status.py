@@ -8,6 +8,7 @@ from typing import Union
 class State(str, Enum):
     Idle = "idle"
     Offline = "offline"
+    Online = "online"
     Running = "running"
     Preparing = "preparing"
 
@@ -19,6 +20,8 @@ class Status(BaseModel):
     uptime: Optional[int] = 0
     latest_error: Optional[str] = None
 
+class AnnotationNodeStatus(Status):
+    capabilities: List[str]
 
 class TrainingStatus(Status):
     latest_produced_model_id: Optional[str]

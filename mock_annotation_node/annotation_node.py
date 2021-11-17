@@ -2,7 +2,7 @@ from learning_loop_node.node import Node
 import logging
 import os
 from fastapi.encoders import jsonable_encoder
-from learning_loop_node.status import State, TrainingStatus
+from learning_loop_node.status import State, AnnotationNodeStatus
 from icecream import ic
 from pydantic import BaseModel
 import logging
@@ -49,13 +49,14 @@ class AnnotationNode(Node):
             return "some_svg_response_from_node"
 
     async def send_status(self):
-        status = TrainingStatus(
+        status = AnnotationNodeStatus(
             id=self.uuid,
             name=self.name,
-            state=State.Idle,
+            state=State.Online,
+            capabilities=['segmentation']
         )
 
         logging.info(f'sending status {status}')
-        result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
+        result = await self.sio_client.call('update_annotation_node', jsonable_encoder(status), timeout=2)
         if result != True:
             raise Exception(result)
