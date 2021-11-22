@@ -2,7 +2,7 @@
 from typing import List
 from learning_loop_node.converter.converter import Converter
 import asyncio
-from learning_loop_node.converter.model_information import ModelInformation
+from learning_loop_node.model_information import ModelInformation
 
 
 class MockConverter(Converter):
