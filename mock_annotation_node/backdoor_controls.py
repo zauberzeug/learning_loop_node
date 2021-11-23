@@ -4,7 +4,7 @@ from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from fastapi import APIRouter,  Request,  HTTPException
 from learning_loop_node.status import Status, State
 import logging
-from annotation_node import AnnotationNode
+from learning_loop_node.annotation_node.annotation_node import AnnotationNode
 
 router = APIRouter()
 

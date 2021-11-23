@@ -24,14 +24,14 @@ class AnnotationNode(Node):
 
     async def handle_user_input(self, organization, project, user_input) -> str:
         ic(user_input)
-        if user_input['data']['event_type'] != EventType.MouseDown:
-            return""
         input = UserInput.parse_obj(user_input)
         await self.download_image(input.data.context, input.data.image_uuid)
         tool_result = await self.tool.handle_user_input(input)
         ic(tool_result)
-        result = await self.sio_client.call('update_segmentation_annotation', (organization,
+        if tool_result.annotation:
+            result = await self.sio_client.call('update_segmentation_annotation', (organization,
                                                                                project, jsonable_encoder(tool_result.annotation)), timeout=2)
+
         return tool_result.svg
 
     async def send_status(self):
