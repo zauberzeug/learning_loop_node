@@ -56,7 +56,7 @@ def autofit(image_path, box: Box, point: Point) -> List[Point]:
     mask = np.ones(crop.shape[:2], np.uint8) * cv2.GC_BGD
     mask[crop_rect[1]:crop_rect[1]+crop_rect[3],
          crop_rect[0]:crop_rect[0]+crop_rect[2]] = cv2.GC_PR_FGD
-    mask[point.x, point.y] = cv2.GC_FGD
+    mask[point.y, point.x] = cv2.GC_FGD
     # mask[crop_rect[1]+crop_rect[3]//4:crop_rect[1]+3*crop_rect[3]//4,
     #      crop_rect[0]+crop_rect[2]//4:crop_rect[0]+3*crop_rect[2]//4] = cv2.GC_FGD
     bgdModel = np.zeros((1, 65), np.float64)
