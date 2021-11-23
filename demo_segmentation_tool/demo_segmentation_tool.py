@@ -1,4 +1,5 @@
-from annotation_node import AnnotationTool, Point, SegmentationAnnotation, Shape, ToolOutput, UserInput
+from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
+from learning_loop_node.annotation_node.data_classes import Point, SegmentationAnnotation, Shape, ToolOutput, UserInput
 from uuid import uuid4
 
 

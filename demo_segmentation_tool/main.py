@@ -1,6 +1,6 @@
 import uvicorn
 import logging
-from annotation_node import AnnotationNode
+from learning_loop_node.annotation_node.annotation_node import AnnotationNode
 from demo_segmentation_tool import DemoSegmentationTool
 import os
 
