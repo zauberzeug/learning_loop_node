@@ -18,7 +18,7 @@ class DemoSegmentationTool(AnnotationTool):
         box = Box(x=user_input.data.coordinate.x - length/2,
                   y=user_input.data.coordinate.y - length/2, w=length, h=length)
         if user_input.data.event_type == EventType.MouseDown:
-            points = autofit('/data/zauberzeug/demo/images/738232a6-7a94-ecea-ade0-aa5de7f7b1fe.jpg',
+            points = autofit(f'/data/{user_input.data.context.organization}/{user_input.data.context.project}/images/{user_input.data.image_uuid}.jpg',
                              box, user_input.data.coordinate)
             ic(points)
             annotation = SegmentationAnnotation(id=str(uuid4()), shape=Shape(points=points),
