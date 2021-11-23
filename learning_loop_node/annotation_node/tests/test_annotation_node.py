@@ -1,9 +1,12 @@
 from learning_loop_node.context import Context
 from learning_loop_node.trainer.downloader_factory import DownloaderFactory
-from annotation_node import AnnotationData, AnnotationNode, EmptyAnnotationTool, EventType, Point, UserInput, EventType
+from learning_loop_node.annotation_node.data_classes import AnnotationData, EventType, Point, UserInput, EventType
+from learning_loop_node.annotation_node.annotation_node import AnnotationNode
+from learning_loop_node.annotation_node.annotation_tool import EmptyAnnotationTool
 import pytest
 from fastapi.encoders import jsonable_encoder
 from icecream import ic
+from learning_loop_node.model_information import Category, CategoryType
 import os
 
 
@@ -12,7 +15,8 @@ def default_user_input() -> UserInput:
         coordinate=Point(x=0, y=0),
         event_type=EventType.MouseDown,
         context=Context(organization='zauberzeug', project='pytest'),
-        image_uuid='285a92db-bc64-240d-50c2-3212d3973566'
+        image_uuid='285a92db-bc64-240d-50c2-3212d3973566',
+        category = Category(id='some_id', name = 'category_1', description='', hotkey='', color = '', type=CategoryType.Segmentation)
     )
     return UserInput(data=annotation_data)
 
