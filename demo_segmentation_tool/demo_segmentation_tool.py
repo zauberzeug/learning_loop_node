@@ -20,17 +20,26 @@ class DemoSegmentationTool(AnnotationTool):
     async def handle_user_input(self, user_input: UserInput) -> ToolOutput:
 
         # points = [Point(x=0, y=0), Point(x=100, y=100), Point(x=0, y=100)]
+        try:
+            ic(user_input.data.image_uuid)
+            ic(self.history.annotation.image_id)
+        except:
+            ic('Exception')
 
         if user_input.data.event_type == EventType.MouseDown:
             if not self.history:
                 self.history = History()
                 # currently we only support outside clicks.
-            self.history.outside_clicks.append(user_input.data.coordinate)
+            if user_input.data.is_shift_key_pressed:
+                self.history.outside_clicks.append(user_input.data.coordinate)
+            else:
+                self.history.inside_clicks.append(user_input.data.coordinate)
 
             points = autofit(f'/data/{user_input.data.context.organization}/{user_input.data.context.project}/images/{user_input.data.image_uuid}.jpg',
                              self.history)
 
             if not self.history.annotation or self.history.annotation.image_id != user_input.data.image_uuid:
+                ic('replacing annotation')
                 self.history.annotation = SegmentationAnnotation(id=str(uuid4()), shape=Shape(points=[]),
                                                                  image_id=user_input.data.image_uuid, category_id=user_input.data.category.id)
             self.history.annotation.shape.points = points
@@ -64,7 +73,7 @@ def autofit(image_path, history: History) -> List[Point]:
     for p in history.outside_clicks:
         outside_points.append([p.x, p.y])
 
-    bbox_points = array_points + outside_points
+    bbox_points = outside_points
 
     bbox = bounding_box(bbox_points)
     box_size = 100
@@ -78,13 +87,19 @@ def autofit(image_path, history: History) -> List[Point]:
 
     if array_points:
         polygon = np.array([array_points], dtype=np.int32)
-        # cv2.fillPoly(mask, polygon, cv2.GC_PR_FGD)
-        cv2.fillPoly(mask, polygon, cv2.GC_FGD)
+        cv2.fillPoly(mask, polygon, cv2.GC_PR_FGD)
+        # cv2.fillPoly(mask, polygon, cv2.GC_FGD)
     for p in outside_points:
         mask[p[1], p[0]] = cv2.GC_FGD
-
+    offset = 10
     for p in inside_points:
-        mask[p[1], p[0]] = cv2.GC_BGD
+
+        for y in range(p[1]-offset, p[1]+offset):
+            for x in range(p[0]-offset, p[0]+offset):
+                ic(x, y)
+                # mask[y, x] = cv2.GC_PR_BGD
+                mask[y, x] = cv2.GC_BGD
+        ic(p)
 
     bgdModel = np.zeros((1, 65), np.float64)
     fgdModel = np.zeros((1, 65), np.float64)
