@@ -37,7 +37,7 @@ class History(BaseModel):
             path = f'M {pixel[0].x} {pixel[0].y}'
             for point in pixel[1:]:
                 path += f' L {point.x} {point.y}'
-            path += ' Z'
+            # path += ' Z'
             return path
 
         svg_path = ''
@@ -180,8 +180,8 @@ def autofit(image_path, history: History) -> List[Point]:
     mask = np.ones(crop.shape[:2], np.uint8) * cv2.GC_BGD
     mask[crop_rect[1]:crop_rect[1]+crop_rect[3],
          crop_rect[0]:crop_rect[0]+crop_rect[2]] = cv2.GC_PR_FGD
-    mask[crop_rect[1]+crop_rect[3]//4:crop_rect[1]+3*crop_rect[3]//4,
-         crop_rect[0]+crop_rect[2]//4:crop_rect[0]+3*crop_rect[2]//4] = cv2.GC_FGD
+    # mask[crop_rect[1]+crop_rect[3]//4:crop_rect[1]+3*crop_rect[3]//4,
+    #      crop_rect[0]+crop_rect[2]//4:crop_rect[0]+3*crop_rect[2]//4] = cv2.GC_FGD
 
     for p in history.fg_pixel:
         mask[p.y, p.x] = cv2.GC_FGD
