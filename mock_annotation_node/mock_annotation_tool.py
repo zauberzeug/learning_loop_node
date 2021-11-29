@@ -1,9 +1,6 @@
 from typing import Optional
-from learning_loop_node.node import Node
 import logging
-import os
 from fastapi.encoders import jsonable_encoder
-from learning_loop_node.status import State, AnnotationNodeStatus
 from icecream import ic
 from pydantic import BaseModel
 import logging
@@ -30,7 +27,7 @@ class MockAnnotationTool(AnnotationTool):
         super().__init__()
         self.box: SvgBox = None
 
-    async def handle_user_input(self, user_input: UserInput):
+    async def handle_user_input(self, user_input: UserInput, history: dict):
         out = ToolOutput(svg="", annotation=None)
         ic(f'received user input: {jsonable_encoder(user_input)}')
         event_type = user_input.data.event_type
@@ -54,3 +51,6 @@ class MockAnnotationTool(AnnotationTool):
             return out
         out.svg = "some_svg_response_from_node"
         return out
+
+    def create_empty_history(self):
+        return {}

@@ -37,14 +37,14 @@ class AnnotationData(BaseModel):
     context: Context
     image_uuid: str
     category: Category
-    is_shift_key_pressed : Optional[bool]
+    is_shift_key_pressed: Optional[bool]
     # keyboard_modifiers: Optional[List[str]]
     # new_annotation_uuid: Optional[str]
     # edit_annotation_uuid: Optional[str]
 
 
 class UserInput(BaseModel):
-
+    frontend_id: str
     data: AnnotationData
 
 

@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from pydantic import BaseModel
-from learning_loop_node.annotation_node.data_classes import UserInput,ToolOutput 
+from learning_loop_node.annotation_node.data_classes import UserInput, ToolOutput
 
 
 class AnnotationTool(BaseModel):
@@ -9,8 +9,11 @@ class AnnotationTool(BaseModel):
     async def handle_user_input(self, user_input: UserInput) -> ToolOutput:
         pass
 
+    @abstractmethod
+    def create_empty_history(self) -> dict:
+        pass
+
 
 class EmptyAnnotationTool():
     async def handle_user_input(self, user_input: UserInput) -> ToolOutput:
         return ToolOutput(svg="", shape={})
-
