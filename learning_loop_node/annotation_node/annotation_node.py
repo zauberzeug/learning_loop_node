@@ -24,7 +24,7 @@ class AnnotationNode(Node):
             return await self.handle_user_input(organization, project, user_input)
 
     async def handle_user_input(self, organization, project, user_input) -> str:
-
+        raise Exception('Test Drone build')
         ic(user_input)
 
         input = UserInput.parse_obj(user_input)
