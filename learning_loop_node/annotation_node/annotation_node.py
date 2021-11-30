@@ -24,9 +24,6 @@ class AnnotationNode(Node):
             return await self.handle_user_input(organization, project, user_input)
 
     async def handle_user_input(self, organization, project, user_input) -> str:
-
-        ic(user_input)
-
         input = UserInput.parse_obj(user_input)
         await self.download_image(input.data.context, input.data.image_uuid)
         history = self.get_history(input.frontend_id)
