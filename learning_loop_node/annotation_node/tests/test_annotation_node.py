@@ -18,7 +18,7 @@ def default_user_input() -> UserInput:
         image_uuid='285a92db-bc64-240d-50c2-3212d3973566',
         category = Category(id='some_id', name = 'category_1', description='', hotkey='', color = '', type=CategoryType.Segmentation)
     )
-    return UserInput(data=annotation_data)
+    return UserInput(frontend_id='some_id', data=annotation_data)
 
 
 async def download_basic_data():

@@ -6,7 +6,7 @@ from learning_loop_node.annotation_node.data_classes import UserInput, ToolOutpu
 class AnnotationTool(BaseModel):
 
     @abstractmethod
-    async def handle_user_input(self, user_input: UserInput) -> ToolOutput:
+    async def handle_user_input(self, user_input: UserInput, history: dict) -> ToolOutput:
         pass
 
     @abstractmethod
@@ -15,5 +15,8 @@ class AnnotationTool(BaseModel):
 
 
 class EmptyAnnotationTool():
-    async def handle_user_input(self, user_input: UserInput) -> ToolOutput:
+    async def handle_user_input(self, user_input: UserInput, history: dict) -> ToolOutput:
         return ToolOutput(svg="", shape={})
+
+    def create_empty_history(self) -> dict:
+        return {}
