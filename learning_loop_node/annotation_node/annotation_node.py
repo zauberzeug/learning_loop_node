@@ -25,10 +25,17 @@ class AnnotationNode(Node):
 
     async def handle_user_input(self, organization, project, user_input) -> str:
         input = UserInput.parse_obj(user_input)
+
+        if input.data.event_type == EventType.ESC_Pressed:
+            try:
+                del self.histories[input.frontend_id]
+            except:
+                pass
+            return ''
+
         await self.download_image(input.data.context, input.data.image_uuid)
         history = self.get_history(input.frontend_id)
         tool_result = await self.tool.handle_user_input(input, history)
-        ic(tool_result)
         if tool_result.annotation:
             result = await self.sio_client.call('update_segmentation_annotation', (organization,
                                                                                    project, jsonable_encoder(tool_result.annotation)), timeout=2)
