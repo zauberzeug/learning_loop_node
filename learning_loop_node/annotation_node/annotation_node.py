@@ -27,20 +27,29 @@ class AnnotationNode(Node):
         input = UserInput.parse_obj(user_input)
 
         if input.data.event_type == EventType.ESC_Pressed:
-            try:
-                del self.histories[input.frontend_id]
-            except:
-                pass
+            self.reset_history(input.frontend_id)
             return ''
 
         await self.download_image(input.data.context, input.data.image_uuid)
         history = self.get_history(input.frontend_id)
-        tool_result = await self.tool.handle_user_input(input, history)
+        try:
+            tool_result = await self.tool.handle_user_input(input, history)
+        except:
+            self.reset_history(input.frontend_id)
+            raise
+
         if tool_result.annotation:
             result = await self.sio_client.call('update_segmentation_annotation', (organization,
                                                                                    project, jsonable_encoder(tool_result.annotation)), timeout=2)
 
         return tool_result.svg
+
+    def reset_history(self,frontend_id: str) -> None:
+        try:
+            del self.histories[frontend_id]
+        except:
+            pass
+        
 
     def get_history(self, frontend_id: str) -> dict:
         if not frontend_id in self.histories.keys():
