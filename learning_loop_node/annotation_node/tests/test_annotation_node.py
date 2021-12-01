@@ -36,6 +36,6 @@ async def test_image_download(create_project):
 
     node = AnnotationNode(name="", uuid="", tool=EmptyAnnotationTool())
     input = default_user_input()
-    _ = await node.handle_user_input('zauberzeug', 'pytest', jsonable_encoder(input))
+    _ = await node.handle_user_input(jsonable_encoder(input))
 
     assert os.path.exists(image_path) == True
