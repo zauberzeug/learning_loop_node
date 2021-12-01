@@ -20,10 +20,10 @@ class AnnotationNode(Node):
         self.tool = tool
 
         @self.sio_client.on('handle_user_input')
-        async def on_handle_user_input(organization, project, user_input):
-            return await self.handle_user_input(organization, project, user_input)
+        async def on_handle_user_input(user_input):
+            return await self.handle_user_input(user_input)
 
-    async def handle_user_input(self, organization, project, user_input) -> str:
+    async def handle_user_input(self, user_input) -> str:
         input = UserInput.parse_obj(user_input)
 
         if input.data.event_type == EventType.ESC_Pressed:
@@ -39,8 +39,8 @@ class AnnotationNode(Node):
             raise
 
         if tool_result.annotation:
-            result = await self.sio_client.call('update_segmentation_annotation', (organization,
-                                                                                   project, jsonable_encoder(tool_result.annotation)), timeout=2)
+            result = await self.sio_client.call('update_segmentation_annotation', (input.data.context.organization,
+                                                                                   input.data.context.project, jsonable_encoder(tool_result.annotation)), timeout=2)
 
         return tool_result.svg
 
