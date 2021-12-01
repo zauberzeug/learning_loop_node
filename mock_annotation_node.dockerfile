@@ -23,7 +23,6 @@ ENV PIP_USE_FEATURE=in-tree-build
 
 ADD ./mock_annotation_node /app
 
-ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages/learning_loop_node"
-
+ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
 
 EXPOSE 80
