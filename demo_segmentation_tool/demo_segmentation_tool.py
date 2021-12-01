@@ -161,20 +161,21 @@ def autofit(image_path, history: History) -> List[Point]:
          crop_rect[0]:crop_rect[0]+crop_rect[2]] = cv2.GC_PR_FGD
 
     for p in history.fg_pixel:
-        mask[p.y, p.x] = cv2.GC_FGD
+        mask[p.y - roi_t, p.x - roi_l] = cv2.GC_FGD
 
     for p in history.bg_pixel:
-        mask[p.y, p.x] = cv2.GC_BGD
+        mask[p.y - roi_t, p.x - roi_l] = cv2.GC_BGD
 
     bgdModel = np.zeros((1, 65), np.float64)
     fgdModel = np.zeros((1, 65), np.float64)
-    cv2.grabCut(img, mask, crop_rect, bgdModel, fgdModel, 1, cv2.GC_INIT_WITH_MASK)
+    cv2.grabCut(crop, mask, crop_rect, bgdModel, fgdModel, 1, cv2.GC_INIT_WITH_MASK)
 
     mask = np.where((mask == cv2.GC_BGD) | (mask == cv2.GC_PR_BGD), 0, 1).astype(np.uint8)
 
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     greatest_contour = max(contours, key=cv2.contourArea)
     points = [Point(x=something[0][0], y=something[0][1]) for something in greatest_contour]
+    points = [Point(x=p.x + roi_l, y=p.y+roi_t) for p in points]
 
     return points
 
