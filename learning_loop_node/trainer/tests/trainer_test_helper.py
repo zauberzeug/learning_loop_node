@@ -3,7 +3,7 @@ from typing import List, Optional
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 import aiohttp
-from learning_loop_node import loop
+from learning_loop_node import loop, node_helper
 import logging
 
 
@@ -29,6 +29,6 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None, format: st
 def create_needed_folders(base_folder: str, training_uuid: str = 'some_uuid'):
     project_folder = Node.create_project_folder(
         Context(organization='zauberzeug', project='pytest', base_folder=base_folder))
-    image_folder = Trainer.create_image_folder(project_folder)
+    image_folder = node_helper.create_image_folder(project_folder)
     training_folder = Trainer.create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder

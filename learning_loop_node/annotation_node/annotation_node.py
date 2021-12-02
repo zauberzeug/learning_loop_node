@@ -2,11 +2,11 @@
 from fastapi.encoders import jsonable_encoder
 from learning_loop_node.node import Node
 from learning_loop_node.status import State, AnnotationNodeStatus
-from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.context import Context
 from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
 from learning_loop_node.annotation_node.data_classes import EventType, UserInput
 from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.rest.downloader import node_helper
 import logging
 from icecream import ic
 
@@ -71,7 +71,7 @@ class AnnotationNode(Node):
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = Node.create_project_folder(context)
-        images_folder = Trainer.create_image_folder(project_folder)
+        images_folder = node_helper.create_image_folder(project_folder)
 
         downloader = DataDownloader(context=context)
         await downloader.download_images([uuid], images_folder)

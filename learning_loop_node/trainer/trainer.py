@@ -8,6 +8,7 @@ from learning_loop_node.context import Context
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.downloader import TrainingsDownloader
 from learning_loop_node.rest import downloads, uploads
+from learning_loop_node import node_helper
 from icecream import ic
 
 
@@ -63,15 +64,9 @@ class Trainer():
             base_model=source_model,
             context=context,
             project_folder=project_folder,
-            images_folder=Trainer.create_image_folder(project_folder),
+            images_folder=node_helper.create_image_folder(project_folder),
             training_folder=Trainer.create_training_folder(project_folder, training_uuid)
         )
-
-    @staticmethod
-    def create_image_folder(project_folder: str) -> str:
-        image_folder = f'{project_folder}/images'
-        os.makedirs(image_folder, exist_ok=True)
-        return image_folder
 
     @staticmethod
     def create_training_folder(project_folder: str, trainings_id: str) -> str:
