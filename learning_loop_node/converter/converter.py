@@ -1,11 +1,11 @@
-from ..model_information import ModelInformation
-from typing import List, Optional
 import os
+import shutil
+from typing import List, Optional
 from pydantic.main import BaseModel
 from learning_loop_node.node import Node
+from learning_loop_node.model_information import ModelInformation
+from learning_loop_node.rest import downloads, uploads
 from icecream import ic
-from learning_loop_node import node_helper
-import shutil
 
 
 class Converter(BaseModel):
@@ -17,7 +17,7 @@ class Converter(BaseModel):
         project_folder = Node.create_project_folder(model_information.context)
 
         self.model_folder = Converter.create_model_folder(project_folder, model_information.id)
-        await node_helper.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
+        await downloads.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
 
         await self._convert(model_information)
 
@@ -29,7 +29,7 @@ class Converter(BaseModel):
 
     async def upload_model(self, context, model_id: str) -> bool:
         files = self.get_converted_files(model_id)
-        await node_helper.upload_model(context, files, model_id, self.target_format)
+        await uploads.upload_model(context, files, model_id, self.target_format)
 
     @staticmethod
     def create_convert_folder(project_folder: str) -> str:

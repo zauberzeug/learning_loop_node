@@ -1,13 +1,13 @@
-from learning_loop_node.trainer.executor import Executor
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
-from learning_loop_node import node_helper
+import os
 from typing import List, Optional
 from uuid import uuid4
-import os
+from learning_loop_node.trainer.executor import Executor
 from learning_loop_node.trainer.training import Training
 from learning_loop_node.trainer.model import BasicModel
 from learning_loop_node.context import Context
 from learning_loop_node.node import Node
+from learning_loop_node.trainer.downloader import TrainingsDownloader
+from learning_loop_node.rest import downloads, uploads
 from icecream import ic
 
 
@@ -19,13 +19,13 @@ class Trainer():
         self.executor: Optional[Executor] = None
 
     async def begin_training(self, context: Context, source_model: dict) -> None:
-        downloader = DownloaderFactory.create(context)
+        downloader = TrainingsDownloader(context)
 
         self.training = Trainer.generate_training(context, source_model)
-        self.training.data = await downloader.download_data(self.training.images_folder)
+        self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.executor = Executor(self.training.training_folder)
 
-        await node_helper.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
+        await downloads.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
 
         await self.start_training()
 
@@ -43,7 +43,7 @@ class Trainer():
 
     async def save_model(self,  context: Context, model_id: str) -> None:
         files = self.get_model_files(model_id)
-        await node_helper.upload_model(context, files, model_id, self.model_format)
+        await uploads.upload_model(context, files, model_id, self.model_format)
 
     def get_model_files(self, model_id) -> List[str]:
         raise NotImplementedError()

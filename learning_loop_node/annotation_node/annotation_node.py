@@ -1,14 +1,14 @@
 
-from learning_loop_node.node import Node
-import logging
 from fastapi.encoders import jsonable_encoder
+from learning_loop_node.node import Node
 from learning_loop_node.status import State, AnnotationNodeStatus
-from icecream import ic
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.context import Context
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
 from learning_loop_node.annotation_node.data_classes import EventType, UserInput
+from learning_loop_node.rest.downloader import DataDownloader
+import logging
+from icecream import ic
 
 
 class AnnotationNode(Node):
@@ -44,12 +44,11 @@ class AnnotationNode(Node):
 
         return tool_result.svg
 
-    def reset_history(self,frontend_id: str) -> None:
+    def reset_history(self, frontend_id: str) -> None:
         try:
             del self.histories[frontend_id]
         except:
             pass
-        
 
     def get_history(self, frontend_id: str) -> dict:
         if not frontend_id in self.histories.keys():
@@ -74,5 +73,5 @@ class AnnotationNode(Node):
         project_folder = Node.create_project_folder(context)
         images_folder = Trainer.create_image_folder(project_folder)
 
-        downloader = DownloaderFactory.create(context=context)
+        downloader = DataDownloader(context=context)
         await downloader.download_images([uuid], images_folder)

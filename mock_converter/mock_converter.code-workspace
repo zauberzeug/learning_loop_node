@@ -2,6 +2,9 @@
   "folders": [
     {
       "path": "."
+    },
+    {
+      "path": "/usr/local/lib/python3.7/site-packages/learning_loop_node"
     }
   ],
   "settings": {
