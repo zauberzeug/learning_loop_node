@@ -12,23 +12,16 @@ RUN $VSCODE_SERVER --install-extension ms-python.vscode-pylance \
     $VSCODE_SERVER --install-extension esbenp.prettier-vscode \
     $VSCODE_SERVER --install-extension littlefoxteam.vscode-python-test-adapter
 
-# We use Poetry for dependency management
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_HOME=/opt/poetry python && \
-    cd /usr/local/bin && \
-    ln -s /opt/poetry/bin/poetry && \
-    poetry config virtualenvs.create false
-
 WORKDIR /app/
 
-COPY ./mock_trainer/pyproject.toml ./mock_trainer/poetry.lock* ./
-
 RUN python3 -m pip install --upgrade pip
-
-RUN poetry config experimental.new-installer false
-
 ENV PIP_USE_FEATURE=in-tree-build 
 
-RUN poetry install --no-root
+RUN python3 -m pip install --no-cache-dir "uvicorn[standard]"  async_generator aiofiles retry debugpy pytest-asyncio psutil icecream pytest autopep8
+RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.6.0"
+
+
+
 
 # while development this will be mounted but in deployment we need the latest code baked into the image
 ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
