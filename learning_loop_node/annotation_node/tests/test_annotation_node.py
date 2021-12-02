@@ -5,8 +5,7 @@ from learning_loop_node.context import Context
 from learning_loop_node.annotation_node.data_classes import AnnotationData, EventType, Point, UserInput, EventType
 from learning_loop_node.annotation_node.annotation_node import AnnotationNode
 from learning_loop_node.annotation_node.annotation_tool import EmptyAnnotationTool
-from learning_loop_node.model_information import Category, CategoryType
-from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.data_classes.category import Category, CategoryType
 from icecream import ic
 
 

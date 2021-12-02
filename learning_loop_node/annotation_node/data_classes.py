@@ -2,7 +2,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
 from learning_loop_node.context import Context
-from learning_loop_node.model_information import Category
+from learning_loop_node.data_classes.category import Category
 
 
 class Point(BaseModel):

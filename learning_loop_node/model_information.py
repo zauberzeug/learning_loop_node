@@ -1,22 +1,7 @@
 from pydantic.main import BaseModel
-from .context import Context
 from typing import List, Optional
-from enum import Enum
-
-
-class CategoryType(str, Enum):
-    Box = 'box'
-    Point = 'point'
-    Segmentation = 'segmentation'
-
-
-class Category(BaseModel):
-    id: str
-    name: str
-    description: str
-    hotkey: str
-    color: str
-    type: CategoryType
+from learning_loop_node.context import Context
+from learning_loop_node.data_classes.category import Category
 
 
 class ModelInformation(BaseModel):
