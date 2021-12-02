@@ -34,6 +34,6 @@ RUN poetry install --no-root
 ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
 
 COPY ./mock_converter/ /app
-ENV PYTHONPATH=/app
+ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
 
 EXPOSE 80
