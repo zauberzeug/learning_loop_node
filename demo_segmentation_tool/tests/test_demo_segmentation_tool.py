@@ -1,15 +1,14 @@
 
 from learning_loop_node.context import Context
-from learning_loop_node.trainer.downloader_factory import DownloaderFactory
 import pytest
 from fastapi.encoders import jsonable_encoder
 from icecream import ic
 from demo_segmentation_tool import DemoSegmentationTool
-import os
 from learning_loop_node.annotation_node.data_classes import AnnotationData, EventType, Point, UserInput, EventType
 from learning_loop_node.annotation_node.annotation_node import AnnotationNode
 from learning_loop_node.model_information import Category, CategoryType
 from learning_loop_node.tests.mock_async_client import MockAsyncClient
+from learning_loop_node.rest.downloader import DataDownloader
 
 
 def default_user_input() -> UserInput:
@@ -21,11 +20,11 @@ def default_user_input() -> UserInput:
         category=Category(id='some_id', name='category_1', description='',
                           hotkey='', color='', type=CategoryType.Segmentation)
     )
-    return UserInput(data=annotation_data)
+    return UserInput(frontend_id='some_id', data=annotation_data)
 
 
 async def download_basic_data():
-    downloader = DownloaderFactory.create(Context(organization='zauberzeug', project='pytest'))
+    downloader = DataDownloader(Context(organization='zauberzeug', project='pytest'))
     basic_data = await downloader.download_basic_data()
     image_id = basic_data.image_ids[0]
     ic(image_id)
@@ -39,6 +38,5 @@ async def test_start_creating(create_project):
     node.sio_client = mock_async_client
 
     input = default_user_input()
-    result = await node.handle_user_input('zauberzeug', 'pytest', jsonable_encoder(input))
-    assert 'update_segmentation_annotation' in str(mock_async_client.history)
-    assert result == ''
+    result = await node.handle_user_input(jsonable_encoder(input))
+    assert result == '<rect x="0" y="0" width="0" height="0" stroke="blue" fill="transparent">'
