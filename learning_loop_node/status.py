@@ -1,8 +1,7 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
-from learning_loop_node.trainer.model import Model
-from typing import Union
+from learning_loop_node.context import Context
 
 
 class State(str, Enum):
@@ -20,11 +19,19 @@ class Status(BaseModel):
     uptime: Optional[int] = 0
     latest_error: Optional[str] = None
 
+
 class AnnotationNodeStatus(Status):
     capabilities: List[str]
+
 
 class TrainingStatus(Status):
     latest_produced_model_id: Optional[str]
     train_image_count: Optional[int]
     test_image_count: Optional[int]
     skipped_image_count: Optional[int]
+
+
+class DetectionStatus(Status):
+    current_model_id: Optional[str]
+    target_model_id: Optional[str]
+    latest_error: Optional[str]
