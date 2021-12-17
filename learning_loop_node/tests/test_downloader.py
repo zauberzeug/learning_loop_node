@@ -2,8 +2,8 @@ from learning_loop_node.globals import GLOBALS
 import pytest
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.tests import trainer_test_helper
+from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.downloader import DataDownloader
-from learning_loop_node import node_helper
 from learning_loop_node.context import Context
 from icecream import ic
 import learning_loop_node.rest.downloads as downloads
@@ -34,7 +34,7 @@ async def test_download_model():
     data_folder = GLOBALS.data_folder
     _, _, trainings_folder = trainer_test_helper.create_needed_folders(
         data_folder)
-    model_id = await trainer_test_helper.assert_upload_model()
+    model_id = await test_helper.assert_upload_model()
 
     await downloads.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
 
