@@ -5,6 +5,7 @@ from learning_loop_node.tests import test_helper
 from main import detector_node
 import os
 from icecream import ic
+import asyncio
 
 
 @pytest.fixture()
@@ -18,15 +19,26 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
+@pytest.yield_fixture(scope="session")
+def event_loop(request):
+    """https://stackoverflow.com/a/66225169/4082686
+       Create an instance of the default event loop for each test case.
+       Prevents 'RuntimeError: Event loop is closed'
+    """
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
 @pytest.fixture(autouse=True, scope='function')
 async def wait_for_sio():
-    from icecream import ic
     organization = detector_node.organization
     project = detector_node.project
 
     detector_node.organization = 'zauberzeug'
     detector_node.project = 'pytest'
     await detector_node.sio_client.disconnect()
+
     await detector_node.connect()
     assert detector_node.sio_client.connected
 
