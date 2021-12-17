@@ -6,6 +6,7 @@ from learning_loop_node.node import Node
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.rest import downloads, uploads
 from icecream import ic
+import logging
 
 
 class Converter(BaseModel):
@@ -18,7 +19,8 @@ class Converter(BaseModel):
 
         self.model_folder = Converter.create_model_folder(project_folder, model_information.id)
         await downloads.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
-
+        logging.info(
+            f'going to call _convert for model id {model_information.id} for project {model_information.context.__dict__}')
         await self._convert(model_information)
 
     async def _convert(self, model_information: ModelInformation) -> None:
