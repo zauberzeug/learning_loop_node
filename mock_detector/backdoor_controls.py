@@ -1,9 +1,9 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 from learning_loop_node.detector.detector_node import DetectorNode
 from fastapi import APIRouter,  Request
-from learning_loop_node.status import State
 import logging
-
+from learning_loop_node.globals import GLOBALS
+import shutil
 router = APIRouter()
 
 
@@ -27,3 +27,9 @@ async def _switch_socketio(state: str, detector_node: DetectorNode):
 
         logging.debug('turning socketio on')
         await detector_node.connect()
+
+
+@router.post("/reset")
+async def switch_socketio(request: Request):
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+    request.app.reload()
