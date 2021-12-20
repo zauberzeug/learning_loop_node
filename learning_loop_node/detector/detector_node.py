@@ -16,6 +16,7 @@ from icecream import ic
 import json
 import subprocess
 
+
 class DetectorNode(Node):
     current_model_id: Union[str, None] = None
     target_model_id: Union[str, None] = None

@@ -92,6 +92,7 @@ async def test_mode_check_for_update(create_project):
     assert os.path.exists(f'{GLOBALS.data_folder}/model/file_1.txt')
     assert os.path.exists(f'{GLOBALS.data_folder}/model/file_2.txt')
 
+    # NOTE we cant really ensure, that the Node is restarted. Reloading the module creates a new instance of detector_node.
     reload(main)
 
     assert main.detector_node.current_model_id == model_id
