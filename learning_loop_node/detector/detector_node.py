@@ -13,7 +13,8 @@ import os
 import logging
 from learning_loop_node.globals import GLOBALS
 from icecream import ic
-
+import json
+import subprocess
 
 class DetectorNode(Node):
     current_model_id: Union[str, None] = None
@@ -37,21 +38,26 @@ class DetectorNode(Node):
         async def _check_for_update() -> None:
             await self.check_for_update()
 
+        try:
+            with open(f'{GLOBALS.data_folder}/model/model.json', 'r') as f:
+                content = json.load(f)
+                self.current_model_id = content['id']
+        except:
+            pass
+
     async def check_for_update(self):
         if self.operation_mode == OperationMode.Check_for_updates:
             logging.info('going to check for new updates')
             await self.send_status()
             if self.target_model_id != self.current_model_id:
-
                 target_model_folder = f'{GLOBALS.data_folder}/models/{self.target_model_id}'
                 shutil.rmtree(target_model_folder, ignore_errors=True)
                 os.makedirs(target_model_folder)
                 await downloads.download_model(target_model_folder, Context(organization=self.organization, project=self.project), self.target_model_id, 'mocked')
                 shutil.rmtree(f'{GLOBALS.data_folder}/model', ignore_errors=True)
-
                 shutil.copytree(target_model_folder, f'{GLOBALS.data_folder}/model')
 
-                # restart node / container ?
+                self.reload()
 
     async def send_status(self) -> dict:
         status = DetectionStatus(
@@ -75,3 +81,6 @@ class DetectorNode(Node):
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
         await self.send_status()
+
+    def reload(self):
+        subprocess.call(["touch", "/app/restart/restart.py"])

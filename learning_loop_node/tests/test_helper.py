@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 from requests import Session
 import aiohttp
 import logging
+from icecream import ic
 
 
 class LiveServerSession(Session):
@@ -31,17 +32,9 @@ def get_files_in_folder(folder: str):
     return files
 
 
-async def assert_upload_model(file_paths: Optional[List[str]] = None, format: str = 'mocked') -> str:
-    module_path = os.path.dirname(os.path.realpath(__file__))
-    if not file_paths:
-        file_paths = [f'{module_path}/test_data/file_1.txt',
-                      f'{module_path}/test_data/file_2.txt']
-    data = [('files', open(path, 'rb')) for path in file_paths]
+async def assert_upload_model(file_paths: Optional[List[str]] = None, format: str = 'mocked', ) -> str:
+    data = prepare_formdata(file_paths)
 
-    data = aiohttp.FormData()
-
-    for path in file_paths:
-        data.add_field('files',  open(path, 'rb'))
     async with loop.post(f'api/zauberzeug/projects/pytest/models/{format}', data) as response:
         if response.status != 200:
             msg = f'unexpected status code {response.status} while posting new model'
@@ -49,3 +42,28 @@ async def assert_upload_model(file_paths: Optional[List[str]] = None, format: st
             raise(Exception(msg))
         model = await response.json()
         return model['id']
+
+
+async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, format: str = 'mocked', model_id: Optional[str] = None) -> str:
+    data = prepare_formdata(file_paths)
+
+    async with loop.put(f'api/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data) as response:
+        if response.status != 200:
+            msg = f'unexpected status code {response.status} while putting model'
+            logging.error(msg)
+            raise(Exception(msg))
+        model = await response.json()
+
+        return model['id']
+
+
+def prepare_formdata(file_paths: Optional[List[str]]) -> aiohttp.FormData:
+    module_path = os.path.dirname(os.path.realpath(__file__))
+    if not file_paths:
+        file_paths = [f'{module_path}/test_data/file_1.txt',
+                      f'{module_path}/test_data/file_2.txt']
+    data = [('files', open(path, 'rb')) for path in file_paths]
+    data = aiohttp.FormData()
+    for path in file_paths:
+        data.add_field('files',  open(path, 'rb'))
+    return data

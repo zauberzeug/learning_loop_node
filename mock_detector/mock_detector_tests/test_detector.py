@@ -1,3 +1,4 @@
+from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.detector.operation_mode import OperationMode
 from learning_loop_node.globals import GLOBALS
 import pytest
@@ -6,6 +7,11 @@ from main import detector_node
 import os
 from icecream import ic
 import asyncio
+import main
+from uuid import uuid4
+from learning_loop_node.trainer.model import Model
+import json
+from importlib import reload
 
 
 @pytest.fixture()
@@ -19,7 +25,7 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-@pytest.yield_fixture(scope="session")
+@pytest.fixture(scope="session")
 def event_loop(request):
     """https://stackoverflow.com/a/66225169/4082686
        Create an instance of the default event loop for each test case.
@@ -57,7 +63,15 @@ def test_assert_data_folder_for_tests():
 
 @pytest.mark.asyncio
 async def test_mode_check_for_update(create_project):
-    model_id = await test_helper.assert_upload_model()
+    new_model = Model(
+        id=str(uuid4()),
+    )
+    ic(new_model)
+    response = await detector_node.sio_client.call('update_model', ('zauberzeug', 'pytest', new_model.__dict__))
+    assert response == True
+
+    model_id = await test_helper.assert_upload_model_with_id(model_id=new_model.id)
+    assert new_model.id == model_id
 
     assert detector_node.sio_client.connected
     assert detector_node.operation_mode == OperationMode.Idle
@@ -77,3 +91,21 @@ async def test_mode_check_for_update(create_project):
     assert os.path.exists(f'{GLOBALS.data_folder}/models/{model_id}/file_1.txt')
     assert os.path.exists(f'{GLOBALS.data_folder}/model/file_1.txt')
     assert os.path.exists(f'{GLOBALS.data_folder}/model/file_2.txt')
+
+    reload(main)
+
+    assert main.detector_node.current_model_id == model_id
+
+
+@pytest.mark.asyncio
+async def test_read_model_id_on_construction():
+    model_id = 42
+
+    node = DetectorNode(name='1')
+    assert node.current_model_id == None
+    os.makedirs(f'{GLOBALS.data_folder}/model')
+    with open(f'{GLOBALS.data_folder}/model/model.json', 'w') as f:
+        json.dump({'id': model_id}, f)
+
+    node = DetectorNode(name='2')
+    assert node.current_model_id == model_id
