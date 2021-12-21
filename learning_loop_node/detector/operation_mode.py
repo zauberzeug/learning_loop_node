@@ -1,8 +1,9 @@
 
 from learning_loop_node.node import Node
-from fastapi import APIRouter,  Request
+from fastapi import APIRouter,  Request, HTTPException
 import logging
 from enum import Enum
+
 router = APIRouter()
 
 
@@ -21,10 +22,16 @@ async def operation_mode(request: Request):
         curl -X PUT -d "detecting" http://localhost/operation_mode
     '''
 
-    target_mode = str(await request.body(), 'utf-8')
+    content = str(await request.body(), 'utf-8')
+    try:
+        target_mode = OperationMode(content)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
     node: Node = request.app
 
     logging.info(f'current node state : {node.status.state}')
     logging.info(f'target node state : {target_mode}')
+
     await node.set_operation_mode(target_mode)
     return 200, "OK"
