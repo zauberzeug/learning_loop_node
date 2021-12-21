@@ -17,8 +17,8 @@ class OperationMode(str, Enum):
 async def operation_mode(request: Request):
     '''
     Example Usage
-
-        curl -X PUT -d "detecting" http://mock_detector/operation_mode
+        curl -X PUT -d "check_for_updates" http://localhost/operation_mode
+        curl -X PUT -d "detecting" http://localhost/operation_mode
     '''
 
     target_mode = str(await request.body(), 'utf-8')
@@ -27,3 +27,4 @@ async def operation_mode(request: Request):
     logging.info(f'current node state : {node.status.state}')
     logging.info(f'target node state : {target_mode}')
     await node.set_operation_mode(target_mode)
+    return 200, "OK"
