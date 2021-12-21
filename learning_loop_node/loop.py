@@ -36,11 +36,15 @@ class Loop():
     def __init__(self) -> None:
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
+        ic(os.environ.get('LOOP_USERNAME', None))
+        ic(os.environ.get('USERNAME', None))
         self.username: str = os.environ.get('LOOP_USERNAME', None) or os.environ.get('USERNAME', None)
+
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
-
+        ic(self.username)
+        ic(self.password)
         self.access_token = None
         self.session = None
         self.web = requests.Session()
@@ -67,7 +71,10 @@ class Loop():
 
     def get_headers(self):
         headers = {}
-        if self.username is not None:
+        ic(self.username)
+        ic(self.password)
+
+        if self.username:  # is not None: TODO why is USERNAME '' ?
             if self.access_token is None or self.access_token.is_invalid():
                 self.access_token = self.download_token()
 
