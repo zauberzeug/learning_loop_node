@@ -68,7 +68,7 @@ class Loop():
         headers = {}
 
 
-        if self.username:  # is not None: TODO why is USERNAME '' ?
+        if self.username and self.password:
             if self.access_token is None or self.access_token.is_invalid():
                 self.access_token = self.download_token()
 
