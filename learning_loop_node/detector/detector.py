@@ -15,6 +15,7 @@ class Detector():
 
     def __init__(self, model_format: str) -> None:
         self.model_format = model_format
+        self.current_model = None
 
     def load_model(self):
         try:
@@ -29,8 +30,10 @@ class Detector():
                     raise Exception(f"could not read model information from file '{model_info_file_path}'")
                 try:
                     model_information = ModelInformation.parse_obj(content)
+                    ic(model_information)
                 except Exception as e:
-                    raise Exception(f"could not parse model information from file '{model_info_file_path}'")
+                    raise Exception(
+                        f"could not parse model information from file '{model_info_file_path}'. \n {str(e)}")
             try:
                 self.init(model_information, model_root_path)
             except Exception:

@@ -1,21 +1,19 @@
+from icecream import ic
 import backdoor_controls
+from mock_detector import MockDetector
 import uvicorn
-from learning_loop_node.detector.detector import Detector
 from learning_loop_node.detector.detector_node import DetectorNode
 import os
 import logging
-
 logging.basicConfig(level=logging.DEBUG)
 
-detector = Detector('some_format')
+detector = MockDetector()
 
 detector_node = DetectorNode(
-
     name='mocked detector',
     detector=detector,
     uuid='85ef1a58-308d-4c80-8931-43d1f752f4f9',
 )
-
 
 # setting up backdoor_controls
 detector_node.include_router(backdoor_controls.router, prefix="")

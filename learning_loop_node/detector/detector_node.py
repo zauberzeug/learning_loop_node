@@ -17,6 +17,8 @@ import subprocess
 from learning_loop_node.detector.detector import Detector
 import asyncio
 from learning_loop_node.detector.rest import detect
+import numpy as np
+from fastapi_socketio import SocketManager
 
 
 class DetectorNode(Node):
@@ -40,14 +42,36 @@ class DetectorNode(Node):
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
-        @repeat_every(seconds=3, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             await self.check_for_update()
 
         @self.on_event("startup")
         async def _load_model() -> None:
-            self.detector.load_model()
+            try:
+                self.detector.load_model()
+            except:
+                pass
             await self.check_for_update()
+
+        sio = SocketManager(app=self)
+
+        @self.sio.on("detect")
+        async def _detect(sid, data) -> None:
+            try:
+                np_image = np.frombuffer(data['image'], np.uint8)
+                return await self.get_detections(np_image, data.get('mac', None), data.get('tags', []), data.get('active_learning', True))
+            except Exception as e:
+                logging.exception('could not detect via socketio')
+                with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
+                    f.write(data['image'])
+                return {'error': str(e)}
+
+        @self.sio.on("info")
+        async def _info(sid) -> None:
+            if self.detector.current_model:
+                return self.detector.current_model.__dict__
+            return 'No model loaded'
 
     async def check_for_update(self):
         try:
