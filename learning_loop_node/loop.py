@@ -40,7 +40,6 @@ class Loop():
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
-
         self.access_token = None
         self.session = None
         self.web = requests.Session()
@@ -67,7 +66,9 @@ class Loop():
 
     def get_headers(self):
         headers = {}
-        if self.username is not None:
+
+
+        if self.username and self.password:
             if self.access_token is None or self.access_token.is_invalid():
                 self.access_token = self.download_token()
 

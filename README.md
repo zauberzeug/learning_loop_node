@@ -7,14 +7,17 @@ This Python library helps you to write your own Detection Nodes, Training Nodes 
 You can configure connection to our Learning Loop by specifying the following environment variables before starting:
 
 - LOOP_HOST=learning-loop.ai
-- LOOP_ORGANIZATION=<your organization>
-- LOOP_PROJECT=<your project>
 - LOOP_USERNAME=<your username>
 - LOOP_PASSWORD=<your password>
 
 ## Detector Node
 
 Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop to make model deployments very easy. They also provide REST and Socket.io APIs to run inferences. By default the images will automatically used for active learning: high uncertain predictions will be submitted to the Learning Loop inbox.
+
+#### Additinal environment variables
+
+- LOOP_ORGANIZATION=<your organization>
+- LOOP_PROJECT=<your project>
 
 ## Trainer Node
 

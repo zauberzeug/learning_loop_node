@@ -72,7 +72,7 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
         if response.status != 200:
             content = await response.read()
             raise Exception(
-                f'could not download model from {loop.base_url}/{path}: {content}')
+                f'could not download model from {loop.base_url}/{path}: Statuscode: {response.status}, content: {content}')
         try:
             provided_filename = response.headers.get(
                 "Content-Disposition").split("filename=")[1].strip('"')
