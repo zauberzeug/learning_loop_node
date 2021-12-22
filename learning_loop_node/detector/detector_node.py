@@ -14,9 +14,8 @@ import logging
 from learning_loop_node.globals import GLOBALS
 from icecream import ic
 import subprocess
-from detector.detector import Detector
+from learning_loop_node.detector.detector import Detector
 import asyncio
-import cv2
 from learning_loop_node.detector.rest import detect
 from learning_loop_node.detector.rest import upload
 from learning_loop_node.detector.detections import Detections
@@ -122,10 +121,10 @@ class DetectorNode(Node):
     def reload(self):
         subprocess.call(["touch", "/app/restart/restart.py"])
 
-    async def get_detections(self, np_image, mac: str, tags: str, active_learning=True):
+    async def get_detections(self, raw_image, mac: str, tags: str, active_learning=True):
         loop = asyncio.get_event_loop()
-        image = await loop.run_in_executor(None, lambda: cv2.imdecode(np_image, cv2.IMREAD_COLOR))
-        detections = await loop.run_in_executor(None, lambda: self.detector.evaluate(image))
+        # image = await loop.run_in_executor(None, lambda: cv2.imdecode(np_image, cv2.IMREAD_COLOR))
+        detections = await loop.run_in_executor(None, lambda: self.detector.evaluate(raw_image))
         info = "\n    ".join([str(d) for d in detections.box_detections])
         logging.info(f'detected:\n    {info}')
         # if active_learning:

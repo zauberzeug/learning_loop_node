@@ -1,6 +1,6 @@
 from typing import Union, Any
 from learning_loop_node.model_information import ModelInformation
-from globals import GLOBALS
+from learning_loop_node.globals import GLOBALS
 import os
 import json
 from icecream import ic
