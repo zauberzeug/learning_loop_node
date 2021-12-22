@@ -17,8 +17,6 @@ import subprocess
 from learning_loop_node.detector.detector import Detector
 import asyncio
 from learning_loop_node.detector.rest import detect
-from learning_loop_node.detector.rest import upload
-from learning_loop_node.detector.detections import Detections
 
 
 class DetectorNode(Node):

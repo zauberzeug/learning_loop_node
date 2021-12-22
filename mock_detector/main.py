@@ -1,15 +1,19 @@
 import backdoor_controls
 import uvicorn
+from learning_loop_node.detector.detector import Detector
 from learning_loop_node.detector.detector_node import DetectorNode
 import os
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
+detector = Detector('some_format')
 
 detector_node = DetectorNode(
-    uuid='85ef1a58-308d-4c80-8931-43d1f752f4f9',
+
     name='mocked detector',
+    detector=detector,
+    uuid='85ef1a58-308d-4c80-8931-43d1f752f4f9',
 )
 
 
