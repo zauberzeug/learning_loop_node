@@ -4,4 +4,8 @@ if sys.version_info.major >= 3 and sys.version_info.minor >= 7:  # most code nee
     from .converter.converter_node import ConverterNode
 
 from .detector.detector_node import DetectorNode
+from .detector.detector import Detector
+from .model_information import ModelInformation
+from .data_classes.category import CategoryType
+
 from .loop import loop
