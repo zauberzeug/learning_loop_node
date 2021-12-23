@@ -31,6 +31,7 @@ class DetectorNode(Node):
     project: str
     operation_mode: OperationMode = OperationMode.Idle
     outbox: Outbox
+    connected_clients: List[str]
 
     target_model_id: Optional[str]
 
@@ -41,6 +42,7 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
+        self.connected_clients = []
         self.outbox = Outbox()
         self.include_router(detect.router, tags=["detect"])
         self.include_router(upload.router, prefix="")
@@ -83,6 +85,24 @@ class DetectorNode(Node):
             if self.detector.current_model:
                 return self.detector.current_model.__dict__
             return 'No model loaded'
+
+        @self.sio.on('upload')
+        async def _upload(sid, data):
+            loop = asyncio.get_event_loop()
+            try:
+                await loop.run_in_executor(None, lambda: self.outbox.save(data['image'], Detections(), ['picked_by_system']))
+            except Exception as e:
+                logging.exception('could not upload via socketio')
+                return {'error': str(e)}
+
+        @self.sio.event
+        def connect(sid, environ, auth):
+            self.connected_clients.append(sid)
+
+        @self.on_event("shutdown")
+        async def shutdown():
+            for sid in self.connected_clients:
+                await self.sio.disconnect(sid)
 
     async def check_for_update(self):
         try:
