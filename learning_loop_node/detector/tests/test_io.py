@@ -45,7 +45,7 @@ async def sio_client() -> Generator:
     retry_count = 0
     while try_connect:
         try:
-            await sio.connect("ws://localhost:5000", transports='websocket', socketio_path="/ws/socket.io")
+            await sio.connect("ws://localhost:5000", socketio_path="/ws/socket.io")
             try_connect = False
         except:
             logging.warning('trying again')
@@ -54,7 +54,6 @@ async def sio_client() -> Generator:
         if retry_count > 3:
             raise Exception('Max Retry')
 
-    assert sio.transport() == 'websocket'
     yield sio
     await sio.disconnect()
 
