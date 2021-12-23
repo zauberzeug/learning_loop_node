@@ -46,7 +46,7 @@ class DetectorNode(Node):
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             await self.check_for_update()
 
@@ -150,7 +150,7 @@ class DetectorNode(Node):
     async def get_detections(self, raw_image, mac: str, tags: str, active_learning=True):
         loop = asyncio.get_event_loop()
         # image = await loop.run_in_executor(None, lambda: cv2.imdecode(np_image, cv2.IMREAD_COLOR))
-        detections = await loop.run_in_executor(None, lambda: self.detector.evaluate(raw_image))
+        detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         info = "\n    ".join([str(d) for d in detections.box_detections])
         logging.info(f'detected:\n    {info}')
         # if active_learning:
