@@ -29,7 +29,7 @@ class Outbox():
 
     def save(self, image, detections: Detections = Detections(), tags: List[str] = []) -> None:
         id = datetime.now().isoformat(sep='_', timespec='milliseconds')
-        tmp = f'/tmp/{id}'
+        tmp = f'{GLOBALS.data_folder}/tmp/{id}'
         detections.tags = tags
         detections.date = id
         os.makedirs(tmp, exist_ok=True)

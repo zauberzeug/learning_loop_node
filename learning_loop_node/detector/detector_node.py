@@ -17,8 +17,11 @@ import subprocess
 from learning_loop_node.detector.detector import Detector
 import asyncio
 from learning_loop_node.detector.rest import detect
+from learning_loop_node.detector.rest import upload
 import numpy as np
 from fastapi_socketio import SocketManager
+from detector.detections import Detections
+from . import Outbox
 
 
 class DetectorNode(Node):
@@ -26,6 +29,7 @@ class DetectorNode(Node):
     organization: str
     project: str
     operation_mode: OperationMode = OperationMode.Idle
+    outbox: Outbox
 
     target_model_id: Optional[str]
 
@@ -36,9 +40,9 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
-
+        self.outbox = Outbox()
         self.include_router(detect.router, tags=["detect"])
-        self.include_router(operation_mode.router, prefix="")
+        self.include_router(upload.router, prefix="")
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
@@ -153,3 +157,8 @@ class DetectorNode(Node):
         #     thread = Thread(target=learn, args=(detections, mac, tags, image))
         #     thread.start()
         return jsonable_encoder(detections)
+
+    async def upload_images(self, raw_images: List):
+        loop = asyncio.get_event_loop()
+        for image in raw_images:
+            await loop.run_in_executor(None, lambda: self.outbox.save(image, Detections(), ['picked_by_system']))
