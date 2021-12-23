@@ -45,7 +45,7 @@ async def sio() -> Generator:
         if count == 5:
             raise Exception('Could not connect to sio')
 
-    
+    assert sio.transport() == 'websocket'
     yield sio
     await sio.disconnect()
 
