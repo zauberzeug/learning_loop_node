@@ -17,7 +17,9 @@ from glob import glob
 
 @pytest.fixture()
 async def test_detector_node():
-    from learning_loop_node import conftest
+    os.environ['ORGANIZATION'] = 'zauberzeug'
+    os.environ['PROJECT'] = 'demo'
+
     det = TestingDetector()
     node = DetectorNode(name='test', detector=det)
 
