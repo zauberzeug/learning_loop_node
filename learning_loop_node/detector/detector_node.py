@@ -20,7 +20,7 @@ from learning_loop_node.detector.rest import detect
 from learning_loop_node.detector.rest import upload
 import numpy as np
 from fastapi_socketio import SocketManager
-from detector.detections import Detections
+from . import Detections
 from . import Outbox
 from threading import Thread
 
