@@ -146,7 +146,7 @@ class DetectorNode(Node):
     async def get_detections(self, raw_image, mac: str, tags: str, active_learning=True):
         loop = asyncio.get_event_loop()
         # image = await loop.run_in_executor(None, lambda: cv2.imdecode(np_image, cv2.IMREAD_COLOR))
-        detections = await loop.run_in_executor(None, lambda: self.detector.evaluate(raw_image))
+        detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         info = "\n    ".join([str(d) for d in detections.box_detections])
         logging.info(f'detected:\n    {info}')
         # if active_learning:
