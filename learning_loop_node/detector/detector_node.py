@@ -22,6 +22,7 @@ import numpy as np
 from fastapi_socketio import SocketManager
 from detector.detections import Detections
 from . import Outbox
+from threading import Thread
 
 
 class DetectorNode(Node):
@@ -57,6 +58,12 @@ class DetectorNode(Node):
             except:
                 pass
             await self.check_for_update()
+
+        @self.on_event("startup")
+        @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
+        def submit() -> None:
+            thread = Thread(target=self.outbox.upload)
+            thread.start()
 
         sio = SocketManager(app=self)
 
