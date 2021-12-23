@@ -158,7 +158,7 @@ class DetectorNode(Node):
         #     thread.start()
         return jsonable_encoder(detections)
 
-    async def upload_images(self, raw_images: List):
+    async def upload_images(self, images: List[bytes]):
         loop = asyncio.get_event_loop()
-        for image in raw_images:
+        for image in images:
             await loop.run_in_executor(None, lambda: self.outbox.save(image, Detections(), ['picked_by_system']))

@@ -8,7 +8,6 @@ import json
 from datetime import datetime
 import requests
 import logging
-import cv2
 import shutil
 from learning_loop_node.globals import GLOBALS
 
@@ -27,7 +26,7 @@ class Outbox():
         self.target_uri = f'{base}/api/{o}/projects/{p}/images'
         self.upload_in_progress = False
 
-    def save(self, image, detections: Detections = Detections(), tags: List[str] = []) -> None:
+    def save(self, image: bytes, detections: Detections = Detections(), tags: List[str] = []) -> None:
         id = datetime.now().isoformat(sep='_', timespec='milliseconds')
         tmp = f'{GLOBALS.data_folder}/tmp/{id}'
         detections.tags = tags
@@ -35,11 +34,9 @@ class Outbox():
         os.makedirs(tmp, exist_ok=True)
         with open(tmp + '/image.json', 'w') as f:
             json.dump(jsonable_encoder(detections), f)
-        try:
-            cv2.imwrite(tmp + '/image.jpg', image)
-        except:
-            with open(tmp + '/image.jpg', 'wb') as f:
-                f.write(image)
+
+        with open(tmp + '/image.jpg', 'wb') as f:
+            f.write(image)
         os.rename(tmp, self.path + '/' + id)  # NOTE rename is atomic so upload can run in parallel
 
     def get_data_files(self):
