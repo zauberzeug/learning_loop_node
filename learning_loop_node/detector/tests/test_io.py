@@ -32,7 +32,7 @@ async def test_detector_node():
 
                    daemon=True)
     proc.start()
-    await asyncio.sleep(2)  # time for the server to start
+    await asyncio.sleep(5)  # time for the server to start
     yield node
     await node.sio_client.disconnect()
     proc.terminate()
@@ -51,7 +51,7 @@ async def sio_client() -> Generator:
             logging.warning('trying again')
             await asyncio.sleep(1)
         retry_count += 1
-        if retry_count > 3:
+        if retry_count > 10:
             raise Exception('Max Retry')
 
     yield sio
