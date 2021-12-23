@@ -37,7 +37,7 @@ async def sio() -> Generator:
     while try_connect:
         count += 1
         try:
-            await sio.connect("ws://localhost", socketio_path="/ws/socket.io",transports='websocket', wait_timeout=1)
+            await sio.connect("ws://localhost", socketio_path="/ws/socket.io", wait_timeout=1)
             try_connect = False
         except:
             logging.warning('trying again')
@@ -45,7 +45,7 @@ async def sio() -> Generator:
         if count == 5:
             raise Exception('Could not connect to sio')
 
-    assert sio.transport() == 'websocket'
+    
     yield sio
     await sio.disconnect()
 
