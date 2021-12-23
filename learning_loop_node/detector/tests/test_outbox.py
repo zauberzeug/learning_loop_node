@@ -9,6 +9,8 @@ import shutil
 
 @pytest.fixture()
 def outbox():
+    os.environ['ORGANIZATION'] = 'zauberzeug'
+    os.environ['PROJECT'] = 'demo'
     outbox = Outbox()
     shutil.rmtree(outbox.path, ignore_errors=True)
     os.mkdir(outbox.path)
