@@ -42,7 +42,7 @@ class DetectorNode(Node):
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             await self.check_for_update()
 
