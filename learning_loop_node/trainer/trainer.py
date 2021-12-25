@@ -34,7 +34,7 @@ class Trainer():
         raise NotImplementedError()
 
     def stop_training(self) -> None:
-        raise NotImplementedError()
+        self.executor.stop()
 
     def get_error(self) -> str:
         raise NotImplementedError()
@@ -46,13 +46,26 @@ class Trainer():
         files = self.get_model_files(model_id)
         await uploads.upload_model(context, files, model_id, self.model_format)
 
-    def get_model_files(self, model_id) -> List[str]:
-        raise NotImplementedError()
-
     def get_new_model(self) -> Optional[BasicModel]:
+        '''Is called frequently to check if a new "best" model is availabe.
+        Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
+        confusion_matrix contains a dict of all classes. For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
+        meta_information can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
+        '''
         raise NotImplementedError()
 
-    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
+    def on_model_published(self, basic_model: BasicModel, model_id: str) -> None:
+        '''Called after a BasicModel has been successfully send to the Learning Loop.
+        The model_id is an uuid to identify the model within the Learning Loop.
+        self.get_model_files uses this id to gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
+        In the simplest implementation this method just renames the weight file (encoded in BasicModel.meta_information) into a file name containing the model_id.
+        '''
+        raise NotImplementedError()
+
+    def get_model_files(self, model_id) -> List[str]:
+        '''Called when the Learning Loop requests to backup a specific model. 
+        Returns a list of file paths which describe the model (eg. weight file, hyperparameters, categories etc.)
+        '''
         raise NotImplementedError()
 
     @staticmethod
