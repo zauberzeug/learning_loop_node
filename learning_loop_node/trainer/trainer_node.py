@@ -86,14 +86,17 @@ class TrainerNode(Node):
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
+        error = self.trainer.get_error()
+        if error is not None:
+            logging.info(error + '\n\n' + self.trainer.get_log()[-1000:])
+            return
+
         if self.status.state != State.Running:
             return
 
-        error = self.trainer.get_error()
         await self.update_error_msg(error)
-        if error is not None:
-            logging.info(error + '\n\n' + self.trainer.get_log()[-1000:])
-        elif not self.trainer.executor.is_process_running():
+
+        if not self.trainer.executor.is_process_running():
             await self.update_error_msg(f'Training crashed.')
             logging.info(self.trainer.get_log()[-1000:])
 
