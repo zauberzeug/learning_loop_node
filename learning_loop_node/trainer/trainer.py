@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 from uuid import uuid4
 from learning_loop_node.trainer.executor import Executor
 from learning_loop_node.trainer.training import Training
@@ -9,6 +9,7 @@ from learning_loop_node.node import Node
 from learning_loop_node.trainer.downloader import TrainingsDownloader
 from learning_loop_node.rest import downloads, uploads
 from learning_loop_node import node_helper
+import logging
 from icecream import ic
 
 
@@ -34,10 +35,14 @@ class Trainer():
         raise NotImplementedError()
 
     def stop_training(self) -> None:
-        self.executor.stop()
+        if self.executor:
+            self.executor.stop()
+        else:
+            logging.info('could not stop training -- ')
 
-    def get_error(self) -> str:
-        raise NotImplementedError()
+    def get_error(self) -> Optional[Union[None, str]]:
+        '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
+        pass
 
     def get_log(self) -> str:
         return self.executor.get_log()
