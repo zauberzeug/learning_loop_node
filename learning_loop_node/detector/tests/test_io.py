@@ -14,6 +14,8 @@ from learning_loop_node.globals import GLOBALS
 import os
 from glob import glob
 
+port = 5001
+
 
 @pytest.fixture()
 async def test_detector_node():
@@ -27,7 +29,7 @@ async def test_detector_node():
                    args=(node,),
                    kwargs={
                        "host": "127.0.0.1",
-                       "port": 5000,
+                       "port": port,
                    },
 
                    daemon=True)
@@ -45,7 +47,7 @@ async def sio_client() -> Generator:
     retry_count = 0
     while try_connect:
         try:
-            await sio.connect("ws://localhost:5000", socketio_path="/ws/socket.io")
+            await sio.connect(f"ws://localhost:{port}", socketio_path="/ws/socket.io")
             try_connect = False
         except:
             logging.warning('trying again')
@@ -61,7 +63,7 @@ async def sio_client() -> Generator:
 def test_rest_detect(test_detector_node: DetectorNode):
     image = {('file', open('detector/tests/test.jpg', 'rb'))}
     headers = {'mac': '0:0:0:0', 'tags':  'some_tag'}
-    request = requests.post('http://localhost:5000/detect', files=image, headers=headers)
+    request = requests.post(f'http://localhost:{port}/detect', files=image, headers=headers)
     assert request.status_code == 200
 
     json_content = json.loads(request.content.decode('utf-8'))
@@ -89,7 +91,7 @@ def test_rest_upload(test_detector_node: DetectorNode):
 
     assert len(get_outbox_files()) == 0
     image = {('files', open('detector/tests/test.jpg', 'rb'))}
-    request = requests.post('http://localhost:5000/upload', files=image)
+    request = requests.post(f'http://localhost:{port}/upload', files=image)
     assert request.status_code == 200
     ic(get_outbox_files())
     assert len(get_outbox_files()) == 2, 'There should be one image and one .json file.'
