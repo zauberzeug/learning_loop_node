@@ -17,8 +17,12 @@ import subprocess
 from learning_loop_node.detector.detector import Detector
 import asyncio
 from learning_loop_node.detector.rest import detect
+from learning_loop_node.detector.rest import upload
 import numpy as np
 from fastapi_socketio import SocketManager
+from . import Detections
+from . import Outbox
+from threading import Thread
 
 
 class DetectorNode(Node):
@@ -26,6 +30,8 @@ class DetectorNode(Node):
     organization: str
     project: str
     operation_mode: OperationMode = OperationMode.Idle
+    outbox: Outbox
+    connected_clients: List[str]
 
     target_model_id: Optional[str]
 
@@ -36,13 +42,14 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
-
+        self.connected_clients = []
+        self.outbox = Outbox()
         self.include_router(detect.router, tags=["detect"])
-        self.include_router(operation_mode.router, prefix="")
+        self.include_router(upload.router, prefix="")
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             await self.check_for_update()
 
@@ -53,6 +60,12 @@ class DetectorNode(Node):
             except:
                 pass
             await self.check_for_update()
+
+        @self.on_event("startup")
+        @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
+        def submit() -> None:
+            thread = Thread(target=self.outbox.upload)
+            thread.start()
 
         sio = SocketManager(app=self)
 
@@ -72,6 +85,24 @@ class DetectorNode(Node):
             if self.detector.current_model:
                 return self.detector.current_model.__dict__
             return 'No model loaded'
+
+        @self.sio.on('upload')
+        async def _upload(sid, data):
+            loop = asyncio.get_event_loop()
+            try:
+                await loop.run_in_executor(None, lambda: self.outbox.save(data['image'], Detections(), ['picked_by_system']))
+            except Exception as e:
+                logging.exception('could not upload via socketio')
+                return {'error': str(e)}
+
+        @self.sio.event
+        def connect(sid, environ, auth):
+            self.connected_clients.append(sid)
+
+        @self.on_event("shutdown")
+        async def shutdown():
+            for sid in self.connected_clients:
+                await self.sio.disconnect(sid)
 
     async def check_for_update(self):
         try:
@@ -153,3 +184,8 @@ class DetectorNode(Node):
         #     thread = Thread(target=learn, args=(detections, mac, tags, image))
         #     thread.start()
         return jsonable_encoder(detections)
+
+    async def upload_images(self, images: List[bytes]):
+        loop = asyncio.get_event_loop()
+        for image in images:
+            await loop.run_in_executor(None, lambda: self.outbox.save(image, Detections(), ['picked_by_system']))
