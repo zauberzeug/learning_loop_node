@@ -40,13 +40,13 @@ async def download_images_data(organization: str, project: str, image_ids: List[
 
 async def download_images(paths: List[str], image_ids: List[str], image_folder: str, chunk_size: int = 10) -> None:
     starttime = time.time()
+    os.makedirs(image_folder, exist_ok=True)
     for i in range(0, len(image_ids), chunk_size):
         chunk_paths = paths[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []
         for j in range(len(chunk_paths)):
-            tasks.append(create_task(download_one_image(
-                chunk_paths[j], chunk_ids[j], image_folder)))
+            tasks.append(create_task(download_one_image(chunk_paths[j], chunk_ids[j], image_folder)))
         await asyncio.gather(*tasks)
         total_time = round(time.time() - starttime, 1)
         logging.info(f'Downnloaed {i + len(tasks)} image files.')
