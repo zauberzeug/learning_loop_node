@@ -3,6 +3,8 @@ from learning_loop_node import Detector, ModelInformation
 
 
 class TestingDetector(Detector):
+    __test__ = False
+
     def __init__(self) -> None:
         super().__init__('mocked')
 

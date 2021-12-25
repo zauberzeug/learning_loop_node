@@ -71,7 +71,10 @@ class Trainer():
 
     def get_model_files(self, model_id) -> List[str]:
         '''Called when the Learning Loop requests to backup a specific model. 
-        Returns a list of file paths which describe the model (eg. weight file, hyperparameters, categories etc.)
+        Returns a list of file paths which describe the model. 
+        These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.).
+        Additionally, a model.json should be provided. This must contain the trained resolution, categories etc.
+        Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
         '''
         raise NotImplementedError()
 
