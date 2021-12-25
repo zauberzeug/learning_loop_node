@@ -22,13 +22,13 @@ class TrainingsDownloader():
         return training_data
 
     async def download_images_and_annotations(self, basic_data: BasicData, image_folder: str) -> TrainingData:
-        image_data_task = create_task(
-            self.downloader.download_images_data(basic_data.image_ids))
+        image_data_task = create_task(self.downloader.download_images_data(basic_data.image_ids))
         await self.downloader.download_images(basic_data.image_ids, image_folder)
 
-        training_data = TrainingData(
-            image_data=[], categories=basic_data.categories)
+        training_data = TrainingData(image_data=[], categories={c['name']: c['id'] for c in basic_data.categories})
+        logging.info('fetching annotations')
         image_data = await image_data_task
+        logging.info('checking for corrupt images')
         for i in image_data:
             if await self.downloader.is_valid_image(f'{image_folder}/{i["id"]}.jpg'):
                 training_data.image_data.append(i)

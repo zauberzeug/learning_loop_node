@@ -1,14 +1,14 @@
 import os
 from typing import List, Optional, Union
 from uuid import uuid4
-from learning_loop_node.trainer.executor import Executor
-from learning_loop_node.trainer.training import Training
-from learning_loop_node.trainer.model import BasicModel
-from learning_loop_node.context import Context
-from learning_loop_node.node import Node
-from learning_loop_node.trainer.downloader import TrainingsDownloader
-from learning_loop_node.rest import downloads, uploads
-from learning_loop_node import node_helper
+from .executor import Executor
+from .training import Training
+from .model import BasicModel
+from ..context import Context
+from ..node import Node
+from .downloader import TrainingsDownloader
+from ..rest import downloads, uploads
+from .. import node_helper
 import logging
 from icecream import ic
 
@@ -26,9 +26,9 @@ class Trainer():
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.executor = Executor(self.training.training_folder)
-
+        logging.info(f'downloading model {source_model["id"]} as {self.model_format}')
         await downloads.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
-
+        logging.info(f'now starting training')
         await self.start_training()
 
     async def start_training(self) -> None:
@@ -54,7 +54,9 @@ class Trainer():
     def get_new_model(self) -> Optional[BasicModel]:
         '''Is called frequently to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
-        confusion_matrix contains a dict of all classes. For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
+        confusion_matrix contains a dict of all classes. 
+            The classes must be identified by their id, not their name.
+            For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
         meta_information can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
         '''
         raise NotImplementedError()
