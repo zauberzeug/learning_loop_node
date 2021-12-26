@@ -13,12 +13,20 @@ from learning_loop_node.context import Context
 from learning_loop_node.task_logger import create_task
 import logging
 from icecream import ic
+from alive_progress import alive_it
+
+check_jpeg = shutil.which('jpeginfo') is not None
+if check_jpeg:
+    logging.info('Detected command line tool "jpeginfo". Images will be checked for validity')
+else:
+    logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
 
 
 async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
+    logging.info('fetching annotations and other image data')
     images_data = []
     starttime = time.time()
-    for i in range(0, len(image_ids), chunk_size):
+    for i in alive_it(range(0, len(image_ids), chunk_size)):
         chunk_ids = image_ids[i:i+chunk_size]
         async with loop.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
             if response.status != 200:
@@ -26,22 +34,20 @@ async def download_images_data(organization: str, project: str, image_ids: List[
                     f'Error during downloading list of images. Statuscode is {response.status}')
                 continue
             images_data += (await response.json())['images']
-            logging.info(
-                f'[+] Downloaded image data: {len(images_data)} / {len(image_ids)}')
             total_time = round(time.time() - starttime, 1)
             if(images_data):
                 per100 = total_time / len(images_data) * 100
-                logging.debug(
-                    f'[+] Performance: {total_time} sec total. Per 100 : {per100:.1f} sec')
+                logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {per100:.1f} sec')
             else:
                 logging.debug(f'[+] Performance: {total_time} sec total.')
     return images_data
 
 
 async def download_images(paths: List[str], image_ids: List[str], image_folder: str, chunk_size: int = 10) -> None:
+    logging.info('fetching image files')
     starttime = time.time()
     os.makedirs(image_folder, exist_ok=True)
-    for i in range(0, len(image_ids), chunk_size):
+    for i in alive_it(range(0, len(image_ids), chunk_size)):
         chunk_paths = paths[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []
@@ -49,10 +55,8 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
             tasks.append(create_task(download_one_image(chunk_paths[j], chunk_ids[j], image_folder)))
         await asyncio.gather(*tasks)
         total_time = round(time.time() - starttime, 1)
-        logging.info(f'Downnloaed {i + len(tasks)} image files.')
         per100 = total_time / (i + len(tasks)) * 100
-        logging.debug(
-            f'[+] Performance (image files): {total_time} sec total. Per 100 : {per100:.1f}')
+        logging.debug(f'[+] Performance (image files): {total_time} sec total. Per 100 : {per100:.1f}')
 
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
@@ -62,8 +66,25 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
             logging.error(
                 f'bad status code {response.status} for {path}: {content}')
             return
-        async with aiofiles.open(f'{image_folder}/{image_id}.jpg', 'wb') as out_file:
-            await out_file.write(await response.read())
+        filename = f'{image_folder}/{image_id}.jpg'
+        async with aiofiles.open(filename, 'wb') as f:
+            await f.write(await response.read())
+        if not await is_valid_image(filename):
+            os.remove(filename)
+
+
+async def is_valid_image(file):
+    if not os.path.isfile(file):
+        return False
+    if not check_jpeg:
+        return True
+
+    info = await asyncio.create_subprocess_shell(
+        f'jpeginfo -c {file}',
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE)
+    out, err = await info.communicate()
+    return "[OK]" in out.decode()
 
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
@@ -90,8 +111,7 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     created_files = []
     files = glob(f'{tmp_path}/**/*', recursive=True)
     for file in files:
-        logging.debug(
-            f'moving model file {os.path.basename(file)} to training folder.')
+        logging.debug(f'moving model file {os.path.basename(file)} to training folder.')
         new_file = shutil.move(file, target_folder)
         created_files.append(new_file)
     return created_files

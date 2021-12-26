@@ -1,4 +1,12 @@
 [[package]]
+name = "about-time"
+version = "3.1.1"
+description = "Easily measure timing and throughput of code blocks, with beautiful human friendly representations."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "aiofiles"
 version = "0.7.0"
 description = "File support for asyncio."
@@ -25,6 +33,18 @@ yarl = ">=1.0,<2.0"
 
 [package.extras]
 speedups = ["aiodns", "brotlipy", "cchardet"]
+
+[[package]]
+name = "alive-progress"
+version = "2.1.0"
+description = "A new kind of Progress Bar, with real time throughput, ETA and very cool animations!"
+category = "main"
+optional = false
+python-versions = ">=3.6, <4"
+
+[package.dependencies]
+about-time = "3.1.1"
+grapheme = "0.6.0"
 
 [[package]]
 name = "asttokens"
@@ -209,6 +229,17 @@ python-versions = ">=3.6,<4.0"
 fastapi = "*"
 pydantic = ">=1.0,<2.0"
 sqlalchemy = ">=1.3.12,<2.0.0"
+
+[[package]]
+name = "grapheme"
+version = "0.6.0"
+description = "Unicode grapheme helpers"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.extras]
+test = ["pytest", "sphinx", "sphinx-autobuild", "wheel", "twine"]
 
 [[package]]
 name = "greenlet"
@@ -661,9 +692,13 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "333d0d36146b7b7af5565bae7549ab119c78e18425f3ecb09b692d37b1597d26"
+content-hash = "90f77a790142783ba365fb60f12dd6e889eb6c6e6c914081a884c168f5d1f9be"
 
 [metadata.files]
+about-time = [
+    {file = "about-time-3.1.1.tar.gz", hash = "sha256:586b329450c9387d1ae8c42d2db4f5b4c57a54508d0f1b7bb00322ffd5ce9f9b"},
+    {file = "about_time-3.1.1-py3-none-any.whl", hash = "sha256:96841beb3f9b5de1cbb323d2bdb0fa9abdecbc46f2d546b9b3c2483d23daa17a"},
+]
 aiofiles = [
     {file = "aiofiles-0.7.0-py3-none-any.whl", hash = "sha256:c67a6823b5f23fcab0a2595a289cec7d8c863ffcb4322fb8cd6b90400aedfdbc"},
     {file = "aiofiles-0.7.0.tar.gz", hash = "sha256:a1c4fc9b2ff81568c83e21392a82f344ea9d23da906e4f6a52662764545e19d4"},
@@ -706,6 +741,10 @@ aiohttp = [
     {file = "aiohttp-3.7.4.post0-cp39-cp39-win32.whl", hash = "sha256:932bb1ea39a54e9ea27fc9232163059a0b8855256f4052e776357ad9add6f1c9"},
     {file = "aiohttp-3.7.4.post0-cp39-cp39-win_amd64.whl", hash = "sha256:02f46fc0e3c5ac58b80d4d56eb0a7c7d97fcef69ace9326289fb9f1955e65cfe"},
     {file = "aiohttp-3.7.4.post0.tar.gz", hash = "sha256:493d3299ebe5f5a7c66b9819eacdcfbbaaf1a8e84911ddffcdc48888497afecf"},
+]
+alive-progress = [
+    {file = "alive-progress-2.1.0.tar.gz", hash = "sha256:c418ccbf9b900b25b156db3978e9e2bc740c6c7f1db470da323b7f6c33808d68"},
+    {file = "alive_progress-2.1.0-py3-none-any.whl", hash = "sha256:d3e235335593df70a0cbec497d7429ba014ab65186d1e37717256eeb0a7d0585"},
 ]
 asttokens = [
     {file = "asttokens-2.0.5-py2.py3-none-any.whl", hash = "sha256:0844691e88552595a6f4a4281a9f7f79b8dd45ca4ccea82e5e05b4bbdb76705c"},
@@ -773,6 +812,9 @@ fastapi-socketio = [
 fastapi-utils = [
     {file = "fastapi-utils-0.2.1.tar.gz", hash = "sha256:0e6c7fc1870b80e681494957abf65d4f4f42f4c7f70005918e9181b22f1bd759"},
     {file = "fastapi_utils-0.2.1-py3-none-any.whl", hash = "sha256:dd0be7dc7f03fa681b25487a206651d99f2330d5a567fb8ab6cb5f8a06a29360"},
+]
+grapheme = [
+    {file = "grapheme-0.6.0.tar.gz", hash = "sha256:44c2b9f21bbe77cfb05835fec230bd435954275267fea1858013b102f8603cca"},
 ]
 greenlet = [
     {file = "greenlet-1.1.1-cp27-cp27m-macosx_10_14_x86_64.whl", hash = "sha256:476ba9435afaead4382fbab8f1882f75e3fb2285c35c9285abb3dd30237f9142"},

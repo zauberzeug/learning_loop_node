@@ -5,6 +5,7 @@ from learning_loop_node.task_logger import create_task
 from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node.data_classes.basic_data import BasicData
 import logging
+import os
 from icecream import ic
 
 
@@ -26,13 +27,12 @@ class TrainingsDownloader():
         await self.downloader.download_images(basic_data.image_ids, image_folder)
 
         training_data = TrainingData(image_data=[], categories={c['name']: c['id'] for c in basic_data.categories})
-        logging.info('fetching annotations')
         image_data = await image_data_task
-        logging.info('checking for corrupt images')
+        logging.info('filtering corrupt images')  # download only safes valid images
         for i in image_data:
-            if await self.downloader.is_valid_image(f'{image_folder}/{i["id"]}.jpg'):
+            if os.path.isfile(f'{image_folder}/{i["id"]}.jpg'):
                 training_data.image_data.append(i)
             else:
                 training_data.skipped_image_count += 1
-        logging.info(f'Done downloading image_data for {len(image_data)} images.')
+        logging.info(f'Done downloading image data for {len(image_data)} images.')
         return training_data
