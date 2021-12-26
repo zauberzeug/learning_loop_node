@@ -39,15 +39,18 @@ async def test_download_model():
     await downloads.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
 
     files = test_helper.get_files_in_folder(data_folder)
-    assert len(files) == 2, str(files)
+    assert len(files) == 3, str(files)
 
     assert files[0] == data_folder + \
         "/zauberzeug/pytest/trainings/some_uuid/file_1.txt"
     assert files[1] == data_folder + \
         "/zauberzeug/pytest/trainings/some_uuid/file_2.txt"
+    assert files[2] == data_folder + \
+        "/zauberzeug/pytest/trainings/some_uuid/model.json"
 
     assert open(files[0], 'r').read() == 'content of file one'
     assert open(files[1], 'r').read() == 'content of file two'
+    assert '"format": "mocked"' in open(files[2], 'r').read(), 'should have model.json'
 
 
 @pytest.mark.asyncio
