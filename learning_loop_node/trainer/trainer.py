@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from .executor import Executor
 from .training import Training
@@ -49,15 +49,21 @@ class Trainer():
 
     async def save_model(self,  context: Context, model_id: str) -> None:
         files = self.get_model_files(model_id)
-        await uploads.upload_model(context, files, model_id, self.model_format)
+        if isinstance(files, list):
+            await uploads.upload_model(context, files, model_id, self.model_format)
+        elif isinstance(files, dict):
+            for format in files:
+                await uploads.upload_model(context, files[format], model_id, format)
+        else:
+            raise TypeError(f'can only save model as list or dict, but was {files}')
 
     def get_new_model(self) -> Optional[BasicModel]:
         '''Is called frequently to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
-        confusion_matrix contains a dict of all classes. 
-            The classes must be identified by their id, not their name.
-            For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
-        meta_information can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
+        `confusion_matrix` contains a dict of all classes: 
+            - The classes must be identified by their id, not their name.
+            - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
+        `meta_information` can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
         '''
         raise NotImplementedError()
 
@@ -69,11 +75,17 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    def get_model_files(self, model_id) -> List[str]:
+    def get_model_files(self, model_id) -> Union[List[str], Dict[str, List[str]]]:
         '''Called when the Learning Loop requests to backup a specific model. 
-        Returns a list of file paths which describe the model. 
-        These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.).
-        Additionally, a model.json should be provided. This must contain the trained resolution, categories etc.
+        Should return a list of file paths which describe the model.
+        These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.) 
+        and will be stored in the Learning Loop unter the format of this trainer.
+        Note: by convention the weightfile should be named "model.<extension>" where extension is the file format of the weightfile.
+        For example "model.pt" for pytorch or "model.weights" for darknet/yolo.
+
+        If a trainer can also generate other formats (for example for an detector),
+        a dictionary mapping format -> list of files can be returned.
+        In general, all non-trainer formats are expected to contain a model.json in the file list which contains the trained resolution, categories etc.
         Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
         '''
         raise NotImplementedError()
