@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
@@ -48,7 +49,7 @@ class Trainer():
         return self.executor.get_log()
 
     async def save_model(self,  context: Context, model_id: str) -> None:
-        files = self.get_model_files(model_id)
+        files = await asyncio.get_running_loop().run_in_executor(None, self.get_model_files, model_id)
         if isinstance(files, list):
             await uploads.upload_model(context, files, model_id, self.model_format)
         elif isinstance(files, dict):
