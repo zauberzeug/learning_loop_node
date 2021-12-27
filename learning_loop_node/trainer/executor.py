@@ -49,7 +49,10 @@ class Executor:
 
         logging.info('terminating process')
 
-        os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+        try:
+            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
 
         self.process.terminate()
         out, err = self.process.communicate(timeout=3)
