@@ -87,12 +87,16 @@ async def is_valid_image(file):
     return "[OK]" in out.decode()
 
 
+class DownloadError(Exception):
+    pass
+
+
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
     path = f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
     async with loop.get(path) as response:
         if response.status != 200:
             content = await response.read()
-            raise Exception(
+            raise DownloadError(
                 f'could not download model from {loop.base_url}/{path}: Statuscode: {response.status}, content: {content}')
         try:
             provided_filename = response.headers.get(
