@@ -1,7 +1,7 @@
 from . import operation_mode
 from .operation_mode import OperationMode
 from .detector import Detector
-from .rest import detect
+from .rest import detect, upload
 from ..rest import downloads
 from ..node import Node
 from ..status import State
