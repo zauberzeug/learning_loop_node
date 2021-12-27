@@ -32,6 +32,6 @@ class TrainingStatus(Status):
 
 
 class DetectionStatus(Status):
+    model_format: str
     current_model_id: Optional[str]
     target_model_id: Optional[str]
-    latest_error: Optional[str]

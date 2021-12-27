@@ -1,10 +1,12 @@
-from learning_loop_node.detector import operation_mode
-from learning_loop_node.detector.operation_mode import OperationMode
-from learning_loop_node.node import Node
-from learning_loop_node.status import State
-from learning_loop_node.status import DetectionStatus, State
-from learning_loop_node.context import Context
-from learning_loop_node.rest import downloads
+from . import operation_mode
+from .operation_mode import OperationMode
+from .detector import Detector
+from .rest import detect
+from ..rest import downloads
+from ..node import Node
+from ..status import State
+from ..status import DetectionStatus, State
+from ..context import Context
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from typing import List, Optional
@@ -12,11 +14,8 @@ import shutil
 import os
 import logging
 from learning_loop_node.globals import GLOBALS
-from icecream import ic
 import subprocess
-from learning_loop_node.detector.detector import Detector
 import asyncio
-from learning_loop_node.detector.rest import detect
 import numpy as np
 from fastapi_socketio import SocketManager
 
@@ -122,6 +121,7 @@ class DetectorNode(Node):
             operation_mode=self.operation_mode,
             current_model_id=current_model_id,
             latest_error=self.status.latest_error,
+            model_format=self.detector.model_format,
         )
         logging.info(f'sending status {status}')
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)), timeout=1)

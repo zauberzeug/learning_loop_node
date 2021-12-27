@@ -7,5 +7,6 @@ from .detector.detector_node import DetectorNode
 from .detector.detector import Detector
 from .model_information import ModelInformation
 from .data_classes.category import CategoryType
+from .globals import GLOBALS
 
 from .loop import loop
