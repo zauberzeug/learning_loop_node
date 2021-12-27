@@ -83,9 +83,6 @@ async def add_steps(request: Request):
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
         await trainer_node.check_state()
-        latest_error = trainer_node.status.latest_error
-        if latest_error:
-            raise HTTPException(status_code=500, detail=latest_error)
 
 
 def trainer_node_from_request(request: Request) -> TrainerNode:

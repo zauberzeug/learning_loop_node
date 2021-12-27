@@ -42,11 +42,17 @@ class TrainerNode(Node):
         @self.on_event("startup")
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def check_state():
-            if not self.skip_check_state:
-                try:
-                    await self.check_state()
-                except:
-                    logging.exception('could not check state')
+            if self.skip_check_state:
+                return
+            try:
+                await self.check_state()
+            except:
+                logging.exception('could not check state')
+
+        @self.on_event("shutdown")
+        async def shutdown():
+            logging.info('shutdown detected, stopping training')
+            await self.stop_training()
 
     async def begin_training(self, context: Context, source_model: dict):
         self.status.latest_error = None
@@ -64,18 +70,21 @@ class TrainerNode(Node):
 
     async def stop_training(self) -> Union[bool, str]:
         try:
-            self.trainer.stop_training()
+            result = self.trainer.stop_training()
             self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
             logging.exception(self.status.latest_error)
             self.status.latest_error = f'Could not stop training: {str(e)})'
             await self.send_status()
-
             return False
+        if not result:
+            self.status.latest_error = f'Could not stop training because none is running'
+            await self.send_status()
+
         self.latest_known_model_id = None
         await self.send_status()
-        return True
+        return result
 
     async def save_model(self, context: Context, model_id: str):
         try:
@@ -86,14 +95,16 @@ class TrainerNode(Node):
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
+        error = self.trainer.get_error()
+        if error is not None:
+            logging.error(error + '\n\n' + self.trainer.get_log()[-1000:])
+            await self.update_error_msg(error)
+            return
+
         if self.status.state != State.Running:
             return
 
-        error = self.trainer.get_error()
-        await self.update_error_msg(error)
-        if error is not None:
-            logging.info(error + '\n\n' + self.trainer.get_log()[-1000:])
-        elif not self.trainer.executor.is_process_running():
+        if not self.trainer.executor.is_process_running():
             await self.update_error_msg(f'Training crashed.')
             logging.info(self.trainer.get_log()[-1000:])
 
@@ -104,6 +115,7 @@ class TrainerNode(Node):
             current_training = self.trainer.training
             if self.status.state == State.Running and current_training:
                 model = self.trainer.get_new_model()
+                logging.debug(f'new model {model}')
                 if model:
                     new_model = Model(
                         id=str(uuid4()),

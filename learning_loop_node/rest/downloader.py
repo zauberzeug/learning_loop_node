@@ -18,14 +18,6 @@ class DataDownloader():
     def __init__(self, context: Context):
         self.context = context
 
-        self.check_jpeg = shutil.which('jpeginfo') is not None
-        if self.check_jpeg:
-            logging.info(
-                'Detected command line tool "jpeginfo". Images will be checked for validity')
-        else:
-            logging.error(
-                'Missing command line tool "jpeginfo". We can not check for validity of images.')
-
     async def download_basic_data(self, query_params: Optional[str] = '') -> BasicData:
         async with loop.get(f'api/{self.context.organization}/projects/{self.context.project}/data?{query_params}') as response:
             assert response.status == 200, response
@@ -39,19 +31,6 @@ class DataDownloader():
         paths, ids = node_helper.create_resource_paths(self.context.organization, self.context.project,
                                                        DataDownloader.filter_existing_images(image_ids, image_folder))  # hier
         await downloads.download_images(paths, ids, image_folder)
-
-    async def is_valid_image(self, file):
-        if not os.path.isfile(file):
-            return False
-        if not self.check_jpeg:
-            return True
-
-        info = await asyncio.create_subprocess_shell(
-            f'jpeginfo -c {file}',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE)
-        out, err = await info.communicate()
-        return "[OK]" in out.decode()
 
     @staticmethod
     def filter_existing_images(all_image_ids, image_folder) -> List[str]:
