@@ -24,14 +24,6 @@ from threading import Thread
 
 
 class DetectorNode(Node):
-    detector: Detector
-    organization: str
-    project: str
-    operation_mode: OperationMode = OperationMode.Idle
-    outbox: Outbox
-    connected_clients: List[str]
-
-    target_model_id: Optional[str]
 
     def __init__(self, name: str, detector: Detector, uuid: str = None):
         super().__init__(name, uuid)
@@ -40,14 +32,16 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
+        self.operation_mode = OperationMode.Check_for_updates
         self.connected_clients = []
         self.outbox = Outbox()
+        self.target_model_id = None
         self.include_router(detect.router, tags=["detect"])
         self.include_router(upload.router, prefix="")
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
-        @repeat_every(seconds=1, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             await self.check_for_update()
 
@@ -104,23 +98,28 @@ class DetectorNode(Node):
 
     async def check_for_update(self):
         try:
-            logging.info(f'periodically checking operation mode. Currently the mode is {self.operation_mode}')
+            logging.debug(f'periodically checking operation mode. Currently the mode is {self.operation_mode}')
+            await self.send_status()
             if self.detector.current_model:
                 logging.info(
                     f'Current model : { self.detector.current_model.version} with id { self.detector.current_model.id}')
             else:
-                logging.info(f'Current model is None')
-            if self.operation_mode == OperationMode.Check_for_updates:
-                logging.info('going to check for new updates')
-                await self.send_status()
-                logging.info('Check if the current model id matches the target_model_id')
-
-                if not self.detector.current_model or self.target_model_id != self.detector.current_model.id:
-                    logging.info('No match. Going to download new version')
-                    model_symlink = f'{GLOBALS.data_folder}/model'
-                    target_model_folder = f'{GLOBALS.data_folder}/models/{self.target_model_id}'
-                    shutil.rmtree(target_model_folder, ignore_errors=True)
-                    os.makedirs(target_model_folder)
+                logging.info(f'no model loaded')
+            if self.operation_mode != OperationMode.Check_for_updates:
+                logging.info(f'not checking for updates; operation mode is {self.operation_mode}')
+                return
+            if self.target_model_id is None:
+                logging.info(f'not checking for updates; no target model selected')
+                return
+            logging.info('going to check for new updates')
+            if not self.detector.current_model or self.target_model_id != self.detector.current_model.id:
+                logging.info(
+                    f'Current model "{self.detector.current_model}" needs to be updated to {self.target_model_id}')
+                model_symlink = f'{GLOBALS.data_folder}/model'
+                target_model_folder = f'{GLOBALS.data_folder}/models/{self.target_model_id}'
+                shutil.rmtree(target_model_folder, ignore_errors=True)
+                os.makedirs(target_model_folder)
+                try:
                     await downloads.download_model(target_model_folder, Context(organization=self.organization, project=self.project), self.target_model_id, self.detector.model_format)
                     try:
                         os.unlink(model_symlink)
@@ -130,15 +129,19 @@ class DetectorNode(Node):
                     os.symlink(target_model_folder, model_symlink)
                     logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
                     self.reload()
-                else:
-                    logging.info('Versions are identic. Nothing to do.')
+                except downloads.DownloadError as e:
+                    logging.error(f'download faild: {e}')
+                    self.status.latest_error = 'download failed'
             else:
-                logging.info('###### Operation mode was NOT check_for_updates')
-        except Exception as e:
-            logging.error(f'An error occured during "check_for_update". {str(e)}')
-            raise
+                logging.info('Versions are identic. Nothing to do.')
+        except Exception:
+            logging.exception(f'check_for_update failed')
+            self.status.latest_error = 'could not check for model update'
 
     async def send_status(self) -> dict:
+        if not self.sio_client.connected:
+            logging.error('could not send status -- we are not connected to the Learning Loop')
+            return False
         current_model_id = None
         try:
             current_model_id = self.detector.current_model.id
@@ -150,14 +153,15 @@ class DetectorNode(Node):
             state=self.status.state,
             operation_mode=self.operation_mode,
             current_model_id=current_model_id,
+            target_model_id=self.target_model_id,
             latest_error=self.status.latest_error,
             model_format=self.detector.model_format,
         )
-        logging.info(f'sending status {status}')
+        logging.debug(f'sending status {status}')
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)), timeout=1)
         try:
             self.target_model_id = response['payload']['target_model_id']
-            logging.info(f'After sending status. Target_model_id is {self.target_model_id}')
+            logging.debug(f'After sending status. Target_model_id is {self.target_model_id}')
         except:
             logging.error('Could not send status to loop')
             return False
@@ -171,7 +175,10 @@ class DetectorNode(Node):
         await self.send_status()
 
     def reload(self):
-        subprocess.call(["touch", "/app/restart/restart.py"])
+        if os.path.isfile('/app/restart/restart.py'):
+            subprocess.call(['touch', '/app/restart/restart.py'])
+        else:
+            subprocess.call(['touch', '/app/main.py'])
 
     async def get_detections(self, raw_image, mac: str, tags: str, active_learning=True):
         loop = asyncio.get_event_loop()

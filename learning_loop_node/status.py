@@ -33,5 +33,6 @@ class TrainingStatus(Status):
 
 class DetectionStatus(Status):
     model_format: str
+    #uptime: int
     current_model_id: Optional[str]
     target_model_id: Optional[str]
