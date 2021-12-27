@@ -70,18 +70,21 @@ class TrainerNode(Node):
 
     async def stop_training(self) -> Union[bool, str]:
         try:
-            self.trainer.stop_training()
+            result = self.trainer.stop_training()
             self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
             logging.exception(self.status.latest_error)
             self.status.latest_error = f'Could not stop training: {str(e)})'
             await self.send_status()
-
             return False
+        if not result:
+            self.status.latest_error = f'Could not stop training because none is running'
+            await self.send_status()
+
         self.latest_known_model_id = None
         await self.send_status()
-        return True
+        return result
 
     async def save_model(self, context: Context, model_id: str):
         try:

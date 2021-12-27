@@ -35,11 +35,13 @@ class Trainer():
     async def start_training(self) -> None:
         raise NotImplementedError()
 
-    def stop_training(self) -> None:
+    def stop_training(self) -> bool:
         if self.executor:
             self.executor.stop()
+            return True
         else:
-            logging.info('could not stop training -- ')
+            logging.info('could not stop training, executor is None')
+            return False
 
     def get_error(self) -> Optional[Union[None, str]]:
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''

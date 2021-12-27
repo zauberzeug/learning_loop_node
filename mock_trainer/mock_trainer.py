@@ -46,4 +46,4 @@ class MockTrainer(Trainer):
         if self.error_configuration.stop_training:
             raise Exception()
         self.latest_known_confusion_matrix = None
-        super().stop_training()
+        return super().stop_training()
