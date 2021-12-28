@@ -33,7 +33,7 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
-        self.operation_mode = OperationMode.Check_for_updates
+        self.operation_mode = OperationMode.Startup
         self.connected_clients = []
         self.outbox = Outbox()
         self.target_model = None
@@ -49,6 +49,7 @@ class DetectorNode(Node):
         @self.on_event("startup")
         async def _load_model() -> None:
             self.detector.load_model()
+            self.operation_mode = OperationMode.Check_for_updates
 
         @self.on_event("startup")
         @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
@@ -94,6 +95,8 @@ class DetectorNode(Node):
                 await self.sio.disconnect(sid)
 
     async def check_for_update(self):
+        if self.operation_mode == OperationMode.Startup:
+            return
         try:
             logging.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
             update_to_model_id = await self.send_status()

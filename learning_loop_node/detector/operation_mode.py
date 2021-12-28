@@ -9,9 +9,9 @@ router = APIRouter()
 
 
 class OperationMode(str, Enum):
-    Detecting = 'detecting'
-    Check_for_updates = 'check_for_updates'
-    Idle = 'idle'
+    Startup = 'startup'  # used until model is loaded
+    Check_for_updates = 'check_for_updates'  # will check and perform updates
+    Detecting = 'detecting'  # Blocks updates
 
 
 @router.put("/operation_mode")
