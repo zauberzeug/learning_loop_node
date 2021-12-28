@@ -11,7 +11,7 @@ jobs:
       - name: set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.9"
+          python-version: "3.7"
       - name: set up Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
@@ -26,7 +26,6 @@ jobs:
           poetry install
       - name: test
         run: |
-          sudo netstat -tulpn | grep LISTEN
           cd learning_loop_node
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest -v
 
