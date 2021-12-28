@@ -5,6 +5,7 @@ on: [push]
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v2
       - name: set up Python
@@ -25,6 +26,7 @@ jobs:
           poetry install
       - name: test
         run: |
+          sudo netstat -tulpn | grep LISTEN
           cd learning_loop_node
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest -v
 
