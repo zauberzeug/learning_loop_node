@@ -1,6 +1,8 @@
 from learning_loop_node.globals import GLOBALS
 import shutil
 import pytest
+import logging
+logging.basicConfig(level=logging.INFO)
 
 
 @pytest.fixture(autouse=True, scope='function')

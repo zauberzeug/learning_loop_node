@@ -1,5 +1,5 @@
 from typing import Generator
-from multiprocessing import Process
+from multiprocessing import Process, log_to_stderr
 import pytest
 import socketio
 import asyncio
@@ -16,6 +16,9 @@ from glob import glob
 
 port = 5001
 
+# show ouptut from uvicorn server https://stackoverflow.com/a/66132186/364388
+log_to_stderr(logging.INFO)
+
 
 @pytest.fixture()
 async def test_detector_node():
@@ -31,13 +34,13 @@ async def test_detector_node():
                        "host": "127.0.0.1",
                        "port": port,
                    },
-
                    daemon=True)
     proc.start()
     await asyncio.sleep(5)  # time for the server to start
     yield node
     await node.sio_client.disconnect()
-    proc.terminate()
+    proc.kill()
+    proc.join()
 
 
 @pytest.fixture()
