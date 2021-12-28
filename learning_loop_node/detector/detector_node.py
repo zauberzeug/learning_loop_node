@@ -95,6 +95,8 @@ class DetectorNode(Node):
                 await self.sio.disconnect(sid)
 
     async def check_for_update(self):
+        if self.operation_mode == OperationMode.Startup:
+            return
         try:
             logging.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
             update_to_model_id = await self.send_status()
