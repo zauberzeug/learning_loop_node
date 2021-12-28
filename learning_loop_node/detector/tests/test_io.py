@@ -13,11 +13,30 @@ from testing_detector import TestingDetector
 from learning_loop_node.globals import GLOBALS
 import os
 from glob import glob
+import socket
 
-port = 5001
+port = 5000
 
 # show ouptut from uvicorn server https://stackoverflow.com/a/66132186/364388
 log_to_stderr(logging.INFO)
+
+# from https://stackoverflow.com/a/52872579/364388
+
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+
+
+async def port_is(free: bool):
+    for i in range(10):
+        if not free and is_port_in_use(port):
+            return
+        if free and not is_port_in_use(port):
+            return
+        else:
+            await asyncio.sleep(0.5)
+    raise Exception(f'port {port} is {"not" if free else ""} free')
 
 
 @pytest.fixture()
@@ -27,7 +46,7 @@ async def test_detector_node():
 
     det = TestingDetector()
     node = DetectorNode(name='test', detector=det)
-
+    await port_is(free=True)
     proc = Process(target=uvicorn.run,
                    args=(node,),
                    kwargs={
@@ -36,7 +55,7 @@ async def test_detector_node():
                    },
                    daemon=True)
     proc.start()
-    await asyncio.sleep(5)  # time for the server to start
+    await port_is(free=False)
     yield node
     await node.sio_client.disconnect()
     proc.kill()
