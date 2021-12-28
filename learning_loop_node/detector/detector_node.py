@@ -102,7 +102,7 @@ class DetectorNode(Node):
             update_to_model_id = await self.send_status()
             if self.detector.current_model:
                 logging.info(
-                    f'Current model : { self.detector.current_model.version} with id { self.detector.current_model.id}')
+                    f'Current model: {self.detector.current_model.version} with id {self.detector.current_model.id}')
             else:
                 logging.info(f'no model loaded')
             if self.operation_mode != OperationMode.Check_for_updates:
@@ -135,8 +135,7 @@ class DetectorNode(Node):
                     logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
                     self.reload(because='new model installed')
                 except downloads.DownloadError as e:
-                    logging.error(f'download faild: {e}')
-                    self.status.latest_error = 'download failed'
+                    self.status.latest_error = f'download failed: {e.cause}'
             else:
                 logging.info('Versions are identic. Nothing to do.')
         except Exception:
