@@ -1,7 +1,7 @@
 from learning_loop_node.detector.detector import Detector
 from learning_loop_node.model_information import ModelInformation
-from typing import Any
 from learning_loop_node.detector.detections import Detections
+from typing import Any
 
 
 class MockDetector(Detector):

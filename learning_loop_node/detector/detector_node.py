@@ -9,7 +9,7 @@ from ..status import DetectionStatus, State
 from ..context import Context
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
-from typing import List, Optional
+from typing import List, Optional, Union
 import shutil
 import os
 import logging
@@ -24,6 +24,7 @@ from threading import Thread
 
 
 class DetectorNode(Node):
+    update_frequency = 10
 
     def __init__(self, name: str, detector: Detector, uuid: str = None):
         super().__init__(name, uuid)
@@ -35,23 +36,19 @@ class DetectorNode(Node):
         self.operation_mode = OperationMode.Check_for_updates
         self.connected_clients = []
         self.outbox = Outbox()
-        self.target_model_id = None
+        self.target_model = None
         self.include_router(detect.router, tags=["detect"])
         self.include_router(upload.router, prefix="")
         self.include_router(operation_mode.router, tags=["operation_mode"])
 
         @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=self.update_frequency, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             await self.check_for_update()
 
         @self.on_event("startup")
         async def _load_model() -> None:
-            try:
-                self.detector.load_model()
-            except:
-                pass
-            await self.check_for_update()
+            self.detector.load_model()
 
         @self.on_event("startup")
         @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
@@ -98,8 +95,8 @@ class DetectorNode(Node):
 
     async def check_for_update(self):
         try:
-            logging.debug(f'periodically checking operation mode. Currently the mode is {self.operation_mode}')
-            await self.send_status()
+            logging.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
+            update_to_model_id = await self.send_status()
             if self.detector.current_model:
                 logging.info(
                     f'Current model : { self.detector.current_model.version} with id { self.detector.current_model.id}')
@@ -108,19 +105,24 @@ class DetectorNode(Node):
             if self.operation_mode != OperationMode.Check_for_updates:
                 logging.info(f'not checking for updates; operation mode is {self.operation_mode}')
                 return
-            if self.target_model_id is None:
+            if self.target_model is None:
                 logging.info(f'not checking for updates; no target model selected')
                 return
             logging.info('going to check for new updates')
-            if not self.detector.current_model or self.target_model_id != self.detector.current_model.id:
+            if not self.detector.current_model or self.target_model != self.detector.current_model.version:
                 logging.info(
-                    f'Current model "{self.detector.current_model}" needs to be updated to {self.target_model_id}')
+                    f'Current model "{self.detector.current_model.version if self.detector.current_model else "-"}" needs to be updated to {self.target_model}')
                 model_symlink = f'{GLOBALS.data_folder}/model'
-                target_model_folder = f'{GLOBALS.data_folder}/models/{self.target_model_id}'
+                target_model_folder = f'{GLOBALS.data_folder}/models/{self.target_model}'
                 shutil.rmtree(target_model_folder, ignore_errors=True)
                 os.makedirs(target_model_folder)
                 try:
-                    await downloads.download_model(target_model_folder, Context(organization=self.organization, project=self.project), self.target_model_id, self.detector.model_format)
+                    await downloads.download_model(
+                        target_model_folder,
+                        Context(organization=self.organization, project=self.project),
+                        update_to_model_id,
+                        self.detector.model_format
+                    )
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
@@ -128,7 +130,7 @@ class DetectorNode(Node):
                         pass
                     os.symlink(target_model_folder, model_symlink)
                     logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
-                    self.reload()
+                    self.reload(because='new model installed')
                 except downloads.DownloadError as e:
                     logging.error(f'download faild: {e}')
                     self.status.latest_error = 'download failed'
@@ -138,34 +140,29 @@ class DetectorNode(Node):
             logging.exception(f'check_for_update failed')
             self.status.latest_error = 'could not check for model update'
 
-    async def send_status(self) -> dict:
+    async def send_status(self) -> Union[str, bool]:
         if not self.sio_client.connected:
             logging.error('could not send status -- we are not connected to the Learning Loop')
             return False
-        current_model_id = None
-        try:
-            current_model_id = self.detector.current_model.id
-        except:
-            pass
         status = DetectionStatus(
             id=self.uuid,
             name=self.name,
             state=self.status.state,
             operation_mode=self.operation_mode,
-            current_model_id=current_model_id,
-            target_model_id=self.target_model_id,
+            current_model=self.detector.current_model.version if self.detector.current_model else None,
+            target_model=self.target_model,
             latest_error=self.status.latest_error,
             model_format=self.detector.model_format,
         )
         logging.debug(f'sending status {status}')
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)), timeout=1)
         try:
-            self.target_model_id = response['payload']['target_model_id']
-            logging.debug(f'After sending status. Target_model_id is {self.target_model_id}')
+            self.target_model = response['payload']['target_model_version']
+            logging.debug(f'After sending status. Target_model is {self.target_model}')
+            return response['payload']['target_model_id']
         except:
             logging.error('Could not send status to loop')
             return False
-        return True
 
     def get_state(self):
         return State.Online
@@ -174,7 +171,10 @@ class DetectorNode(Node):
         self.operation_mode = mode
         await self.send_status()
 
-    def reload(self):
+    def reload(self, because: str):
+        '''provide a cause for the reload'''
+
+        print('########## reloading app because ' + because, flush=True)
         if os.path.isfile('/app/restart/restart.py'):
             subprocess.call(['touch', '/app/restart/restart.py'])
         else:

@@ -1,4 +1,4 @@
-from typing import Union, Any
+from typing import Optional, Union, Any
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.globals import GLOBALS
 import os
@@ -9,13 +9,11 @@ import logging
 
 
 class Detector():
-    current_model: Union[ModelInformation, None]
-    target_model_id: Union[str, None] = None
-    model_format: str
 
     def __init__(self, model_format: str) -> None:
-        self.model_format = model_format
-        self.current_model = None
+        self.model_format: str = model_format
+        self.current_model: Optional[ModelInformation] = None
+        self.target_model: Optional[str] = None
 
     def load_model(self):
         try:
@@ -30,22 +28,20 @@ class Detector():
                     raise Exception(f"could not read model information from file '{model_info_file_path}'")
                 try:
                     model_information = ModelInformation.parse_obj(content)
-                    ic(model_information)
                 except Exception as e:
                     raise Exception(
                         f"could not parse model information from file '{model_info_file_path}'. \n {str(e)}")
             try:
                 self.init(model_information, model_root_path)
+                self.current_model = model_information
+                logging.info(f'Successfully loaded model {self.current_model}')
             except Exception:
-                logging.error('Could not init model {model_information}')
+                logging.error(f'Could not init model {model_information}')
                 raise
+
         except Exception:
             self.current_model = None
-            logging.error('An error occured during loading model.')
-            raise
-
-        self.current_model = model_information
-        logging.info(f'Successfully loaded model. Current Model id is : { self.current_model.id}')
+            logging.exception('An error occured during loading model.')
 
     def init(self,  model_info: ModelInformation, model_root_path: str):
         raise NotImplementedError()

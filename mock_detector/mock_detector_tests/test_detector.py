@@ -4,7 +4,7 @@ from learning_loop_node.globals import GLOBALS
 from mock_detector import MockDetector
 import pytest
 from learning_loop_node.tests import test_helper
-from main import detector_node
+from main import node
 import os
 from icecream import ic
 import asyncio
