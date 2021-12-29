@@ -22,6 +22,7 @@ jobs:
           sudo apt-get install libcurl4-openssl-dev libssl-dev
       - name: install dependencies
         run: |
+          python3 -m pip install "uvicorn[standard]" async_generator aiofiles retry debugpy pytest-asyncio psutil icecream pytest autopep8
           poetry config virtualenvs.create false --local
           poetry install
       - name: test
