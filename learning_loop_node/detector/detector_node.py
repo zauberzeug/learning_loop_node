@@ -12,6 +12,7 @@ from fastapi_utils.tasks import repeat_every
 from typing import List, Optional, Union
 import shutil
 import os
+import contextlib
 import logging
 from learning_loop_node.globals import GLOBALS
 import subprocess
@@ -115,27 +116,28 @@ class DetectorNode(Node):
             if not self.detector.current_model or self.target_model != self.detector.current_model.version:
                 logging.info(
                     f'Current model "{self.detector.current_model.version if self.detector.current_model else "-"}" needs to be updated to {self.target_model}')
-                model_symlink = f'{GLOBALS.data_folder}/model'
-                target_model_folder = f'{GLOBALS.data_folder}/models/{self.target_model}'
-                shutil.rmtree(target_model_folder, ignore_errors=True)
-                os.makedirs(target_model_folder)
-                try:
-                    await downloads.download_model(
-                        target_model_folder,
-                        Context(organization=self.organization, project=self.project),
-                        update_to_model_id,
-                        self.detector.model_format
-                    )
+                with pushd(GLOBALS.data_folder):
+                    model_symlink = 'model'
+                    target_model_folder = f'models/{self.target_model}'
+                    shutil.rmtree(target_model_folder, ignore_errors=True)
+                    os.makedirs(target_model_folder)
                     try:
-                        os.unlink(model_symlink)
-                        os.remove(model_symlink)
-                    except:
-                        pass
-                    os.symlink(target_model_folder, model_symlink)
-                    logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
-                    self.reload(because='new model installed')
-                except downloads.DownloadError as e:
-                    self.status.latest_error = f'download failed: {e.cause}'
+                        await downloads.download_model(
+                            target_model_folder,
+                            Context(organization=self.organization, project=self.project),
+                            update_to_model_id,
+                            self.detector.model_format
+                        )
+                        try:
+                            os.unlink(model_symlink)
+                            os.remove(model_symlink)
+                        except:
+                            pass
+                        os.symlink(target_model_folder, model_symlink)
+                        logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
+                        self.reload(because='new model installed')
+                    except downloads.DownloadError as e:
+                        self.status.latest_error = f'download failed: {e.cause}'
             else:
                 logging.info('Versions are identic. Nothing to do.')
         except Exception:
@@ -197,3 +199,13 @@ class DetectorNode(Node):
         loop = asyncio.get_event_loop()
         for image in images:
             await loop.run_in_executor(None, lambda: self.outbox.save(image, Detections(), ['picked_by_system']))
+
+
+@contextlib.contextmanager
+def pushd(new_dir):
+    previous_dir = os.getcwd()
+    os.chdir(new_dir)
+    try:
+        yield
+    finally:
+        os.chdir(previous_dir)
