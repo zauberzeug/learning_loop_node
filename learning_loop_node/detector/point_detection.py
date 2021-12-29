@@ -1,7 +1,14 @@
+from dataclasses import dataclass
 import numpy as np
 
 
+@dataclass
 class PointDetection:
+    category_name: str
+    x: int
+    y: int
+    model_name: str
+    confidence: float
 
     def __init__(self, category, x, y, net, confidence):
         self.category_name = category

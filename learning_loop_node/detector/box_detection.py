@@ -1,4 +1,16 @@
+
+from dataclasses import dataclass
+
+
+@dataclass
 class BoxDetection:
+    category_name: str
+    x: int
+    y: int
+    width: int
+    height: int
+    model_name: str
+    confidence: float
 
     def __init__(self, category, x, y, width, height, net, confidence):
         self.category_name = category
