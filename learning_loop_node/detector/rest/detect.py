@@ -22,5 +22,4 @@ async def http_detect(request: Request, file: UploadFile = File(...), mac: str =
     except:
         raise Exception(f'Uploaded file {file.filename} is no image file.')
     detections = await request.app.get_detections(np_image, mac, tags.split(',') if tags else [])
-
     return JSONResponse(detections)
