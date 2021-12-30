@@ -21,6 +21,8 @@ from fastapi_socketio import SocketManager
 from . import Detections
 from . import Outbox
 from threading import Thread
+from datetime import datetime
+from icecream import ic
 
 
 class DetectorNode(Node):
@@ -48,8 +50,10 @@ class DetectorNode(Node):
 
         @self.on_event("startup")
         async def _load_model() -> None:
-            self.detector.load_model()
-            self.operation_mode = OperationMode.Check_for_updates
+            try:
+                self.detector.load_model()
+            finally:
+                self.operation_mode = OperationMode.Check_for_updates
 
         @self.on_event("startup")
         @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
@@ -98,6 +102,7 @@ class DetectorNode(Node):
         if self.operation_mode == OperationMode.Startup:
             return
         try:
+            ic()
             logging.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
             update_to_model_id = await self.send_status()
             if self.detector.current_model:
@@ -151,10 +156,11 @@ class DetectorNode(Node):
             id=self.uuid,
             name=self.name,
             state=self.status.state,
+            latest_error=self.status.latest_error,
+            uptime=int((datetime.now() - self.startup_time).total_seconds()),
             operation_mode=self.operation_mode,
             current_model=self.detector.current_model.version if self.detector.current_model else None,
             target_model=self.target_model,
-            latest_error=self.status.latest_error,
             model_format=self.detector.model_format,
         )
         logging.debug(f'sending status {status}')

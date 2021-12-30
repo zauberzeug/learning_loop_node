@@ -1,11 +1,12 @@
-import icecream
+import logging
 import os
-from learning_loop_node.detector.detector_node import DetectorNode
-import uvicorn
+import icecream
+#from learning_loop_node.globals import GLOBALS_X
+logging.basicConfig(level=logging.DEBUG)
 from mock_detector import MockDetector
 import backdoor_controls
-import logging
-logging.basicConfig(level=logging.DEBUG)
+from learning_loop_node import DetectorNode
+
 icecream.install()
 
 
@@ -20,6 +21,7 @@ node = DetectorNode(
 node.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
+    import uvicorn
     reload_dirs = ['./restart'] if os.environ.get('MANUAL_RESTART', None) \
         else ['./', './learning-loop-node', '/usr/local/lib/python3.7/site-packages/learning_loop_node']
     uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True, reload_dirs=reload_dirs)

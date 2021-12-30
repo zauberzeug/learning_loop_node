@@ -35,4 +35,4 @@ class DetectionStatus(Status):
     model_format: str
     current_model: Optional[str]
     target_model: Optional[str]
-    #uptime: int
+    operation_mode: Optional[str]

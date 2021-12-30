@@ -13,6 +13,7 @@ from fastapi_utils.tasks import repeat_every
 import logging
 from uuid import uuid4
 from learning_loop_node.decorators.error_handler import try_except
+from datetime import datetime
 
 
 class Node(FastAPI):
@@ -23,9 +24,10 @@ class Node(FastAPI):
         super().__init__()
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
-     
+
         self.name = name
         self.uuid = self.read_or_create_uuid() if uuid is None else uuid
+        self.startup_time = datetime.now()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,

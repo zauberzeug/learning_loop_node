@@ -11,6 +11,7 @@ from .trainer import Trainer
 from learning_loop_node.status import TrainingStatus
 from learning_loop_node.node import Node, State
 import logging
+from datetime import datetime
 
 
 class TrainerNode(Node):
@@ -144,9 +145,9 @@ class TrainerNode(Node):
             id=self.uuid,
             name=self.name,
             state=self.status.state,
-            uptime=self.status.uptime,
+            uptime=int((datetime.now() - self.startup_time).total_seconds()),
+            latest_error=self.status.latest_error,
             latest_produced_model_id=self.latest_known_model_id,
-            latest_error=self.status.latest_error
         )
 
         if self.trainer and self.trainer.training:
