@@ -53,7 +53,7 @@ class DetectorNode(Node):
             try:
                 self.detector.load_model()
             finally:
-                self.operation_mode = OperationMode.Check_for_updates
+                self.operation_mode = OperationMode.Idle
 
         @self.on_event("startup")
         @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
@@ -110,7 +110,7 @@ class DetectorNode(Node):
                     f'Current model: {self.detector.current_model.version} with id {self.detector.current_model.id}')
             else:
                 logging.info(f'no model loaded')
-            if self.operation_mode != OperationMode.Check_for_updates:
+            if self.operation_mode != OperationMode.Idle:
                 logging.info(f'not checking for updates; operation mode is {self.operation_mode}')
                 return
             if self.target_model is None:
