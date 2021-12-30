@@ -1,11 +1,11 @@
+import icecream
+import os
+from learning_loop_node.detector.detector_node import DetectorNode
+import uvicorn
+from mock_detector import MockDetector
+import backdoor_controls
 import logging
 logging.basicConfig(level=logging.DEBUG)
-import backdoor_controls
-from mock_detector import MockDetector
-import uvicorn
-from learning_loop_node.detector.detector_node import DetectorNode
-import os
-import icecream
 icecream.install()
 
 

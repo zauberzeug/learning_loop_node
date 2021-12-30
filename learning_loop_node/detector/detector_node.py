@@ -1,5 +1,5 @@
-from . import operation_mode
-from .operation_mode import OperationMode
+from .rest import operation_mode
+from .rest.operation_mode import OperationMode
 from .detector import Detector
 from .rest import detect, upload
 from ..rest import downloads
