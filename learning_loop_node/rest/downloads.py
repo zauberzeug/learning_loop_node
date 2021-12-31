@@ -16,14 +16,18 @@ from icecream import ic
 from alive_progress import alive_it
 
 check_jpeg = shutil.which('jpeginfo') is not None
-if check_jpeg:
-    logging.info('Detected command line tool "jpeginfo". Images will be checked for validity')
-else:
-    logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
+
+
+def jepeg_check_info():
+    if check_jpeg:
+        logging.info('Detected command line tool "jpeginfo". Images will be checked for validity')
+    else:
+        logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
 
 
 async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
     logging.info('fetching annotations and other image data')
+    jepeg_check_info()
     images_data = []
     starttime = time.time()
     for i in alive_it(range(0, len(image_ids), chunk_size)):
