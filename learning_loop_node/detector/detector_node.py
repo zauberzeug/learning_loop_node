@@ -102,7 +102,6 @@ class DetectorNode(Node):
         if self.operation_mode == OperationMode.Startup:
             return
         try:
-            ic()
             logging.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
             update_to_model_id = await self.send_status()
             if self.detector.current_model:

@@ -1,11 +1,11 @@
+import logging
+#from learning_loop_node.globals import GLOBALS
+logging.basicConfig(level=logging.DEBUG)
 from learning_loop_node import DetectorNode
 import backdoor_controls
 from mock_detector import MockDetector
-import logging
 import os
 import icecream
-#from learning_loop_node.globals import GLOBALS_X
-logging.basicConfig(level=logging.DEBUG)
 
 icecream.install()
 
