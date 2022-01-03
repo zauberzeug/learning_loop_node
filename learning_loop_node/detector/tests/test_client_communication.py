@@ -1,9 +1,14 @@
+from detector.outbox import Outbox
 import pytest
 from learning_loop_node import DetectorNode
 import requests
 import json
 import os
 from glob import glob
+
+
+def test_detector_path(test_detector_node: DetectorNode):
+    assert test_detector_node.outbox.path.startswith('/tmp')
 
 
 def test_rest_detect(test_detector_node: DetectorNode):
@@ -37,32 +42,25 @@ def test_rest_detect(test_detector_node: DetectorNode):
 
 
 def test_rest_upload(test_detector_node: DetectorNode):
-    assert test_detector_node.outbox.path.startswith('/tmp')
+    assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
-    def get_outbox_files():
-        files = glob(f'{test_detector_node.outbox.path}/**/*', recursive=True)
-        return [file for file in files if os.path.isfile(file)]
-
-    assert len(get_outbox_files()) == 0
     image = {('files', open('detector/tests/test.jpg', 'rb'))}
     response = requests.post(f'http://localhost:{pytest.detector_port}/upload', files=image)
     assert response.status_code == 200
-    assert len(get_outbox_files()) == 2, 'There should be one image and one .json file.'
+    assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
 
 @pytest.mark.asyncio
 async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
-    assert test_detector_node.outbox.path.startswith('/tmp')
-
-    def get_outbox_files():
-        files = glob(f'{test_detector_node.outbox.path}/**/*', recursive=True)
-        return [file for file in files if os.path.isfile(file)]
-
-    assert len(get_outbox_files()) == 0
+    assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
     with open('detector/tests/test.jpg', 'rb') as f:
         image_bytes = f.read()
     result = await sio_client.call('upload', {'image': image_bytes})
     assert result == None
+    assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
-    assert len(get_outbox_files()) == 2, 'There should be one image and one .json file.'
+
+def get_outbox_files(outbox: Outbox):
+    files = glob(f'{outbox.path}/**/*', recursive=True)
+    return [file for file in files if os.path.isfile(file)]
