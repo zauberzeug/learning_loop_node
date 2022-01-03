@@ -1,4 +1,4 @@
-from detector.outbox import Outbox
+from learning_loop_node.detector.outbox import Outbox
 import pytest
 from learning_loop_node import DetectorNode
 import requests
