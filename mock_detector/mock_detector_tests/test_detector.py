@@ -1,20 +1,8 @@
-from learning_loop_node.detector.detector_node import DetectorNode
-from learning_loop_node.detector.operation_mode import OperationMode
 from learning_loop_node.globals import GLOBALS
-from mock_detector import MockDetector
-import pytest
-from learning_loop_node.tests import test_helper
-from main import node
-import os
-from icecream import ic
-import asyncio
-import main
-from uuid import uuid4
-from learning_loop_node.trainer.model import Model
-import json
-from importlib import reload
-import logging
 from typing import Generator
+import pytest
+import asyncio
+import logging
 import socketio
 
 
