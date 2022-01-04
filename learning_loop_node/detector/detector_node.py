@@ -69,7 +69,7 @@ class DetectorNode(Node):
         async def _detect(sid, data) -> None:
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
-                return await self.get_detections(np_image, data.get('mac', None), data.get('tags', []), data.get('active_learning', True))
+                return await self.get_detections(np_image, data.get('mac', None), data.get('tags', []))
             except Exception as e:
                 logging.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
