@@ -15,7 +15,7 @@ class Category(BaseModel):
     description: Optional[str]
     hotkey: Optional[str]
     color: Optional[str]
-    type: Optional[CategoryType] = CategoryType.Box
+    type: CategoryType = CategoryType.Box
 
 
 def create_category(id: str, name: str, type: CategoryType):
