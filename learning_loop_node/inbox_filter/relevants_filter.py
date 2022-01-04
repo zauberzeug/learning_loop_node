@@ -9,15 +9,15 @@ class RelevantsFilter():
 
     def __init__(self, outbox: Outbox) -> None:
         self.groups: dict = {}
-        self.outbox = outbox
+        self.outbox: Outbox = outbox
 
-    def learn(self, detections: Detections, mac: str, tags: Optional[str], cv_image) -> None:
+    def learn(self, detections: Detections, mac: str, tags: Optional[str], raw_image: bytes) -> None:
         filter_causes = self._check_detections(detections, mac)
-
+        ic(filter_causes)
         if any(filter_causes):
             tags.append(mac)
             tags.append(*filter_causes)
-            self.outbox.save(cv_image, detections, tags)
+            self.outbox.save(raw_image, detections, tags)
 
     def _check_detections(self, detections: Detections, mac: str) -> List[str]:
 

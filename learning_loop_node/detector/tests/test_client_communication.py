@@ -1,10 +1,8 @@
-from learning_loop_node.detector.outbox import Outbox
 import pytest
 from learning_loop_node import DetectorNode
 import requests
 import json
-import os
-from glob import glob
+from conftest import get_outbox_files
 
 
 def test_detector_path(test_detector_node: DetectorNode):
@@ -59,8 +57,3 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     result = await sio_client.call('upload', {'image': image_bytes})
     assert result == None
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
-
-
-def get_outbox_files(outbox: Outbox):
-    files = glob(f'{outbox.path}/**/*', recursive=True)
-    return [file for file in files if os.path.isfile(file)]

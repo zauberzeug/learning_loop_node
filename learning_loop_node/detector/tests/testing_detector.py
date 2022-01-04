@@ -13,6 +13,6 @@ class TestingDetector(Detector):
 
     def evaluate(self, image: bytes) -> Detections:
         return Detections(
-            box_detections=[BoxDetection('some_category_name', 1, 2, 3, 4, 'some_model', 42)],
-            point_detections=[PointDetection('some_category_name', 10, 12, 'some_model', 42)]
+            box_detections=[BoxDetection('some_category_name', 1, 2, 3, 4, 'some_model', .42)],
+            point_detections=[PointDetection('some_category_name', 10, 12, 'some_model', .42)]
         )

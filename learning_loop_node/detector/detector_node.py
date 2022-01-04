@@ -1,3 +1,4 @@
+from ..inbox_filter.relevants_filter import RelevantsFilter
 from .rest.operation_mode import OperationMode
 from .detector import Detector
 from .rest import detect, upload, operation_mode
@@ -35,9 +36,10 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
-        self.operation_mode = OperationMode.Startup
-        self.connected_clients = []
-        self.outbox = Outbox()
+        self.operation_mode: OperationMode = OperationMode.Startup
+        self.connected_clients: List[str] = []
+        self.outbox: Outbox = Outbox()
+        self.relevants_filter: RelevantsFilter = RelevantsFilter(self.outbox)
         self.target_model = None
         self.include_router(detect.router, tags=["detect"])
         self.include_router(upload.router, prefix="")
@@ -188,15 +190,15 @@ class DetectorNode(Node):
         else:
             subprocess.call(['touch', '/app/main.py'])
 
-    async def get_detections(self, raw_image, mac: str, tags: str, active_learning=True):
+    async def get_detections(self, raw_image, mac: str, tags: str):
         loop = asyncio.get_event_loop()
-        # image = await loop.run_in_executor(None, lambda: cv2.imdecode(np_image, cv2.IMREAD_COLOR))
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         info = "\n    ".join([str(d) for d in detections.box_detections])
         logging.info(f'detected:\n    {info}')
-        # if active_learning:
-        #     thread = Thread(target=learn, args=(detections, mac, tags, image))
-        #     thread.start()
+
+        thread = Thread(target=self.relevants_filter.learn, args=(detections, mac, tags, raw_image))
+        thread.start()
+
         return jsonable_encoder(detections)
 
     async def upload_images(self, images: List[bytes]):

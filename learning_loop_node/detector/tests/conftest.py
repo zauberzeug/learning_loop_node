@@ -1,5 +1,6 @@
 import pytest
 from learning_loop_node import DetectorNode
+from learning_loop_node.detector import Outbox
 from testing_detector import TestingDetector
 import uvicorn
 from multiprocessing import Process, log_to_stderr
@@ -10,6 +11,7 @@ import socket
 import asyncio
 from typing import Generator
 import socketio
+from glob import glob
 
 logging.basicConfig(level=logging.INFO)
 
@@ -82,3 +84,8 @@ async def sio_client() -> Generator:
 
     yield sio
     await sio.disconnect()
+
+
+def get_outbox_files(outbox: Outbox):
+    files = glob(f'{outbox.path}/**/*', recursive=True)
+    return [file for file in files if os.path.isfile(file)]
