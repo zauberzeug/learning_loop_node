@@ -50,3 +50,4 @@ async def test_sio_detect(sio):
 
     response = await sio.call('detect', {'image': image_bytes})
     assert response == {'box_detections': [], 'point_detections': []}
+    pass
