@@ -13,7 +13,6 @@ class RelevantsFilter():
 
     def learn(self, detections: Detections, mac: str, tags: Optional[str], raw_image: bytes) -> None:
         filter_causes = self._check_detections(detections, mac)
-        ic(filter_causes)
         if any(filter_causes):
             tags.append(mac)
             tags.append(*filter_causes)
