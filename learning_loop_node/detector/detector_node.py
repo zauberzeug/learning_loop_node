@@ -124,8 +124,7 @@ class DetectorNode(Node):
                 with pushd(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
-                    shutil.rmtree(target_model_folder, ignore_errors=True)
-                    os.makedirs(target_model_folder)
+                    os.makedirs(target_model_folder, exist_ok=True)
                     try:
                         await downloads.download_model(
                             target_model_folder,
