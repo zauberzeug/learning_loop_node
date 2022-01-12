@@ -12,7 +12,7 @@ from .loop import loop
 from fastapi_utils.tasks import repeat_every
 import logging
 from uuid import uuid4
-from learning_loop_node.decorators.error_handler import try_except
+from .socket_response import ensure_socket_response
 from datetime import datetime
 
 
@@ -34,7 +34,7 @@ class Node(FastAPI):
             request_timeout=0.5,
             # logger=True, engineio_logger=True
         )
-        self.sio_client._trigger_event = try_except(self.sio_client._trigger_event)
+        self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
         self.reset()
 
         @self.sio_client.on('connect')
