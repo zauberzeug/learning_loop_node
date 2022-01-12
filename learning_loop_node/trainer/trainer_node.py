@@ -81,7 +81,6 @@ class TrainerNode(Node):
             return False
         if not result:
             self.status.latest_error = f'Could not stop training because none is running'
-            await self.send_status()
 
         self.latest_known_model_id = None
         await self.send_status()
