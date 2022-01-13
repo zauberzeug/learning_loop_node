@@ -38,8 +38,6 @@ class Outbox():
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
         os.rename(tmp, self.path + '/' + id)  # NOTE rename is atomic so upload can run in parallel
-        from icecream import ic
-        ic(self.path + '/' + id)
 
     def get_data_files(self):
         return glob(f'{self.path}/*')

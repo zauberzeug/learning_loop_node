@@ -73,7 +73,6 @@ class TrainerNode(Node):
     async def stop_training(self) -> Union[bool, str]:
         try:
             result = self.trainer.stop_training()
-            ic('stop training result:', result)
             self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
