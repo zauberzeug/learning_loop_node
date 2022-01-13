@@ -50,7 +50,7 @@ def ensure_socket_response(func):
         except Exception as e:
             trace = ''.join(traceback.format_stack())
             logging.error(
-                f'\nAn error occured for {func.__name__}:  \
+                f'\nAn error occured for {args[0]}:  \
                 \nStacktrace: \
                 \n{trace} \
                 \nError: \
