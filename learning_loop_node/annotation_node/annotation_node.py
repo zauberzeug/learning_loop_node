@@ -9,6 +9,7 @@ from learning_loop_node.rest.downloader import DataDownloader
 from learning_loop_node.rest.downloader import node_helper
 import logging
 from icecream import ic
+from ..socket_response import SocketResponse
 
 
 class AnnotationNode(Node):
@@ -66,8 +67,10 @@ class AnnotationNode(Node):
 
         logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_annotation_node', jsonable_encoder(status), timeout=2)
-        if result != True:
-            raise Exception(result)
+        response = SocketResponse.from_dict(result)
+
+        if not response.success:
+            logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = Node.create_project_folder(context)
