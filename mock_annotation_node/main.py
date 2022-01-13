@@ -11,4 +11,4 @@ node = AnnotationNode(uuid='00000000-1111-2222-3333-444444444444', name=f'Annota
 node.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
-    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', reload=True)
+    uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', use_colors=True, reload=True)
