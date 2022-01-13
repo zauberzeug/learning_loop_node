@@ -12,6 +12,7 @@ from learning_loop_node.status import TrainingStatus
 from learning_loop_node.node import Node, State
 import logging
 from datetime import datetime
+from ..socket_response import SocketResponse
 
 
 class TrainerNode(Node):
@@ -158,9 +159,10 @@ class TrainerNode(Node):
 
         logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
-        if not result == True:
-            raise Exception(result)
-        logging.info('status send')
+        response = SocketResponse.from_dict(result)
+
+        if not response.success:
+            logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
 
     async def update_error_msg(self, msg: str) -> None:
         self.status.latest_error = msg
