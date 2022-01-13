@@ -72,12 +72,14 @@ class TrainerNode(Node):
     async def stop_training(self) -> Union[bool, str]:
         try:
             result = self.trainer.stop_training()
+            ic('stop training result:', result)
             self.trainer.training = None
             await self.update_state(State.Idle)
         except Exception as e:
             logging.exception(self.status.latest_error)
             self.status.latest_error = f'Could not stop training: {str(e)})'
             await self.send_status()
+
             return False
         if not result:
             self.status.latest_error = f'Could not stop training because none is running'
