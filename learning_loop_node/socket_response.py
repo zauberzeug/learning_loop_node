@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import asyncio
 import functools
 import logging
+import traceback
 
 
 class SocketResponse(BaseModel):
@@ -22,6 +23,10 @@ class SocketResponse(BaseModel):
     def from_bool(value: bool):
         return SocketResponse(success=value)
 
+    @staticmethod
+    def from_dict(value: dict):
+        return SocketResponse.parse_obj(value)
+
 
 def ensure_socket_response(func):
     @functools.wraps(func)
@@ -38,10 +43,20 @@ def ensure_socket_response(func):
                 return SocketResponse.from_bool(value).__dict__
             elif isinstance(value, SocketResponse):
                 return value
+            elif (args[0] in ['connect', 'disconnect']):
+                return value
             else:
                 raise Exception(f"Returntype for sio must be str or bool or SocketResponse', but was {type(value)}'")
         except Exception as e:
-            logging.error(f'An error occured for {func.__name__}: {str(e)}')
+            trace = ''.join(traceback.format_stack())
+            logging.error(
+                f'\nAn error occured for {func.__name__}:  \
+                \nStacktrace: \
+                \n{trace} \
+                \nError: \
+                \n {str(e)} \n'
+            )
+
             return SocketResponse.for_failure(str(e)).__dict__
 
     return wrapper_ensure_socket_response
