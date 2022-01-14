@@ -129,8 +129,12 @@ class TrainerNode(Node):
                     )
 
                     result = await self.sio_client.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
-                    if result != True:
-                        await self.update_error_msg(f'Could not update_model: {result}')
+                    response = SocketResponse.from_dict(result)
+
+                    if not response.success:
+                        error_msg = f'Error for update_model: Response from loop was : {response.__dict__}'
+                        logging.error(error_msg)
+                        await self.update_error_msg(error_msg)
                         return
 
                     logging.info(f'successfully uploaded model {jsonable_encoder(new_model)}')
