@@ -25,7 +25,11 @@ class SocketResponse(BaseModel):
 
     @staticmethod
     def from_dict(value: dict):
-        return SocketResponse.parse_obj(value)
+        try:
+            return SocketResponse.parse_obj(value)
+        except:
+            logging.exception(f'Error parsing SocketResponse: value : {value}')
+            raise
 
 
 def ensure_socket_response(func):
