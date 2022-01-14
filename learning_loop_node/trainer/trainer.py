@@ -38,6 +38,7 @@ class Trainer():
     def stop_training(self) -> bool:
         if self.executor:
             self.executor.stop()
+            self.executor = None
             return True
         else:
             logging.info('could not stop training, executor is None')
