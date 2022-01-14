@@ -43,7 +43,7 @@ def ensure_socket_response(func):
                 return SocketResponse.from_bool(value).__dict__
             elif isinstance(value, SocketResponse):
                 return value
-            elif (args[0] in ['connect', 'disconnect']):
+            elif (args[0] in ['connect', 'disconnect', 'connect_error']):
                 return value
             else:
                 raise Exception(f"Returntype for sio must be str or bool or SocketResponse', but was {type(value)}'")
