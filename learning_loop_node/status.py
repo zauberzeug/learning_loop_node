@@ -1,7 +1,6 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
-from learning_loop_node.context import Context
 from dataclasses import dataclass
 
 
@@ -18,7 +17,6 @@ class Status(BaseModel):
     name: str
     state: Optional[State] = State.Offline
     uptime: Optional[int] = 0
-    latest_error: Optional[str] = None
     _errors: Optional[dict] = {}
 
     def set_error(self, key: str, value: str):
@@ -45,18 +43,24 @@ class AnnotationNodeStatus(Status):
 class TrainingStatus():
     id: str
     name: str
-    latest_produced_model_id: Optional[str]
-
     state: Optional[State]
     current_error: str
+    uptime: Optional[int]
 
+    latest_produced_model_id: Optional[str] = None
     train_image_count: Optional[int] = None
     test_image_count: Optional[int] = None
     skipped_image_count: Optional[int] = None
-    uptime: Optional[int] = 0
 
 
-class DetectionStatus(Status):
+@dataclass
+class DetectionStatus():
+    id: str
+    name: str
+    state: Optional[State]
+    current_error: str
+    uptime: Optional[int]
+
     model_format: str
     current_model: Optional[str]
     target_model: Optional[str]

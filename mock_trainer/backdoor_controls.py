@@ -42,17 +42,6 @@ async def check_state(request: Request):
     logging.debug(f'turning automatically check_state {value}')
 
 
-@router.put("/status")
-async def set_status(new_status: Status, request: Request):
-    if new_status.state == State.Running:
-        raise Exception('start a training to switch into running state')
-    if new_status.state == State.Idle:
-        raise Exception('stop training to switch into idle state')
-
-    print('new status is', new_status, flush=True)
-    await trainer_node_from_request(request).update_status(new_status)
-
-
 @router.post("/reset")
 async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)

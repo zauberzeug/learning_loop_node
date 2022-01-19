@@ -107,16 +107,6 @@ class Node(FastAPI):
         if self.status.state != State.Offline:
             await self.send_status()
 
-    async def update_status(self, new_status: Status):
-        self.status.id = new_status.id
-        self.status.name = new_status.name
-        self.status.uptime = new_status.uptime
-        self.status.latest_error = new_status.latest_error
-
-        if self.status.state != State.Offline:
-            self.status.state = State.Idle
-        await self.send_status()
-
     async def send_status(self):
         raise Exception("Override this in subclass")
 

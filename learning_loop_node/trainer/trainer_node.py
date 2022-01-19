@@ -96,7 +96,6 @@ class TrainerNode(Node):
             await self.trainer.save_model(context, model_id)
         except Exception as e:
             traceback.print_exc()
-            ic('error for save model')
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
 
         await self.send_status()

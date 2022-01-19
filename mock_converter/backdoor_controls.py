@@ -46,12 +46,6 @@ async def switch_socketio(request: Request):
         print(f'turning automatically check_state {value}', flush=True)
 
 
-@router.put("/status")
-async def set_status(new_status: Status, request: Request):
-    print('new status is', new_status, flush=True)
-    await request.app.update_status(new_status)
-
-
 @router.post("/step")
 async def add_steps(request: Request):
     if request.app.status.state == State.Running:

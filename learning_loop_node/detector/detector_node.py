@@ -9,8 +9,7 @@ from ..status import DetectionStatus, State
 from ..context import Context
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
-from typing import List, Optional, Union
-import shutil
+from typing import List, Union
 import os
 import contextlib
 import logging
@@ -114,6 +113,8 @@ class DetectorNode(Node):
             if self.operation_mode != OperationMode.Idle:
                 logging.info(f'not checking for updates; operation mode is {self.operation_mode}')
                 return
+
+            self.status.reset_error('update_model')
             if self.target_model is None:
                 logging.info(f'not checking for updates; no target model selected')
                 return
@@ -125,28 +126,30 @@ class DetectorNode(Node):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
                     os.makedirs(target_model_folder, exist_ok=True)
+
+                    await downloads.download_model(
+                        target_model_folder,
+                        Context(organization=self.organization, project=self.project),
+                        update_to_model_id,
+                        self.detector.model_format
+                    )
                     try:
-                        await downloads.download_model(
-                            target_model_folder,
-                            Context(organization=self.organization, project=self.project),
-                            update_to_model_id,
-                            self.detector.model_format
-                        )
-                        try:
-                            os.unlink(model_symlink)
-                            os.remove(model_symlink)
-                        except:
-                            pass
-                        os.symlink(target_model_folder, model_symlink)
-                        logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
-                        self.reload(because='new model installed')
-                    except downloads.DownloadError as e:
-                        self.status.latest_error = f'download failed: {e.cause}'
+                        os.unlink(model_symlink)
+                        os.remove(model_symlink)
+                    except:
+                        pass
+                    os.symlink(target_model_folder, model_symlink)
+                    logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
+
+                    await self.send_status()
+                    self.reload(because='new model installed')
             else:
                 logging.info('Versions are identic. Nothing to do.')
-        except Exception:
+        except Exception as e:
             logging.exception(f'check_for_update failed')
-            self.status.latest_error = 'could not check for model update'
+            msg = e.cause if isinstance(e, downloads.DownloadError) else str(e)
+            self.status.set_error('update_model', f'Could not update model: {msg}')
+            await self.send_status()
 
     async def send_status(self) -> Union[str, bool]:
         if not self.sio_client.connected:
@@ -156,7 +159,7 @@ class DetectorNode(Node):
             id=self.uuid,
             name=self.name,
             state=self.status.state,
-            latest_error=self.status.latest_error,
+            current_error='\n'.join(self.status._errors.values()),
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
             operation_mode=self.operation_mode,
             current_model=self.detector.current_model.version if self.detector.current_model else None,
