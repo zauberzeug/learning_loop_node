@@ -23,6 +23,9 @@ from . import Outbox
 from threading import Thread
 from datetime import datetime
 from icecream import ic
+from learning_loop_node.data_classes.category import Category
+from learning_loop_node.model_information import ModelInformation
+
 
 
 class DetectorNode(Node):
@@ -195,6 +198,7 @@ class DetectorNode(Node):
     async def get_detections(self, raw_image, mac: str, tags: str):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
+        detections = self.add_category_id_to_detections(self.detector.model_info, detections)
         info = "\n    ".join([str(d) for d in detections.box_detections])
         logging.info(f'detected:\n    {info}')
 
@@ -208,6 +212,20 @@ class DetectorNode(Node):
         for image in images:
             await loop.run_in_executor(None, lambda: self.outbox.save(image, Detections(), ['picked_by_system']))
 
+    def add_category_id_to_detections(self, model_info: ModelInformation, detections: Detections):
+        def find_category_id_by_name(categories: List[Category], category_name: str):
+            category_id = [category.id for category in categories if category.name == category_name]
+            return category_id[0] if category_id else ''
+        
+        for box_detection in detections.box_detections:
+            category_name = box_detection.category_name
+            category_id = find_category_id_by_name(model_info.categories, category_name)
+            box_detection.category_id = category_id
+        for point_detection in detections.point_detections:
+            category_name = point_detection.category_name
+            category_id = find_category_id_by_name(model_info.categories, category_name)
+            point_detection.category_id = category_id
+        return detections
 
 @contextlib.contextmanager
 def pushd(new_dir):

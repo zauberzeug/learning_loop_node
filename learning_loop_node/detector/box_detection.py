@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 
 
@@ -11,9 +10,11 @@ class BoxDetection:
     height: int
     model_name: str
     confidence: float
+    category_id: str = ''
 
-    def __init__(self, category, x, y, width, height, net, confidence):
-        self.category_name = category
+    def __init__(self, category_name, x, y, width, height, net, confidence, category_id=''):
+        self.category_id = category_id
+        self.category_name = category_name
         self.x = x
         self.y = y
         self.width = width
@@ -42,7 +43,9 @@ class BoxDetection:
 
     @staticmethod
     def from_dict(detection: dict):
-        return BoxDetection(detection['category_name'], detection['x'], detection['y'], detection['width'], detection['height'], detection['model_name'], detection['confidence'])
+        category_id = detection['category_id'] if 'category_id' in detection else ''
+        return BoxDetection(detection['category_name'], detection['x'], detection['y'], detection['width'], detection['height'], detection['model_name'], detection['confidence'], category_id)
+
 
     def __str__(self):
         return f'x:{int(self.x)} y: {int(self.y)}, w: {int(self.width)} h: {int(self.height)} c: {self.confidence:.2f} -> {self.category_name}'

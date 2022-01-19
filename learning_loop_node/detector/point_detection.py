@@ -9,17 +9,21 @@ class PointDetection:
     y: int
     model_name: str
     confidence: float
+    category_id: str = ''
 
-    def __init__(self, category, x, y, net, confidence):
-        self.category_name = category
+    def __init__(self, category_name, x, y, net, confidence, category_id=''):
+        self.category_name = category_name
         self.x = x
         self.y = y
         self.model_name = net
         self.confidence = confidence
+        self.category_id = category_id
 
     @staticmethod
     def from_dict(detection: dict):
-        return PointDetection(detection['category_name'], detection['x'], detection['y'], detection['model_name'], detection['confidence'])
+        category_id = detection['category_id'] if 'category_id' in detection else ''
+        return PointDetection(detection['category_name'], detection['x'], detection['y'], detection['model_name'], detection['confidence'], category_id)
+
 
     def distance(self, other: 'PointDetection') -> float:
         return np.sqrt((other.x - self.x)**2 + (other.y - self.y)**2)
