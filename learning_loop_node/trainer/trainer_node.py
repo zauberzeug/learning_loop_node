@@ -57,13 +57,14 @@ class TrainerNode(Node):
             await self.stop_training()
 
     async def begin_training(self, context: Context, source_model: dict):
-        self.status.latest_error = None
+        self.status.reset_error('start_training')
         await self.update_state(State.Preparing)
         try:
             await self.trainer.begin_training(context, source_model)
         except Exception as e:
-            self.status.latest_error = f'Could not start training: {str(e)})'
-            logging.exception(self.status.latest_error)
+            self.status.set_error('start_training', f'Could not start training: {str(e)})')
+
+            logging.exception(self.status._errors)
             self.trainer.stop_training()
             await self.update_state(State.Idle)
             return
@@ -71,48 +72,61 @@ class TrainerNode(Node):
         await self.update_state(State.Running)
 
     async def stop_training(self) -> Union[bool, str]:
+        self.status.reset_error('stop_training')
         try:
             result = self.trainer.stop_training()
             self.trainer.training = None
+            self.latest_known_model_id = None
+
             await self.update_state(State.Idle)
-        except Exception as e:
-            logging.exception(self.status.latest_error)
-            self.status.latest_error = f'Could not stop training: {str(e)})'
+            if not result:
+                raise Exception('No Training is running')
+            self.status.reset_all_errors()
             await self.send_status()
 
+        except Exception as e:
+            # logging.exception(self.status.latest_error)
+            self.status.set_error('stop_training', f'Could not stop training: {str(e)})')
+            await self.send_status()
             return False
-        if not result:
-            self.status.latest_error = f'Could not stop training because none is running'
-
-        self.latest_known_model_id = None
-        await self.send_status()
-        return result
+        return True
 
     async def save_model(self, context: Context, model_id: str):
+        self.status.reset_error('save_model')
         try:
             await self.trainer.save_model(context, model_id)
         except Exception as e:
             traceback.print_exc()
-            await self.update_error_msg(f'Could not save model: {str(e)}')
+            ic('error for save model')
+            self.status.set_error('save_model', f'Could not save model: {str(e)}')
+
+        await self.send_status()
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
+        self.status.reset_error('training_error')
         error = self.trainer.get_error()
+
         if error is not None:
             logging.error(error + '\n\n' + self.trainer.get_log()[-1000:])
-            await self.update_error_msg(error)
+            self.status.set_error('training_error', error)
+            await self.send_status()
             return
 
         if self.status.state != State.Running:
             return
 
         if not self.trainer.executor.is_process_running():
-            await self.update_error_msg(f'Training crashed.')
+            self.status.set_error('training_error', 'Training crashed.')
             logging.info(self.trainer.get_log()[-1000:])
+            await self.send_status()
+            return
 
         await self.try_get_new_model()
 
     async def try_get_new_model(self) -> None:
+        self.status.reset_error('get_new_model')
+
         try:
             current_training = self.trainer.training
             if self.status.state == State.Running and current_training:
@@ -134,25 +148,28 @@ class TrainerNode(Node):
                     if not response.success:
                         error_msg = f'Error for update_model: Response from loop was : {response.__dict__}'
                         logging.error(error_msg)
-                        await self.update_error_msg(error_msg)
-                        return
+                        raise Exception(error_msg)
 
                     logging.info(f'successfully uploaded model {jsonable_encoder(new_model)}')
                     self.trainer.on_model_published(model, new_model.id)
                     self.latest_known_model_id = new_model.id
-                    await self.send_status()
+
         except Exception as e:
-            logging.exception(f'Could not get new model: {str(e)}')
-            await self.update_error_msg(f'Could not get new model: {str(e)}')
+            msg = f'Could not get new model: {str(e)}'
+            logging.exception(msg)
+            self.status.set_error('get_new_model', msg)
+
+        await self.send_status()
 
     async def send_status(self):
+
         status = TrainingStatus(
             id=self.uuid,
             name=self.name,
             state=self.status.state,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
-            latest_error=self.status.latest_error,
             latest_produced_model_id=self.latest_known_model_id,
+            current_error='\n'.join(self.status._errors.values())
         )
 
         if self.trainer and self.trainer.training:
@@ -166,11 +183,6 @@ class TrainerNode(Node):
 
         if not response.success:
             logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
-
-    async def update_error_msg(self, msg: str) -> None:
-        self.status.latest_error = msg
-        self.status.state = self.get_state()
-        await self.send_status()
 
     def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
