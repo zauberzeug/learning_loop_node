@@ -85,7 +85,6 @@ class TrainerNode(Node):
             await self.send_status()
 
         except Exception as e:
-            # logging.exception(self.status.latest_error)
             self.status.set_error('stop_training', f'Could not stop training: {str(e)})')
             await self.send_status()
             return False

@@ -36,7 +36,7 @@ async def check_state(request: Request):
     trainer_node = trainer_node_from_request(request)
     if value == 'off':
         trainer_node.skip_check_state = True
-        trainer_node.status.latest_error = None
+        trainer_node.status.reset_all_errors()
     if value == 'on':
         trainer_node.skip_check_state = False
     logging.debug(f'turning automatically check_state {value}')
@@ -60,7 +60,6 @@ async def reset(request: Request):
     if trainer_node.status.state == State.Running:
         await trainer_node.stop_training()
 
-    trainer_node.status.latest_error = None
     trainer_node.status.reset_all_errors()
 
 
