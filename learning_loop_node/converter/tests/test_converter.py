@@ -27,7 +27,7 @@ def create_project():
 
 
 @pytest.mark.asyncio
-async def test_meta_informations(create_project):
+async def test_meta_information(create_project):
     model_id = await test_helper.assert_upload_model()
 
     converter = MockedConverter(source_format='mocked', target_format='test')
