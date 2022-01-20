@@ -110,7 +110,11 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
                 "Content-Disposition").split("filename=")[1].strip('"')
             content = await response.read()
         except:
-            logging.exception(await response.read())
+            logging.error(f'Error during downloading model {path}:')
+            try:
+                logging.exception(await response.json())
+            except:
+                pass
             raise
 
     # unzip and place downloaded model
