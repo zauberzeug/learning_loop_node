@@ -27,6 +27,7 @@ async def test_sio_detect(test_detector_node: DetectorNode, sio_client):
     result = await sio_client.call('detect', {'image': image_bytes})
     assert len(result['box_detections']) == 1
     assert result['box_detections'][0]['category_name'] == 'some_category_name'
+    assert result['box_detections'][0]['category_id'] == 'some_id'
 
 
 def test_rest_detect(test_detector_node: DetectorNode):
@@ -37,6 +38,7 @@ def test_rest_detect(test_detector_node: DetectorNode):
     result = response.json()
     assert len(result['box_detections']) == 1
     assert result['box_detections'][0]['category_name'] == 'some_category_name'
+    assert result['box_detections'][0]['category_id'] == 'some_id'
 
 
 def test_rest_upload(test_detector_node: DetectorNode):

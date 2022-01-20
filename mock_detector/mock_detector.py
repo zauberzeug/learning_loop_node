@@ -9,7 +9,7 @@ class MockDetector(Detector):
         super().__init__('mocked')
 
     def init(self,  model_info: ModelInformation, model_root_path: str):
-        return
+        self.model_info = model_info
 
     def evaluate(self, image: Any) -> Detections:
         return Detections()

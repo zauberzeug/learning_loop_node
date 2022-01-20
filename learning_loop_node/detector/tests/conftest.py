@@ -1,6 +1,7 @@
 import pytest
-from learning_loop_node import DetectorNode
+from learning_loop_node import DetectorNode, ModelInformation
 from learning_loop_node.detector import Outbox
+from learning_loop_node.data_classes import Category
 from testing_detector import TestingDetector
 import uvicorn
 from multiprocessing import Process, log_to_stderr
@@ -30,7 +31,9 @@ async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
+    model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1', categories=[Category(id='some_id', name='some_category_name')])
     det = TestingDetector()
+    det.init(model_info=model_info, model_root_path='')
     node = DetectorNode(name='test', detector=det)
     await port_is(free=True)
     proc = Process(target=uvicorn.run,
