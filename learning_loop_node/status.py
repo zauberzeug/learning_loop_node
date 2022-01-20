@@ -44,7 +44,7 @@ class TrainingStatus():
     id: str
     name: str
     state: Optional[State]
-    current_error: str
+    errors: Optional[dict]
     uptime: Optional[int]
 
     latest_produced_model_id: Optional[str] = None
@@ -58,7 +58,7 @@ class DetectionStatus():
     id: str
     name: str
     state: Optional[State]
-    current_error: str
+    errors: Optional[dict]
     uptime: Optional[int]
 
     model_format: str

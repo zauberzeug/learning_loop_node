@@ -159,7 +159,7 @@ class DetectorNode(Node):
             id=self.uuid,
             name=self.name,
             state=self.status.state,
-            current_error='\n'.join(self.status._errors.values()),
+            errors=self.status._errors,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
             operation_mode=self.operation_mode,
             current_model=self.detector.current_model.version if self.detector.current_model else None,

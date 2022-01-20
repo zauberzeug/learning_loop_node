@@ -167,7 +167,7 @@ class TrainerNode(Node):
             state=self.status.state,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
             latest_produced_model_id=self.latest_known_model_id,
-            current_error='\n'.join(self.status._errors.values())
+            errors=self.status._errors
         )
 
         if self.trainer and self.trainer.training:
