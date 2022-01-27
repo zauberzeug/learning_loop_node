@@ -101,7 +101,6 @@ class Trainer():
         project_folder = Node.create_project_folder(context)
         return Training(
             id=training_uuid,
-            base_model=source_model,
             context=context,
             project_folder=project_folder,
             images_folder=node_helper.create_image_folder(project_folder),

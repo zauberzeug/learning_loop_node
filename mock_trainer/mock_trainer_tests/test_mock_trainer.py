@@ -33,7 +33,6 @@ async def test_get_new_model():
     context = Context(organization="", project="")
     mock_trainer.training = Training(
         id=str(uuid4()),
-        base_model=model,
         context=context,
         project_folder="",
         images_folder="")

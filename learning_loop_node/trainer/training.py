@@ -15,10 +15,3 @@ class Training(BaseModel):
     training_folder: Optional[str]
 
     data: Optional[TrainingData]
-
-    @property
-    def last_known_model(self):
-        if self.last_produced_model:
-            return self.last_produced_model
-        else:
-            return self.base_model
