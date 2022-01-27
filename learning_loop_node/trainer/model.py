@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Optional
 from pydantic import BaseModel
 
@@ -14,3 +15,10 @@ class Model(BaseModel):
     train_image_count: Optional[int]
     test_image_count: Optional[int]
     trainer_id: Optional[str]
+
+
+@dataclass
+class PretrainedModel():
+    name: str
+    label: str
+    description: str

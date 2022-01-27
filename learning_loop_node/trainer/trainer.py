@@ -1,10 +1,11 @@
+from abc import abstractmethod
 import asyncio
 import os
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from .executor import Executor
 from .training import Training
-from .model import BasicModel
+from .model import BasicModel, PretrainedModel
 from ..context import Context
 from ..node import Node
 from .downloader import TrainingsDownloader
@@ -93,6 +94,11 @@ class Trainer():
         This file contains the trained resolution, categories including their learning loop ids to be robust about renamings etc.
         Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
         '''
+        raise NotImplementedError()
+
+    @property
+    @abstractmethod
+    def provided_pretrained_models(self) -> List[PretrainedModel]:
         raise NotImplementedError()
 
     @staticmethod

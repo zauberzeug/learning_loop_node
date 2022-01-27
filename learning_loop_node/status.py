@@ -1,7 +1,9 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from .trainer.model import PretrainedModel
 
 
 class State(str, Enum):
@@ -51,6 +53,7 @@ class TrainingStatus():
     train_image_count: Optional[int] = None
     test_image_count: Optional[int] = None
     skipped_image_count: Optional[int] = None
+    pretrained_models: List[PretrainedModel] = field(default_factory=list)
 
 
 @dataclass

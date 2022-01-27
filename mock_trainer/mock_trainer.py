@@ -1,6 +1,6 @@
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from typing import List, Optional
-from learning_loop_node.trainer.model import BasicModel
+from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
 import progress_simulator
 import time
@@ -33,6 +33,13 @@ class MockTrainer(Trainer):
             f.write('zweiundvierzig')
 
         return [fake_weight_file, more_data_file]
+
+    @property
+    def provided_pretrained_models(self) -> List[PretrainedModel]:
+        return [
+            PretrainedModel(name='small', label='Small', description='a small model'),
+            PretrainedModel(name='medium', label='Medium', description='a medium model'),
+            PretrainedModel(name='large', label='Large', description='a large model')]
 
     def get_new_model(self) -> Optional[BasicModel]:
         if self.error_configuration.get_new_model:

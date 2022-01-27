@@ -42,7 +42,11 @@ class Node(FastAPI):
             logging.debug('received "on_connect" from constructor event.')
             self.reset()
             state = self.get_state()
-            await self.update_state(state)
+            try:
+                await self.update_state(state)
+            except:
+                logging.exception(f'Error sending state.')
+                raise
 
         @self.sio_client.on('disconnect')
         async def on_disconnect():
