@@ -13,6 +13,7 @@ from learning_loop_node.node import Node, State
 import logging
 from datetime import datetime
 from ..socket_response import SocketResponse
+from .helper import is_valid_uuid4
 
 
 class TrainerNode(Node):
@@ -68,7 +69,8 @@ class TrainerNode(Node):
             self.trainer.stop_training()
             await self.update_state(State.Idle)
             return
-        self.latest_known_model_id = source_model['id']
+        # NOTE 'id' can also be a well known pretrained model identifier.
+        self.latest_known_model_id = source_model['id'] if is_valid_uuid4(source_model['id']) else None
         await self.update_state(State.Running)
 
     async def stop_training(self) -> Union[bool, str]:

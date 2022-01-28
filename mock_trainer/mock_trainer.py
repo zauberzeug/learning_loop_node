@@ -15,6 +15,9 @@ class MockTrainer(Trainer):
             raise Exception()
         self.executor.start('while true; do sleep 1; done')
 
+    async def start_training_from_scratch(self, identifier: str) -> None:
+        self.executor.start('while true; do sleep 1; done')
+
     def get_error(self) -> str:
         if self.error_configuration.crash_training:
             return 'mocked crash'

@@ -13,6 +13,7 @@ from ..rest import downloads, uploads
 from .. import node_helper
 import logging
 from icecream import ic
+from .helper import is_valid_uuid4
 
 
 class Trainer():
@@ -24,16 +25,28 @@ class Trainer():
 
     async def begin_training(self, context: Context, source_model: dict) -> None:
         downloader = TrainingsDownloader(context)
-
         self.training = Trainer.generate_training(context, source_model)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.executor = Executor(self.training.training_folder)
-        logging.info(f'downloading model {source_model["id"]} as {self.model_format}')
-        await downloads.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
-        logging.info(f'now starting training')
-        await self.start_training()
+
+        id = source_model['id']
+        if not is_valid_uuid4(id):
+            if id in [m.name for m in self.provided_pretrained_models]:
+                logging.debug('Should start with pretrained model')
+                await self.start_training_from_scratch(id)
+            else:
+                raise ValueError(f'Pretrained model {id} is not supported')
+        else:
+            logging.debug('Should start with loop model')
+            logging.info(f'downloading model {source_model["id"]} as {self.model_format}')
+            await downloads.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
+            logging.info(f'now starting training')
+            await self.start_training()
 
     async def start_training(self) -> None:
+        raise NotImplementedError()
+
+    async def start_training_from_scratch(self, identifier: str) -> None:
         raise NotImplementedError()
 
     def stop_training(self) -> bool:
