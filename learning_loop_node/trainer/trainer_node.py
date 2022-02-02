@@ -77,6 +77,10 @@ class TrainerNode(Node):
         self.status.reset_error('stop_training')
         try:
             result = self.trainer.stop_training()
+
+            # NOTE saving the without having an own new checkpoint does not harm.
+            await self.save_model(self.trainer.training.context, self.latest_known_model_id)
+
             self.trainer.training = None
             self.latest_known_model_id = None
 
