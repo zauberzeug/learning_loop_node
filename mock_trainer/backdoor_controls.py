@@ -74,5 +74,13 @@ async def add_steps(request: Request):
         await trainer_node.check_state()
 
 
+@router.post("/kill_training_process")
+async def kill_process(request: Request):
+    trainer_node = trainer_node_from_request(request)
+    if trainer_node.status.state != State.Running:
+        raise HTTPException(status_code=409, detail="trainer is not running")
+    trainer_node.trainer.executor.stop()
+
+
 def trainer_node_from_request(request: Request) -> TrainerNode:
     return request.app
