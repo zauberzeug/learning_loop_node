@@ -39,6 +39,8 @@ async def check_state(request: Request):
         trainer_node.status.reset_all_errors()
     if value == 'on':
         trainer_node.skip_check_state = False
+        await trainer_node.check_state()
+
     logging.debug(f'turning automatically check_state {value}')
 
 
