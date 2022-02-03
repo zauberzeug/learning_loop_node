@@ -112,8 +112,13 @@ class TrainerNode(Node):
         error = self.trainer.get_error()
 
         if error is not None:
-            logging.error(error + '\n\n' + self.trainer.get_log()[-1000:])
+            try:
+                # NOTE test_model_should_be_uploaded_when_training_has_error will result in exception without this try/except block.
+                logging.error(error + '\n\n' + self.trainer.get_log()[-1000:])
+            except:
+                pass
             self.status.set_error('training_error', error)
+            await self.stop_training()
             await self.send_status()
             return
 
@@ -123,6 +128,7 @@ class TrainerNode(Node):
         if not self.trainer.executor.is_process_running():
             self.status.set_error('training_error', 'Training crashed.')
             logging.info(self.trainer.get_log()[-1000:])
+            await self.stop_training()
             await self.send_status()
             return
 
