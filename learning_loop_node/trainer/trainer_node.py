@@ -80,6 +80,7 @@ class TrainerNode(Node):
 
             # NOTE saving the without having an own new checkpoint does not harm.
             await self.save_model(self.trainer.training.context, self.latest_known_model_id)
+            await self.clear_training_data(self.trainer.training.training_folder)
 
             self.trainer.training = None
             self.latest_known_model_id = None
@@ -103,6 +104,16 @@ class TrainerNode(Node):
         except Exception as e:
             traceback.print_exc()
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
+
+        await self.send_status()
+
+    async def clear_training_data(self, training_folder: str):
+        self.status.reset_error('clear_training_data')
+        try:
+            await self.trainer.clear_training_data(training_folder)
+        except Exception as e:
+            traceback.print_exc()
+            self.status.set_error('clear_training_data', f'Could not delete training data: {str(e)}')
 
         await self.send_status()
 

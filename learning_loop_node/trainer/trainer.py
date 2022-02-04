@@ -93,7 +93,7 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    def get_model_files(self, model_id) -> Union[List[str], Dict[str, List[str]]]:
+    def get_model_files(self, model_id: str) -> Union[List[str], Dict[str, List[str]]]:
         '''Called when the Learning Loop requests to backup a specific model. 
         Should return a list of file paths which describe the model.
         These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.) 
@@ -106,6 +106,12 @@ class Trainer():
         Each format should contain a model.json in the file list. 
         This file contains the trained resolution, categories including their learning loop ids to be robust about renamings etc.
         Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
+        '''
+        raise NotImplementedError()
+
+    def clear_training_data(self, training_folder: str):
+        '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
+        weightfiles or any additional files.
         '''
         raise NotImplementedError()
 
