@@ -22,6 +22,7 @@ class Trainer():
         self.model_format: str = model_format
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
+        self.source_model_id: str = None
 
     async def begin_training(self, context: Context, source_model: dict) -> None:
         downloader = TrainingsDownloader(context)
@@ -29,17 +30,17 @@ class Trainer():
         self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.executor = Executor(self.training.training_folder)
 
-        id = source_model['id']
-        if not is_valid_uuid4(id):
-            if id in [m.name for m in self.provided_pretrained_models]:
+        self.source_model_id = source_model['id']
+        if not is_valid_uuid4(self.source_model_id):
+            if self.source_model_id in [m.name for m in self.provided_pretrained_models]:
                 logging.debug('Should start with pretrained model')
-                await self.start_training_from_scratch(id)
+                await self.start_training_from_scratch(self.source_model_id)
             else:
-                raise ValueError(f'Pretrained model {id} is not supported')
+                raise ValueError(f'Pretrained model {self.source_model_id} is not supported')
         else:
             logging.debug('Should start with loop model')
-            logging.info(f'downloading model {source_model["id"]} as {self.model_format}')
-            await downloads.download_model(self.training.training_folder, context, source_model['id'], self.model_format)
+            logging.info(f'downloading model {self.source_model_id} as {self.model_format}')
+            await downloads.download_model(self.training.training_folder, context, self.source_model_id, self.model_format)
             logging.info(f'now starting training')
             await self.start_training()
 

@@ -73,13 +73,13 @@ class TrainerNode(Node):
         self.latest_known_model_id = source_model['id'] if is_valid_uuid4(source_model['id']) else None
         await self.update_state(State.Running)
 
-    async def stop_training(self) -> Union[bool, str]:
+    async def stop_training(self, save_latest_model: bool = True) -> Union[bool, str]:
         self.status.reset_error('stop_training')
         try:
             result = self.trainer.stop_training()
 
             # NOTE saving the without having an own new checkpoint does not harm.
-            if self.latest_known_model_id:
+            if save_latest_model and self.latest_known_model_id and self.trainer.source_model_id != self.latest_known_model_id:
                 await self.save_model(self.trainer.training.context, self.latest_known_model_id)
             await self.clear_training_data(self.trainer.training.training_folder)
 
@@ -115,8 +115,6 @@ class TrainerNode(Node):
         except Exception as e:
             traceback.print_exc()
             self.status.set_error('clear_training_data', f'Could not delete training data: {str(e)}')
-
-        await self.send_status()
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
@@ -172,7 +170,7 @@ class TrainerNode(Node):
                         logging.error(error_msg)
                         raise Exception(error_msg)
 
-                    logging.info(f'successfully uploaded model {jsonable_encoder(new_model)}')
+                    logging.info(f'successfully uploaded checkpoint {jsonable_encoder(new_model)}')
                     self.trainer.on_model_published(model, new_model.id)
                     self.latest_known_model_id = new_model.id
 
@@ -208,6 +206,9 @@ class TrainerNode(Node):
 
         if not response.success:
             logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
+            logging.error('Going to kill training. ')
+            if status.state != State.Idle:
+                await self.stop_training(save_latest_model=False)
 
     def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
