@@ -109,7 +109,7 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    def clear_training_data(self, training_folder: str):
+    async def clear_training_data(self, training_folder: str) -> None:
         '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
         weightfiles or any additional files.
         '''

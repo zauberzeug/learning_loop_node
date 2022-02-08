@@ -37,8 +37,8 @@ class MockTrainer(Trainer):
 
         return [fake_weight_file, more_data_file]
 
-    def clear_training_data(self, training_folder: str):
-        return []
+    async def clear_training_data(self, training_folder: str):
+        pass
 
     @property
     def provided_pretrained_models(self) -> List[PretrainedModel]:
