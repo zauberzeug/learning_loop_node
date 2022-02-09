@@ -58,6 +58,7 @@ class DemoSegmentationTool(AnnotationTool):
     async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)
+        logging.info(f'is alt pressed? {user_input.data.is_alt_key_pressed}')
 
         if history.state == State.NONE and user_input.data.event_type == EventType.MouseDown:
             # start creating bbox
