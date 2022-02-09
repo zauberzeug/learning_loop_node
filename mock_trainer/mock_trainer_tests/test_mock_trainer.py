@@ -39,11 +39,3 @@ async def test_get_new_model():
     mock_trainer.training.data = TrainingData(image_data=[], categories=[])
     model = mock_trainer.get_new_model()
     assert model is not None
-
-
-def test_clear_training_data():
-    mock_trainer = create_mock_trainer()
-    files = mock_trainer.get_model_files('some_model_id')
-    assert len(files) == 2
-    files = mock_trainer.clear_training_data('some_training_path')
-    assert len(files) == 0
