@@ -36,12 +36,6 @@ class TrainerNode(Node):
         async def stop():
             return await self.stop_training()
 
-        @self.sio_client.on('save')
-        def on_save(organization, project, model):
-            loop = asyncio.get_event_loop()
-            loop.create_task(self.save_model(Context(organization=organization, project=project), model['id']))
-            return True
-
         @self.on_event("startup")
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def check_state():
