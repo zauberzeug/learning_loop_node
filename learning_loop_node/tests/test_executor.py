@@ -40,6 +40,7 @@ def test_executor_lifecycle():
     executor.stop()
 
     assert executor.is_process_running() == False
+    sleep(1)
     assert_process_is_running('some_executable.sh', False)
 
 
