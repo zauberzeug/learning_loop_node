@@ -188,7 +188,6 @@ class TrainerNode(Node):
             name=self.name,
             state=self.status.state,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
-            latest_produced_model_id=self.latest_known_model_id,
             errors=self.status._errors
         )
         # TODO can self.trainer be None?

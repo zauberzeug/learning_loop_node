@@ -49,7 +49,6 @@ class TrainingStatus():
     errors: Optional[dict]
     uptime: Optional[int]
 
-    latest_produced_model_id: Optional[str] = None
     train_image_count: Optional[int] = None
     test_image_count: Optional[int] = None
     skipped_image_count: Optional[int] = None
