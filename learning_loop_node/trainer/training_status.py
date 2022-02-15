@@ -1,6 +1,8 @@
 from typing import List, Optional
 from dataclasses import dataclass, field
 from ..status import State
+from .model import PretrainedModel
+
 
 @dataclass
 class TrainingStatus():
