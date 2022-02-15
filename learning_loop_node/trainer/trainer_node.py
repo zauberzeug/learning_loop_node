@@ -8,7 +8,7 @@ from uuid import uuid4
 from icecream import ic
 from .model import Model
 from .trainer import Trainer
-from learning_loop_node.status import TrainingStatus
+from .training_status import TrainingStatus
 from learning_loop_node.node import Node, State
 import logging
 from datetime import datetime

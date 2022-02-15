@@ -3,8 +3,6 @@ from pydantic import BaseModel
 from enum import Enum
 from dataclasses import dataclass, field
 
-from .trainer.model import PretrainedModel
-
 
 class State(str, Enum):
     Idle = "idle"
@@ -41,18 +39,6 @@ class AnnotationNodeStatus(Status):
     capabilities: List[str]
 
 
-@dataclass
-class TrainingStatus():
-    id: str
-    name: str
-    state: Optional[State]
-    errors: Optional[dict]
-    uptime: Optional[int]
-
-    train_image_count: Optional[int] = None
-    test_image_count: Optional[int] = None
-    skipped_image_count: Optional[int] = None
-    pretrained_models: List[PretrainedModel] = field(default_factory=list)
 
 
 @dataclass
