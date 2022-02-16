@@ -1,31 +1,32 @@
-from ..inbox_filter.relevants_filter import RelevantsFilter
+from . import Detections
+from . import Outbox
 from .rest.operation_mode import OperationMode
 from .detector import Detector
 from .rest import detect, upload, operation_mode
+from ..socket_response import SocketResponse
+from ..inbox_filter.relevants_filter import RelevantsFilter
 from ..rest import downloads
 from ..node import Node
 from ..status import State
 from ..status import DetectionStatus, State
 from ..context import Context
+from ..globals import GLOBALS
+from ..data_classes.category import Category
+from ..model_information import ModelInformation
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from typing import List, Union
 import os
 import contextlib
 import logging
-from learning_loop_node.globals import GLOBALS
 import subprocess
 import asyncio
 import numpy as np
 from fastapi_socketio import SocketManager
-from . import Detections
-from . import Outbox
 from threading import Thread
 from datetime import datetime
 from icecream import ic
-from learning_loop_node.data_classes.category import Category
-from learning_loop_node.model_information import ModelInformation
-
+import shutil
 
 
 class DetectorNode(Node):
@@ -128,7 +129,8 @@ class DetectorNode(Node):
                 with pushd(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
-                    os.makedirs(target_model_folder, exist_ok=True)
+                    shutil.rmtree(target_model_folder, ignore_errors=True)
+                    os.makedirs(target_model_folder)
 
                     await downloads.download_model(
                         target_model_folder,
@@ -169,15 +171,16 @@ class DetectorNode(Node):
             target_model=self.target_model,
             model_format=self.detector.model_format,
         )
+
         logging.debug(f'sending status {status}')
-        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)), timeout=1)
-        try:
-            self.target_model = response['payload']['target_model_version']
-            logging.debug(f'After sending status. Target_model is {self.target_model}')
-            return response['payload']['target_model_id']
-        except:
-            logging.error('Could not send status to loop')
+        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)))
+        socket_response = SocketResponse.from_dict(response)
+        if not socket_response.success:
+            logging.error(f'Statusupdate failed: {response}')
             return False
+        self.target_model = socket_response.payload['target_model_version']
+        logging.debug(f'After sending status. Target_model is {self.target_model}')
+        return socket_response.payload['target_model_id']
 
     def get_state(self):
         return State.Online
@@ -216,7 +219,7 @@ class DetectorNode(Node):
         def find_category_id_by_name(categories: List[Category], category_name: str):
             category_id = [category.id for category in categories if category.name == category_name]
             return category_id[0] if category_id else ''
-        
+
         for box_detection in detections.box_detections:
             category_name = box_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
@@ -226,6 +229,7 @@ class DetectorNode(Node):
             category_id = find_category_id_by_name(model_info.categories, category_name)
             point_detection.category_id = category_id
         return detections
+
 
 @contextlib.contextmanager
 def pushd(new_dir):
