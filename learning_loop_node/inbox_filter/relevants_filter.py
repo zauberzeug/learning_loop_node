@@ -25,6 +25,10 @@ class RelevantsFilter():
             self.groups[mac] = RelevantsGroup()
 
         filter_causes = self.groups[mac].add_detections(detections)
+
+        if len(detections) >= 80:
+                filter_causes.append('unexpectedObservationsCount')
+
         return filter_causes
 
     def reset(self) -> None:
