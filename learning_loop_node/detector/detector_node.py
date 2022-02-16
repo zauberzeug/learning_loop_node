@@ -26,8 +26,7 @@ from fastapi_socketio import SocketManager
 from threading import Thread
 from datetime import datetime
 from icecream import ic
-
-
+import shutil
 
 
 class DetectorNode(Node):
@@ -130,7 +129,8 @@ class DetectorNode(Node):
                 with pushd(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
-                    os.makedirs(target_model_folder, exist_ok=True)
+                    shutil.rmtree(target_model_folder, ignore_errors=True)
+                    os.makedirs(target_model_folder)
 
                     await downloads.download_model(
                         target_model_folder,
@@ -219,7 +219,7 @@ class DetectorNode(Node):
         def find_category_id_by_name(categories: List[Category], category_name: str):
             category_id = [category.id for category in categories if category.name == category_name]
             return category_id[0] if category_id else ''
-        
+
         for box_detection in detections.box_detections:
             category_name = box_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
@@ -229,6 +229,7 @@ class DetectorNode(Node):
             category_id = find_category_id_by_name(model_info.categories, category_name)
             point_detection.category_id = category_id
         return detections
+
 
 @contextlib.contextmanager
 def pushd(new_dir):
