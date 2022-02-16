@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 from pydantic import BaseModel
 import asyncio
 import functools
@@ -9,7 +9,7 @@ import traceback
 class SocketResponse(BaseModel):
     success: bool
     error_msg: Optional[str]
-    payload: Optional[str]
+    payload: Optional[Any]
 
     @staticmethod
     def for_failure(error_msg: str):

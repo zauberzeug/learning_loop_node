@@ -1,3 +1,4 @@
+from ..socket_response import SocketResponse
 from ..inbox_filter.relevants_filter import RelevantsFilter
 from .rest.operation_mode import OperationMode
 from .detector import Detector
@@ -169,15 +170,16 @@ class DetectorNode(Node):
             target_model=self.target_model,
             model_format=self.detector.model_format,
         )
+
         logging.debug(f'sending status {status}')
-        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)), timeout=1)
-        try:
-            self.target_model = response['payload']['target_model_version']
-            logging.debug(f'After sending status. Target_model is {self.target_model}')
-            return response['payload']['target_model_id']
-        except:
-            logging.error('Could not send status to loop')
+        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)))
+        socket_response = SocketResponse.from_dict(response)
+        if not socket_response.success:
+            logging.error(f'Statusupdate failed: {response}')
             return False
+        self.target_model = socket_response.payload['target_model_version']
+        logging.debug(f'After sending status. Target_model is {self.target_model}')
+        return socket_response.payload['target_model_id']
 
     def get_state(self):
         return State.Online
