@@ -58,9 +58,8 @@ class DemoSegmentationTool(AnnotationTool):
     async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)
-        logging.info(f'is alt pressed? {user_input.data.is_alt_key_pressed}')
 
-        if history.state == State.NONE and user_input.data.event_type == EventType.MouseDown:
+        if history.state == State.NONE and user_input.data.event_type == EventType.LeftMouseDown:
             # start creating bbox
             history.state = State.CREATING
             history.bbox = Box(x=coordinate.x, y=coordinate.y, w=0, h=0)
@@ -74,7 +73,7 @@ class DemoSegmentationTool(AnnotationTool):
             output.svg = history.bbox.to_svg_rect()
             return output
 
-        elif history.state == State.CREATING and user_input.data.event_type == EventType.MouseUp:
+        elif history.state == State.CREATING and user_input.data.event_type == EventType.LeftMouseUp:
             # end update bbox
             history.state = State.IDLE
             history.bbox.w = coordinate.x - history.bbox.x
@@ -90,7 +89,7 @@ class DemoSegmentationTool(AnnotationTool):
             output.annotation = history.annotation
             return output
 
-        elif history.state == State.IDLE and user_input.data.event_type == EventType.MouseDown:
+        elif history.state == State.IDLE and user_input.data.event_type == EventType.LeftMouseDown:
             # start gathering bg vg points
             history.state = State.EDITING
             if user_input.data.is_shift_key_pressed:
@@ -110,7 +109,7 @@ class DemoSegmentationTool(AnnotationTool):
             output.svg = history.to_svg_path(user_input.data.is_shift_key_pressed)
             return output
 
-        elif history.state == State.EDITING and user_input.data.event_type == EventType.MouseUp:
+        elif history.state == State.EDITING and user_input.data.event_type == EventType.LeftMouseUp:
             # gathering complete
             history.state = State.IDLE
             history.path_pixels = []

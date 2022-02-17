@@ -22,11 +22,11 @@ class SegmentationAnnotation(BaseModel):
 
 
 class EventType(str, Enum):
-    MouseDown = 'mouse_down',
+    LeftMouseDown = 'left_mouse_down',
+    RightMouseDown = 'right_mouse_down',
     MouseMove = 'mouse_move',
-    MouseUp = 'mouse_up',
-
-    # TODO Introduce Keyboard Event?
+    LeftMouseUp = 'left_mouse_up',
+    RightMouseUp = 'right_mouse_up',
     Enter_Pressed = 'enter_pressed'
     ESC_Pressed = 'esc_pressed'
 
@@ -38,7 +38,7 @@ class AnnotationData(BaseModel):
     image_uuid: str
     category: Category
     is_shift_key_pressed: Optional[bool]
-    is_alt_key_pressed: Optional[bool]
+
     # keyboard_modifiers: Optional[List[str]]
     # new_annotation_uuid: Optional[str]
     # edit_annotation_uuid: Optional[str]
