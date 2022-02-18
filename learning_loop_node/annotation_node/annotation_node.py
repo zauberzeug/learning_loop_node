@@ -27,7 +27,7 @@ class AnnotationNode(Node):
     async def handle_user_input(self, user_input) -> str:
         input = UserInput.parse_obj(user_input)
 
-        if input.data.event_type == EventType.ESC_Pressed:
+        if input.data.key_up == 'Escape':
             self.reset_history(input.frontend_id)
             return ''
 

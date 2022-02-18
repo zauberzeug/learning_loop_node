@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
@@ -27,8 +28,8 @@ class EventType(str, Enum):
     MouseMove = 'mouse_move',
     LeftMouseUp = 'left_mouse_up',
     RightMouseUp = 'right_mouse_up',
-    Enter_Pressed = 'enter_pressed'
-    ESC_Pressed = 'esc_pressed'
+    KeyUp = 'key_up',
+    KeyDown = 'key_down',
 
 
 class AnnotationData(BaseModel):
@@ -38,6 +39,8 @@ class AnnotationData(BaseModel):
     image_uuid: str
     category: Category
     is_shift_key_pressed: Optional[bool]
+    key_up: Optional[str] = None
+    key_down: Optional[str] = None
 
     # keyboard_modifiers: Optional[List[str]]
     # new_annotation_uuid: Optional[str]
