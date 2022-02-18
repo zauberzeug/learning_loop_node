@@ -4,6 +4,7 @@ from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from fastapi import APIRouter,  Request,  HTTPException
 from learning_loop_node.status import Status, State
 import logging
+import asyncio
 
 router = APIRouter()
 
@@ -39,7 +40,8 @@ async def check_state(request: Request):
         trainer_node.status.reset_all_errors()
     if value == 'on':
         trainer_node.skip_check_state = False
-        await trainer_node.check_state()
+        loop = asyncio.get_event_loop()
+        loop.create_task(trainer_node.check_state())
 
     logging.debug(f'turning automatically check_state {value}')
 
