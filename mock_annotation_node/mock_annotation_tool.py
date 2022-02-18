@@ -27,7 +27,7 @@ class MockAnnotationTool(AnnotationTool):
         super().__init__()
         self.box: SvgBox = None
 
-    async def handle_user_input(self, user_input: UserInput, history: dict):
+    async def handle_user_input(self, user_input, history: dict):
         out = ToolOutput(svg="", annotation=None)
         ic(f'received user input: {jsonable_encoder(user_input)}')
         event_type = user_input.data.event_type
