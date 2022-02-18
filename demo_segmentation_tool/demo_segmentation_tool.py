@@ -58,6 +58,7 @@ class DemoSegmentationTool(AnnotationTool):
     async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)
+        logging.debug(user_input.data.event_type)
 
         if history.state == State.NONE and user_input.data.event_type == EventType.LeftMouseDown:
             # start creating bbox
