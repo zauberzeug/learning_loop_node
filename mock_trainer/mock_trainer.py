@@ -54,9 +54,3 @@ class MockTrainer(Trainer):
 
     def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
-
-    def stop_training(self) -> None:
-        if self.error_configuration.stop_training:
-            raise Exception()
-        self.latest_known_confusion_matrix = None
-        return super().stop_training()

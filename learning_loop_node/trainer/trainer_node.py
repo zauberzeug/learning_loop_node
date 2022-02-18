@@ -34,7 +34,10 @@ class TrainerNode(Node):
 
         @self.sio_client.on('stop_training')
         async def stop():
-            return await self.stop_training()
+            logging.debug(f'### on stop_training received. Current state : {self.status.state}')
+            loop = asyncio.get_event_loop()
+            loop.create_task(self.stop_training())
+            return True
 
         @self.on_event("startup")
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
@@ -67,19 +70,26 @@ class TrainerNode(Node):
         self.latest_known_model_id = source_model['id'] if is_valid_uuid4(source_model['id']) else None
         await self.update_state(State.Running)
 
-    async def stop_training(self, save_latest_model: bool = True) -> Union[bool, str]:
-        self.status.reset_error('stop_training')
+    async def stop_training(self, do_detections: bool = True, save_latest_model: bool = True) -> Union[bool, str]:
+        if self.status.state != State.Running:
+            logging.warning(f'##### stop_training is called but current state is : {self.status.state}')
+            return
+
+        await self.update_state(State.Stopping)
+
         try:
             result = self.trainer.stop_training()
+            if self.latest_known_model_id and self.trainer.source_model_id != self.latest_known_model_id:
+                if save_latest_model:
+                    await self.update_state(State.Uploading)
+                    await self.save_model(self.trainer.training.context, self.latest_known_model_id)
+                if do_detections:
+                    await self.update_state(State.Detecting)
+                    await asyncio.sleep(1)
 
-            # NOTE saving the without having an own new checkpoint does not harm.
-            if save_latest_model and self.latest_known_model_id and self.trainer.source_model_id != self.latest_known_model_id:
-                await self.save_model(self.trainer.training.context, self.latest_known_model_id)
             await self.clear_training_data(self.trainer.training.training_folder)
-
             self.trainer.training = None
             self.latest_known_model_id = None
-
             await self.update_state(State.Idle)
             if not result:
                 raise Exception('No Training is running')
@@ -200,8 +210,10 @@ class TrainerNode(Node):
         if not response.success:
             logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
             logging.error('Going to kill training. ')
+            logging.exception('update trainer failed')
+
             if status.state != State.Idle:
-                await self.stop_training(save_latest_model=False)
+                await self.stop_training(do_detections=False, save_latest_model=False)
 
     def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():

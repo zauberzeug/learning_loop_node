@@ -1,15 +1,18 @@
 from typing import List, Optional
 from pydantic import BaseModel
 from enum import Enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 class State(str, Enum):
     Idle = "idle"
     Offline = "offline"
     Online = "online"
-    Running = "running"
     Preparing = "preparing"
+    Running = "running"
+    Stopping = "stopping"
+    Detecting = 'detecting'
+    Uploading = 'uploading'
 
 
 class Status(BaseModel):
@@ -37,8 +40,6 @@ class Status(BaseModel):
 
 class AnnotationNodeStatus(Status):
     capabilities: List[str]
-
-
 
 
 @dataclass
