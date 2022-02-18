@@ -17,7 +17,7 @@ WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --no-cache-dir "uvicorn[standard]" alive_progress numpy async_generator aiofiles retry debugpy pytest-asyncio psutil icecream psutil pytest autopep8
-RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.6.4"
+RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.7"
 
 ENV PIP_USE_FEATURE=in-tree-build 
 
