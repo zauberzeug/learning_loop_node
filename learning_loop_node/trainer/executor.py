@@ -5,6 +5,23 @@ import subprocess
 import signal
 from icecream import ic
 import logging
+import signal
+from sys import platform
+
+
+def create_signal_handler(sig=signal.SIGTERM):
+    if platform == "linux" or platform == "linux2":
+        # "The system will send a signal to the child once the parent exits for any reason (even sigkill)."
+        # https://stackoverflow.com/a/19448096
+        import ctypes
+        libc = ctypes.CDLL("libc.so.6")
+
+        def callable():
+            os.setsid()
+            return libc.prctl(1, sig)
+
+        return callable
+    return os.setsid
 
 
 class Executor:
@@ -21,7 +38,7 @@ class Executor:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             executable='/bin/bash',
-            preexec_fn=os.setsid
+            preexec_fn=create_signal_handler(),
         )
 
     def is_process_running(self):

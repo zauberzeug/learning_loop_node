@@ -48,6 +48,9 @@ async def download_images_data(organization: str, project: str, image_ids: List[
 
 
 async def download_images(paths: List[str], image_ids: List[str], image_folder: str, chunk_size: int = 10) -> None:
+    if len(image_ids) == 0:
+        logging.debug('got empty list. No images were downloaded')
+        return
     logging.info('fetching image files')
     starttime = time.time()
     os.makedirs(image_folder, exist_ok=True)

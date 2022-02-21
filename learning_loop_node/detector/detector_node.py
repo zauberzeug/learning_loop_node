@@ -202,7 +202,8 @@ class DetectorNode(Node):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
-        info = "\n    ".join([str(d) for d in detections.box_detections])
+        info = "\n".join([str(d) for d in detections.point_detections])
+        info += "\n".join([str(d) for d in detections.box_detections])
         logging.info(f'detected:\n    {info}')
 
         thread = Thread(target=self.relevants_filter.learn, args=(detections, mac, tags, raw_image))

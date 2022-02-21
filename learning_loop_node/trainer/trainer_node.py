@@ -72,7 +72,9 @@ class TrainerNode(Node):
 
     async def stop_training(self, do_detections: bool = True, save_latest_model: bool = True) -> Union[bool, str]:
         if self.status.state != State.Running:
-            logging.warning(f'##### stop_training is called but current state is : {self.status.state}')
+            logging.warning(
+                f'##### stop_training is called but current state is : {self.status.state}; model is not saved')
+            self.trainer.stop_training()
             return
 
         await self.update_state(State.Stopping)
@@ -107,7 +109,7 @@ class TrainerNode(Node):
         try:
             await self.trainer.save_model(context, model_id)
         except Exception as e:
-            traceback.print_exc()
+            logging.exception('could not save model')
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
 
         await self.send_status()
