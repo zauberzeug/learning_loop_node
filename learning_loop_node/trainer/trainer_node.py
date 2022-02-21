@@ -107,7 +107,7 @@ class TrainerNode(Node):
         try:
             await self.trainer.save_model(context, model_id)
         except Exception as e:
-            traceback.print_exc()
+            logging.exception('could not save model')
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
 
         await self.send_status()
