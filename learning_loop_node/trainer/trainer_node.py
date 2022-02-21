@@ -72,9 +72,7 @@ class TrainerNode(Node):
 
     async def stop_training(self, do_detections: bool = True, save_latest_model: bool = True) -> Union[bool, str]:
         if self.status.state != State.Running:
-            logging.warning(
-                f'##### stop_training is called but current state is : {self.status.state}; model is not saved')
-            self.trainer.stop_training()
+            logging.warning(f'##### stop_training is called but current state is : {self.status.state}')
             return
 
         await self.update_state(State.Stopping)
