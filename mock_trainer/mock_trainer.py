@@ -4,6 +4,10 @@ from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
 import progress_simulator
 import time
+from learning_loop_node.model_information import ModelInformation
+from learning_loop_node.detector.box_detection import BoxDetection
+from learning_loop_node.detector.point_detection import PointDetection
+from icecream import ic
 
 
 class MockTrainer(Trainer):
@@ -36,6 +40,28 @@ class MockTrainer(Trainer):
             f.write('zweiundvierzig')
 
         return [fake_weight_file, more_data_file]
+
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str, model_id: str, model_version: str) -> List:
+        detections = []
+        for image in images:
+            image_id = image.split('/')[-1].replace('.jpg', '')
+
+            box_detections = []
+            point_detections = []
+            image_entry = {'image_id': image_id, 'box_detections': box_detections, 'point_detections': point_detections}
+            for c in model_information.categories:
+                if c.type == 'box':
+                    d = BoxDetection(c.name, x=1, y=2, width=30, height=40,
+                                     net=model_information.version, confidence=.99, category_id=c.id)
+                    box_detections.append(d)
+                elif c.type == 'point':
+                    d = PointDetection(c.name, x=100, y=200,
+                                       net=model_information.version, confidence=.97, category_id=c.id)
+                    point_detections.append(d)
+                else:
+                    raise Exception(f'Category type {c.type} not supported')
+            detections.append(image_entry)
+        return detections
 
     async def clear_training_data(self, training_folder: str):
         pass

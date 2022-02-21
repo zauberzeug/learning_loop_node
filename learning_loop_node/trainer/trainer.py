@@ -3,6 +3,9 @@ import asyncio
 import os
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
+from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.loop import loop
+from ..model_information import ModelInformation
 from .executor import Executor
 from .training import Training
 from .model import BasicModel, PretrainedModel
@@ -14,6 +17,9 @@ from .. import node_helper
 import logging
 from icecream import ic
 from .helper import is_valid_uuid4
+from glob import glob
+import json
+from fastapi.encoders import jsonable_encoder
 
 
 class Trainer():
@@ -109,6 +115,36 @@ class Trainer():
         Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
         '''
         raise NotImplementedError()
+
+    async def do_detections(self, context: Context, model_id: str, model_format: str):
+        tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{model_format}'
+        os.makedirs(tmp_folder)
+        await downloads.download_model(tmp_folder, context, model_id, model_format)
+        with open(f'{tmp_folder}/model.json', 'r') as f:
+            content = json.load(f)
+            model_information = ModelInformation.parse_obj(content)
+
+        project_folder = Node.create_project_folder(context)
+        image_folder = node_helper.create_image_folder(project_folder)
+        downloader = DataDownloader(context)
+        for state in ['inbox', 'annotate', 'review', 'complete']:
+            basic_data = await downloader.download_basic_data(query_params=f'state={state}')
+            await downloader.download_images(basic_data.image_ids, image_folder)
+        images = glob(f'{image_folder}/**/*.*', recursive=True)
+        detections = await self._detect(model_information, images, tmp_folder, model_id, 'some_model_version')
+
+        await self._upload_detections(context, jsonable_encoder(detections))
+        return detections
+
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str, model_id: str, model_version: str) -> List:
+        raise NotImplementedError()
+
+    async def _upload_detections(self, context: Context, detections: List[dict]):
+        async with loop.post(f'api/{context.organization}/projects/{context.project}/detections/', data=json.dumps(detections)) as response:
+            if response.status != 200:
+                logging.error('could not upload detections.')
+            else:
+                logging.info('successfully uploaded detections')
 
     async def clear_training_data(self, training_folder: str) -> None:
         '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
