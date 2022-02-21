@@ -213,6 +213,7 @@ class TrainerNode(Node):
             logging.exception('update trainer failed')
 
             if status.state != State.Idle:
+                # TODO was soll passieren, wenn wir z.B. Stopping sind, und das Event von der Loop abgelehnt wird?
                 await self.stop_training(do_detections=False, save_latest_model=False)
 
     def get_state(self):
