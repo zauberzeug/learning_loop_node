@@ -85,7 +85,9 @@ class TrainerNode(Node):
                     await self.save_model(self.trainer.training.context, self.latest_known_model_id)
                 if do_detections:
                     await self.update_state(State.Detecting)
-                    await asyncio.sleep(1)
+                    await self.trainer.do_detections(context=self.trainer.training.context,
+                                                     model_id=self.latest_known_model_id,
+                                                     model_format=self.trainer.model_format)
 
             await self.clear_training_data(self.trainer.training.training_folder)
             self.trainer.training = None
