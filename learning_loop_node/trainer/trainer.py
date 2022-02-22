@@ -40,6 +40,7 @@ class Trainer():
         if not is_valid_uuid4(self.source_model_id):
             if self.source_model_id in [m.name for m in self.provided_pretrained_models]:
                 logging.debug('Should start with pretrained model')
+                self.ensure_model_json()
                 await self.start_training_from_scratch(self.source_model_id)
             else:
                 raise ValueError(f'Pretrained model {self.source_model_id} is not supported')
@@ -174,3 +175,9 @@ class Trainer():
         training_folder = f'{project_folder}/trainings/{trainings_id}'
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
+
+    def ensure_model_json(self):
+        modeljson_path = f'{self.training.training_folder}/model.json'
+        if not os.path.exists(modeljson_path):
+            with open(modeljson_path, 'w') as f:
+                f.write('{}')
