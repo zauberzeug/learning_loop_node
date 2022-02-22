@@ -58,8 +58,7 @@ class MockTrainer(Trainer):
                     d = PointDetection(c.name, x=100, y=200,
                                        net=model_information.version, confidence=.97, category_id=c.id)
                     point_detections.append(d)
-                else:
-                    raise Exception(f'Category type {c.type} not supported')
+
             detections.append(image_entry)
         return detections
 
