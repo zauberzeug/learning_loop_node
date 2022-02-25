@@ -20,7 +20,7 @@ from .helper import is_valid_uuid4
 from glob import glob
 import json
 from fastapi.encoders import jsonable_encoder
-
+import shutil
 
 class Trainer():
 
@@ -118,8 +118,14 @@ class Trainer():
 
     async def do_detections(self, context: Context, model_id: str, model_format: str):
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{model_format}'
+        
+        shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
-        await downloads.download_model(tmp_folder, context, model_id, model_format)
+        logging.info('downloading model for detecting')
+        try:
+            await downloads.download_model(tmp_folder, context, model_id, model_format)
+        except:
+            logging.exception('download error')
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
             model_information = ModelInformation.parse_obj(content)
@@ -127,12 +133,15 @@ class Trainer():
         project_folder = Node.create_project_folder(context)
         image_folder = node_helper.create_image_folder(project_folder)
         downloader = DataDownloader(context)
+        image_ids = []
         for state in ['inbox', 'annotate', 'review', 'complete']:
             basic_data = await downloader.download_basic_data(query_params=f'state={state}')
+            image_ids += basic_data.image_ids
             await downloader.download_images(basic_data.image_ids, image_folder)
-        images = glob(f'{image_folder}/**/*.*', recursive=True)
+        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True) if os.path.splitext(os.path.basename(img))[0] in image_ids]
+        logging.info(f'running detections on {len(images)} images')
         detections = await self._detect(model_information, images, tmp_folder, model_id, 'some_model_version')
-
+        logging.info(f'uploading {len(detections)} detections')
         await self._upload_detections(context, jsonable_encoder(detections))
         return detections
 
@@ -140,11 +149,17 @@ class Trainer():
         raise NotImplementedError()
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
-        async with loop.post(f'api/{context.organization}/projects/{context.project}/detections/', data=json.dumps(detections)) as response:
-            if response.status != 200:
-                logging.error('could not upload detections.')
-            else:
-                logging.info('successfully uploaded detections')
+        logging.info('uploading detections')
+        try:
+            data = json.dumps(detections)
+            logging.info(f'uploading detections. File size : {len(data)}')
+            async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', data=data) as response:
+                if response.status != 200:
+                    logging.error(f'could not upload detections. {str(response)}')
+                else:
+                    logging.info('successfully uploaded detections')
+        except:
+            logging.exception('error uploading detections.')
 
     async def clear_training_data(self, training_folder: str) -> None:
         '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
