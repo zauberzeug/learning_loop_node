@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 import requests
-
+from icecream import ic
 # https://stackoverflow.com/a/39225272/4082686
 
 
-def download(id, destination):
+def g_download(id, destination):
     URL = "https://docs.google.com/uc?export=download"
 
     session = requests.Session()
 
-    response = session.get(URL, params={'id': id}, stream=True)
+    response = session.get(URL, params={
+        'id': id,
+        'confirm': 't'},  # e.g. large file warning.
+        stream=True)
+    ic(str(response))
     token = get_confirm_token(response)
 
     if token:
@@ -37,6 +41,6 @@ def save_response_content(response, destination):
 
 
 if __name__ == "__main__":
-    file_id = '1jNgQDqQeaZhIWFCxV1eKeuLzXHYhXAQv'
+    file_id = '1q8nT-CTHt1eZuNjPMbdaavyFnMtDRT-L'
     destination = 'test.zip'
-    download(file_id, destination)
+    g_download(file_id, destination)
