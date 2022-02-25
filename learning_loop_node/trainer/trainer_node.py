@@ -52,7 +52,11 @@ class TrainerNode(Node):
         @self.on_event("shutdown")
         async def shutdown():
             logging.info('shutdown detected, stopping training')
-            await self.stop_training()
+            try:
+                self.trainer.training.excecutor.stop()
+            except:
+                logging.exception('could not kill training.')
+                pass
 
     async def begin_training(self, context: Context, source_model: dict):
         self.status.reset_error('start_training')
