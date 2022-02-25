@@ -1,4 +1,3 @@
-import zipfile
 from learning_loop_node.tests import test_helper
 from learning_loop_node.gdrive_downloader import g_download
 from learning_loop_node.rest import downloads
@@ -7,7 +6,6 @@ import pytest
 import logging
 import os
 from icecream import ic
-import shutil
 
 @pytest.mark.asyncio
 async def test_multiple_get_requests_after_post_request_should_not_causes_timeout_error():
@@ -16,7 +14,7 @@ async def test_multiple_get_requests_after_post_request_should_not_causes_timeou
         file_id = '1q8nT-CTHt1eZuNjPMbdaavyFnMtDRT-L'
         destination = '/tmp/model.zip'
         g_download(file_id, destination)
-        unzip(destination, '/tmp/some_model')
+        test_helper.unzip(destination, '/tmp/some_model')
 
 
     data = test_helper.prepare_formdata(['/tmp/some_model/model.pt'])
@@ -32,9 +30,3 @@ async def test_multiple_get_requests_after_post_request_should_not_causes_timeou
         ic('going to download model from loop')
         await downloads.download_model('tmp', Context(organization='zauberzeug', project='pytest'), model['id'], 'yolov5_pytorch')
 
-
-def unzip(file_path, target_folder):
-    shutil.rmtree(target_folder, ignore_errors=True)
-    os.makedirs(target_folder)
-    with zipfile.ZipFile(file_path, 'r') as zip:
-        zip.extractall(target_folder)
