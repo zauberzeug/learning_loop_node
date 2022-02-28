@@ -141,12 +141,12 @@ class Trainer():
             await downloader.download_images(basic_data.image_ids, image_folder)
         images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True) if os.path.splitext(os.path.basename(img))[0] in image_ids]
         logging.info(f'running detections on {len(images)} images')
-        detections = await self._detect(model_information, images, tmp_folder, model_id, 'some_model_version')
+        detections = await self._detect(model_information, images, tmp_folder) 
         logging.info(f'uploading {len(detections)} detections')
         await self._upload_detections(context, jsonable_encoder(detections))
         return detections
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str, model_id: str, model_version: str) -> List:
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         raise NotImplementedError()
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
