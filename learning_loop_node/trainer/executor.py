@@ -73,3 +73,9 @@ class Executor:
 
         self.process.terminate()
         out, err = self.process.communicate(timeout=3)
+
+    @property
+    def return_code(self):
+        if self.is_process_running():
+            return None
+        return self.process.poll()
