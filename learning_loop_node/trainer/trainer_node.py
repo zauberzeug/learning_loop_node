@@ -53,7 +53,7 @@ class TrainerNode(Node):
         async def shutdown():
             logging.info('shutdown detected, stopping training')
             try:
-                self.trainer.training.excecutor.stop()
+                self.trainer.executor.stop()
             except:
                 logging.exception('could not kill training.')
                 pass
