@@ -76,6 +76,8 @@ class Executor:
 
     @property
     def return_code(self):
+        if not self.process:
+            return None
         if self.is_process_running():
             return None
         return self.process.poll()
