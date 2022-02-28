@@ -41,7 +41,7 @@ class MockTrainer(Trainer):
 
         return [fake_weight_file, more_data_file]
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str, model_id: str, model_version: str) -> List:
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         detections = []
         for image in images:
             image_id = image.split('/')[-1].replace('.jpg', '')
