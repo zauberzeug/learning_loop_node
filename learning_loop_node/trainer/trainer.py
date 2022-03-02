@@ -22,6 +22,7 @@ import json
 from fastapi.encoders import jsonable_encoder
 import shutil
 
+
 class Trainer():
 
     def __init__(self, model_format: str) -> None:
@@ -119,7 +120,7 @@ class Trainer():
 
     async def do_detections(self, context: Context, model_id: str, model_format: str):
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{model_format}'
-        
+
         shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
         logging.info('downloading model for detecting')
@@ -139,11 +140,12 @@ class Trainer():
             basic_data = await downloader.download_basic_data(query_params=f'state={state}')
             image_ids += basic_data.image_ids
             await downloader.download_images(basic_data.image_ids, image_folder)
-        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True) if os.path.splitext(os.path.basename(img))[0] in image_ids]
+        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
+                  if os.path.splitext(os.path.basename(img))[0] in image_ids]
         logging.info(f'running detections on {len(images)} images')
-        detections = await self._detect(model_information, images, tmp_folder) 
+        detections = await self._detect(model_information, images, tmp_folder)
         logging.info(f'uploading {len(detections)} detections')
-        await self._upload_detections(context, jsonable_encoder(detections))
+        await self._upload_detections(context, jsonable_encoder({'images': detections}))
         return detections
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
@@ -157,6 +159,10 @@ class Trainer():
             async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', data=data) as response:
                 if response.status != 200:
                     logging.error(f'could not upload detections. {str(response)}')
+                    try:
+                        logging.error(jsonable_encoder(await response.json()))
+                    except:
+                        pass
                 else:
                     logging.info('successfully uploaded detections')
         except:
