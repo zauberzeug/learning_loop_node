@@ -30,7 +30,7 @@ async def download_images_data(organization: str, project: str, image_ids: List[
     jepeg_check_info()
     images_data = []
     starttime = time.time()
-    for i in tqdm(range(0, len(image_ids), chunk_size)):
+    for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_ids = image_ids[i:i+chunk_size]
         async with loop.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
             if response.status != 200:
@@ -54,7 +54,7 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
     logging.info('fetching image files')
     starttime = time.time()
     os.makedirs(image_folder, exist_ok=True)
-    for i in tqdm(range(0, len(image_ids), chunk_size)):
+    for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_paths = paths[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []
