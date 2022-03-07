@@ -151,16 +151,19 @@ class Trainer():
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
         logging.info('uploading detections')
-        try:
-            data = json.dumps(detections)
+        batch_size=500
+        for i in tqdm(range(0, len(detections), batch_size)):
+            batch_detections = detections[i:i+batch_size]
+            data = json.dumps(batch_detections)
             logging.info(f'uploading detections. File size : {len(data)}')
-            async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', data=data) as response:
-                if response.status != 200:
-                    logging.error(f'could not upload detections. {str(response)}')
-                else:
-                    logging.info('successfully uploaded detections')
-        except:
-            logging.exception('error uploading detections.')
+            try:
+                async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', data=data) as response:
+                    if response.status != 200:
+                        logging.error(f'could not upload detections. {str(response)}')
+                    else:
+                        logging.info('successfully uploaded detections')
+            except:
+                logging.exception('error uploading detections.')
 
     async def clear_training_data(self, training_folder: str) -> None:
         '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
