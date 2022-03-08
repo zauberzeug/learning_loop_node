@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from learning_loop_node.rest.downloader import DataDownloader
 from learning_loop_node.loop import loop
+from tqdm import tqdm
 from ..model_information import ModelInformation
 from .executor import Executor
 from .training import Training
