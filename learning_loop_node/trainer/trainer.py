@@ -152,8 +152,8 @@ class Trainer():
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
         logging.info('uploading detections')
-        batch_size=500
-        for i in tqdm(range(0, len(detections), batch_size)):
+        batch_size = 500
+        for i in tqdm(range(0, len(detections), batch_size), position=0, leave=True):
             batch_detections = detections[i:i+batch_size]
             data = json.dumps(batch_detections)
             logging.info(f'uploading detections. File size : {len(data)}')
