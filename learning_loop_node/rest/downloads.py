@@ -13,7 +13,7 @@ from learning_loop_node.context import Context
 from learning_loop_node.task_logger import create_task
 import logging
 from icecream import ic
-from alive_progress import alive_it
+from tqdm.asyncio import tqdm
 
 check_jpeg = shutil.which('jpeginfo') is not None
 
@@ -30,7 +30,7 @@ async def download_images_data(organization: str, project: str, image_ids: List[
     jepeg_check_info()
     images_data = []
     starttime = time.time()
-    for i in alive_it(range(0, len(image_ids), chunk_size)):
+    for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_ids = image_ids[i:i+chunk_size]
         async with loop.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
             if response.status != 200:
@@ -54,7 +54,7 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
     logging.info('fetching image files')
     starttime = time.time()
     os.makedirs(image_folder, exist_ok=True)
-    for i in alive_it(range(0, len(image_ids), chunk_size)):
+    for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_paths = paths[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []

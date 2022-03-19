@@ -52,7 +52,11 @@ class TrainerNode(Node):
         @self.on_event("shutdown")
         async def shutdown():
             logging.info('shutdown detected, stopping training')
-            await self.stop_training()
+            try:
+                self.trainer.executor.stop()
+            except:
+                logging.exception('could not kill training.')
+                pass
 
     async def begin_training(self, context: Context, source_model: dict):
         self.status.reset_error('start_training')
@@ -85,7 +89,12 @@ class TrainerNode(Node):
                     await self.save_model(self.trainer.training.context, self.latest_known_model_id)
                 if do_detections:
                     await self.update_state(State.Detecting)
-                    await asyncio.sleep(1)
+                    try:
+                        await self.trainer.do_detections(context=self.trainer.training.context,
+                                                         model_id=self.latest_known_model_id,
+                                                         model_format=self.trainer.model_format)
+                    except Exception as e:
+                        logging.exception(f'Could not predict detections: {str(e)}')
 
             await self.clear_training_data(self.trainer.training.training_folder)
             self.trainer.training = None
@@ -107,7 +116,7 @@ class TrainerNode(Node):
         try:
             await self.trainer.save_model(context, model_id)
         except Exception as e:
-            traceback.print_exc()
+            logging.exception('could not save model')
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
 
         await self.send_status()
@@ -213,6 +222,7 @@ class TrainerNode(Node):
             logging.exception('update trainer failed')
 
             if status.state != State.Idle:
+                # TODO was soll passieren, wenn wir z.B. Stopping sind, und das Event von der Loop abgelehnt wird?
                 await self.stop_training(do_detections=False, save_latest_model=False)
 
     def get_state(self):

@@ -28,8 +28,9 @@ class DataDownloader():
         return await downloads.download_images_data(self.context.organization, self.context.project, ids)
 
     async def download_images(self, image_ids: List[str], image_folder: str) -> None:
+        '''Will skip existing images'''
         paths, ids = node_helper.create_resource_paths(self.context.organization, self.context.project,
-                                                       DataDownloader.filter_existing_images(image_ids, image_folder))  # hier
+                                                       DataDownloader.filter_existing_images(image_ids, image_folder))
         await downloads.download_images(paths, ids, image_folder)
 
     @staticmethod

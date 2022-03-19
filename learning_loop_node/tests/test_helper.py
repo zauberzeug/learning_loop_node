@@ -1,12 +1,14 @@
 from glob import glob
 import os
 from typing import List, Optional
+import zipfile
 from learning_loop_node.loop import loop
 from urllib.parse import urljoin
 from requests import Session
 import aiohttp
 import logging
 from icecream import ic
+import shutil
 
 
 class LiveServerSession(Session):
@@ -67,3 +69,10 @@ def prepare_formdata(file_paths: Optional[List[str]]) -> aiohttp.FormData:
     for path in file_paths:
         data.add_field('files',  open(path, 'rb'))
     return data
+
+
+def unzip(file_path, target_folder):
+    shutil.rmtree(target_folder, ignore_errors=True)
+    os.makedirs(target_folder)
+    with zipfile.ZipFile(file_path, 'r') as zip:
+        zip.extractall(target_folder)

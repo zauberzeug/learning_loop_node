@@ -1,14 +1,12 @@
 import asyncio
 from datetime import datetime, timedelta
 from async_generator import asynccontextmanager
-from aiohttp.client_reqrep import ClientResponse
 import aiohttp
 import os
 import werkzeug
 from icecream import ic
 import logging
 import requests
-from http import HTTPStatus
 
 
 class AccessToken():
@@ -41,7 +39,6 @@ class Loop():
         self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         self.access_token = None
-        self.session = None
         self.web = requests.Session()
 
     def download_token(self):
@@ -53,21 +50,12 @@ class Loop():
         response.raise_for_status()
         return token_from_response(response)
 
-    async def ensure_session(self) -> dict:
-        '''Create one session for all requests.
-        See https://docs.aiohttp.org/en/stable/client_quickstart.html#make-a-request.
-        '''
-
-        headers = await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
-        if self.session is None:
-            self.session = aiohttp.ClientSession(headers=headers)
-        else:
-            self.session.headers.update(headers)
+    
+    async def create_headers(self) -> dict:
+        return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
 
     def get_headers(self):
         headers = {}
-
-
         if self.username and self.password:
             if self.access_token is None or self.access_token.is_invalid():
                 self.access_token = self.download_token()
@@ -79,9 +67,9 @@ class Loop():
     async def get(self, path):
         url = f'{self.base_url}/{path.lstrip("/")}'
         logging.debug(url)
-        await self.ensure_session()
-        async with self.session.get(url) as response:
-            yield response
+        async with aiohttp.ClientSession(headers = await self.create_headers()) as session:
+            async with session.get(url) as response:
+                yield response
 
     async def get_json_async(self, path):
         url = f'{loop.project_path}{path}'
@@ -104,16 +92,16 @@ class Loop():
 
     @asynccontextmanager
     async def put(self, path, data):
-        await self.ensure_session()
-        async with self.session.put(f'{self.base_url}/{path}', data=data) as response:
-            yield response
+        async with aiohttp.ClientSession(headers = await self.create_headers()) as session:
+            async with session.put(f'{self.base_url}/{path}', data=data) as response:
+                yield response
 
     @asynccontextmanager
     async def post(self, path, data):
-        await self.ensure_session()
-        async with self.session.post(f'{self.base_url}/{path}', data=data) as response:
-            yield response
-
+        async with aiohttp.ClientSession(headers = await self.create_headers()) as session:
+            async with session.post(f'{self.base_url}/{path}', data=data) as response:
+                yield response
+        
     @property
     def project_path(self):
         return f'/api/{self.organization}/projects/{self.project}'
