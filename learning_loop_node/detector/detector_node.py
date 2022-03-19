@@ -39,6 +39,7 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
+        logging.info(f'Using {self.organization}/{self.project}')
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
         self.outbox: Outbox = Outbox()
