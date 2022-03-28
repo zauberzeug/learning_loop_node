@@ -39,6 +39,7 @@ class DetectorNode(Node):
         self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
+        logging.info(f'Using {self.organization}/{self.project}')
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
         self.outbox: Outbox = Outbox()
@@ -202,8 +203,7 @@ class DetectorNode(Node):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
-        info = "\n".join([str(d) for d in detections.point_detections])
-        info += "\n".join([str(d) for d in detections.box_detections])
+        info = "\n    ".join([str(d) for d in detections.box_detections + detections.point_detections])
         logging.info(f'detected:\n    {info}')
 
         thread = Thread(target=self.relevants_filter.learn, args=(detections, mac, tags, raw_image))
