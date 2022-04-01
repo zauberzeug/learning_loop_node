@@ -16,22 +16,9 @@ class Detector():
 
     def load_model(self):
         try:
-            model_root_path = f'{GLOBALS.data_folder}/model'
-            model_info_file_path = f'{model_root_path}/model.json'
-            if not os.path.exists(model_info_file_path):
-                raise FileExistsError(f"File '{model_info_file_path}' does not exist.")
-            with open(model_info_file_path, 'r') as f:
-                try:
-                    content = json.load(f)
-                except:
-                    raise Exception(f"could not read model information from file '{model_info_file_path}'")
-                try:
-                    model_information = ModelInformation.parse_obj(content)
-                except Exception as e:
-                    raise Exception(
-                        f"could not parse model information from file '{model_info_file_path}'. \n {str(e)}")
+            model_information = self.load_model_iformation()
             try:
-                self.init(model_information, model_root_path)
+                self.init(model_information)
                 self.current_model = model_information
                 logging.info(f'Successfully loaded model {self.current_model}')
             except Exception:
@@ -41,6 +28,25 @@ class Detector():
         except Exception:
             self.current_model = None
             logging.exception('An error occured during loading model.')
+
+    def load_model_iformation(self):
+        model_root_path = f'{GLOBALS.data_folder}/model'
+        model_info_file_path = f'{model_root_path}/model.json'
+        if not os.path.exists(model_info_file_path):
+            raise FileExistsError(f"File '{model_info_file_path}' does not exist.")
+        with open(model_info_file_path, 'r') as f:
+            try:
+                content = json.load(f)
+            except:
+                raise Exception(f"could not read model information from file '{model_info_file_path}'")
+            try:
+                model_information = ModelInformation.parse_obj(content)
+                model_information.model_root_path = model_root_path
+            except Exception as e:
+                raise Exception(
+                    f"could not parse model information from file '{model_info_file_path}'. \n {str(e)}")
+
+        return model_root_path, model_information
 
     def init(self,  model_info: ModelInformation, model_root_path: str):
         raise NotImplementedError()

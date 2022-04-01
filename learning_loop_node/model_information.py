@@ -12,6 +12,7 @@ class ModelInformation(BaseModel):
     version: str
     categories: List[Category]
     resolution: Optional[int]
+    model_root_path: Optional[str]
 
     @property
     def context(self):
