@@ -34,24 +34,28 @@ class Trainer():
 
     async def begin_training(self, context: Context, source_model: dict) -> None:
         downloader = TrainingsDownloader(context)
-        self.training = Trainer.generate_training(context, source_model)
+        self.training = Trainer.generate_training(context)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.executor = Executor(self.training.training_folder)
 
         self.source_model_id = source_model['id']
         if not is_valid_uuid4(self.source_model_id):
             if self.source_model_id in [m.name for m in self.provided_pretrained_models]:
-                logging.debug('Should start with pretrained model')
+                logging.debug('Starting with pretrained model')
                 self.ensure_model_json()
                 await self.start_training_from_scratch(self.source_model_id)
             else:
                 raise ValueError(f'Pretrained model {self.source_model_id} is not supported')
         else:
-            logging.debug('Should start with loop model')
+            logging.debug('loading model from Learning Loop')
             logging.info(f'downloading model {self.source_model_id} as {self.model_format}')
             await downloads.download_model(self.training.training_folder, context, self.source_model_id, self.model_format)
-            logging.info(f'now starting training')
+            infos = ModelInformation.load_from_disk(self.training.training_folder)
+            self.training.data.categories = {c.name: c.id for c in infos.categories}
+            logging.info(f'starting training')
             await self.start_training()
+        assert(len(self.training.data.categories) > 0, 'should have some categories')
+        logging.info(f'training with categories: {self.training.data.categories}')
 
     async def start_training(self) -> None:
         raise NotImplementedError()
@@ -180,7 +184,7 @@ class Trainer():
         raise NotImplementedError()
 
     @staticmethod
-    def generate_training(context: Context, source_model: dict) -> Training:
+    def generate_training(context: Context) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
         return Training(

@@ -2,7 +2,6 @@ from pydantic.main import BaseModel
 from typing import List, Optional
 from learning_loop_node.context import Context
 from learning_loop_node.data_classes.category import Category
-from learning_loop_node.globals import GLOBALS
 import os
 import json
 
@@ -22,8 +21,7 @@ class ModelInformation(BaseModel):
         return Context(organization=self.organization, project=self.project)
 
     @staticmethod
-    def load_from_disk():
-        model_root_path = f'{GLOBALS.data_folder}/model'
+    def load_from_disk(model_root_path: str):
         model_info_file_path = f'{model_root_path}/model.json'
         if not os.path.exists(model_info_file_path):
             raise FileExistsError(f"File '{model_info_file_path}' does not exist.")

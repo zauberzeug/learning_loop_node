@@ -2,6 +2,7 @@ from typing import Optional, Union, Any
 import logging
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.detector.detections import Detections
+from learning_loop_node.globals import GLOBALS
 
 
 class Detector():
@@ -13,7 +14,7 @@ class Detector():
 
     def load_model(self):
         try:
-            model_information = ModelInformation.load_from_disk()
+            model_information = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
             try:
                 self.init(model_information)
                 self.current_model = model_information
