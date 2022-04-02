@@ -129,7 +129,8 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     created_files = []
     files = glob(f'{tmp_path}/**/*', recursive=True)
     for file in files:
-        logging.debug(f'moving model file {os.path.basename(file)} to training folder.')
-        new_file = shutil.move(file, target_folder)
+        target = target_folder + '/base_model.json' if file.endswith('model.json') else target_folder
+        new_file = shutil.move(file, target)
+        logging.info(f'moved model file {os.path.basename(file)} to {new_file}.')
         created_files.append(new_file)
     return created_files

@@ -9,7 +9,7 @@ from tqdm import tqdm
 from ..model_information import ModelInformation
 from .executor import Executor
 from .training import Training
-from .model import BasicModel, PretrainedModel
+from .model import BasicModel, Model, PretrainedModel
 from ..context import Context
 from ..node import Node
 from .downloader import TrainingsDownloader
@@ -30,30 +30,32 @@ class Trainer():
         self.model_format: str = model_format
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
-        self.source_model_id: str = None
 
-    async def begin_training(self, context: Context, source_model: dict) -> None:
+    async def begin_training(self, context: Context, base_model: dict) -> None:
         downloader = TrainingsDownloader(context)
         self.training = Trainer.generate_training(context)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
+        self.training.data.base_model = ModelInformation.parse_obj(base_model)
+        self.training.data.base_model.model_root_path = self.training.training_folder
+        logging.info(self.training.data.base_model.json())
+        self.training.data.base_model.save()
         self.executor = Executor(self.training.training_folder)
 
-        self.source_model_id = source_model['id']
-        if not is_valid_uuid4(self.source_model_id):
-            if self.source_model_id in [m.name for m in self.provided_pretrained_models]:
+        base_model_id = self.training.data.base_model.id
+        if not is_valid_uuid4(base_model_id):
+            if base_model_id in [m.name for m in self.provided_pretrained_models]:
                 logging.debug('Starting with pretrained model')
-                self.ensure_model_json()
-                await self.start_training_from_scratch(self.source_model_id)
+                self.ensure_model_json(base_model)
+                await self.start_training_from_scratch(base_model_id)
             else:
-                raise ValueError(f'Pretrained model {self.source_model_id} is not supported')
+                raise ValueError(f'Pretrained model {base_model_id} is not supported')
         else:
             logging.debug('loading model from Learning Loop')
-            logging.info(f'downloading model {self.source_model_id} as {self.model_format}')
-            await downloads.download_model(self.training.training_folder, context, self.source_model_id, self.model_format)
-            infos = ModelInformation.load_from_disk(self.training.training_folder)
-            self.training.data.categories = {c.name: c.id for c in infos.categories}
+            logging.info(f'downloading model {base_model_id} as {self.model_format}')
+            await downloads.download_model(self.training.training_folder, context, base_model_id, self.model_format)
             logging.info(f'starting training')
             await self.start_training()
+
         assert(len(self.training.data.categories) > 0, 'should have some categories')
         logging.info(f'training with categories: {self.training.data.categories}')
 

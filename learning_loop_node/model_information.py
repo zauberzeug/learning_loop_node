@@ -8,7 +8,7 @@ import json
 
 class ModelInformation(BaseModel):
     id: str
-    host: str
+    host: Optional[str]
     organization: str
     project: str
     version: str
@@ -38,3 +38,7 @@ class ModelInformation(BaseModel):
                     f"could not parse model information from file '{model_info_file_path}'. \n {str(e)}")
 
         return model_information
+
+    def save(self):
+        with open(self.model_root_path + '/model.json', 'w') as f:
+            f.write(self.json(exclude={'model_root_path'}))
