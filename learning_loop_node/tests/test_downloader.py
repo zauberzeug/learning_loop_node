@@ -54,29 +54,23 @@ async def test_download_model():
 
 
 @pytest.mark.asyncio
-async def test_download_basic_data(data_downloader: DataDownloader):
-    basic_data = await data_downloader.download_basic_data()
-
-    assert len(basic_data.image_ids) == 3
-    assert len(
-        basic_data.categories) == 6, 'Two box, two segmentation and two point categories'
+async def test_fetching_image_ids(data_downloader: DataDownloader):
+    ids = await data_downloader.fetch_image_ids()
+    assert len(ids) == 3
 
 
 @pytest.mark.asyncio
 async def test_download_images(data_downloader: DataDownloader):
     _, image_folder, _ = trainer_test_helper.create_needed_folders(
         GLOBALS.data_folder)
-
-    basic_data = await data_downloader.download_basic_data()
-    await data_downloader.download_images(basic_data.image_ids, image_folder)
+    image_ids = await data_downloader.fetch_image_ids()
+    await data_downloader.download_images(image_ids, image_folder)
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
-
     assert len(files) == 3
 
 
 @pytest.mark.asyncio
 async def test_download_training_data(data_downloader: DataDownloader):
-    basic_data = await data_downloader.download_basic_data()
-    image_data = await data_downloader.download_images_data(basic_data.image_ids)
-
+    image_ids = await data_downloader.fetch_image_ids()
+    image_data = await data_downloader.download_images_data(image_ids)
     assert len(image_data) == 3
