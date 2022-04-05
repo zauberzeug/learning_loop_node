@@ -43,7 +43,7 @@ async def test_download_model():
 
     file_1 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_1.txt'
     file_2 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_2.txt'
-    model_json = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/model.json'
+    model_json = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/base_model.json'
 
     assert file_1 in files
     assert file_2 in files
@@ -51,7 +51,7 @@ async def test_download_model():
 
     assert open(file_1, 'r').read() == 'content of file one'
     assert open(file_2, 'r').read() == 'content of file two'
-    assert '"format": "mocked"' in open(model_json, 'r').read(), 'should have model.json'
+    assert '"format": "mocked"' in open(model_json, 'r').read(), 'should have base_model.json'
 
 
 @pytest.mark.asyncio
