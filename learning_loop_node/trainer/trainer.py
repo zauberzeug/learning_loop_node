@@ -87,11 +87,19 @@ class Trainer():
 
     async def save_model(self,  context: Context, model_id: str) -> None:
         files = await asyncio.get_running_loop().run_in_executor(None, self.get_model_files, model_id)
+        model_json_content = self.create_model_json_content()
+        model_json_path = '/tmp/model.json'
+        with open(model_json_path, 'w') as f:
+            json.dump(model_json_content, f)
+
         if isinstance(files, list):
-            await uploads.upload_model(context, files, model_id, self.model_format)
-        elif isinstance(files, dict):
+            files = {self.model_format: files}
+
+        if isinstance(files, dict):
             for format in files:
-                await uploads.upload_model(context, files[format], model_id, format)
+                _files = [file for file in files[format] if not 'model.json' in file]
+                _files.append(model_json_path)
+                await uploads.upload_model(context, _files, model_id, format)
         else:
             raise TypeError(f'can only save model as list or dict, but was {files}')
 
@@ -206,3 +214,10 @@ class Trainer():
         training_folder = f'{project_folder}/trainings/{trainings_id}'
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
+
+    def create_model_json_content(self):
+        content = {
+            'categories': [c.dict() for c in self.training.data.categories],
+            'resolution': self.training.data.hyperparameter.resolution
+        }
+        return content
