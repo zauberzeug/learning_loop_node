@@ -131,9 +131,6 @@ class Trainer():
 
         If a trainer can also generate other formats (for example for an detector),
         a dictionary mapping format -> list of files can be returned.
-        Each format should contain a model.json in the file list. 
-        This file contains the trained resolution, categories including their learning loop ids to be robust about renamings etc.
-        Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
         '''
         raise NotImplementedError()
 
