@@ -26,7 +26,7 @@ class Detector():
             self.current_model = None
             logging.exception('An error occured during loading model.')
 
-    def init(self,  model_info: ModelInformation, model_root_path: str):
+    def init(self,  model_info: ModelInformation):
         raise NotImplementedError()
 
     def evaluate(self, image: Any) -> Detections:

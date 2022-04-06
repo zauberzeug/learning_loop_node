@@ -83,7 +83,8 @@ class TrainerNode(Node):
 
         try:
             result = self.trainer.stop_training()
-            if self.latest_known_model_id and self.trainer.training.data.base_model.id != self.latest_known_model_id:
+
+            if self.latest_known_model_id and self.trainer.training.base_model_id != self.latest_known_model_id:
                 if save_latest_model:
                     await self.update_state(State.Uploading)
                     await self.save_model(self.trainer.training.context, self.latest_known_model_id)

@@ -43,7 +43,7 @@ async def test_download_model():
 
     file_1 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_1.txt'
     file_2 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_2.txt'
-    model_json = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/base_model.json'
+    model_json = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/model.json'
 
     assert file_1 in files
     assert file_2 in files

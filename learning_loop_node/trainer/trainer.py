@@ -22,6 +22,8 @@ from glob import glob
 import json
 from fastapi.encoders import jsonable_encoder
 import shutil
+from learning_loop_node.data_classes.category import Category
+from learning_loop_node.trainer.hyperparameter import Hyperparameter
 
 
 class Trainer():
@@ -31,21 +33,20 @@ class Trainer():
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
 
-    async def begin_training(self, context: Context, base_model: dict) -> None:
+    async def begin_training(self, context: Context, details: dict) -> None:
         downloader = TrainingsDownloader(context)
         self.training = Trainer.generate_training(context)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
-        self.training.data.base_model = ModelInformation.parse_obj(base_model)
-        self.training.data.base_model.model_root_path = self.training.training_folder
-        logging.info(self.training.data.base_model.json())
-        self.training.data.base_model.save()
+        self.training.data.categories = Category.from_list(details['categories'])
+        self.training.data.hyperparameter = Hyperparameter(resolution=details['resolution'])
+        base_model_id = details['id']
+        self.training.base_model_id = base_model_id
+
         self.executor = Executor(self.training.training_folder)
 
-        base_model_id = self.training.data.base_model.id
         if not is_valid_uuid4(base_model_id):
             if base_model_id in [m.name for m in self.provided_pretrained_models]:
                 logging.debug('Starting with pretrained model')
-                self.ensure_model_json(base_model)
                 await self.start_training_from_scratch(base_model_id)
             else:
                 raise ValueError(f'Pretrained model {base_model_id} is not supported')
@@ -53,6 +54,9 @@ class Trainer():
             logging.debug('loading model from Learning Loop')
             logging.info(f'downloading model {base_model_id} as {self.model_format}')
             await downloads.download_model(self.training.training_folder, context, base_model_id, self.model_format)
+            shutil.move(f'{self.training.training_folder}/model.json',
+                        f'{self.training.training_folder}/base_model.json')
+
             logging.info(f'starting training')
             await self.start_training()
 
@@ -202,9 +206,3 @@ class Trainer():
         training_folder = f'{project_folder}/trainings/{trainings_id}'
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
-
-    def ensure_model_json(self):
-        modeljson_path = f'{self.training.training_folder}/model.json'
-        if not os.path.exists(modeljson_path):
-            with open(modeljson_path, 'w') as f:
-                f.write('{}')
