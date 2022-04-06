@@ -2,7 +2,6 @@ import pytest
 from learning_loop_node import DetectorNode, ModelInformation
 from learning_loop_node.detector import Outbox
 from learning_loop_node.data_classes import Category
-import pytest_asyncio
 from testing_detector import TestingDetector
 import uvicorn
 from multiprocessing import Process, log_to_stderr
@@ -27,7 +26,7 @@ def pytest_configure():
     pytest.detector_port = 5000
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
@@ -70,7 +69,7 @@ async def port_is(free: bool):
     raise Exception(f'port {pytest.detector_port} is {"not" if free else ""} free')
 
 
-@pytest_asyncio.fixture()
+@pytest.fixture()
 async def sio_client() -> Generator:
     sio = socketio.AsyncClient()
     try_connect = True
