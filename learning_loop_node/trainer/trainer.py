@@ -60,7 +60,6 @@ class Trainer():
             logging.info(f'starting training')
             await self.start_training()
 
-        assert(len(self.training.data.categories) > 0, 'should have some categories')
         logging.info(f'training with categories: {self.training.data.categories}')
 
     async def start_training(self) -> None:
