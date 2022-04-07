@@ -27,9 +27,9 @@ class TrainerNode(Node):
         self.latest_known_model_id = None
 
         @self.sio_client.on('begin_training')
-        async def on_begin_training(organization, project, source_model):
+        async def on_begin_training(organization: str, project: str, details: dict):
             loop = asyncio.get_event_loop()
-            loop.create_task(self.begin_training(Context(organization=organization, project=project), source_model))
+            loop.create_task(self.begin_training(Context(organization=organization, project=project), details))
             return True
 
         @self.sio_client.on('stop_training')
@@ -58,11 +58,11 @@ class TrainerNode(Node):
                 logging.exception('could not kill training.')
                 pass
 
-    async def begin_training(self, context: Context, source_model: dict):
+    async def begin_training(self, context: Context, details: dict):
         self.status.reset_error('start_training')
         await self.update_state(State.Preparing)
         try:
-            await self.trainer.begin_training(context, source_model)
+            await self.trainer.begin_training(context, details)
         except Exception as e:
             self.status.set_error('start_training', f'Could not start training: {str(e)})')
 
@@ -71,7 +71,7 @@ class TrainerNode(Node):
             await self.update_state(State.Idle)
             return
         # NOTE 'id' can also be a well known pretrained model identifier.
-        self.latest_known_model_id = source_model['id'] if is_valid_uuid4(source_model['id']) else None
+        self.latest_known_model_id = details['id'] if is_valid_uuid4(details['id']) else None
         await self.update_state(State.Running)
 
     async def stop_training(self, do_detections: bool = True, save_latest_model: bool = True) -> Union[bool, str]:
