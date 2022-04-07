@@ -97,7 +97,10 @@ class Trainer():
 
         if isinstance(files, dict):
             for format in files:
-                _files = [file for file in files[format] if not 'model.json' in file]
+                # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
+                assert len([file for file in files[format] if 'model.json' in file]) == 0, \
+                    "It is not allowed to provide a 'model.json' file."
+                _files = files[format]
                 _files.append(model_json_path)
                 await uploads.upload_model(context, _files, model_id, format)
         else:
