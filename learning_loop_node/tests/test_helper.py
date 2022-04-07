@@ -63,7 +63,9 @@ def prepare_formdata(file_paths: Optional[List[str]]) -> aiohttp.FormData:
     module_path = os.path.dirname(os.path.realpath(__file__))
     if not file_paths:
         file_paths = [f'{module_path}/test_data/file_1.txt',
-                      f'{module_path}/test_data/file_2.txt']
+                      f'{module_path}/test_data/file_2.txt',
+                      f'{module_path}/test_data/model.json']
+
     data = [('files', open(path, 'rb')) for path in file_paths]
     data = aiohttp.FormData()
     for path in file_paths:
