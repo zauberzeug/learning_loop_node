@@ -23,13 +23,6 @@ def default_user_input() -> UserInput:
     return UserInput(frontend_id='some_id', data=annotation_data)
 
 
-async def download_basic_data():
-    downloader = DataDownloader(Context(organization='zauberzeug', project='pytest'))
-    basic_data = await downloader.download_basic_data()
-    image_id = basic_data.image_ids[0]
-    ic(image_id)
-
-
 @pytest.mark.asyncio
 async def test_start_creating(create_project):
 

@@ -41,42 +41,37 @@ async def test_download_model():
     files = test_helper.get_files_in_folder(data_folder)
     assert len(files) == 3, str(files)
 
-    assert files[0] == data_folder + \
-        "/zauberzeug/pytest/trainings/some_uuid/file_1.txt"
-    assert files[1] == data_folder + \
-        "/zauberzeug/pytest/trainings/some_uuid/file_2.txt"
-    assert files[2] == data_folder + \
-        "/zauberzeug/pytest/trainings/some_uuid/model.json"
+    file_1 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_1.txt'
+    file_2 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_2.txt'
+    model_json = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/model.json'
 
-    assert open(files[0], 'r').read() == 'content of file one'
-    assert open(files[1], 'r').read() == 'content of file two'
-    assert '"format": "mocked"' in open(files[2], 'r').read(), 'should have model.json'
+    assert file_1 in files
+    assert file_2 in files
+    assert model_json in files
+
+    assert open(file_1, 'r').read() == 'content of file one'
+    assert open(file_2, 'r').read() == 'content of file two'
+    assert '"format": "mocked"' in open(model_json, 'r').read(), 'should have base_model.json'
 
 
 @pytest.mark.asyncio
-async def test_download_basic_data(data_downloader: DataDownloader):
-    basic_data = await data_downloader.download_basic_data()
-
-    assert len(basic_data.image_ids) == 3
-    assert len(
-        basic_data.categories) == 6, 'Two box, two segmentation and two point categories'
+async def test_fetching_image_ids(data_downloader: DataDownloader):
+    ids = await data_downloader.fetch_image_ids()
+    assert len(ids) == 3
 
 
 @pytest.mark.asyncio
 async def test_download_images(data_downloader: DataDownloader):
     _, image_folder, _ = trainer_test_helper.create_needed_folders(
         GLOBALS.data_folder)
-
-    basic_data = await data_downloader.download_basic_data()
-    await data_downloader.download_images(basic_data.image_ids, image_folder)
+    image_ids = await data_downloader.fetch_image_ids()
+    await data_downloader.download_images(image_ids, image_folder)
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
-
     assert len(files) == 3
 
 
 @pytest.mark.asyncio
 async def test_download_training_data(data_downloader: DataDownloader):
-    basic_data = await data_downloader.download_basic_data()
-    image_data = await data_downloader.download_images_data(basic_data.image_ids)
-
+    image_ids = await data_downloader.fetch_image_ids()
+    image_data = await data_downloader.download_images_data(image_ids)
     assert len(image_data) == 3
