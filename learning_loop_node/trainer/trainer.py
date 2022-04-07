@@ -60,7 +60,7 @@ class Trainer():
             logging.info(f'starting training')
             await self.start_training()
 
-        assert len(self.training.data.categories) > 0, 'should have some categories'
+        assert(len(self.training.data.categories) > 0, 'should have some categories')
         logging.info(f'training with categories: {self.training.data.categories}')
 
     async def start_training(self) -> None:
@@ -149,7 +149,6 @@ class Trainer():
             logging.exception('download error')
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
-            ic(content)
             model_information = ModelInformation.parse_obj(content)
 
         project_folder = Node.create_project_folder(context)
