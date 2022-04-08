@@ -9,7 +9,7 @@ from tqdm import tqdm
 from ..model_information import ModelInformation
 from .executor import Executor
 from .training import Training
-from .model import BasicModel, PretrainedModel
+from .model import BasicModel, Model, PretrainedModel
 from ..context import Context
 from ..node import Node
 from .downloader import TrainingsDownloader
@@ -22,6 +22,9 @@ from glob import glob
 import json
 from fastapi.encoders import jsonable_encoder
 import shutil
+from learning_loop_node.data_classes.category import Category
+from learning_loop_node.trainer.hyperparameter import Hyperparameter
+
 
 class Trainer():
 
@@ -29,28 +32,35 @@ class Trainer():
         self.model_format: str = model_format
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
-        self.source_model_id: str = None
 
-    async def begin_training(self, context: Context, source_model: dict) -> None:
+    async def begin_training(self, context: Context, details: dict) -> None:
         downloader = TrainingsDownloader(context)
-        self.training = Trainer.generate_training(context, source_model)
+        self.training = Trainer.generate_training(context)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
+        self.training.data.categories = Category.from_list(details['categories'])
+        self.training.data.hyperparameter = Hyperparameter(resolution=details['resolution'])
+        base_model_id = details['id']
+        self.training.base_model_id = base_model_id
+
         self.executor = Executor(self.training.training_folder)
 
-        self.source_model_id = source_model['id']
-        if not is_valid_uuid4(self.source_model_id):
-            if self.source_model_id in [m.name for m in self.provided_pretrained_models]:
-                logging.debug('Should start with pretrained model')
-                self.ensure_model_json()
-                await self.start_training_from_scratch(self.source_model_id)
+        if not is_valid_uuid4(base_model_id):
+            if base_model_id in [m.name for m in self.provided_pretrained_models]:
+                logging.debug('Starting with pretrained model')
+                await self.start_training_from_scratch(base_model_id)
             else:
-                raise ValueError(f'Pretrained model {self.source_model_id} is not supported')
+                raise ValueError(f'Pretrained model {base_model_id} is not supported')
         else:
-            logging.debug('Should start with loop model')
-            logging.info(f'downloading model {self.source_model_id} as {self.model_format}')
-            await downloads.download_model(self.training.training_folder, context, self.source_model_id, self.model_format)
-            logging.info(f'now starting training')
+            logging.debug('loading model from Learning Loop')
+            logging.info(f'downloading model {base_model_id} as {self.model_format}')
+            await downloads.download_model(self.training.training_folder, context, base_model_id, self.model_format)
+            shutil.move(f'{self.training.training_folder}/model.json',
+                        f'{self.training.training_folder}/base_model.json')
+
+            logging.info(f'starting training')
             await self.start_training()
+
+        logging.info(f'training with categories: {self.training.data.categories}')
 
     async def start_training(self) -> None:
         raise NotImplementedError()
@@ -76,11 +86,22 @@ class Trainer():
 
     async def save_model(self,  context: Context, model_id: str) -> None:
         files = await asyncio.get_running_loop().run_in_executor(None, self.get_model_files, model_id)
+        model_json_content = self.create_model_json_content()
+        model_json_path = '/tmp/model.json'
+        with open(model_json_path, 'w') as f:
+            json.dump(model_json_content, f)
+
         if isinstance(files, list):
-            await uploads.upload_model(context, files, model_id, self.model_format)
-        elif isinstance(files, dict):
+            files = {self.model_format: files}
+
+        if isinstance(files, dict):
             for format in files:
-                await uploads.upload_model(context, files[format], model_id, format)
+                # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
+                assert len([file for file in files[format] if 'model.json' in file]) == 0, \
+                    "It is not allowed to provide a 'model.json' file."
+                _files = files[format]
+                _files.append(model_json_path)
+                await uploads.upload_model(context, _files, model_id, format)
         else:
             raise TypeError(f'can only save model as list or dict, but was {files}')
 
@@ -112,15 +133,12 @@ class Trainer():
 
         If a trainer can also generate other formats (for example for an detector),
         a dictionary mapping format -> list of files can be returned.
-        Each format should contain a model.json in the file list. 
-        This file contains the trained resolution, categories including their learning loop ids to be robust about renamings etc.
-        Example: {"resolution": 832, "categories":[{"name": "A", "id": "<a uuid>", "type": "box"}]}
         '''
         raise NotImplementedError()
 
     async def do_detections(self, context: Context, model_id: str, model_format: str):
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{model_format}'
-        
+
         shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
         logging.info('downloading model for detecting')
@@ -137,12 +155,13 @@ class Trainer():
         downloader = DataDownloader(context)
         image_ids = []
         for state in ['inbox', 'annotate', 'review', 'complete']:
-            basic_data = await downloader.download_basic_data(query_params=f'state={state}')
-            image_ids += basic_data.image_ids
-            await downloader.download_images(basic_data.image_ids, image_folder)
-        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True) if os.path.splitext(os.path.basename(img))[0] in image_ids]
+            new_ids = await downloader.fetch_image_ids(query_params=f'state={state}')
+            image_ids += new_ids
+            await downloader.download_images(new_ids, image_folder)
+        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
+                  if os.path.splitext(os.path.basename(img))[0] in image_ids]
         logging.info(f'running detections on {len(images)} images')
-        detections = await self._detect(model_information, images, tmp_folder) 
+        detections = await self._detect(model_information, images, tmp_folder)
         logging.info(f'uploading {len(detections)} detections')
         await self._upload_detections(context, jsonable_encoder(detections))
         return detections
@@ -178,7 +197,7 @@ class Trainer():
         raise NotImplementedError()
 
     @staticmethod
-    def generate_training(context: Context, source_model: dict) -> Training:
+    def generate_training(context: Context) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
         return Training(
@@ -195,8 +214,9 @@ class Trainer():
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
 
-    def ensure_model_json(self):
-        modeljson_path = f'{self.training.training_folder}/model.json'
-        if not os.path.exists(modeljson_path):
-            with open(modeljson_path, 'w') as f:
-                f.write('{}')
+    def create_model_json_content(self):
+        content = {
+            'categories': [c.dict() for c in self.training.data.categories],
+            'resolution': self.training.data.hyperparameter.resolution
+        }
+        return content

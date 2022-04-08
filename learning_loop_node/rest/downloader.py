@@ -4,7 +4,6 @@ import os
 from glob import glob
 import asyncio
 from learning_loop_node.context import Context
-from learning_loop_node.data_classes.basic_data import BasicData
 from learning_loop_node.loop import loop
 from learning_loop_node.rest import downloads
 from learning_loop_node import node_helper
@@ -18,11 +17,10 @@ class DataDownloader():
     def __init__(self, context: Context):
         self.context = context
 
-    async def download_basic_data(self, query_params: Optional[str] = '') -> BasicData:
+    async def fetch_image_ids(self, query_params: Optional[str] = '') -> List[str]:
         async with loop.get(f'api/{self.context.organization}/projects/{self.context.project}/data?{query_params}') as response:
             assert response.status == 200, response
-            basic_data = BasicData.parse_obj(await response.json())
-            return basic_data
+            return (await response.json())['image_ids']
 
     async def download_images_data(self, ids: List[str]) -> List[dict]:
         return await downloads.download_images_data(self.context.organization, self.context.project, ids)

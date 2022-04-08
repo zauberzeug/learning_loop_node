@@ -8,13 +8,13 @@ def increment_time(trainer: Trainer, latest_known_confusion_matrix: dict) -> Bas
         return None
 
     confusion_matrix = {}
-    for key, value in trainer.training.data.categories.items():
+    for category in trainer.training.data.categories:
         try:
-            minimum = latest_known_confusion_matrix[value]['tp']
+            minimum = latest_known_confusion_matrix[category.id]['tp']
         except:
             minimum = 0
         maximum = minimum + 1
-        confusion_matrix[value] = {
+        confusion_matrix[category.id] = {
             'tp': random.randint(minimum, maximum),
             'fp': max(random.randint(10-maximum, 10-minimum), 2),
             'fn': max(random.randint(10-maximum, 10-minimum), 2),
