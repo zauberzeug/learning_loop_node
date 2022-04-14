@@ -20,9 +20,13 @@ async def http_detect(
     """
     Example Usage
 
-        curl --request POST -H 'camera-id: FF:FF' -F 'file=@test.jpg' localhost:8004/detect
+        curl --request POST -F 'file=@test.jpg' localhost:8004/detect
 
-        for i in `seq 1 10`; do time curl --request POST -H 'camera_id: FF:FF' -F 'file=@test.jpg' localhost:8004/detect; done
+        for i in `seq 1 10`; do time curl --request POST -F 'file=@test.jpg' localhost:8004/detect; done
+
+        You can additionally provide the following camera parameters:
+          - `submission-criteria`: a comma seperated string defining criteria for submission to the learning loop; by default all cirteria are active: `novel,uncertain` (example curl parameter `-H 'submission-criteria: novel'`)
+          - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
     """
     try:
         np_image = np.fromfile(file.file, np.uint8)
