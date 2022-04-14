@@ -204,7 +204,7 @@ class DetectorNode(Node):
         else:
             subprocess.call(['touch', '/app/main.py'])
 
-    async def get_detections(self, raw_image, camera_id: str, tags: str, submission_criteria: str = 'novel,unsure'):
+    async def get_detections(self, raw_image, camera_id: str, tags: str, submission_criteria: str = DEFAULT_SUBMISSION_CRITERIA):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)

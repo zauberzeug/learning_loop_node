@@ -128,8 +128,6 @@ def test_getting_():
         f'Active Learning should be done due to low confidence'
     assert len(group.low_conf_observations) == 1, 'detection should be stored'
 
-    filter_cause = group.add_point_detections(
-        [PointDetection('point', 104, 98, 'xyz', 0.3)])
-    assert len(
-        group.low_conf_observations) == 1, f'detection should already be stored'
+    filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
+    assert len(group.low_conf_observations) == 1, f'detection should already be stored'
     assert filter_cause == []
