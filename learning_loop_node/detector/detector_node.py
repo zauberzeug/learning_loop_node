@@ -4,7 +4,7 @@ from .rest.operation_mode import OperationMode
 from .detector import Detector
 from .rest import detect, upload, operation_mode
 from ..socket_response import SocketResponse
-from ..inbox_filter.relevance_filter import RelevanceFilter
+from ..inbox_filter.relevance_filter import RelevanceFilter, DEFAULT_SUBMISSION_CRITERIA
 from ..rest import downloads
 from ..node import Node
 from ..status import State
@@ -77,6 +77,7 @@ class DetectorNode(Node):
                     raw_image=np_image,
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
+                    submission_criteria=data.get('submission-criteria', DEFAULT_SUBMISSION_CRITERIA),
                 )
             except Exception as e:
                 logging.exception('could not detect via socketio')
@@ -203,14 +204,15 @@ class DetectorNode(Node):
         else:
             subprocess.call(['touch', '/app/main.py'])
 
-    async def get_detections(self, raw_image, camera_id: str, tags: str):
+    async def get_detections(self, raw_image, camera_id: str, tags: str, submission_criteria: str = 'novel,unsure'):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
         info = "\n    ".join([str(d) for d in detections.box_detections + detections.point_detections])
         logging.info(f'detected:\n    {info}')
 
-        thread = Thread(target=self.relevance_filter.learn, args=(detections, camera_id, tags, raw_image))
+        thread = Thread(target=self.relevance_filter.learn, args=(
+            detections, camera_id, tags, raw_image, submission_criteria))
         thread.start()
 
         return jsonable_encoder(detections)

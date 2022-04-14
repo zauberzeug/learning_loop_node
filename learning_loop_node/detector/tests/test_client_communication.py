@@ -19,8 +19,7 @@ async def test_sio_detect(test_detector_node: DetectorNode, sio_client):
     assert result['box_detections'][0]['category_id'] == 'some_id'
 
 
-@pytest.mark.parametrize('grouping_key', 'mac')
-@pytest.mark.parametrize('grouping_key', 'camera_id')
+@pytest.mark.parametrize('grouping_key', ['mac', 'camera_id'])
 def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     image = {('file', open('detector/tests/test.jpg', 'rb'))}
     headers = {grouping_key: '0:0:0:0', 'tags':  'some_tag'}

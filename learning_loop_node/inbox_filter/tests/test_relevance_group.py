@@ -1,8 +1,8 @@
 # group Tests incoming
 from datetime import datetime, timedelta
-from inbox_filter.relevance_group import RelevanceGroup
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
+from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
 
 dirt_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .3)
 second_dirt_detection = BoxDetection('dirt', 0, 20, 10, 10, 'xyz', .35)
@@ -14,9 +14,9 @@ def test_group_confidence():
     group = RelevanceGroup()
     assert len(group.low_conf_observations) == 0
 
-    filter_cause = group.add_box_detections([dirt_detection])
-    assert filter_cause == ['lowConfidence'], \
-        f'Active Learning should be done due to lowConfidence'
+    filter_cause = group.add_box_detections([dirt_detection], criteria='uncertain,novel     ')
+    assert filter_cause == ['uncertain'], \
+        f'Active Learning should be done due to uncertain'
     assert len(group.low_conf_observations) == 1, 'Detection should be stored'
 
     filter_cause = group.add_box_detections([dirt_detection])
@@ -40,20 +40,18 @@ def test_group_confidence():
 def test_add_second_detection_to_group():
     group = RelevanceGroup()
     assert len(group.low_conf_observations) == 0
-    group.add_box_detections([dirt_detection])
+    group.add_box_detections([dirt_detection], criteria='novel')
     assert len(group.low_conf_observations) == 1, 'Detection should be stored'
-    group.add_box_detections([second_dirt_detection])
-    assert len(
-        group.low_conf_observations) == 2, 'Second detection should be stored'
+    group.add_box_detections([second_dirt_detection], criteria='novel')
+    assert len(group.low_conf_observations) == 2, 'Second detection should be stored'
 
 
 def test_forget_old_detections():
     group = RelevanceGroup()
     assert len(group.low_conf_observations) == 0
 
-    filter_cause = group.add_box_detections([dirt_detection])
-    assert filter_cause == [
-        'lowConfidence'], f'Active Learning should be done due to lowConfidence.'
+    filter_cause = group.add_box_detections([dirt_detection], criteria='uncertain,novel')
+    assert filter_cause == ['uncertain'], f'Active Learning should be done due to uncertain.'
 
     assert len(group.low_conf_observations) == 1
 
@@ -96,16 +94,37 @@ def test_active_group_extracts_from_json():
     groups = {camera_id: RelevanceGroup()}
 
     filter_cause = groups[camera_id].add_box_detections(
-        [BoxDetection.from_dict(_detection) for _detection in detections])
+        [BoxDetection.from_dict(_detection) for _detection in detections],
+        criteria='uncertain'
+    )
 
-    assert filter_cause == ['lowConfidence']
+    assert filter_cause == ['uncertain']
 
 
 def test_ignoring_similar_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
-        [PointDetection('point', 100, 100, 'xyz', 0.3)])
-    assert filter_cause == ['lowConfidence'], \
+        [PointDetection('point', 100, 100, 'xyz', 0.3)],
+        criteria='uncertain,novel'
+    )
+    assert filter_cause == ['uncertain'], \
+        f'Active Learning should be done due to low confidence'
+    assert len(group.low_conf_observations) == 1, 'detection should be stored'
+
+    filter_cause = group.add_point_detections(
+        [PointDetection('point', 104, 98, 'xyz', 0.3)])
+    assert len(
+        group.low_conf_observations) == 1, f'detection should already be stored'
+    assert filter_cause == []
+
+
+def test_getting_():
+    group = RelevanceGroup()
+    filter_cause = group.add_point_detections(
+        [PointDetection('point', 100, 100, 'xyz', 0.3)],
+        criteria='uncertain,novel'
+    )
+    assert filter_cause == ['uncertain'], \
         f'Active Learning should be done due to low confidence'
     assert len(group.low_conf_observations) == 1, 'detection should be stored'
 
