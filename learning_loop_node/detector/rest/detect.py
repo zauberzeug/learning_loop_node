@@ -15,7 +15,7 @@ async def http_detect(
     camera_id: Optional[str] = Header(None),
     mac: Optional[str] = Header(None),
     tags: Optional[str] = Header(None),
-    submission_criteria: Optional[str] = Header(None),
+    autoupload: Optional[str] = Header(None),
 ):
     """
     Example Usage
@@ -25,7 +25,7 @@ async def http_detect(
         for i in `seq 1 10`; do time curl --request POST -F 'file=@test.jpg' localhost:8004/detect; done
 
         You can additionally provide the following camera parameters:
-          - `submission-criteria`: a comma seperated string defining criteria for submission to the learning loop; by default all cirteria are active: `novel,uncertain` (example curl parameter `-H 'submission-criteria: novel'`)
+          - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
           - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
     """
     try:
@@ -36,6 +36,6 @@ async def http_detect(
         raw_image=np_image,
         camera_id=camera_id or mac or None,
         tags=tags.split(',') if tags else [],
-        submission_criteria=submission_criteria or relevance_filter.DEFAULT_SUBMISSION_CRITERIA,
+        autoupload=autoupload,
     )
     return JSONResponse(detections)

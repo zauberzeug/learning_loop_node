@@ -26,10 +26,10 @@ async def test_node_can_be_queried_without_any_filter(test_detector_node: Detect
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
     image = np.fromfile('detector/tests/test.jpg', np.uint8)
-    _ = await test_detector_node.get_detections(image, '00:.....', tags=[], submission_criteria='')
+    _ = await test_detector_node.get_detections(image, '00:.....', tags=[], autoupload='all')
     # NOTE adding second images with identical detections
-    _ = await test_detector_node.get_detections(image, '00:.....', tags=[], submission_criteria='')
+    _ = await test_detector_node.get_detections(image, '00:.....', tags=[], autoupload='all')
     await asyncio.sleep(1)  # files are stored asynchronously
 
     assert len(get_outbox_files(test_detector_node.outbox)) == 4,\
-        'without submission criteria there should be 2 images and 2 .json file in the outbox'
+        'there should be 2 images and 2 .json file in the outbox'

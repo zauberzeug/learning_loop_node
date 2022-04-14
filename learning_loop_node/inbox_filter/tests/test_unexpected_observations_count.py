@@ -17,8 +17,8 @@ low_conf_point_detection = PointDetection('point', 100, 100, 'xyz', .3)
                           (Detections(box_detections=[high_conf_box_detection],
                                       point_detections=[high_conf_point_detection]), []),
                           (Detections(box_detections=[high_conf_box_detection]*40, point_detections=[
-                              low_conf_point_detection]*40), ['unexpectedObservationsCount']),
-                          (Detections(box_detections=[high_conf_box_detection], point_detections=[low_conf_point_detection]), [])])
+                              low_conf_point_detection]*40), ['uncertain', 'unexpectedObservationsCount']),
+                          (Detections(box_detections=[high_conf_box_detection], point_detections=[low_conf_point_detection]), ['uncertain'])])
 def test_unexpected_observations_count(detections: Detections, reason: List[str]):
     filter = RelevanceFilter(Outbox())
     assert filter.learn(detections, raw_image=b'', camera_id='0:0:0:0', tags=[]) == reason
