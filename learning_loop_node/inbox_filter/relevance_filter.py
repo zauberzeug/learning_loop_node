@@ -24,14 +24,15 @@ class RelevanceFilter():
         {group.forget_old_detections() for (_, group) in self.groups.items()}
         if camera_id not in self.groups:
             self.groups[camera_id] = RelevanceGroup()
-        filter_causes = self.groups[camera_id].add_detections(detections, criteria=submission_criteria)
+        causes = self.groups[camera_id].add_detections(detections, criteria=submission_criteria)
         if len(detections) >= 80:
-            filter_causes.append('unexpectedObservationsCount')
-        if any(filter_causes):
+            causes.append('unexpectedObservationsCount')
+        if len(causes) > 0 or submission_criteria == '':  # NOTE if no criteria are defined, all images are taken
+            if len(causes) > 0:
+                tags.append(*causes)
             tags.append(camera_id)
-            tags.append(*filter_causes)
             self.outbox.save(raw_image, detections, tags)
-        return filter_causes
+        return causes
 
     def reset(self) -> None:
         self.learners = {}

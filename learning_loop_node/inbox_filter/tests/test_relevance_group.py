@@ -118,7 +118,7 @@ def test_ignoring_similar_points():
     assert filter_cause == []
 
 
-def test_getting_():
+def test_getting_low_confidence_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
         [PointDetection('point', 100, 100, 'xyz', 0.3)],
@@ -131,3 +131,4 @@ def test_getting_():
     filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
     assert len(group.low_conf_observations) == 1, f'detection should already be stored'
     assert filter_cause == []
+

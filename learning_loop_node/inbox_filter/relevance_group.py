@@ -23,7 +23,7 @@ class RelevanceGroup:
         return self.add_detections(Detections(point_detections=point_detections), criteria=criteria)
 
     def add_detections(self, detections: Detections, criteria: str = '') -> List[str]:
-        active_learning_causes = set()
+        because = set()
         for detection in detections.box_detections + detections.point_detections:
             if 'novel' in criteria:
                 similar = self.find_similar_observations(detection)
@@ -33,8 +33,8 @@ class RelevanceGroup:
                 else:
                     self.low_conf_observations.append(Observation(detection))
             if 'uncertain' in criteria and 0.3 <= detection.confidence <= .6:
-                active_learning_causes.add('uncertain')
-        return list(active_learning_causes)
+                because.add('uncertain')
+        return list(because)
 
     def find_similar_observations(self, new_detection: BoxDetection):
         return [
