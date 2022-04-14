@@ -5,7 +5,7 @@ from ..detector.point_detection import PointDetection
 from ..detector.detections import Detections
 
 
-class RelevantsGroup:
+class RelevanceGroup:
     def __init__(self):
         self.reset_time = 3600
         self.low_conf_observations: List[Observation] = []

@@ -2,13 +2,13 @@ from typing import List, Optional
 
 from ..detector.outbox import Outbox
 from ..detector.detections import Detections
-from .relevants_group import RelevantsGroup
+from .relevance_group import RelevanceGroup
 
 
-class RelevantsFilter():
+class RelevanceFilter():
 
     def __init__(self, outbox: Outbox) -> None:
-        self.groups: dict = {}
+        self.groups: dict[str, RelevanceGroup] = {}
         self.outbox: Outbox = outbox
 
     def learn(self, detections: Detections, mac: str, tags: Optional[str], raw_image: bytes) -> None:
@@ -22,12 +22,12 @@ class RelevantsFilter():
 
         {group.forget_old_detections() for (mac, group) in self.groups.items()}
         if mac not in self.groups:
-            self.groups[mac] = RelevantsGroup()
+            self.groups[mac] = RelevanceGroup()
 
         filter_causes = self.groups[mac].add_detections(detections)
 
         if len(detections) >= 80:
-                filter_causes.append('unexpectedObservationsCount')
+            filter_causes.append('unexpectedObservationsCount')
 
         return filter_causes
 

@@ -1,6 +1,6 @@
 # group Tests incoming
 from datetime import datetime, timedelta
-from learning_loop_node.inbox_filter.relevants_group import RelevantsGroup
+from inbox_filter.relevance_group import RelevanceGroup
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
 
@@ -11,7 +11,7 @@ conf_too_low_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .29)
 
 
 def test_group_confidence():
-    group = RelevantsGroup()
+    group = RelevanceGroup()
     assert len(group.low_conf_observations) == 0
 
     filter_cause = group.add_box_detections([dirt_detection])
@@ -38,7 +38,7 @@ def test_group_confidence():
 
 
 def test_add_second_detection_to_group():
-    group = RelevantsGroup()
+    group = RelevanceGroup()
     assert len(group.low_conf_observations) == 0
     group.add_box_detections([dirt_detection])
     assert len(group.low_conf_observations) == 1, 'Detection should be stored'
@@ -48,7 +48,7 @@ def test_add_second_detection_to_group():
 
 
 def test_forget_old_detections():
-    group = RelevantsGroup()
+    group = RelevanceGroup()
     assert len(group.low_conf_observations) == 0
 
     filter_cause = group.add_box_detections([dirt_detection])
@@ -93,7 +93,7 @@ def test_active_group_extracts_from_json():
          "confidence": .2}]
 
     mac = '0000'
-    groups = {mac: RelevantsGroup()}
+    groups = {mac: RelevanceGroup()}
 
     filter_cause = groups[mac].add_box_detections(
         [BoxDetection.from_dict(_detection) for _detection in detections])
@@ -102,7 +102,7 @@ def test_active_group_extracts_from_json():
 
 
 def test_ignoring_similar_points():
-    group = RelevantsGroup()
+    group = RelevanceGroup()
     filter_cause = group.add_point_detections(
         [PointDetection('point', 100, 100, 'xyz', 0.3)])
     assert filter_cause == ['lowConfidence'], \

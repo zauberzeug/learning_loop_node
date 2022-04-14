@@ -4,7 +4,7 @@ from .rest.operation_mode import OperationMode
 from .detector import Detector
 from .rest import detect, upload, operation_mode
 from ..socket_response import SocketResponse
-from ..inbox_filter.relevants_filter import RelevantsFilter
+from ..inbox_filter.relevance_filter import RelevanceFilter
 from ..rest import downloads
 from ..node import Node
 from ..status import State
@@ -43,7 +43,7 @@ class DetectorNode(Node):
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
         self.outbox: Outbox = Outbox()
-        self.relevants_filter: RelevantsFilter = RelevantsFilter(self.outbox)
+        self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
         self.target_model = None
         self.include_router(detect.router, tags=["detect"])
         self.include_router(upload.router, prefix="")
@@ -206,7 +206,7 @@ class DetectorNode(Node):
         info = "\n    ".join([str(d) for d in detections.box_detections + detections.point_detections])
         logging.info(f'detected:\n    {info}')
 
-        thread = Thread(target=self.relevants_filter.learn, args=(detections, mac, tags, raw_image))
+        thread = Thread(target=self.relevance_filter.learn, args=(detections, mac, tags, raw_image))
         thread.start()
 
         return jsonable_encoder(detections)

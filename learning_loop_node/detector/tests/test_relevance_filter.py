@@ -6,7 +6,7 @@ import asyncio
 
 
 @pytest.mark.asyncio
-async def test_relevants_filter_is_used_by_node(test_detector_node: DetectorNode):
+async def test_relevance_filter_is_used_by_node(test_detector_node: DetectorNode):
     assert test_detector_node.outbox.path.startswith('/tmp')
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
