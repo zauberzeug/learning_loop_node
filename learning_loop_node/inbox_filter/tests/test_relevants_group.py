@@ -92,10 +92,10 @@ def test_active_group_extracts_from_json():
          "model_name": "some_weightfile",
          "confidence": .2}]
 
-    mac = '0000'
-    groups = {mac: RelevanceGroup()}
+    camera_id = '0000'
+    groups = {camera_id: RelevanceGroup()}
 
-    filter_cause = groups[mac].add_box_detections(
+    filter_cause = groups[camera_id].add_box_detections(
         [BoxDetection.from_dict(_detection) for _detection in detections])
 
     assert filter_cause == ['lowConfidence']

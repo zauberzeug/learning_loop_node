@@ -73,7 +73,11 @@ class DetectorNode(Node):
         async def _detect(sid, data) -> None:
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
-                return await self.get_detections(np_image, data.get('mac', None), data.get('tags', []))
+                return await self.get_detections(
+                    raw_image=np_image,
+                    camera_id=data.get('camera-id', None) or data.get('mac', None),
+                    tags=data.get('tags', []),
+                )
             except Exception as e:
                 logging.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
@@ -199,14 +203,14 @@ class DetectorNode(Node):
         else:
             subprocess.call(['touch', '/app/main.py'])
 
-    async def get_detections(self, raw_image, mac: str, tags: str):
+    async def get_detections(self, raw_image, camera_id: str, tags: str):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
         info = "\n    ".join([str(d) for d in detections.box_detections + detections.point_detections])
         logging.info(f'detected:\n    {info}')
 
-        thread = Thread(target=self.relevance_filter.learn, args=(detections, mac, tags, raw_image))
+        thread = Thread(target=self.relevance_filter.learn, args=(detections, camera_id, tags, raw_image))
         thread.start()
 
         return jsonable_encoder(detections)

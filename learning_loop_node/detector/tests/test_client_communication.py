@@ -9,17 +9,6 @@ def test_detector_path(test_detector_node: DetectorNode):
     assert test_detector_node.outbox.path.startswith('/tmp')
 
 
-def test_rest_detect(test_detector_node: DetectorNode):
-    image = {('file', open('detector/tests/test.jpg', 'rb'))}
-    headers = {'mac': '0:0:0:0', 'tags':  'some_tag'}
-    request = requests.post(f'http://localhost:{pytest.detector_port}/detect', files=image, headers=headers)
-    assert request.status_code == 200
-
-    json_content = json.loads(request.content.decode('utf-8'))
-    assert len(json_content['box_detections']) == 1
-    assert json_content['box_detections'][0]['category_name'] == 'some_category_name'
-
-
 @pytest.mark.asyncio
 async def test_sio_detect(test_detector_node: DetectorNode, sio_client):
     with open('detector/tests/test.jpg', 'rb') as f:
@@ -30,9 +19,11 @@ async def test_sio_detect(test_detector_node: DetectorNode, sio_client):
     assert result['box_detections'][0]['category_id'] == 'some_id'
 
 
-def test_rest_detect(test_detector_node: DetectorNode):
+@pytest.mark.parametrize('grouping_key', 'mac')
+@pytest.mark.parametrize('grouping_key', 'camera_id')
+def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     image = {('file', open('detector/tests/test.jpg', 'rb'))}
-    headers = {'mac': '0:0:0:0', 'tags':  'some_tag'}
+    headers = {grouping_key: '0:0:0:0', 'tags':  'some_tag'}
     response = requests.post(f'http://localhost:{pytest.detector_port}/detect', files=image, headers=headers)
     assert response.status_code == 200
     result = response.json()
