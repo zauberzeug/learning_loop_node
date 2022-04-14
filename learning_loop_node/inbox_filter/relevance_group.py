@@ -26,9 +26,7 @@ class RelevanceGroup:
         active_learning_causes = set()
         for detection in detections.box_detections + detections.point_detections:
             if 'novel' in criteria:
-                ic()
                 similar = self.find_similar_observations(detection)
-                ic(similar)
                 if(any(similar)):
                     [s.update_last_seen() for s in similar]
                     continue
