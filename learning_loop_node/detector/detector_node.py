@@ -204,15 +204,17 @@ class DetectorNode(Node):
         else:
             subprocess.call(['touch', '/app/main.py'])
 
-    async def get_detections(self, raw_image, camera_id: str, tags: str, submission_criteria: str = DEFAULT_SUBMISSION_CRITERIA):
+    async def get_detections(self, raw_image, camera_id: str, tags: str, submission_criteria: str = None):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
         info = "\n    ".join([str(d) for d in detections.box_detections + detections.point_detections])
         logging.info(f'detected:\n    {info}')
 
-        thread = Thread(target=self.relevance_filter.learn, args=(
-            detections, camera_id, tags, raw_image, submission_criteria))
+        thread = Thread(
+            target=self.relevance_filter.learn,
+            args=(detections, camera_id, tags, raw_image, submission_criteria or DEFAULT_SUBMISSION_CRITERIA)
+        )
         thread.start()
 
         return jsonable_encoder(detections)
