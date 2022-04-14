@@ -12,7 +12,7 @@ async def test_relevance_filter_is_used_by_node(test_detector_node: DetectorNode
 
     image = np.fromfile('detector/tests/test.jpg', np.uint8)
     _detections = await test_detector_node.get_detections(image, '00:.....', tags=[])
-    await asyncio.sleep(0.1)  # files are stored asynchronously
+    await asyncio.sleep(1)  # files are stored asynchronously
 
     assert len(get_outbox_files(test_detector_node.outbox)) == 2,\
         'There should be 1 image and 1 .json file in the outbox'
