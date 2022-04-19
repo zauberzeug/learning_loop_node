@@ -31,7 +31,8 @@ async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
-    model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1', categories=[Category(id='some_id', name='some_category_name')])
+    model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug',
+                                  project='test', version='1', categories=[Category(id='some_id', name='some_category_name')])
     det = TestingDetector()
     det.init(model_info=model_info, model_root_path='')
     node = DetectorNode(name='test', detector=det)
@@ -47,7 +48,10 @@ async def test_detector_node():
     await port_is(free=False)
     yield node
     await node.sio_client.disconnect()
-    proc.kill()
+    try:
+        proc.kill()
+    except:  # for python 3.6
+        proc.terminate()
     proc.join()
 
 # from https://stackoverflow.com/a/52872579/364388

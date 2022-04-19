@@ -38,7 +38,8 @@ class Trainer():
         self.training = Trainer.generate_training(context)
         self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.training.data.categories = Category.from_list(details['categories'])
-        self.training.data.hyperparameter = Hyperparameter(resolution=details['resolution'])
+        self.training.data.hyperparameter = Hyperparameter.from_dict(details)
+
         base_model_id = details['id']
         self.training.base_model_id = base_model_id
 

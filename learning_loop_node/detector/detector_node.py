@@ -1,10 +1,11 @@
+from enum import auto
 from . import Detections
 from . import Outbox
 from .rest.operation_mode import OperationMode
 from .detector import Detector
 from .rest import detect, upload, operation_mode
 from ..socket_response import SocketResponse
-from ..inbox_filter.relevants_filter import RelevantsFilter
+from ..inbox_filter.relevance_filter import RelevanceFilter
 from ..rest import downloads
 from ..node import Node
 from ..status import State
@@ -43,7 +44,7 @@ class DetectorNode(Node):
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
         self.outbox: Outbox = Outbox()
-        self.relevants_filter: RelevantsFilter = RelevantsFilter(self.outbox)
+        self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
         self.target_model = None
         self.include_router(detect.router, tags=["detect"])
         self.include_router(upload.router, prefix="")
@@ -73,7 +74,12 @@ class DetectorNode(Node):
         async def _detect(sid, data) -> None:
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
-                return await self.get_detections(np_image, data.get('mac', None), data.get('tags', []))
+                return await self.get_detections(
+                    raw_image=np_image,
+                    camera_id=data.get('camera-id', None) or data.get('mac', None),
+                    tags=data.get('tags', []),
+                    autoupload=data.get('autoupload', None),
+                )
             except Exception as e:
                 logging.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
@@ -199,16 +205,22 @@ class DetectorNode(Node):
         else:
             subprocess.call(['touch', '/app/main.py'])
 
-    async def get_detections(self, raw_image, mac: str, tags: str):
+    async def get_detections(self, raw_image, camera_id: str, tags: str, autoupload: str = None):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
         info = "\n    ".join([str(d) for d in detections.box_detections + detections.point_detections])
         logging.info(f'detected:\n    {info}')
-
-        thread = Thread(target=self.relevants_filter.learn, args=(detections, mac, tags, raw_image))
-        thread.start()
-
+        if camera_id is not None:
+            tags.append(camera_id)
+        if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
+            Thread(target=self.relevance_filter.learn, args=(detections, camera_id, tags, raw_image)).start()
+        elif autoupload == 'all':
+            Thread(target=self.outbox.save, args=(raw_image, detections, tags)).start()
+        elif autoupload == 'disabled':
+            pass
+        else:
+            logging.warning(f'unknown autoupload value {autoupload}')
         return jsonable_encoder(detections)
 
     async def upload_images(self, images: List[bytes]):
