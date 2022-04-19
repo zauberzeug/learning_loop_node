@@ -15,25 +15,19 @@ def test_group_confidence():
     assert len(group.recent_observations) == 0
 
     filter_cause = group.add_box_detections([dirt_detection])
-    assert filter_cause == ['uncertain'], \
-        f'Active Learning should be done due to uncertain'
+    assert filter_cause == ['uncertain'], f'Active Learning should be done due to uncertain'
     assert len(group.recent_observations) == 1, 'Detection should be stored'
 
     filter_cause = group.add_box_detections([dirt_detection])
-    assert len(
-        group.recent_observations) == 1, f'Detection should already be stored'
+    assert len(group.recent_observations) == 1, f'Detection should already be stored'
     assert filter_cause == []
 
-    filter_cause = group.add_box_detections(
-        [conf_too_low_detection])
-    assert len(
-        group.recent_observations) == 1, f'Confidence of detection too low'
+    filter_cause = group.add_box_detections([conf_too_low_detection])
+    assert len(group.recent_observations) == 1, 'Confidence of detection too low'
     assert filter_cause == []
 
-    filter_cause = group.add_box_detections(
-        [conf_too_high_detection])
-    assert len(
-        group.recent_observations) == 1, f'Confidence of detection too high'
+    filter_cause = group.add_box_detections([conf_too_high_detection])
+    assert len(group.recent_observations) == 1, 'Confidence of detection too high'
     assert filter_cause == []
 
 
@@ -51,17 +45,15 @@ def test_forget_old_detections():
     assert len(group.recent_observations) == 0
 
     filter_cause = group.add_box_detections([dirt_detection])
-    assert filter_cause == ['uncertain'], f'Active Learning should be done due to uncertain.'
+    assert filter_cause == ['uncertain'], 'Active Learning should be done due to uncertain.'
 
     assert len(group.recent_observations) == 1
 
-    group.recent_observations[0].last_seen = datetime.now(
-    ) - timedelta(minutes=30)
+    group.recent_observations[0].last_seen = datetime.now() - timedelta(minutes=30)
     group.forget_old_detections()
     assert len(group.recent_observations) == 1
 
-    group.recent_observations[0].last_seen = datetime.now(
-    ) - timedelta(hours=1, minutes=1)
+    group.recent_observations[0].last_seen = datetime.now() - timedelta(hours=1, minutes=1)
     group.forget_old_detections()
     assert len(group.recent_observations) == 0
 
@@ -105,14 +97,12 @@ def test_ignoring_similar_points():
     filter_cause = group.add_point_detections(
         [PointDetection('point', 100, 100, 'xyz', 0.3)]
     )
-    assert filter_cause == ['uncertain'], \
-        f'Active Learning should be done due to low confidence'
+    assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
     filter_cause = group.add_point_detections(
         [PointDetection('point', 104, 98, 'xyz', 0.3)])
-    assert len(
-        group.recent_observations) == 1, f'detection should already be stored'
+    assert len(group.recent_observations) == 1, f'detection should already be stored'
     assert filter_cause == []
 
 
@@ -121,10 +111,9 @@ def test_getting_low_confidence_points():
     filter_cause = group.add_point_detections(
         [PointDetection('point', 100, 100, 'xyz', 0.3)],
     )
-    assert filter_cause == ['uncertain'], \
-        f'Active Learning should be done due to low confidence'
+    assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
     filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
-    assert len(group.recent_observations) == 1, f'detection should already be stored'
+    assert len(group.recent_observations) == 1, 'detection should already be stored'
     assert filter_cause == []

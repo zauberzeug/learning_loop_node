@@ -5,8 +5,7 @@ import time
 
 
 def test_aging():
-    _detection = Observation(BoxDetection(
-        None, None, None, None, None, None, None))
+    _detection = Observation(BoxDetection(None, None, None, None, None, None, None))
     time.sleep(0.2)
     assert _detection.is_older_than(0.1) == True
     assert _detection.is_older_than(0.3) == False
@@ -22,7 +21,6 @@ def test_calculate_iou():
 
 
 def test_update_last_seen():
-    observation = Observation(BoxDetection(
-        None, None, None, None, None, None, None))
+    observation = Observation(BoxDetection(None, None, None, None, None, None, None))
     observation.last_seen = datetime.now() - timedelta(seconds=.5)
     assert observation.is_older_than(0.5) == True
