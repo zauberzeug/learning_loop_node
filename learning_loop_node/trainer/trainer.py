@@ -215,6 +215,21 @@ class Trainer():
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
 
+    @property
+    def hyperparameters(self) -> str:
+        if self.training and self.training.data:
+            information = f"resolution: {self.training.data.hyperparameter.resolution}"
+            information += f"\nflip right/left: {self.training.data.hyperparameter.flip_rl}"
+            information += f"\nflip up/down: {self.training.data.hyperparameter.flip_ud}"
+            information += f"\nmodel architecture: {self.model_architecture}" if self.model_architecture else ""
+            return information
+        else:
+            return None
+
+    @property
+    def model_architecture(self) -> Union[str, None]:
+        return None
+
     def create_model_json_content(self):
         content = {
             'categories': [c.dict() for c in self.training.data.categories],
