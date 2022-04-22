@@ -46,6 +46,5 @@ class BoxDetection:
         category_id = detection['category_id'] if 'category_id' in detection else ''
         return BoxDetection(detection['category_name'], detection['x'], detection['y'], detection['width'], detection['height'], detection['model_name'], detection['confidence'], category_id)
 
-
     def __str__(self):
         return f'x:{int(self.x)} y: {int(self.y)}, w: {int(self.width)} h: {int(self.height)} c: {self.confidence:.2f} -> {self.category_name}'
