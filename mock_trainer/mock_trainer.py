@@ -1,5 +1,5 @@
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-from typing import List, Optional
+from typing import List, Optional, Union
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
 import progress_simulator
@@ -79,3 +79,7 @@ class MockTrainer(Trainer):
 
     def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
+
+    @property
+    def model_architecture(self) -> Union[str, None]:
+        return "mocked"

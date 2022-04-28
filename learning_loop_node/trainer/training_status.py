@@ -16,3 +16,4 @@ class TrainingStatus():
     test_image_count: Optional[int] = None
     skipped_image_count: Optional[int] = None
     pretrained_models: List[PretrainedModel] = field(default_factory=list)
+    hyperparameters: Optional[str] = None

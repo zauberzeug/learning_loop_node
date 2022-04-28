@@ -174,6 +174,7 @@ class TrainerNode(Node):
                         train_image_count=current_training.data.train_image_count(),
                         test_image_count=current_training.data.test_image_count(),
                         trainer_id=self.uuid,
+                        hyperparameters=self.trainer.hyperparameters
                     )
 
                     result = await self.sio_client.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
@@ -212,6 +213,7 @@ class TrainerNode(Node):
             status.train_image_count = self.trainer.training.data.train_image_count()
             status.test_image_count = self.trainer.training.data.test_image_count()
             status.skipped_image_count = self.trainer.training.data.skipped_image_count
+            status.hyperparameters = self.trainer.hyperparameters
 
         logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
