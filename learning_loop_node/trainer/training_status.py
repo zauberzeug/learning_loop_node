@@ -11,6 +11,7 @@ class TrainingStatus():
     state: Optional[State]
     errors: Optional[dict]
     uptime: Optional[int]
+    progress: Optional[float]
 
     train_image_count: Optional[int] = None
     test_image_count: Optional[int] = None

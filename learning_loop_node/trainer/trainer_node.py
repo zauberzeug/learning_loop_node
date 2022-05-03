@@ -203,7 +203,8 @@ class TrainerNode(Node):
             name=self.name,
             state=self.status.state,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
-            errors=self.status._errors
+            errors=self.status._errors,
+            progress=self.progress
         )
         # TODO can self.trainer be None?
         if self.trainer:
@@ -232,3 +233,8 @@ class TrainerNode(Node):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
             return State.Running
         return State.Idle
+
+    @property
+    def progress(self) -> Union[float, None]: 
+        ic(self.trainer.progress)
+        return self.trainer.progress if self.trainer.progress else None
