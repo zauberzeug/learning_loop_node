@@ -202,7 +202,7 @@ class TrainerNode(Node):
             id=self.uuid,
             name=self.name,
             state=self.status.state,
-            uptime=int((datetime.now() - self.startup_time).total_seconds()),
+            uptime=self.training_uptime,
             errors=self.status._errors,
             progress=self.progress
         )
@@ -235,6 +235,12 @@ class TrainerNode(Node):
         return State.Idle
 
     @property
-    def progress(self) -> Union[float, None]: 
-        ic(self.trainer.progress)
+    def progress(self) -> Union[float, None]:
         return self.trainer.progress if self.trainer.progress else None
+
+    @property
+    def training_uptime(self) -> Union[int, None]:
+        import time
+        now = time.time()
+        logging.info(self.trainer.start_time)
+        return now - self.trainer.start_time if self.trainer.start_time else None
