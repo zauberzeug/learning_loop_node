@@ -236,11 +236,10 @@ class TrainerNode(Node):
 
     @property
     def progress(self) -> Union[float, None]:
-        return self.trainer.progress if self.trainer.progress else None
+        return self.trainer.progress if hasattr(self.trainer, 'progress') else None
 
     @property
     def training_uptime(self) -> Union[int, None]:
         import time
         now = time.time()
-        logging.info(self.trainer.start_time)
         return now - self.trainer.start_time if self.trainer.start_time else None
