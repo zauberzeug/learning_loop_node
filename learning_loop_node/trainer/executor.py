@@ -58,6 +58,10 @@ class Executor:
     def get_log(self):
         with open(f'{self.path}/last_training.log') as f:
             return f.read()
+    
+    def get_log_by_lines(self):
+        with open(f'{self.path}/last_training.log') as f:
+            return f.readlines()
 
     def stop(self):
         if self.process is None:
