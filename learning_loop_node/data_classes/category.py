@@ -16,6 +16,7 @@ class Category(BaseModel):
     hotkey: Optional[str]
     color: Optional[str]
     type: CategoryType = CategoryType.Box
+    point_size: Optional[int]
 
     @staticmethod
     def from_list(values: List[dict]) -> List['Category']:
