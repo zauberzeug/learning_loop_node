@@ -24,6 +24,7 @@ from fastapi.encoders import jsonable_encoder
 import shutil
 from learning_loop_node.data_classes.category import Category
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
+import time
 
 
 class Trainer():
@@ -32,6 +33,7 @@ class Trainer():
         self.model_format: str = model_format
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
+        self.start_time: Optional[int] = None
 
     async def begin_training(self, context: Context, details: dict) -> None:
         downloader = TrainingsDownloader(context)
@@ -60,6 +62,7 @@ class Trainer():
 
             logging.info(f'starting training')
             await self.start_training()
+        self.start_time = time.time()
 
         logging.info(f'training with categories: {self.training.data.categories}')
 
@@ -73,6 +76,7 @@ class Trainer():
         if self.executor:
             self.executor.stop()
             self.executor = None
+            self.start_time = None
             return True
         else:
             logging.info('could not stop training, executor is None')

@@ -13,13 +13,17 @@ from icecream import ic
 class MockTrainer(Trainer):
     latest_known_confusion_matrix: dict = {}
     error_configuration: ErrorConfiguration = ErrorConfiguration()
+    max_iterations = 100
+    current_iteration = 0
 
     async def start_training(self) -> None:
+        self.current_iteration = 0
         if self.error_configuration.begin_training:
             raise Exception()
         self.executor.start('while true; do sleep 1; done')
 
     async def start_training_from_scratch(self, identifier: str) -> None:
+        self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
     def get_error(self) -> str:
@@ -72,9 +76,14 @@ class MockTrainer(Trainer):
             PretrainedModel(name='medium', label='Medium', description='a medium model'),
             PretrainedModel(name='large', label='Large', description='a large model')]
 
+    @property
+    def progress(self) -> float:
+        return self.current_iteration / self.max_iterations
+
     def get_new_model(self) -> Optional[BasicModel]:
         if self.error_configuration.get_new_model:
             raise Exception()
+        self.current_iteration += 1
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
     def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
