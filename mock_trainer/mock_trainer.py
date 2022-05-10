@@ -7,7 +7,7 @@ import time
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
-from icecream import ic
+from learning_loop_node.detector.segmentation_detection import SegmentationDetection, Shape, Point
 
 
 class MockTrainer(Trainer):
@@ -52,7 +52,9 @@ class MockTrainer(Trainer):
 
             box_detections = []
             point_detections = []
-            image_entry = {'image_id': image_id, 'box_detections': box_detections, 'point_detections': point_detections}
+            segmentation_detections = []
+            image_entry = {'image_id': image_id, 'box_detections': box_detections,
+                           'point_detections': point_detections, 'segmentation_detections': segmentation_detections}
             for c in model_information.categories:
                 if c.type == 'box':
                     d = BoxDetection(c.name, x=1, y=2, width=30, height=40,
@@ -62,7 +64,10 @@ class MockTrainer(Trainer):
                     d = PointDetection(c.name, x=100, y=200,
                                        net=model_information.version, confidence=.97, category_id=c.id)
                     point_detections.append(d)
-
+                elif c.type == 'segmentation':
+                    d = SegmentationDetection(c.name, shape=Shape(points=[Point(x=1, y=2), Point(x=3, y=4)]),
+                                              model_name=model_information.version, confidence=.96, category_id=c.id)
+                    segmentation_detections.append(d)
             detections.append(image_entry)
         return detections
 
