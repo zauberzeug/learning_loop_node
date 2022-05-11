@@ -12,13 +12,13 @@ from learning_loop_node.globals import GLOBALS
 @pytest.mark.asyncio
 async def test_multiple_get_requests_after_post_request_should_not_causes_timeout_error():
     logging.debug('downloading model from gdrive')
-    if not os.path.exists('/tmp/some_model/model.pt'):
-        # folder: https://drive.google.com/drive/u/0/folders/1c1oxQwhj-bjqbYjM0B2q7I9ZZe-s2SWD
-        # filename: zuckerruebe_roboter_1.5_yolov5_pytorch.zip
-        file_id = '1sZWa053fWT9PodrujDX90psmjhFVLyBV'
-        destination = '/tmp/model.zip'
-        g_download(file_id, destination)
-        test_helper.unzip(destination, '/tmp/some_model')
+
+    # folder: https://drive.google.com/drive/u/0/folders/1c1oxQwhj-bjqbYjM0B2q7I9ZZe-s2SWD
+    # filename: zuckerruebe_roboter_1.5_yolov5_pytorch.zip
+    file_id = '1sZWa053fWT9PodrujDX90psmjhFVLyBV'
+    destination = '/tmp/model.zip'
+    g_download(file_id, destination)
+    test_helper.unzip(destination, '/tmp/some_model')
 
     data = test_helper.prepare_formdata(['/tmp/some_model/model.pt', '/tmp/some_model/model.json'])
     from learning_loop_node.loop import loop

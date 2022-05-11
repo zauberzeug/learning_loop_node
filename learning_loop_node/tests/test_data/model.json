@@ -1,3 +1,6 @@
 {
-  "categories": []
+  "categories": [
+    {"id": "b85bbc35-0363-3beb-08e4-e0affb95b2bc", "name": "purple box", "description": "purple box", "hotkey": "1", "color": "#FF00FF", "type": "box"}, 
+    {"id": "51e75488-103d-6661-53a2-ebc06feb5f3a", "name": "purple point", "description": "purple point", "hotkey": "2", "color": "#b914b9", "type": "point"}, 
+    {"id": "8aaff331-ea09-1490-50e8-be2993f8c589", "name": "purple segmentation", "description": "purple segmentation", "hotkey": "3", "color": "#FF77FF", "type": "segmentation"}]
 }

@@ -7,19 +7,23 @@ import time
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
-from icecream import ic
+from learning_loop_node.detector.segmentation_detection import SegmentationDetection, Shape, Point
 
 
 class MockTrainer(Trainer):
     latest_known_confusion_matrix: dict = {}
     error_configuration: ErrorConfiguration = ErrorConfiguration()
+    max_iterations = 100
+    current_iteration = 0
 
     async def start_training(self) -> None:
+        self.current_iteration = 0
         if self.error_configuration.begin_training:
             raise Exception()
         self.executor.start('while true; do sleep 1; done')
 
     async def start_training_from_scratch(self, identifier: str) -> None:
+        self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
     def get_error(self) -> str:
@@ -48,7 +52,9 @@ class MockTrainer(Trainer):
 
             box_detections = []
             point_detections = []
-            image_entry = {'image_id': image_id, 'box_detections': box_detections, 'point_detections': point_detections}
+            segmentation_detections = []
+            image_entry = {'image_id': image_id, 'box_detections': box_detections,
+                           'point_detections': point_detections, 'segmentation_detections': segmentation_detections}
             for c in model_information.categories:
                 if c.type == 'box':
                     d = BoxDetection(c.name, x=1, y=2, width=30, height=40,
@@ -58,7 +64,10 @@ class MockTrainer(Trainer):
                     d = PointDetection(c.name, x=100, y=200,
                                        net=model_information.version, confidence=.97, category_id=c.id)
                     point_detections.append(d)
-
+                elif c.type == 'segmentation':
+                    d = SegmentationDetection(c.name, shape=Shape(points=[Point(x=1, y=2), Point(x=3, y=4)]),
+                                              model_name=model_information.version, confidence=.96, category_id=c.id)
+                    segmentation_detections.append(d)
             detections.append(image_entry)
         return detections
 
@@ -72,9 +81,14 @@ class MockTrainer(Trainer):
             PretrainedModel(name='medium', label='Medium', description='a medium model'),
             PretrainedModel(name='large', label='Large', description='a large model')]
 
+    @property
+    def progress(self) -> float:
+        return self.current_iteration / self.max_iterations
+
     def get_new_model(self) -> Optional[BasicModel]:
         if self.error_configuration.get_new_model:
             raise Exception()
+        self.current_iteration += 1
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
     def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
