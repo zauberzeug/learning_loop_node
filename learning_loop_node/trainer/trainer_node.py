@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from typing import Union
 from uuid import uuid4
 from icecream import ic
+from learning_loop_node.trainer.training import TrainingOut
 from .model import Model
 from .trainer import Trainer
 from .training_status import TrainingStatus
@@ -74,7 +75,7 @@ class TrainerNode(Node):
         self.latest_known_model_id = details['id'] if is_valid_uuid4(details['id']) else None
         await self.update_state(State.Running)
 
-    async def stop_training(self, do_detections: bool = True, save_latest_model: bool = True) -> Union[bool, str]:
+    async def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
         if self.status.state != State.Running:
             logging.warning(f'##### stop_training is called but current state is : {self.status.state}')
             return
@@ -85,14 +86,13 @@ class TrainerNode(Node):
             result = self.trainer.stop_training()
 
             if self.latest_known_model_id and self.trainer.training.base_model_id != self.latest_known_model_id:
-                if save_latest_model:
+                if save_and_detect:
                     await self.update_state(State.Uploading)
-                    await self.save_model(self.trainer.training.context, self.latest_known_model_id)
-                if do_detections:
+                    uploaded_model = await self.save_model(self.trainer.training.context, self.latest_known_model_id)
                     await self.update_state(State.Detecting)
                     try:
                         await self.trainer.do_detections(context=self.trainer.training.context,
-                                                         model_id=self.latest_known_model_id,
+                                                         model_id=uploaded_model['id'],
                                                          model_format=self.trainer.model_format)
                     except Exception as e:
                         logging.exception(f'Could not predict detections: {str(e)}')
@@ -114,13 +114,15 @@ class TrainerNode(Node):
 
     async def save_model(self, context: Context, model_id: str):
         self.status.reset_error('save_model')
+        uploaded_model = None
         try:
-            await self.trainer.save_model(context, model_id)
+            uploaded_model = await self.trainer.save_model(context, model_id)
         except Exception as e:
             logging.exception('could not save model')
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
 
         await self.send_status()
+        return uploaded_model
 
     async def clear_training_data(self, training_folder: str):
         self.status.reset_error('clear_training_data')
@@ -167,27 +169,26 @@ class TrainerNode(Node):
                 model = self.trainer.get_new_model()
                 logging.debug(f'new model {model}')
                 if model:
-                    new_model = Model(
-                        id=str(uuid4()),
+                    model_id = str(uuid4())  # TODO should not be needed anymore
+                    new_training = TrainingOut(
+                        trainer_id=self.uuid,
                         confusion_matrix=model.confusion_matrix,
-                        parent_id=self.latest_known_model_id,
                         train_image_count=current_training.data.train_image_count(),
                         test_image_count=current_training.data.test_image_count(),
-                        trainer_id=self.uuid,
                         hyperparameters=self.trainer.hyperparameters
                     )
 
-                    result = await self.sio_client.call('update_model', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_model)))
+                    result = await self.sio_client.call('update_training', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_training)))
                     response = SocketResponse.from_dict(result)
 
                     if not response.success:
-                        error_msg = f'Error for update_model: Response from loop was : {response.__dict__}'
+                        error_msg = f'Error for update_training: Response from loop was : {response.__dict__}'
                         logging.error(error_msg)
                         raise Exception(error_msg)
 
-                    logging.info(f'successfully uploaded checkpoint {jsonable_encoder(new_model)}')
-                    self.trainer.on_model_published(model, new_model.id)
-                    self.latest_known_model_id = new_model.id
+                    logging.info(f'successfully updated training {jsonable_encoder(new_training)}')
+                    self.trainer.on_model_published(model, model_id)
+                    self.latest_known_model_id = model_id
 
         except Exception as e:
             msg = f'Could not get new model: {str(e)}'
@@ -227,7 +228,7 @@ class TrainerNode(Node):
 
             if status.state != State.Idle:
                 # TODO was soll passieren, wenn wir z.B. Stopping sind, und das Event von der Loop abgelehnt wird?
-                await self.stop_training(do_detections=False, save_latest_model=False)
+                await self.stop_training(save_and_detect=False)
 
     def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():

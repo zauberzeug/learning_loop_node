@@ -41,6 +41,7 @@ class Trainer():
         self.training.data = await downloader.download_training_data(self.training.images_folder)
         self.training.data.categories = Category.from_list(details['categories'])
         self.training.data.hyperparameter = Hyperparameter.from_dict(details)
+        self.training.training_number = details['training_number']
 
         base_model_id = details['id']
         self.training.base_model_id = base_model_id
@@ -89,7 +90,7 @@ class Trainer():
     def get_log(self) -> str:
         return self.executor.get_log()
 
-    async def save_model(self,  context: Context, model_id: str) -> None:
+    async def save_model(self, context: Context, model_id: str) -> None:
         files = await asyncio.get_running_loop().run_in_executor(None, self.get_model_files, model_id)
         model_json_content = self.create_model_json_content()
         model_json_path = '/tmp/model.json'
@@ -106,7 +107,7 @@ class Trainer():
                     "It is not allowed to provide a 'model.json' file."
                 _files = files[format]
                 _files.append(model_json_path)
-                await uploads.upload_model(context, _files, model_id, format)
+                return await uploads.upload_model_for_training(context, _files, self.training.training_number, format)
         else:
             raise TypeError(f'can only save model as list or dict, but was {files}')
 
