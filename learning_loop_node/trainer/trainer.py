@@ -90,8 +90,8 @@ class Trainer():
     def get_log(self) -> str:
         return self.executor.get_log()
 
-    async def save_model(self, context: Context, model_id: str) -> None:
-        files = await asyncio.get_running_loop().run_in_executor(None, self.get_model_files, model_id)
+    async def save_model(self, context: Context) -> None:
+        files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
         model_json_content = self.create_model_json_content()
         model_json_path = '/tmp/model.json'
         with open(model_json_path, 'w') as f:
@@ -121,16 +121,16 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    def on_model_published(self, basic_model: BasicModel, model_id: str) -> None:
+    def on_model_published(self, basic_model: BasicModel) -> None:
         '''Called after a BasicModel has been successfully send to the Learning Loop.
-        The model_id is an uuid to identify the model within the Learning Loop.
-        self.get_model_files uses this id to gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
-        In the simplest implementation this method just renames the weight file (encoded in BasicModel.meta_information) into a file name containing the model_id.
+        The files for this model should be stored.
+        self.get_latest_model_files is used to gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
+        In the simplest implementation this method just renames the weight file (encoded in BasicModel.meta_information) into a file name like latest_published_model
         '''
         raise NotImplementedError()
 
-    def get_model_files(self, model_id: str) -> Union[List[str], Dict[str, List[str]]]:
-        '''Called when the Learning Loop requests to backup a specific model. 
+    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+        '''Called when the Learning Loop requests to backup the latest model for the training. 
         Should return a list of file paths which describe the model.
         These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.) 
         and will be stored in the Learning Loop unter the format of this trainer.

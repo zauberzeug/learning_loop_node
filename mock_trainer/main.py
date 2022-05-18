@@ -5,8 +5,8 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 from mock_trainer import MockTrainer
 import os
 import logging
-from icecream import ic
-
+import icecream
+icecream.install()
 
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger().handlers[0].setFormatter(CustomFormatter())

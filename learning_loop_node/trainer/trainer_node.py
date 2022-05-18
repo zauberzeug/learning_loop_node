@@ -19,13 +19,12 @@ from .helper import is_valid_uuid4
 
 class TrainerNode(Node):
     trainer: Trainer
-    latest_known_model_id: Union[str, None]
     skip_check_state: bool = False
+    model_published: bool = False
 
     def __init__(self, name: str, trainer: Trainer, uuid: str = None):
         super().__init__(name, uuid)
         self.trainer = trainer
-        self.latest_known_model_id = None
 
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):
@@ -71,8 +70,6 @@ class TrainerNode(Node):
             self.trainer.stop_training()
             await self.update_state(State.Idle)
             return
-        # NOTE 'id' can also be a well known pretrained model identifier.
-        self.latest_known_model_id = details['id'] if is_valid_uuid4(details['id']) else None
         await self.update_state(State.Running)
 
     async def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
@@ -85,10 +82,10 @@ class TrainerNode(Node):
         try:
             result = self.trainer.stop_training()
 
-            if self.latest_known_model_id and self.trainer.training.base_model_id != self.latest_known_model_id:
+            if self.model_published:
                 if save_and_detect:
                     await self.update_state(State.Uploading)
-                    uploaded_model = await self.save_model(self.trainer.training.context, self.latest_known_model_id)
+                    uploaded_model = await self.save_model(self.trainer.training.context)
                     await self.update_state(State.Detecting)
                     try:
                         await self.trainer.do_detections(context=self.trainer.training.context,
@@ -99,7 +96,7 @@ class TrainerNode(Node):
 
             await self.clear_training_data(self.trainer.training.training_folder)
             self.trainer.training = None
-            self.latest_known_model_id = None
+            self.model_published = False
             await self.update_state(State.Idle)
             if not result:
                 raise Exception('No Training is running')
@@ -112,11 +109,11 @@ class TrainerNode(Node):
             return False
         return True
 
-    async def save_model(self, context: Context, model_id: str):
+    async def save_model(self, context: Context):
         self.status.reset_error('save_model')
         uploaded_model = None
         try:
-            uploaded_model = await self.trainer.save_model(context, model_id)
+            uploaded_model = await self.trainer.save_model(context)
         except Exception as e:
             logging.exception('could not save model')
             self.status.set_error('save_model', f'Could not save model: {str(e)}')
@@ -169,7 +166,6 @@ class TrainerNode(Node):
                 model = self.trainer.get_new_model()
                 logging.debug(f'new model {model}')
                 if model:
-                    model_id = str(uuid4())  # TODO should not be needed anymore
                     new_training = TrainingOut(
                         trainer_id=self.uuid,
                         confusion_matrix=model.confusion_matrix,
@@ -187,8 +183,8 @@ class TrainerNode(Node):
                         raise Exception(error_msg)
 
                     logging.info(f'successfully updated training {jsonable_encoder(new_training)}')
-                    self.trainer.on_model_published(model, model_id)
-                    self.latest_known_model_id = model_id
+                    self.trainer.on_model_published(model)
+                    self.model_published = True
 
         except Exception as e:
             msg = f'Could not get new model: {str(e)}'
