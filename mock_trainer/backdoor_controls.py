@@ -54,6 +54,7 @@ async def reset(request: Request):
         await trainer_node.stop_training()
 
     trainer_node.status.reset_all_errors()
+    await trainer_node.send_status()
 
 
 @router.put("/error_configuration")
