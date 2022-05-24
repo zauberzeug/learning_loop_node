@@ -30,7 +30,7 @@ class MockTrainer(Trainer):
         if self.error_configuration.crash_training:
             return 'mocked crash'
 
-    def get_model_files(self, model_id) -> List[str]:
+    def get_latest_model_files(self) -> List[str]:
         if self.error_configuration.save_model:
             raise Exception()
 
@@ -91,7 +91,7 @@ class MockTrainer(Trainer):
         self.current_iteration += 1
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
-    def on_model_published(self, basic_model: BasicModel, uuid: str) -> None:
+    def on_model_published(self, basic_model: BasicModel) -> None:
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
 
     @property

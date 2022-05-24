@@ -17,7 +17,7 @@ def create_mock_trainer() -> MockTrainer:
 
 def test_get_model_files():
     mock_trainer = create_mock_trainer()
-    files = mock_trainer.get_model_files('some_model_id')
+    files = mock_trainer.get_latest_model_files()
 
     assert len(files) == 2
     assert 'weightfile.weights' in files[0]
