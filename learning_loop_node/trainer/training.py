@@ -15,3 +15,13 @@ class Training(BaseModel):
     training_folder: Optional[str]
 
     data: Optional[TrainingData]
+
+    training_number: Optional[int]
+
+
+class TrainingOut(BaseModel):
+    confusion_matrix: Optional[dict]
+    train_image_count: Optional[int]
+    test_image_count: Optional[int]
+    trainer_id: Optional[str]
+    hyperparameters: Optional[str]
