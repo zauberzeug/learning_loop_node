@@ -26,14 +26,25 @@ def pytest_configure():
     pytest.detector_port = 5000
 
 
+def should_have_segmentations(request) -> bool:
+    should_have_segmentations = False
+    try:
+        should_have_segmentations = request.param
+    except:
+        pass
+    return should_have_segmentations
+
+
 @pytest.fixture()
-async def test_detector_node():
+async def test_detector_node(request):
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
     model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug',
                                   project='test', version='1', categories=[Category(id='some_id', name='some_category_name')])
-    det = TestingDetector()
+    segmentations = should_have_segmentations(request)
+
+    det = TestingDetector(segmentation_detections=segmentations)
     det.init(model_info=model_info, model_root_path='')
     node = DetectorNode(name='test', detector=det)
     await port_is(free=True)

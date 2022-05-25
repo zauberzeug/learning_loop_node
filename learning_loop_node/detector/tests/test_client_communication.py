@@ -10,7 +10,8 @@ def test_detector_path(test_detector_node: DetectorNode):
 
 
 @pytest.mark.asyncio
-async def test_sio_detect(test_detector_node: DetectorNode, sio_client):
+@pytest.mark.parametrize('test_detector_node', [True], indirect=True)
+async def test_sio_detect(test_detector_node, sio_client):
     with open('detector/tests/test.jpg', 'rb') as f:
         image_bytes = f.read()
     result = await sio_client.call('detect', {'image': image_bytes})
@@ -28,6 +29,7 @@ async def test_sio_detect(test_detector_node: DetectorNode, sio_client):
 
 
 @pytest.mark.parametrize('grouping_key', ['mac', 'camera_id'])
+@pytest.mark.parametrize('test_detector_node', [True], indirect=True)
 def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     image = {('file', open('detector/tests/test.jpg', 'rb'))}
     headers = {grouping_key: '0:0:0:0', 'tags':  'some_tag'}
@@ -57,6 +59,7 @@ def test_rest_upload(test_detector_node: DetectorNode):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('test_detector_node', [True], indirect=True)
 async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 

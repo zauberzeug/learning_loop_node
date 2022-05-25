@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
+from learning_loop_node.detector.segmentation_detection import Point, SegmentationDetection, Shape
 from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
 
 dirt_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .3)
@@ -117,3 +118,18 @@ def test_getting_low_confidence_points():
     filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
     assert len(group.recent_observations) == 1, 'detection should already be stored'
     assert filter_cause == []
+
+
+def test_getting_segmentation_detections():
+    group = RelevanceGroup()
+    filter_cause = group.add_point_detections(
+        [SegmentationDetection('segmentation', Shape([Point(100, 200), Point(300, 400)]), 'xyz', 0.3)],
+    )
+    assert filter_cause == ['segmentation_detection'], 'all segmentation detections are collected'
+    assert len(group.recent_observations) == 1, 'detection should be stored'
+
+    filter_cause = group.add_point_detections(
+        [SegmentationDetection('segmentation', Shape([Point(105, 205), Point(305, 405)]), 'xyz', 0.3)],
+    )
+    assert len(group.recent_observations) == 2, 'segmentation detections are not filtered by similarity'
+    assert filter_cause == ['segmentation_detection']
