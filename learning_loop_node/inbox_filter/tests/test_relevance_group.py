@@ -93,6 +93,21 @@ def test_active_group_extracts_from_json():
     assert filter_cause == ['uncertain']
 
 
+def test_segmentation_detections_are_extracted_from_json():
+    seg_detection = {"category_name": "seg",
+                     "shape": [Point(x=193, y=876), Point(x=602, y=193), Point(x=121, y=8)],
+                     "model_name": "some_weightfile",
+                     "confidence": .3}
+
+    camera_id = '0000'
+    groups = {camera_id: RelevanceGroup()}
+
+    filter_cause = groups[camera_id].add_segmentation_detections(
+        [SegmentationDetection.from_dict(seg_detection)]
+    )
+    assert filter_cause == ['segmentation_detection']
+
+
 def test_ignoring_similar_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
