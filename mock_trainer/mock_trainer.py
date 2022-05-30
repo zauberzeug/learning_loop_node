@@ -31,7 +31,7 @@ class MockTrainer(Trainer):
         if self.error_configuration.crash_training:
             return 'mocked crash'
 
-    def get_latest_model_files(self) -> List[str]:
+    def get_latest_model_files(self) -> dict:
         if self.error_configuration.save_model:
             raise Exception()
 
