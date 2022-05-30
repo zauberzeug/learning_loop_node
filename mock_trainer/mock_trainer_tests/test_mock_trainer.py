@@ -20,8 +20,8 @@ def test_get_model_files():
     files = mock_trainer.get_latest_model_files()
 
     assert len(files) == 2
-    assert 'weightfile.weights' in files[0]
-    assert 'some_more_data.txt' in files[1]
+    assert files['mocked'] == ['/tmp/weightfile.weights', '/tmp/some_more_data.txt']
+    assert files['mocked_2'] == ['/tmp/weightfile.weights', '/tmp/some_more_data.txt']
 
 
 @pytest.mark.asyncio
