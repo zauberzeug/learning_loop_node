@@ -8,6 +8,7 @@ from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
 from learning_loop_node.detector.segmentation_detection import SegmentationDetection, Shape, Point
+import asyncio
 
 
 class MockTrainer(Trainer):
@@ -46,6 +47,9 @@ class MockTrainer(Trainer):
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         detections = []
+
+        await asyncio.sleep(1)
+
         for image in images:
             image_id = image.split('/')[-1].replace('.jpg', '')
 
