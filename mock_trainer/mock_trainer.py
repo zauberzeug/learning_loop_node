@@ -42,8 +42,7 @@ class MockTrainer(Trainer):
         more_data_file = '/tmp/some_more_data.txt'
         with open(more_data_file, 'w') as f:
             f.write('zweiundvierzig')
-
-        return [fake_weight_file, more_data_file]
+        return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         detections = []

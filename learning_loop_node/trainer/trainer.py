@@ -90,7 +90,7 @@ class Trainer():
     def get_log(self) -> str:
         return self.executor.get_log()
 
-    async def save_model(self, context: Context) -> None:
+    async def save_model(self, context: Context) -> dict:
         files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
         model_json_content = self.create_model_json_content()
         model_json_path = '/tmp/model.json'
