@@ -1,5 +1,5 @@
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
 import progress_simulator
@@ -31,7 +31,7 @@ class MockTrainer(Trainer):
         if self.error_configuration.crash_training:
             return 'mocked crash'
 
-    def get_latest_model_files(self) -> dict:
+    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
         if self.error_configuration.save_model:
             raise Exception()
 
