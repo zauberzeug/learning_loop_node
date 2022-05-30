@@ -122,13 +122,13 @@ def test_getting_low_confidence_points():
 
 def test_getting_segmentation_detections():
     group = RelevanceGroup()
-    filter_cause = group.add_point_detections(
+    filter_cause = group.add_segmentation_detections(
         [SegmentationDetection('segmentation', Shape([Point(100, 200), Point(300, 400)]), 'xyz', 0.3)],
     )
     assert filter_cause == ['segmentation_detection'], 'all segmentation detections are collected'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
-    filter_cause = group.add_point_detections(
+    filter_cause = group.add_segmentation_detections(
         [SegmentationDetection('segmentation', Shape([Point(105, 205), Point(305, 405)]), 'xyz', 0.3)],
     )
     assert len(group.recent_observations) == 2, 'segmentation detections are not filtered by similarity'
