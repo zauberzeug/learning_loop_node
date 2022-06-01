@@ -1,4 +1,6 @@
 from typing import List, Union
+
+from learning_loop_node.detector.segmentation_detection import SegmentationDetection
 from .observation import Observation
 from ..detector.box_detection import BoxDetection
 from ..detector.point_detection import PointDetection
@@ -22,9 +24,16 @@ class RelevanceGroup:
     def add_point_detections(self, point_detections: List[PointDetection]) -> List[str]:
         return self.add_detections(Detections(point_detections=point_detections))
 
+    def add_segmentation_detections(self, segmentation_detections: List[SegmentationDetection]) -> List[str]:
+        return self.add_detections(Detections(segmentation_detections=segmentation_detections))
+
     def add_detections(self, detections: Detections) -> List[str]:
         causes = set()
-        for detection in detections.box_detections + detections.point_detections:
+        for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections:
+            if type(detection) is SegmentationDetection:
+                self.recent_observations.append(Observation(detection))
+                causes.add('segmentation_detection')
+                continue
             similar = self.find_similar_observations(detection)
             if(any(similar)):
                 [s.update_last_seen() for s in similar]

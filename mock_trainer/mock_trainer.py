@@ -1,5 +1,5 @@
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
 import progress_simulator
@@ -8,6 +8,7 @@ from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
 from learning_loop_node.detector.segmentation_detection import SegmentationDetection, Shape, Point
+import asyncio
 
 
 class MockTrainer(Trainer):
@@ -30,7 +31,7 @@ class MockTrainer(Trainer):
         if self.error_configuration.crash_training:
             return 'mocked crash'
 
-    def get_latest_model_files(self) -> List[str]:
+    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
         if self.error_configuration.save_model:
             raise Exception()
 
@@ -42,11 +43,13 @@ class MockTrainer(Trainer):
         more_data_file = '/tmp/some_more_data.txt'
         with open(more_data_file, 'w') as f:
             f.write('zweiundvierzig')
-
-        return [fake_weight_file, more_data_file]
+        return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         detections = []
+
+        await asyncio.sleep(1)
+
         for image in images:
             image_id = image.split('/')[-1].replace('.jpg', '')
 

@@ -30,13 +30,7 @@ class SegmentationDetection:
     @staticmethod
     def from_dict(detection: dict):
         category_id = detection['category_id'] if 'category_id' in detection else ''
-        raw = detection['shape'].split(',')
-        points = []
-        for i in range(0, len(raw), 2):
-            points.append(Point(x=int(raw[i]), y=int(raw[i+1])))
-
-        shape = Shape(points=points)
-        return SegmentationDetection(detection['category_name'], shape, detection['model_name'], detection['confidence'], category_id)
+        return SegmentationDetection(detection['category_name'], detection['shape'], detection['model_name'], detection['confidence'], category_id)
 
     def __str__(self):
         return f'shape:{str(self.shape)}, c: {self.confidence:.2f} -> {self.category_name}'

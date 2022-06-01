@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.point_detection import PointDetection
+from learning_loop_node.detector.segmentation_detection import Point, SegmentationDetection, Shape
 from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
 
 dirt_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .3)
@@ -92,6 +93,21 @@ def test_active_group_extracts_from_json():
     assert filter_cause == ['uncertain']
 
 
+def test_segmentation_detections_are_extracted_from_json():
+    seg_detection = {"category_name": "seg",
+                     "shape": [Point(x=193, y=876), Point(x=602, y=193), Point(x=121, y=8)],
+                     "model_name": "some_weightfile",
+                     "confidence": .3}
+
+    camera_id = '0000'
+    groups = {camera_id: RelevanceGroup()}
+
+    filter_cause = groups[camera_id].add_segmentation_detections(
+        [SegmentationDetection.from_dict(seg_detection)]
+    )
+    assert filter_cause == ['segmentation_detection']
+
+
 def test_ignoring_similar_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
@@ -117,3 +133,18 @@ def test_getting_low_confidence_points():
     filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
     assert len(group.recent_observations) == 1, 'detection should already be stored'
     assert filter_cause == []
+
+
+def test_getting_segmentation_detections():
+    group = RelevanceGroup()
+    filter_cause = group.add_segmentation_detections(
+        [SegmentationDetection('segmentation', Shape([Point(100, 200), Point(300, 400)]), 'xyz', 0.3)],
+    )
+    assert filter_cause == ['segmentation_detection'], 'all segmentation detections are collected'
+    assert len(group.recent_observations) == 1, 'detection should be stored'
+
+    filter_cause = group.add_segmentation_detections(
+        [SegmentationDetection('segmentation', Shape([Point(105, 205), Point(305, 405)]), 'xyz', 0.3)],
+    )
+    assert len(group.recent_observations) == 2, 'segmentation detections are not filtered by similarity'
+    assert filter_cause == ['segmentation_detection']
