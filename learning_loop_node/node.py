@@ -100,7 +100,7 @@ class Node(FastAPI):
             headers = await asyncio.get_event_loop().run_in_executor(None, loop.get_headers)
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             logging.debug(f'my sid is {self.sio_client.sid}')
-            logging.debug(f"connecting as type {headers['node_type']}")
+            logging.debug(f"connecting as type {headers['nodeType']}")
             logging.info(f'connected to Learning Loop at {self.ws_url}')
         except socketio.exceptions.ConnectionError as e:
             logging.error(f'socket.io connection error to "{self.ws_url}"')
