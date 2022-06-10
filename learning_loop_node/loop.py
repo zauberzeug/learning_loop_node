@@ -61,7 +61,7 @@ class Loop():
                 self.access_token = self.download_token()
 
             headers['Authorization'] = f'Bearer {self.access_token.token}'
-        headers['node_type'] = self.type if hasattr(self, 'type') else ''
+        headers['nodeType'] = self.type if hasattr(self, 'type') else ''
         headers['organization'] = self.organization if hasattr(self, 'organization') else ''
         headers['project'] = self.project if hasattr(self, 'project') else ''
         return headers
