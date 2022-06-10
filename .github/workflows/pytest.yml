@@ -23,7 +23,7 @@ jobs:
       - name: install dependencies
         run: |
           poetry config virtualenvs.create false --local
-          poetry cache:clear --all pypi
+          poetry cache clear pypi --all
           poetry install
       - name: test
         run: |
