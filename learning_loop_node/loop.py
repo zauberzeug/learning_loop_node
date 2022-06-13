@@ -36,8 +36,9 @@ class Loop():
         self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
         self.username: str = os.environ.get('LOOP_USERNAME', None) or os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
-        self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
-        self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
+        self.organization = os.environ.get('LOOP_ORGANIZATION', '') or os.environ.get('ORGANIZATION', '')
+        self.project = os.environ.get('LOOP_PROJECT', '') or os.environ.get('PROJECT', '')
+        self.type = os.environ.get('LOOP_NODE_TYPE', '') or os.environ.get('NODE_TYPE', '')
         self.access_token = None
         self.web = requests.Session()
 
@@ -50,7 +51,6 @@ class Loop():
         response.raise_for_status()
         return token_from_response(response)
 
-    
     async def create_headers(self) -> dict:
         return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
 
@@ -61,13 +61,16 @@ class Loop():
                 self.access_token = self.download_token()
 
             headers['Authorization'] = f'Bearer {self.access_token.token}'
+        headers['nodeType'] = self.type if hasattr(self, 'type') else ''
+        headers['organization'] = self.organization if hasattr(self, 'organization') else ''
+        headers['project'] = self.project if hasattr(self, 'project') else ''
         return headers
 
     @asynccontextmanager
     async def get(self, path):
         url = f'{self.base_url}/{path.lstrip("/")}'
         logging.debug(url)
-        async with aiohttp.ClientSession(headers = await self.create_headers()) as session:
+        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
             async with session.get(url) as response:
                 yield response
 
@@ -92,16 +95,16 @@ class Loop():
 
     @asynccontextmanager
     async def put(self, path, data):
-        async with aiohttp.ClientSession(headers = await self.create_headers()) as session:
+        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
             async with session.put(f'{self.base_url}/{path}', data=data) as response:
                 yield response
 
     @asynccontextmanager
     async def post(self, path, data):
-        async with aiohttp.ClientSession(headers = await self.create_headers()) as session:
+        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
             async with session.post(f'{self.base_url}/{path}', data=data) as response:
                 yield response
-        
+
     @property
     def project_path(self):
         return f'/api/{self.organization}/projects/{self.project}'
