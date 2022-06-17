@@ -38,7 +38,6 @@ class Loop():
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization = os.environ.get('LOOP_ORGANIZATION', '') or os.environ.get('ORGANIZATION', '')
         self.project = os.environ.get('LOOP_PROJECT', '') or os.environ.get('PROJECT', '')
-        self.type = os.environ.get('LOOP_NODE_TYPE', '') or os.environ.get('NODE_TYPE', '')
         self.access_token = None
         self.web = requests.Session()
 
@@ -61,9 +60,7 @@ class Loop():
                 self.access_token = self.download_token()
 
             headers['Authorization'] = f'Bearer {self.access_token.token}'
-        headers['nodeType'] = self.type if hasattr(self, 'type') else ''
-        headers['organization'] = self.organization if hasattr(self, 'organization') else ''
-        headers['project'] = self.project if hasattr(self, 'project') else ''
+
         return headers
 
     @asynccontextmanager
