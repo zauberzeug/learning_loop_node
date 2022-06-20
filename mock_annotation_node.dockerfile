@@ -21,8 +21,10 @@ RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.8"
 
 ENV PIP_USE_FEATURE=in-tree-build 
 
-ADD ./mock_annotation_node /app
+# while development this will be mounted but in deployment we need the latest code baked into the image
+ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
 
+ADD ./mock_annotation_node /app
 ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
 
 EXPOSE 80
