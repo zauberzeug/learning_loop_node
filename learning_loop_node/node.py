@@ -120,6 +120,7 @@ class Node(FastAPI):
         headers['organization'] = loop.organization
         headers['project'] = loop.project
         headers['nodeType'] = self.get_node_type()
+        logging.warning(f'going to send headers : {headers}')
         return headers
 
     def get_node_type(self):
