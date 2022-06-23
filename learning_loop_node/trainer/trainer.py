@@ -182,10 +182,9 @@ class Trainer():
         batch_size = 500
         for i in tqdm(range(0, len(detections), batch_size), position=0, leave=True):
             batch_detections = detections[i:i+batch_size]
-            data = json.dumps(batch_detections)
-            logging.info(f'uploading detections. File size : {len(data)}')
+            logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
             try:
-                async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', data=data) as response:
+                async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
                     if response.status != 200:
                         logging.error(f'could not upload detections. {str(response)}')
                     else:
