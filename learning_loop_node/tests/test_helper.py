@@ -37,7 +37,7 @@ def get_files_in_folder(folder: str):
 async def assert_upload_model(file_paths: Optional[List[str]] = None, format: str = 'mocked', ) -> str:
     data = prepare_formdata(file_paths)
 
-    async with loop.post(f'api/zauberzeug/projects/pytest/models/{format}', data) as response:
+    async with loop.post(f'api/zauberzeug/projects/pytest/models/{format}', data=data) as response:
         if response.status != 200:
             msg = f'unexpected status code {response.status} while posting new model'
             logging.error(msg)
