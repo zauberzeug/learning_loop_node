@@ -15,7 +15,6 @@ RUN $VSCODE_SERVER --install-extension ms-python.vscode-pylance \
 WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
-ENV PIP_USE_FEATURE=in-tree-build
 
 RUN python3 -m pip install --no-cache-dir "uvicorn[standard]"  tqdm debugpy icecream pytest autopep8
 RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.25"
