@@ -1,4 +1,5 @@
 
+from typing import List
 import psutil
 import os
 import subprocess
@@ -55,13 +56,19 @@ class Executor:
 
         return True
 
-    def get_log(self):
-        with open(f'{self.path}/last_training.log') as f:
-            return f.read()
-    
-    def get_log_by_lines(self):
-        with open(f'{self.path}/last_training.log') as f:
-            return f.readlines()
+    def get_log(self) -> str:
+        try:
+            with open(f'{self.path}/last_training.log') as f:
+                return f.read()
+        except:
+            return ''
+
+    def get_log_by_lines(self) -> List[str]:
+        try:
+            with open(f'{self.path}/last_training.log') as f:
+                return f.readlines()
+        except:
+            return []
 
     def stop(self):
         if self.process is None:
