@@ -97,9 +97,9 @@ class Loop():
                 yield response
 
     @asynccontextmanager
-    async def post(self, path, data):
+    async def post(self, path, **kwargs):
         async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
-            async with session.post(f'{self.base_url}/{path}', data=data) as response:
+            async with session.post(f'{self.base_url}/{path}', **kwargs) as response:
                 yield response
 
     @property

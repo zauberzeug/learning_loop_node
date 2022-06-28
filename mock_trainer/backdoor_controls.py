@@ -61,7 +61,7 @@ async def reset(request: Request):
 def set_error_configuration(error_configuration: ErrorConfiguration, request: Request):
     '''
     Example Usage
-        curl -X PUT -d '{"save_model": "True"}' http://localhost:8001/error_configuration
+        curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json" 
     '''
     print(f'setting error configuration to: {error_configuration.json()}')
     trainer_node_from_request(request).trainer.error_configuration = error_configuration
