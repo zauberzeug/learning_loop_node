@@ -222,12 +222,12 @@ class Trainer():
         return training_folder
 
     @property
-    def hyperparameters(self) -> str:
+    def hyperparameters(self) -> dict:
         if self.training and self.training.data:
-            information = f"resolution: {self.training.data.hyperparameter.resolution}"
-            information += f"\nflip right/left: {self.training.data.hyperparameter.flip_rl}"
-            information += f"\nflip up/down: {self.training.data.hyperparameter.flip_ud}"
-            information += f"\nmodel architecture: {self.model_architecture}" if self.model_architecture else ""
+            information = {}
+            information['resolution'] = self.training.data.hyperparameter.resolution
+            information['flipRl'] = self.training.data.hyperparameter.flip_rl
+            information['flipUd'] = self.training.data.hyperparameter.flip_ud
             return information
         else:
             return None
