@@ -97,7 +97,7 @@ class Node(FastAPI):
 
         logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
-            headers = await asyncio.get_event_loop().run_in_executor(None, loop.get_headers)
+            headers = await self.get_sio_headers()
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             logging.debug(f'my sid is {self.sio_client.sid}')
             logging.debug(f"connecting as type {headers['nodeType']}")
@@ -114,6 +114,26 @@ class Node(FastAPI):
 
     async def send_status(self):
         raise Exception("Override this in subclass")
+
+    async def get_sio_headers(self) -> dict:
+        headers = await asyncio.get_event_loop().run_in_executor(None, loop.get_headers)
+        headers['organization'] = loop.organization
+        headers['project'] = loop.project
+        headers['nodeType'] = self.get_node_type()
+        return headers
+
+    def get_node_type(self):
+        classname = self.__class__.__name__
+        if classname == 'TrainerNode':
+            return 'trainer'
+        elif classname == 'DetectorNode':
+            return 'detector'
+        elif classname == 'ConverterNode':
+            return 'converter'
+        elif classname == 'AnnotationNode':
+            return 'annotation_node'
+        else:
+            return classname
 
     @staticmethod
     def create_project_folder(context: Context) -> str:
