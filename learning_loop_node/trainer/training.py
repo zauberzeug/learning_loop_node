@@ -24,4 +24,4 @@ class TrainingOut(BaseModel):
     train_image_count: Optional[int]
     test_image_count: Optional[int]
     trainer_id: Optional[str]
-    hyperparameters: Optional[str]
+    hyperparameters: Optional[dict]
