@@ -14,7 +14,7 @@ from icecream import ic
 def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
-                             'box_categories': 1, 'point_categories': 1, 'segmentation_categories': 1, 'thumbs': False}
+                             'box_categories': 1, 'point_categories': 1, 'segmentation_categories': 1, 'thumbs': False, 'trainings': 1}
     assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
@@ -26,11 +26,12 @@ async def test_all(create_project):
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 
-    model_id = await test_helper.assert_upload_model()
+    latest_model_id = await test_helper.get_latest_model_id()
+
     trainer = MockTrainer(model_format='mocked')
     context = Context(organization='zauberzeug', project='pytest')
 
-    detections = await trainer.do_detections(context=context, model_id=model_id, model_format='mocked')
+    detections = await trainer.do_detections(context=context, model_id=latest_model_id, model_format='mocked')
     assert_image_count(10)
     assert len(detections) == 10  # detections run on 10 images
     for img in detections:

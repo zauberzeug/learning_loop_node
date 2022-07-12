@@ -10,6 +10,7 @@ from learning_loop_node.globals import GLOBALS
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip  # NOTE: Brauchen wir diesen Test noch?
 async def test_multiple_get_requests_after_post_request_should_not_causes_timeout_error():
     logging.debug('downloading model from gdrive')
 
