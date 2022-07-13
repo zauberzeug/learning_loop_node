@@ -24,6 +24,10 @@ class AnnotationNode(Node):
         async def on_handle_user_input(user_input):
             return await self.handle_user_input(user_input)
 
+        @self.sio_client.on('user_logout')
+        async def on_logout_user(sid):
+            return self.tool.logout_user(sid)
+
     async def handle_user_input(self, user_input) -> str:
         input = UserInput.parse_obj(user_input)
 

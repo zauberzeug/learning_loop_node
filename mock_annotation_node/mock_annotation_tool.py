@@ -54,3 +54,7 @@ class MockAnnotationTool(AnnotationTool):
 
     def create_empty_history(self):
         return {}
+
+    def logout_user(self, sid):
+        logging.info(sid)
+        return True
