@@ -6,6 +6,7 @@ from learning_loop_node.node import Node
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.rest import downloads, uploads
 from icecream import ic
+import json
 
 
 class Converter(BaseModel):
@@ -18,6 +19,11 @@ class Converter(BaseModel):
 
         self.model_folder = Converter.create_model_folder(project_folder, model_information.id)
         await downloads.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
+
+        with open(f'{self.model_folder}/model.json', 'r') as f:
+            content = json.load(f)
+            if 'resolution' in content:
+                model_information.resolution = content['resolution']
 
         await self._convert(model_information)
 
