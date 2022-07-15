@@ -140,6 +140,10 @@ class DemoSegmentationTool(AnnotationTool):
     def create_empty_history(self):
         return History()
 
+    def logout_user(self, sid):
+        logging.info(sid)
+        return True
+
 
 def autofit(image_path, history: History) -> List[Point]:
     logging.debug('inside grab cut')

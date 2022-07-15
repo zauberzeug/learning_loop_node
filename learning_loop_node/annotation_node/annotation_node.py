@@ -26,6 +26,7 @@ class AnnotationNode(Node):
 
         @self.sio_client.on('user_logout')
         async def on_logout_user(sid):
+            self.reset_history(sid)
             return self.tool.logout_user(sid)
 
     async def handle_user_input(self, user_input) -> str:
