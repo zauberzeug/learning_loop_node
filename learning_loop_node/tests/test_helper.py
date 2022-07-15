@@ -34,16 +34,11 @@ def get_files_in_folder(folder: str):
     return files
 
 
-async def assert_upload_model(file_paths: Optional[List[str]] = None, format: str = 'mocked', ) -> str:
-    data = prepare_formdata(file_paths)
-
-    async with loop.post(f'api/zauberzeug/projects/pytest/models/{format}', data=data) as response:
-        if response.status != 200:
-            msg = f'unexpected status code {response.status} while posting new model'
-            logging.error(msg)
-            raise(Exception(msg))
-        model = await response.json()
-        return model['id']
+async def get_latest_model_id() -> str:
+    async with loop.get(f'api/zauberzeug/projects/pytest/trainings') as response:
+        assert response.status == 200
+        trainings = await response.json()
+        return trainings['charts'][0]['data'][0]['model_id']
 
 
 async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, format: str = 'mocked', model_id: Optional[str] = None) -> str:

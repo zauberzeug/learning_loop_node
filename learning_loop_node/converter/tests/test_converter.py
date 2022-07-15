@@ -19,7 +19,7 @@ class MockedConverter(Converter):
 def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'box_categories': 1,  'point_categories': 1, 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 0, 'image_style': 'plain',
-                             'thumbs': False}
+                             'thumbs': False, 'trainings': 1}
     assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
@@ -28,7 +28,7 @@ def create_project():
 
 @pytest.mark.asyncio
 async def test_meta_information(create_project):
-    model_id = await test_helper.assert_upload_model()
+    model_id = await test_helper.get_latest_model_id()
 
     converter = MockedConverter(source_format='mocked', target_format='test')
     node = ConverterNode(name='test', converter=converter)

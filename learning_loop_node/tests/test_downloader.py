@@ -34,7 +34,7 @@ async def test_download_model():
     data_folder = GLOBALS.data_folder
     _, _, trainings_folder = trainer_test_helper.create_needed_folders(
         data_folder)
-    model_id = await test_helper.assert_upload_model()
+    model_id = await test_helper.get_latest_model_id()
 
     await downloads.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
 
