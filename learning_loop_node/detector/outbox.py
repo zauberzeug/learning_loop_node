@@ -31,6 +31,8 @@ class Outbox():
         tmp = f'{GLOBALS.data_folder}/tmp/{id}'
         detections.tags = tags
         detections.date = id
+        for detection in detections.segmentation_detections:
+            detection.shape = ','.join([str(value) for p in detection.shape.points for _, value in p.__dict__.items()])
         os.makedirs(tmp, exist_ok=True)
         with open(tmp + '/image.json', 'w') as f:
             json.dump(jsonable_encoder(detections), f)
