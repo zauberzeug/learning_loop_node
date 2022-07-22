@@ -209,6 +209,8 @@ class DetectorNode(Node):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
+        for detection in detections.segmentation_detections:
+            detection.shape = ','.join([str(value) for p in detection.shape.points for _, value in p.__dict__.items()])
         info = "\n    ".join([str(d) for d in detections.box_detections +
                              detections.point_detections + detections.segmentation_detections])
         logging.info(f'detected:\n    {info}')
