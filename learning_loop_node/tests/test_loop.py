@@ -9,7 +9,6 @@ from icecream import ic
 from learning_loop_node.globals import GLOBALS
 
 
-@pytest.mark.asyncio
 @pytest.mark.skip  # NOTE: Brauchen wir diesen Test noch?
 async def test_multiple_get_requests_after_post_request_should_not_causes_timeout_error():
     logging.debug('downloading model from gdrive')
@@ -27,7 +26,7 @@ async def test_multiple_get_requests_after_post_request_should_not_causes_timeou
         if response.status != 200:
             msg = f'unexpected status code {response.status} while putting model'
             logging.error(msg)
-            raise(Exception(msg))
+            raise (Exception(msg))
         model = await response.json()
 
     for i in range(10):

@@ -26,7 +26,6 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
 
 
-@pytest.mark.asyncio
 async def test_meta_information(create_project):
     model_id = await test_helper.get_latest_model_id()
 

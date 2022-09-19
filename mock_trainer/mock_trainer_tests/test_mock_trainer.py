@@ -24,7 +24,6 @@ def test_get_model_files():
     assert files['mocked_2'] == ['/tmp/weightfile.weights', '/tmp/some_more_data.txt']
 
 
-@pytest.mark.asyncio
 async def test_get_new_model():
     mock_trainer = create_mock_trainer()
     await mock_trainer.start_training()

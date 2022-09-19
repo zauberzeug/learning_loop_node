@@ -21,7 +21,6 @@ def default_user_input() -> UserInput:
     return UserInput(frontend_id='some_id', data=annotation_data)
 
 
-@pytest.mark.asyncio
 async def test_image_download(create_project):
     image_path = '/tmp/learning_loop_lib_data/zauberzeug/pytest/images/285a92db-bc64-240d-50c2-3212d3973566.jpg'
 

@@ -29,7 +29,6 @@ def data_downloader() -> DataDownloader:
     return DataDownloader(context)
 
 
-@pytest.mark.asyncio
 async def test_download_model():
     data_folder = GLOBALS.data_folder
     _, _, trainings_folder = trainer_test_helper.create_needed_folders(
@@ -54,13 +53,11 @@ async def test_download_model():
     assert '"format": "mocked"' in open(model_json, 'r').read(), 'should have base_model.json'
 
 
-@pytest.mark.asyncio
 async def test_fetching_image_ids(data_downloader: DataDownloader):
     ids = await data_downloader.fetch_image_ids()
     assert len(ids) == 3
 
 
-@pytest.mark.asyncio
 async def test_download_images(data_downloader: DataDownloader):
     _, image_folder, _ = trainer_test_helper.create_needed_folders(
         GLOBALS.data_folder)
@@ -70,7 +67,6 @@ async def test_download_images(data_downloader: DataDownloader):
     assert len(files) == 3
 
 
-@pytest.mark.asyncio
 async def test_download_training_data(data_downloader: DataDownloader):
     image_ids = await data_downloader.fetch_image_ids()
     image_data = await data_downloader.download_images_data(image_ids)

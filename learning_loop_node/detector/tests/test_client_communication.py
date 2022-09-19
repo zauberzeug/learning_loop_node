@@ -9,7 +9,6 @@ def test_detector_path(test_detector_node: DetectorNode):
     assert test_detector_node.outbox.path.startswith('/tmp')
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize('test_detector_node', [True], indirect=True)
 async def test_sio_detect(test_detector_node, sio_client):
     with open('detector/tests/test.jpg', 'rb') as f:
@@ -58,7 +57,6 @@ def test_rest_upload(test_detector_node: DetectorNode):
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize('test_detector_node', [True], indirect=True)
 async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
