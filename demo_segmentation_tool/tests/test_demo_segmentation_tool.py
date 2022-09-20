@@ -23,7 +23,6 @@ def default_user_input() -> UserInput:
     return UserInput(frontend_id='some_id', data=annotation_data)
 
 
-@pytest.mark.asyncio
 async def test_start_creating(create_project):
 
     mock_async_client = MockAsyncClient()

@@ -43,7 +43,6 @@ def test_assert_data_folder_for_tests():
     assert GLOBALS.data_folder.startswith('/tmp')
 
 
-@pytest.mark.asyncio
 async def test_sio_detect(sio):
     with open('mock_detector_tests/test.jpg', 'rb') as f:
         image_bytes = f.read()

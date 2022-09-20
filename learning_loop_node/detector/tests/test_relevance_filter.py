@@ -5,7 +5,6 @@ from conftest import get_outbox_files
 import asyncio
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize('autoupload,expected_file_count', [(None, 2), ('all', 4)])
 async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autoupload, expected_file_count):
     assert test_detector_node.outbox.path.startswith('/tmp')
