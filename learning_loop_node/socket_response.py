@@ -51,16 +51,17 @@ def ensure_socket_response(func):
                 return value
             else:
                 raise Exception(f"Returntype for sio must be str or bool or SocketResponse', but was {type(value)}'")
-        except Exception as e:
+        except Exception:
+            error = traceback.print_exc()
             trace = ''.join(traceback.format_stack())
             logging.error(
                 f'\nAn error occured for {args[0]}:  \
                 \nStacktrace: \
                 \n{trace} \
                 \nError: \
-                \n {str(e)} \n'
+                \n {str(error)} \n'
             )
 
-            return SocketResponse.for_failure(str(e)).__dict__
+            return SocketResponse.for_failure(str(error)).__dict__
 
     return wrapper_ensure_socket_response

@@ -80,6 +80,8 @@ class Node(FastAPI):
         @self.on_event("startup")
         @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         async def ensure_connected() -> None:
+            logging.info('###732 ensure_connected called')
+            logging.info(f'###732 current connection state: {self.sio_client.connected}')
             if not self.sio_client.connected:
                 await self.connect()
 
