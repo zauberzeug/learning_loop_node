@@ -155,6 +155,7 @@ class Trainer():
             await downloads.download_model(tmp_folder, context, model_id, self.model_format)
         except:
             logging.exception('download error')
+            return
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
             model_information = ModelInformation.parse_obj(content)
