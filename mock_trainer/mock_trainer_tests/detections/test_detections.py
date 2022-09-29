@@ -30,7 +30,7 @@ async def test_all(create_project):
     trainer = MockTrainer(model_format='mocked')
     context = Context(organization='zauberzeug', project='pytest')
 
-    detections = await trainer.do_detections(context=context, model_id=latest_model_id, model_format='mocked')
+    detections = await trainer.do_detections(context=context, model_id=latest_model_id)
     assert_image_count(10)
     assert len(detections) == 10  # detections run on 10 images
     for img in detections:

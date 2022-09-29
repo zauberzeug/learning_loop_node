@@ -89,8 +89,7 @@ class TrainerNode(Node):
                     await self.update_state(State.Detecting)
                     try:
                         await self.trainer.do_detections(context=self.trainer.training.context,
-                                                         model_id=uploaded_model['id'],
-                                                         model_format=self.trainer.model_format)
+                                                         model_id=uploaded_model['id'])
                     except Exception as e:
                         logging.exception(f'Could not predict detections: {str(e)}')
 
