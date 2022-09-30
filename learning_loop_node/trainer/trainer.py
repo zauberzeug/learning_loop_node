@@ -165,8 +165,10 @@ class Trainer():
         downloader = DataDownloader(context)
         image_ids = []
         for state in ['inbox', 'annotate', 'review', 'complete']:
+            logging.info(f'fetching image ids of {state}')
             new_ids = await downloader.fetch_image_ids(query_params=f'state={state}')
             image_ids += new_ids
+            logging.info(f'downloading {len(new_ids)} images')
             await downloader.download_images(new_ids, image_folder)
         images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
                   if os.path.splitext(os.path.basename(img))[0] in image_ids]
