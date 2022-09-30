@@ -149,6 +149,6 @@ class Node(FastAPI):
         try:
             loop = asyncio.get_running_loop()
             loop.set_debug(True)
-            loop.slow_callback_duration = 0.05
+            loop.slow_callback_duration = 0.2
         except:
             logging.exception('could not activate asyncio warnings')
