@@ -37,10 +37,8 @@ class DataDownloader():
         start = perf_counter()
         ids = [os.path.splitext(os.path.basename(image))[0]
                for image in glob(f'{image_folder}/*.jpg')]
-        logging.warn(f'found {len(ids)} images on disc')
+        logging.info(f'found {len(ids)} images on disc')
         result = [id for id in all_image_ids if id not in ids]
         end = perf_counter()
-        logging.warn(f'calculated {len(result)} new image ids')
-        logging.warn(f'calculation took {end-start:0.2f} seconds')
-
+        logging.info(f'calculated {len(result)} new image ids, which took {end-start:0.2f} seconds')
         return result
