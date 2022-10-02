@@ -22,7 +22,6 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str = None):
         super().__init__()
-        self._activate_asyncio_warnings()
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
 
