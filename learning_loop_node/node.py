@@ -71,6 +71,7 @@ class Node(FastAPI):
         @self.on_event("startup")
         async def startup():
             logging.debug('received "startup" event')
+            self._activate_asyncio_warnings()
 
         @self.on_event("shutdown")
         async def shutdown():
@@ -149,5 +150,6 @@ class Node(FastAPI):
             loop = asyncio.get_running_loop()
             loop.set_debug(True)
             loop.slow_callback_duration = 0.2
+            logging.info('activated asyncio warnings')
         except:
             logging.exception('could not activate asyncio warnings')
