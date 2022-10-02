@@ -27,7 +27,7 @@ class DataDownloader():
 
     async def download_images(self, image_ids: List[str], image_folder: str) -> None:
         '''Will skip existing images'''
-        new_image_ids = await asyncio.get_event_loop().run_in_executor(None, lambda:  DataDownloader.filter_existing_images(image_ids, image_folder))
+        new_image_ids = await asyncio.get_event_loop().run_in_executor(None, DataDownloader.filter_existing_images, image_ids, image_folder)
         paths, ids = node_helper.create_resource_paths(self.context.organization, self.context.project, new_image_ids)
         await downloads.download_images(paths, ids, image_folder)
 
