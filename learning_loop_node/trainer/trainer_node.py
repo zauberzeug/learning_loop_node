@@ -15,6 +15,7 @@ import logging
 from datetime import datetime
 from ..socket_response import SocketResponse
 from .helper import is_valid_uuid4
+from .rest import controls
 
 
 class TrainerNode(Node):
@@ -25,6 +26,7 @@ class TrainerNode(Node):
     def __init__(self, name: str, trainer: Trainer, uuid: str = None):
         super().__init__(name, uuid)
         self.trainer = trainer
+        self.include_router(controls.router, tags=["controls"])
 
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):
@@ -89,8 +91,7 @@ class TrainerNode(Node):
                     await self.update_state(State.Detecting)
                     try:
                         await self.trainer.do_detections(context=self.trainer.training.context,
-                                                         model_id=uploaded_model['id'],
-                                                         model_format=self.trainer.model_format)
+                                                         model_id=uploaded_model['id'])
                     except Exception as e:
                         logging.exception(f'Could not predict detections: {str(e)}')
 

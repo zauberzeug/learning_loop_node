@@ -96,7 +96,7 @@ class DetectorNode(Node):
         async def _upload(sid, data):
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, lambda: self.outbox.save(data['image'], Detections(), ['picked_by_system']))
+                await loop.run_in_executor(None, self.outbox.save, data['image'], Detections(), ['picked_by_system'])
             except Exception as e:
                 logging.exception('could not upload via socketio')
                 return {'error': str(e)}
@@ -229,7 +229,7 @@ class DetectorNode(Node):
     async def upload_images(self, images: List[bytes]):
         loop = asyncio.get_event_loop()
         for image in images:
-            await loop.run_in_executor(None, lambda: self.outbox.save(image, Detections(), ['picked_by_system']))
+            await loop.run_in_executor(None, self.outbox.save, image, Detections(), ['picked_by_system'])
 
     def add_category_id_to_detections(self, model_info: ModelInformation, detections: Detections):
         def find_category_id_by_name(categories: List[Category], category_name: str):

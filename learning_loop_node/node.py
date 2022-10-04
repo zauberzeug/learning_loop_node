@@ -71,6 +71,7 @@ class Node(FastAPI):
         @self.on_event("startup")
         async def startup():
             logging.debug('received "startup" event')
+            Node._activate_asyncio_warnings()
 
         @self.on_event("shutdown")
         async def shutdown():
@@ -80,6 +81,7 @@ class Node(FastAPI):
         @self.on_event("startup")
         @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         async def ensure_connected() -> None:
+            logging.info(f'###732 current connection state: {self.sio_client.connected}')
             if not self.sio_client.connected:
                 await self.connect()
 
@@ -140,3 +142,14 @@ class Node(FastAPI):
         project_folder = f'{GLOBALS.data_folder}/{context.organization}/{context.project}'
         os.makedirs(project_folder, exist_ok=True)
         return project_folder
+
+    @staticmethod
+    def _activate_asyncio_warnings() -> None:
+        '''Produce warnings for coroutines which take too long on the main loop and hence clog the event loop'''
+        try:
+            loop = asyncio.get_running_loop()
+            loop.set_debug(True)
+            loop.slow_callback_duration = 0.2
+            logging.info('activated asyncio warnings')
+        except:
+            logging.exception('could not activate asyncio warnings')

@@ -144,16 +144,18 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    async def do_detections(self, context: Context, model_id: str, model_format: str):
-        tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{model_format}'
+    async def do_detections(self, context: Context, model_id: str):
+
+        tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
 
         shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
         logging.info('downloading model for detecting')
         try:
-            await downloads.download_model(tmp_folder, context, model_id, model_format)
+            await downloads.download_model(tmp_folder, context, model_id, self.model_format)
         except:
             logging.exception('download error')
+            return
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
             model_information = ModelInformation.parse_obj(content)
@@ -163,8 +165,10 @@ class Trainer():
         downloader = DataDownloader(context)
         image_ids = []
         for state in ['inbox', 'annotate', 'review', 'complete']:
+            logging.info(f'fetching image ids of {state}')
             new_ids = await downloader.fetch_image_ids(query_params=f'state={state}')
             image_ids += new_ids
+            logging.info(f'downloading {len(new_ids)} images')
             await downloader.download_images(new_ids, image_folder)
         images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
                   if os.path.splitext(os.path.basename(img))[0] in image_ids]
