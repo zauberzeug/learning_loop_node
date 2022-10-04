@@ -71,7 +71,7 @@ class Node(FastAPI):
         @self.on_event("startup")
         async def startup():
             logging.debug('received "startup" event')
-            self._activate_asyncio_warnings()
+            Node._activate_asyncio_warnings()
 
         @self.on_event("shutdown")
         async def shutdown():
