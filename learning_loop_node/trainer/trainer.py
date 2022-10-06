@@ -25,6 +25,7 @@ import shutil
 from learning_loop_node.data_classes.category import Category
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
 import time
+from time import perf_counter
 
 
 class Trainer():
@@ -170,13 +171,22 @@ class Trainer():
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
             await downloader.download_images(new_ids, image_folder)
-        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
-                  if os.path.splitext(os.path.basename(img))[0] in image_ids]
+        images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
         logging.info(f'running detections on {len(images)} images')
         detections = await self._detect(model_information, images, tmp_folder)
         logging.info(f'uploading {len(detections)} detections')
         await self._upload_detections(context, jsonable_encoder(detections))
         return detections
+
+    @staticmethod
+    def images_for_ids(image_ids, image_folder) -> List[str]:
+        logging.info(f'### Going to get images for {len(image_ids)} images ids')
+        start = perf_counter()
+        images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
+                  if os.path.splitext(os.path.basename(img))[0] in image_ids]
+        end = perf_counter()
+        logging.info(f'found {len(images)} images for {len(image_ids)} image ids, which took {end-start:0.2f} seconds')
+        return images
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         raise NotImplementedError()
