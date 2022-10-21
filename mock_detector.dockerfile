@@ -24,4 +24,5 @@ ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_no
 
 ADD ./mock_detector /app
 ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
+ENV TZ=Europe/Amsterdam
 EXPOSE 80
