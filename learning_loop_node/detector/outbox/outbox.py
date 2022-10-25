@@ -9,7 +9,7 @@ from datetime import datetime
 import requests
 import logging
 import shutil
-from ..globals import GLOBALS
+from ...globals import GLOBALS
 
 
 class Outbox():

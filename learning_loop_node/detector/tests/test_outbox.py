@@ -1,5 +1,5 @@
 
-from learning_loop_node.detector.outbox import Outbox
+from detector.outbox.outbox import Outbox
 from PIL import Image
 import os
 import numpy as np

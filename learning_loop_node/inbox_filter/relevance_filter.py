@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from ..detector.outbox import Outbox
+from ..detector.outbox.outbox import Outbox
 from ..detector.detections import Detections
 from .relevance_group import RelevanceGroup
 
