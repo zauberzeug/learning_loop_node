@@ -23,6 +23,6 @@ RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.25"
 ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
 
 ADD ./mock_detector /app
-ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
+ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages:/learning_loop_node/learning_loop_node"
 ENV TZ=Europe/Amsterdam
 EXPOSE 80
