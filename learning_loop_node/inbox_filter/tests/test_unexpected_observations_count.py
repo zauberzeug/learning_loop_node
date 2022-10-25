@@ -1,7 +1,7 @@
 from typing import List
 from learning_loop_node.detector.box_detection import BoxDetection
 from learning_loop_node.detector.detections import Detections
-from detector.outbox.outbox import Outbox
+from learning_loop_node.detector.outbox.outbox import Outbox
 from learning_loop_node.detector.point_detection import PointDetection
 from learning_loop_node.inbox_filter.relevance_filter import RelevanceFilter
 import pytest

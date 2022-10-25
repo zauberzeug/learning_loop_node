@@ -1,5 +1,5 @@
 
-from detector.outbox.outbox import Outbox
+from learning_loop_node.detector.outbox.outbox import Outbox
 from PIL import Image
 import os
 import numpy as np
@@ -9,8 +9,8 @@ import shutil
 
 @pytest.fixture()
 def outbox():
-    os.environ['ORGANIZATION'] = 'zauberzeug'
-    os.environ['PROJECT'] = 'demo'
+    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
+    os.environ['LOOP_PROJECT'] = 'demo'
     outbox = Outbox()
     shutil.rmtree(outbox.path, ignore_errors=True)
     os.mkdir(outbox.path)

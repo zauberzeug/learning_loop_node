@@ -48,7 +48,7 @@ async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, fo
         if response.status != 200:
             msg = f'unexpected status code {response.status} while putting model'
             logging.error(msg)
-            raise(Exception(msg))
+            raise (Exception(msg))
         model = await response.json()
 
         return model['id']

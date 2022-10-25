@@ -7,6 +7,7 @@ import werkzeug
 from icecream import ic
 import logging
 import requests
+from . import environment_reader
 
 
 class AccessToken():
@@ -36,8 +37,8 @@ class Loop():
         self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
         self.username: str = os.environ.get('LOOP_USERNAME', None) or os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
-        self.organization = os.environ.get('LOOP_ORGANIZATION', '') or os.environ.get('ORGANIZATION', '')
-        self.project = os.environ.get('LOOP_PROJECT', '') or os.environ.get('PROJECT', '')
+        self.organization: str = environment_reader.organization(default='')
+        self.project: str = environment_reader.project(default='')
         self.access_token = None
         self.web = requests.Session()
 

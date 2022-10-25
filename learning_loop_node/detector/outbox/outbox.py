@@ -10,6 +10,7 @@ import requests
 import logging
 import shutil
 from ...globals import GLOBALS
+from ... import environment_reader
 
 
 class Outbox():
@@ -21,8 +22,9 @@ class Outbox():
 
         host = os.environ.get('HOST', 'learning-loop.ai')
         base: str = f'http{"s" if host != "backend" else ""}://' + host
-        o = os.environ.get('ORGANIZATION')
-        p = os.environ.get('PROJECT')
+        o = environment_reader.organization()
+        p = environment_reader.project()
+        assert o and p, 'Outbox needs an organization and a projekct '
         self.target_uri = f'{base}/api/{o}/projects/{p}/images'
         self.upload_in_progress = False
 

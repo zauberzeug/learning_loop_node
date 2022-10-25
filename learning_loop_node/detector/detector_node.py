@@ -28,6 +28,7 @@ from threading import Thread
 from datetime import datetime
 from icecream import ic
 import shutil
+from .. import environment_reader
 
 
 class DetectorNode(Node):
@@ -36,8 +37,8 @@ class DetectorNode(Node):
     def __init__(self, name: str, detector: Detector, uuid: str = None):
         super().__init__(name, uuid)
         self.detector = detector
-        self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
-        self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
+        self.organization = environment_reader.organization()
+        self.project = environment_reader.project()
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
         logging.info(f'Using {self.organization}/{self.project}')
