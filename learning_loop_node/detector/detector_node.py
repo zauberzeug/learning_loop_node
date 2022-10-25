@@ -1,4 +1,6 @@
 from enum import auto
+import multiprocessing
+from learning_loop_node.detector.outbox.upload_process import UploadProcess
 from . import Detections
 from . import Outbox
 from .rest.operation_mode import OperationMode
@@ -29,6 +31,7 @@ from datetime import datetime
 from icecream import ic
 import shutil
 from .. import environment_reader
+from multiprocessing import Event
 
 
 class DetectorNode(Node):
@@ -45,6 +48,8 @@ class DetectorNode(Node):
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
         self.outbox: Outbox = Outbox()
+        self.shutdown: Event = Event()
+
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
         self.target_model = None
         self.include_router(detect.router, tags=["detect"])
@@ -57,17 +62,9 @@ class DetectorNode(Node):
             await self.check_for_update()
 
         @self.on_event("startup")
-        async def _load_model() -> None:
-            try:
-                self.detector.load_model()
-            finally:
-                self.operation_mode = OperationMode.Idle
-
-        @self.on_event("startup")
-        @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
-        def submit() -> None:
-            thread = Thread(target=self.outbox.upload)
-            thread.start()
+        async def startup() -> None:
+            self._start_upload_process()
+            self._load_model()
 
         sio = SocketManager(app=self)
 
@@ -108,8 +105,41 @@ class DetectorNode(Node):
 
         @self.on_event("shutdown")
         async def shutdown():
-            for sid in self.connected_clients:
-                await self.sio.disconnect(sid)
+            await self._disconnect_sio_clients()
+            self._stop_upload_process()
+
+    def _start_upload_process(self) -> None:
+        try:
+            multiprocessing.set_start_method('spawn', force=True)
+        except:
+            self.log.exception("could not set multiprocessing start method to 'spawn'")
+
+        assert multiprocessing.get_start_method(
+        ) == 'spawn', f'Should be spawn, but was {multiprocessing.get_start_method()}'
+
+        self.upload_process = UploadProcess(self.shutdown, self.outbox.target_uri, self.outbox.path)
+        self.upload_process.start()
+
+    def _stop_upload_process(self) -> None:
+        self.shutdown.set()
+        proc = self.upload_process
+        proc.join(5)
+        if proc.is_alive():
+            proc.terminate()
+            self.log.info('terminated process')
+        else:
+            if proc.exitcode:
+                self.log.info(f'bad exitcode for process: {proc.exitcode}')
+
+    def _load_model(self) -> None:
+        try:
+            self.detector.load_model()
+        finally:
+            self.operation_mode = OperationMode.Idle
+
+    async def _disconnect_sio_clients(self):
+        for sid in self.connected_clients:
+            await self.sio.disconnect(sid)
 
     async def check_for_update(self):
         if self.operation_mode == OperationMode.Startup:
