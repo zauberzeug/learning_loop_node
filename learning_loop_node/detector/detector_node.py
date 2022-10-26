@@ -47,6 +47,7 @@ class DetectorNode(Node):
         logging.info(f'Using {self.organization}/{self.project}')
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
+
         self.outbox: Outbox = Outbox()
         self.shutdown: Event = Event()
 
@@ -117,7 +118,7 @@ class DetectorNode(Node):
         assert multiprocessing.get_start_method(
         ) == 'spawn', f'Should be spawn, but was {multiprocessing.get_start_method()}'
 
-        self.upload_process = UploadProcess(self.shutdown, self.outbox.target_uri, self.outbox.path)
+        self.upload_process = self.outbox.create_upload_process(self.shutdown, daemon=True)
         self.upload_process.start()
 
     def _stop_upload_process(self) -> None:

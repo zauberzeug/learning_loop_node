@@ -7,12 +7,12 @@ import time
 
 
 class UploadProcess(Process):
-    def __init__(self, shutdown: Event, target_uri: str, data_path: str):
+    def __init__(self, shutdown: Event, target_uri: str, data_path: str, **kwargs):
         self.shutdown = shutdown
         self.target_uri = target_uri
         self.data_path = data_path
         self.log = logging.getLogger()
-        super().__init__()
+        super().__init__(**kwargs)
 
     def run(self):
         self.log.info('Uploading process started.')

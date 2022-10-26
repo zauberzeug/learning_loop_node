@@ -5,6 +5,7 @@ import os
 import numpy as np
 import pytest
 import shutil
+from multiprocessing import Event
 
 
 @pytest.fixture()
@@ -28,11 +29,13 @@ def test_files_are_deleted_after_sending(outbox: Outbox):
 
     img = Image.new('RGB', (60, 30), color=(73, 109, 137))
     img.save(f'{outbox.path}/test/image.jpg')
+    uploader = outbox.create_upload_process(Event())
 
     items = outbox.get_data_files()
     assert len(items) == 1
 
-    outbox.upload()
+    uploader.upload()
+
     items = outbox.get_data_files()
     assert len(items) == 0
 

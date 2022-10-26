@@ -8,6 +8,8 @@ import json
 from datetime import datetime
 from ...globals import GLOBALS
 from ... import environment_reader
+from multiprocessing import Event
+from .upload_process import UploadProcess
 
 
 class Outbox():
@@ -23,7 +25,6 @@ class Outbox():
         p = environment_reader.project()
         assert o and p, 'Outbox needs an organization and a projekct '
         self.target_uri = f'{base}/api/{o}/projects/{p}/images'
-        self.upload_in_progress = False
 
     def save(self, image: bytes, detections: Detections = Detections(), tags: List[str] = []) -> None:
         id = datetime.now().isoformat(sep='_', timespec='milliseconds')
@@ -37,3 +38,9 @@ class Outbox():
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
         os.rename(tmp, self.path + '/' + id)  # NOTE rename is atomic so upload can run in parallel
+
+    def create_upload_process(self, shutdown: Event, **kwargs) -> UploadProcess:
+        return UploadProcess(shutdown, self.target_uri, self.path, **kwargs)
+
+    def get_data_files(self):
+        return glob(f'{self.path}/*')
