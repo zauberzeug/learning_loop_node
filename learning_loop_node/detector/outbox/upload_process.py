@@ -13,6 +13,7 @@ class UploadProcess(Process):
         self.shutdown = shutdown
         self.target_uri = target_uri
         self.data_path = data_path
+        self.log = None
         super().__init__(**kwargs)
 
     def run(self):
