@@ -25,6 +25,9 @@ class UploadProcess(Process):
             time.sleep(1)
 
     def upload(self):
+        if not self.log:
+            self.log = logging.getLogger()  # NOTE happens in tests.
+
         items = self.get_data_files()
         self.log.info(f'Found {len(items)} images to upload')
         for item in items:
