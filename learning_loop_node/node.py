@@ -15,6 +15,9 @@ from uuid import uuid4
 from .socket_response import ensure_socket_response
 from datetime import datetime
 
+from . import log_conf
+log_conf.init()
+
 
 class Node(FastAPI):
     name: str
@@ -22,6 +25,8 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str = None):
         super().__init__()
+        self.log = logging.getLogger()
+
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
 
