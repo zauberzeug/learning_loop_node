@@ -60,12 +60,19 @@ class DetectorNode(Node):
         @self.on_event("startup")
         @repeat_every(seconds=self.update_frequency, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
-            await self.check_for_update()
+            try:
+                await self.check_for_update()
+            except:
+                self.log.exception("error in '_check_for_update'")
 
         @self.on_event("startup")
         async def startup() -> None:
-            self._start_upload_process()
-            self._load_model()
+            try:
+                self.log.info("received 'startup' event")
+                self._start_upload_process()
+                self._load_model()
+            except:
+                self.log.exception("error during 'startup'")
 
         sio = SocketManager(app=self)
 
@@ -106,8 +113,12 @@ class DetectorNode(Node):
 
         @self.on_event("shutdown")
         async def shutdown():
-            await self._disconnect_sio_clients()
-            self._stop_upload_process()
+            try:
+                self.log.info("received 'shutdown' event")
+                await self._disconnect_sio_clients()
+                self._stop_upload_process()
+            except:
+                self.log.exception("error during 'shutdown'")
 
     def _start_upload_process(self) -> None:
         try:
