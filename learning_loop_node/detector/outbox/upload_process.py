@@ -4,6 +4,8 @@ import requests
 import shutil
 import logging
 import time
+from learning_loop_node import log_conf
+log_conf.init()
 
 
 class UploadProcess(Process):
@@ -11,10 +13,10 @@ class UploadProcess(Process):
         self.shutdown = shutdown
         self.target_uri = target_uri
         self.data_path = data_path
-        self.log = logging.getLogger()
         super().__init__(**kwargs)
 
     def run(self):
+        self.log = logging.getLogger()  # NOTE do not move this into the constructor to prevent PicklingError
         self.log.info('Uploading process started.')
         while True:
             if self.shutdown.is_set():
@@ -42,7 +44,7 @@ class UploadProcess(Process):
                 else:
                     self.log.error(f'Could not upload {item}: {response.status_code}, {response.content}')
             except:
-                self.log.s.exception('could not upload files')
+                self.log.exception('could not upload files')
 
     def get_data_files(self):
         return glob(f'{self.data_path}/*')
