@@ -152,7 +152,12 @@ class Node(FastAPI):
     def _activate_asyncio_warnings() -> None:
         '''Produce warnings for coroutines which take too long on the main loop and hence clog the event loop'''
         try:
-            loop = asyncio.get_running_loop()
+            import sys
+            if sys.version_info.major >= 3 and sys.version_info.minor >= 7:  # most
+                loop = asyncio.get_running_loop()
+            else:
+                loop = asyncio.get_event_loop()
+
             loop.set_debug(True)
             loop.slow_callback_duration = 0.2
             logging.info('activated asyncio warnings')
