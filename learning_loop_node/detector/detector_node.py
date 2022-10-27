@@ -58,12 +58,14 @@ class DetectorNode(Node):
         @self.on_event("startup")
         async def _load_model() -> None:
             try:
+                thread = Thread(target=self.outbox.upload)
+                thread.start()
                 self.detector.load_model()
             finally:
                 self.operation_mode = OperationMode.Idle
 
         @self.on_event("startup")
-        @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         def submit() -> None:
             thread = Thread(target=self.outbox.upload)
             thread.start()

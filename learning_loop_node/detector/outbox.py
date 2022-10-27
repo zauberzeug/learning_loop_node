@@ -44,23 +44,29 @@ class Outbox():
 
     def upload(self) -> None:
         if self.upload_in_progress:
+            logging.error('some other uploading already running.')
             return
         self.upload_in_progress = True
+        logging.error('upload called, going to upload images.')
 
         try:
-            for item in self.get_data_files():
-                data = [('files', open(f'{item}/image.json', 'r')),
-                        ('files', open(f'{item}/image.jpg', 'rb'))]
+            while True:
+                # create image with e.g.
+                # sudo mkdir -p data/outbox/some_uuid && sudo cp zucker/images/B-pin-14cm.jpg ~/data/outbox/some_uuid/image.jpg && sudo touch ~/data/outbox/some_uuid/image.json
+                for item in self.get_data_files():
+                    data = [('files', open(f'{item}/image.json', 'r')),
+                            ('files', open(f'{item}/image.jpg', 'rb'))]
 
-                response = requests.post(self.target_uri, files=data)
-                if response.status_code == 200:
-                    shutil.rmtree(item)
-                    logging.info(f'uploaded {item} successfully')
-                elif response.status_code == 422:
-                    logging.error(f'Broken content in {item}: dropping this data')
-                    shutil.rmtree(item)
-                else:
-                    logging.error(f'Could not upload {item}: {response.status_code}, {response.content}')
+                    response = requests.post(self.target_uri, files=data)
+                    if response.status_code == 200:
+                        # shutil.rmtree(item)
+                        logging.error(f'uploaded {item} successfully')
+                    elif response.status_code == 422:
+                        logging.error(f'Broken content in {item}: dropping this data')
+                        # shutil.rmtree(item)
+                    else:
+                        logging.error(f'Could not upload {item}: {response.status_code}, {response.content}')
+
         except:
             logging.exception('could not upload files')
         self.upload_in_progress = False
