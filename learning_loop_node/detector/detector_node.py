@@ -1,6 +1,5 @@
 from enum import auto
 import multiprocessing
-from learning_loop_node.detector.outbox.upload_process import UploadProcess
 from . import Detections
 from . import Outbox
 from .rest.operation_mode import OperationMode
@@ -49,7 +48,6 @@ class DetectorNode(Node):
         self.connected_clients: List[str] = []
 
         self.outbox: Outbox = Outbox()
-        self.shutdown: Event = Event()
 
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
         self.target_model = None
@@ -69,7 +67,7 @@ class DetectorNode(Node):
         async def startup() -> None:
             try:
                 self.log.info("received 'startup' event")
-                self._start_upload_process()
+                self.outbox.start_continuous_upload()
                 self._load_model()
             except:
                 self.log.exception("error during 'startup'")
@@ -113,35 +111,15 @@ class DetectorNode(Node):
 
         @self.on_event("shutdown")
         async def shutdown():
-            try:
-                self.log.info("received 'shutdown' event")
-                await self._disconnect_sio_clients()
-                self._stop_upload_process()
-            except:
-                self.log.exception("error during 'shutdown'")
+            await self.shutdown()
 
-    def _start_upload_process(self) -> None:
+    async def shutdown(self):
         try:
-            multiprocessing.set_start_method('spawn', force=True)
+            self.log.info("received 'shutdown' event")
+            await self._disconnect_sio_clients()
+            self.outbox.stop_continuous_upload()
         except:
-            self.log.exception("could not set multiprocessing start method to 'spawn'")
-
-        assert multiprocessing.get_start_method(
-        ) == 'spawn', f'Should be spawn, but was {multiprocessing.get_start_method()}'
-
-        self.upload_process = self.outbox.create_upload_process(self.shutdown, daemon=True)
-        self.upload_process.start()
-
-    def _stop_upload_process(self) -> None:
-        self.shutdown.set()
-        proc = self.upload_process
-        proc.join(5)
-        if proc.is_alive():
-            proc.terminate()
-            self.log.info('terminated process')
-        else:
-            if proc.exitcode:
-                self.log.info(f'bad exitcode for process: {proc.exitcode}')
+            self.log.exception("error during 'shutdown'")
 
     def _load_model(self) -> None:
         try:

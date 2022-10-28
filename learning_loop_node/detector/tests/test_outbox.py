@@ -1,4 +1,6 @@
 
+from learning_loop_node.detector.detections import Detections
+from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.detector.outbox.outbox import Outbox
 from PIL import Image
 import os
@@ -29,12 +31,11 @@ def test_files_are_deleted_after_sending(outbox: Outbox):
 
     img = Image.new('RGB', (60, 30), color=(73, 109, 137))
     img.save(f'{outbox.path}/test/image.jpg')
-    uploader = outbox.create_upload_process(Event())
 
     items = outbox.get_data_files()
     assert len(items) == 1
 
-    uploader.upload()
+    outbox.upload()
 
     items = outbox.get_data_files()
     assert len(items) == 0
@@ -55,3 +56,10 @@ def test_saving_binary(outbox: Outbox):
         data = f.read()
     outbox.save(data)
     assert len(outbox.get_data_files()) == 1
+
+
+def test_files_are_automatically_uploaded(test_detector_node: DetectorNode):
+    test_detector_node.outbox.save(Image.new('RGB', (60, 30), color=(73, 109, 137)).tobytes(), Detections())
+    assert len(test_detector_node.outbox.get_data_files()) == 1
+
+    assert len(test_detector_node.outbox.get_data_files()) == 1

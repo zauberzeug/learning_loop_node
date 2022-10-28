@@ -57,16 +57,17 @@ async def test_detector_node(request):
                    kwargs={
                        "host": "127.0.0.1",
                        "port": pytest.detector_port,
-                   })
+
+                   }, daemon=True)
     proc.start()
     await port_is(free=False)
     yield node
-    await node.sio_client.disconnect()
+
     try:
-        node._stop_upload_process()
+        await node.shutdown()
     except:
-        pass
-# node.shutdown()
+        logging.exception('error while shutting down node')
+
     try:
         proc.kill()
     except:  # for python 3.6
