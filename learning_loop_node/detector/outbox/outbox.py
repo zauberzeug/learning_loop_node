@@ -66,7 +66,7 @@ class Outbox():
         items = self.get_data_files()
         self.log.info(f'Found {len(items)} images to upload')
         for item in items:
-            if self.shutdown_event.is_set():
+            if self.shutdown_event and self.shutdown_event.is_set():
                 break
             try:
                 data = [('files', open(f'{item}/image.json', 'r')),
@@ -74,11 +74,11 @@ class Outbox():
 
                 response = requests.post(self.target_uri, files=data)
                 if response.status_code == 200:
-                    # shutil.rmtree(item)
+                    shutil.rmtree(item)
                     self.log.info(f'uploaded {item} successfully')
                 elif response.status_code == 422:
                     self.log.error(f'Broken content in {item}: dropping this data')
-                    # shutil.rmtree(item)
+                    shutil.rmtree(item)
                 else:
                     self.log.error(f'Could not upload {item}: {response.status_code}, {response.content}')
             except:
