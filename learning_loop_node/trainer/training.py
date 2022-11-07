@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional
 from learning_loop_node.context import Context
 import json
+from fastapi.encoders import jsonable_encoder
 
 
 class Training(BaseModel):
@@ -26,12 +27,17 @@ class Training(BaseModel):
 
 def save(training: Training):
     with open('last_training.json', 'w') as f:
-        json.dump(training.dict(), f)
+        json.dump(jsonable_encoder(training), f)
 
 
 def load() -> Training:
     with open('last_training.json', 'r') as f:
         return Training(**json.load(f))
+
+
+def delete() -> None:
+    import os
+    os.remove('last_training.json')
 
 
 class TrainingOut(BaseModel):
@@ -43,4 +49,5 @@ class TrainingOut(BaseModel):
 
 
 class State(str, Enum):
-    Preparing = 'preparing'
+    Init = 'init'
+    Prepared = 'prepared'

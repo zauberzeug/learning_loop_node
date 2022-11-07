@@ -1,6 +1,7 @@
 from abc import abstractmethod
 import asyncio
 import os
+from threading import Thread
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from learning_loop_node.rest.downloader import DataDownloader
@@ -26,6 +27,9 @@ from learning_loop_node.data_classes.category import Category
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
 import time
 from time import perf_counter
+from learning_loop_node.trainer.training import State as TrainingState
+from learning_loop_node.trainer import training as training_module
+from learning_loop_node.trainer.training_data import TrainingData
 
 
 class Trainer():
@@ -35,38 +39,79 @@ class Trainer():
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
         self.start_time: Optional[int] = None
+        self.prepare_task = None
 
     async def begin_training(self, context: Context, details: dict) -> None:
-        downloader = TrainingsDownloader(context)
-        self.training = Trainer.generate_training(context)
-        self.training.data = await downloader.download_training_data(self.training.images_folder)
-        self.training.data.categories = Category.from_list(details['categories'])
-        self.training.data.hyperparameter = Hyperparameter.from_dict(details)
-        self.training.training_number = details['training_number']
+        try:
+            self.init(context, details)
 
-        base_model_id = details['id']
-        self.training.base_model_id = base_model_id
+            # self.prepare_task = Thread(target=self.prepare)
+            self.prepare_task = asyncio.get_running_loop().create_task(self.prepare())
+            try:
+                await self.prepare_task
+            except asyncio.CancelledError:
+                logging.info('cancelled prepare task')
+                self.training = None
+                training_module.delete()
+                return
+            finally:
+                logging.info('setting prepare_task to None')
+                self.prepare_task = None
 
-        self.executor = Executor(self.training.training_folder)
+            downloader = TrainingsDownloader(context)
+            # TODO return a tuple
+            data = await downloader.download_training_data(self.training.images_folder)
+            self.training.data.image_ids = data.image_ids
+            self.training.data.skipped_image_count = data.skipped_image_count
 
-        if not is_valid_uuid4(base_model_id):
-            if base_model_id in [m.name for m in self.provided_pretrained_models]:
-                logging.debug('Starting with pretrained model')
-                await self.start_training_from_scratch(base_model_id)
+            self.training.training_state = TrainingState.Prepared
+            training_module.save(self.training)
+
+            self.executor = Executor(self.training.training_folder)
+            base_model_id = self.training.id
+            if not is_valid_uuid4(base_model_id):
+                if base_model_id in [m.name for m in self.provided_pretrained_models]:
+                    logging.debug('Starting with pretrained model')
+                    await self.start_training_from_scratch(base_model_id)
+                else:
+                    raise ValueError(f'Pretrained model {base_model_id} is not supported')
             else:
-                raise ValueError(f'Pretrained model {base_model_id} is not supported')
-        else:
-            logging.debug('loading model from Learning Loop')
-            logging.info(f'downloading model {base_model_id} as {self.model_format}')
-            await downloads.download_model(self.training.training_folder, context, base_model_id, self.model_format)
-            shutil.move(f'{self.training.training_folder}/model.json',
-                        f'{self.training.training_folder}/base_model.json')
+                logging.debug('loading model from Learning Loop')
+                logging.info(f'downloading model {base_model_id} as {self.model_format}')
+                await downloads.download_model(self.training.training_folder, context, base_model_id, self.model_format)
+                shutil.move(f'{self.training.training_folder}/model.json',
+                            f'{self.training.training_folder}/base_model.json')
 
-            logging.info(f'starting training')
-            await self.start_training()
-        self.start_time = time.time()
+                # store
+                logging.info(f'starting training')
+                await self.start_training()
+            self.start_time = time.time()
+
+        except:
+            logging.exception('begin training')
 
         logging.info(f'training with categories: {self.training.data.categories}')
+
+    def init(self, context: Context, details: dict) -> None:
+        try:
+            self.training = Trainer.generate_training(context)
+            self.training.data = TrainingData(categories=Category.from_list(details['categories']))
+            self.training.data.hyperparameter = Hyperparameter.from_dict(details)
+            self.training.training_number = details['training_number']
+            self.training.base_model_id = details['id']
+            self.training.training_state = TrainingState.Init
+            training_module.save(self.training)
+        except:
+            logging.exception('Error in init')
+
+    async def prepare(self) -> None:
+        await asyncio.sleep(10)
+
+    def stop(self) -> None:
+        if self.training.training_state == TrainingState.Init:
+            self.prepare_task.cancel()
+        else:
+            raise NotImplementedError('can not stop training')
 
     async def start_training(self) -> None:
         raise NotImplementedError()
