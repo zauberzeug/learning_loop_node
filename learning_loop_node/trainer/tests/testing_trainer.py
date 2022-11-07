@@ -6,3 +6,6 @@ class TestingTrainer(Trainer):
 
     def __init__(self, ) -> None:
         super().__init__('mocked')
+
+    async def start_training(self) -> None:
+        self.executor.start('while true; do sleep 1; done')

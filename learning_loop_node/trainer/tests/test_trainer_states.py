@@ -9,6 +9,7 @@ import asyncio
 import os
 import pytest
 import signal
+import logging
 
 
 @pytest.fixture
@@ -72,9 +73,9 @@ async def test_abort_preparing():
 
 
 async def test_abort_download_model():
-    trainer = Trainer(model_format='mocked')
+    trainer = TestingTrainer()
     details = {'categories': [],
-               'id': 'some_id',
+               'id': '00000000-1111-2222-3333-555555555555',
                'training_number': 0,
                'resolution': 800,
                'flip_rl': False,
@@ -85,17 +86,12 @@ async def test_abort_download_model():
         trainer.begin_training(Context(organization='zauberzeug', project='demo'), details))
     await asyncio.sleep(0.1)
 
-    with Timeout(seconds=1, error_message='state should be init'):
-        while True:
-            if trainer.training.training_state == 'init':
-                break
-            await asyncio.sleep(0.1)
-
     with Timeout(seconds=1, error_message='state should be prepared'):
         while True:
             if trainer.training.training_state == 'prepared':
                 break
-            await asyncio.sleep(0.1)
+            logging.warning(trainer.training.training_state)
+            await asyncio.sleep(0.01)
 
     assert trainer.training.training_state == 'prepared'
     assert_training_file(exists=True)

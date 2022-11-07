@@ -70,7 +70,6 @@ class Trainer():
                 logging.info('setting download_model_task to None')
                 self.download_model_task = None
 
-            return
             self.executor = Executor(self.training.training_folder)
             base_model_id = self.training.id
             if not is_valid_uuid4(base_model_id):
@@ -80,13 +79,6 @@ class Trainer():
                 else:
                     raise ValueError(f'Pretrained model {base_model_id} is not supported')
             else:
-                logging.debug('loading model from Learning Loop')
-                logging.info(f'downloading model {base_model_id} as {self.model_format}')
-                await downloads.download_model(self.training.training_folder, context, base_model_id, self.model_format)
-                shutil.move(f'{self.training.training_folder}/model.json',
-                            f'{self.training.training_folder}/base_model.json')
-
-                # store
                 logging.info(f'starting training')
                 await self.start_training()
             self.start_time = time.time()
@@ -119,7 +111,16 @@ class Trainer():
         training_module.save(self.training)
 
     async def download_model(self) -> None:
-        await asyncio.sleep(10)
+        model_id = self.training.base_model_id
+        if is_valid_uuid4(self.training.base_model_id):
+            logging.debug('loading model from Learning Loop')
+            logging.info(f'downloading model {model_id} as {self.model_format}')
+            await downloads.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
+            shutil.move(f'{self.training.training_folder}/model.json',
+                        f'{self.training.training_folder}/base_model.json')
+
+        self.training.training_state = TrainingState.ModelDownloaded
+        training_module.save(self.training)
 
     def stop(self) -> None:
         if self.training.training_state == TrainingState.Init:
@@ -127,7 +128,7 @@ class Trainer():
         elif self.training.training_state == TrainingState.Prepared:
             self.download_model_task.cancel()
         else:
-            raise NotImplementedError('can not stop training')
+            raise NotImplementedError(f'can not stop training: {self.training.training_state}')
 
     async def start_training(self) -> None:
         raise NotImplementedError()
