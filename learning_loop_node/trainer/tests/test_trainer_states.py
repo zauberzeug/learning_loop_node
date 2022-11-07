@@ -8,6 +8,7 @@ from learning_loop_node.trainer import training as training_module
 import asyncio
 import os
 import pytest
+import signal
 
 
 @pytest.fixture
@@ -41,7 +42,6 @@ def test_save_load_training():
 
 
 async def test_abort_preparing():
-
     trainer = Trainer(model_format='mocked')
     details = {'categories': [],
                'id': 'some_id',
@@ -71,5 +71,64 @@ async def test_abort_preparing():
     training_task.cancel()
 
 
+async def test_abort_download_model():
+    trainer = Trainer(model_format='mocked')
+    details = {'categories': [],
+               'id': 'some_id',
+               'training_number': 0,
+               'resolution': 800,
+               'flip_rl': False,
+               'flip_ud': False}
+
+    assert trainer.training is None
+    training_task = asyncio.get_running_loop().create_task(
+        trainer.begin_training(Context(organization='zauberzeug', project='demo'), details))
+    await asyncio.sleep(0.1)
+
+    with Timeout(seconds=1, error_message='state should be init'):
+        while True:
+            if trainer.training.training_state == 'init':
+                break
+            await asyncio.sleep(0.1)
+
+    with Timeout(seconds=1, error_message='state should be prepared'):
+        while True:
+            if trainer.training.training_state == 'prepared':
+                break
+            await asyncio.sleep(0.1)
+
+    assert trainer.training.training_state == 'prepared'
+    assert_training_file(exists=True)
+    assert trainer.download_model_task.cancelled() == False
+
+    trainer.stop()
+    await asyncio.sleep(0.0)
+
+    assert trainer.download_model_task.cancelled() == True
+    await asyncio.sleep(0.1)
+    assert trainer.download_model_task is None
+    assert trainer.training == None
+    assert_training_file(exists=False)
+
+    training_task.cancel()
+
+
 def assert_training_file(exists: bool) -> None:
     assert os.path.isfile('last_training.json') == exists
+
+
+class Timeout:
+    # see https://stackoverflow.com/a/22348885/4082686
+    def __init__(self, seconds=1, error_message='Timeout'):
+        self.seconds = seconds
+        self.error_message = error_message
+
+    def handle_timeout(self, signum, frame):
+        raise TimeoutError(self.error_message)
+
+    def __enter__(self):
+        signal.signal(signal.SIGALRM, self.handle_timeout)
+        signal.alarm(self.seconds)
+
+    def __exit__(self, type, value, traceback):
+        signal.alarm(0)

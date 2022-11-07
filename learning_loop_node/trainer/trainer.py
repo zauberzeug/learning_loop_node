@@ -40,6 +40,7 @@ class Trainer():
         self.executor: Optional[Executor] = None
         self.start_time: Optional[int] = None
         self.prepare_task = None
+        self.download_model_task = None
 
     async def begin_training(self, context: Context, details: dict) -> None:
         try:
@@ -57,6 +58,19 @@ class Trainer():
                 logging.info('setting prepare_task to None')
                 self.prepare_task = None
 
+            self.download_model_task = asyncio.get_running_loop().create_task(self.download_model())
+            try:
+                await self.download_model_task
+            except asyncio.CancelledError:
+                logging.info('cancelled download model task')
+                self.training = None
+                training_module.delete()
+                return
+            finally:
+                logging.info('setting download_model_task to None')
+                self.download_model_task = None
+
+            return
             self.executor = Executor(self.training.training_folder)
             base_model_id = self.training.id
             if not is_valid_uuid4(base_model_id):
@@ -104,9 +118,14 @@ class Trainer():
         self.training.training_state = TrainingState.Prepared
         training_module.save(self.training)
 
+    async def download_model(self) -> None:
+        await asyncio.sleep(10)
+
     def stop(self) -> None:
         if self.training.training_state == TrainingState.Init:
             self.prepare_task.cancel()
+        elif self.training.training_state == TrainingState.Prepared:
+            self.download_model_task.cancel()
         else:
             raise NotImplementedError('can not stop training')
 
