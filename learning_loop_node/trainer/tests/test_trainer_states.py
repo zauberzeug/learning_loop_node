@@ -6,6 +6,15 @@ from uuid import uuid4
 from learning_loop_node.context import Context
 from learning_loop_node.trainer import training as training_module
 import asyncio
+import os
+import pytest
+
+
+@pytest.fixture
+def remove_training_file(autouse=True):
+    os.remove('last_training.json')
+    yield
+    os.remove('last_training.json')
 
 
 def create_training() -> Training:
@@ -32,6 +41,7 @@ def test_save_load_training():
 
 
 async def test_abort_preparing():
+
     trainer = Trainer(model_format='mocked')
     details = {'categories': [],
                'id': 'some_id',
@@ -47,6 +57,7 @@ async def test_abort_preparing():
     assert trainer.training is not None
     assert trainer.training.training_state == 'init'
     assert trainer.prepare_task is not None
+    assert_training_file(exists=True)
 
     trainer.stop()
     await asyncio.sleep(0.0)
@@ -55,4 +66,10 @@ async def test_abort_preparing():
     await asyncio.sleep(0.1)
     assert trainer.prepare_task is None
     assert trainer.training == None
+    assert_training_file(exists=False)
+
     training_task.cancel()
+
+
+def assert_training_file(exists: bool) -> None:
+    assert os.path.isfile('last_training.json') == exists
