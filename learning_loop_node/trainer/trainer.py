@@ -45,7 +45,6 @@ class Trainer():
         try:
             self.init(context, details)
 
-            # self.prepare_task = Thread(target=self.prepare)
             self.prepare_task = asyncio.get_running_loop().create_task(self.prepare())
             try:
                 await self.prepare_task
@@ -57,15 +56,6 @@ class Trainer():
             finally:
                 logging.info('setting prepare_task to None')
                 self.prepare_task = None
-
-            downloader = TrainingsDownloader(context)
-            # TODO return a tuple
-            data = await downloader.download_training_data(self.training.images_folder)
-            self.training.data.image_ids = data.image_ids
-            self.training.data.skipped_image_count = data.skipped_image_count
-
-            self.training.training_state = TrainingState.Prepared
-            training_module.save(self.training)
 
             self.executor = Executor(self.training.training_folder)
             base_model_id = self.training.id
@@ -105,7 +95,14 @@ class Trainer():
             logging.exception('Error in init')
 
     async def prepare(self) -> None:
-        await asyncio.sleep(10)
+        downloader = TrainingsDownloader(self.training.context)
+
+        image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
+        self.training.data.image_data = image_data
+        self.training.data.skipped_image_count = skipped_image_count
+
+        self.training.training_state = TrainingState.Prepared
+        training_module.save(self.training)
 
     def stop(self) -> None:
         if self.training.training_state == TrainingState.Init:
