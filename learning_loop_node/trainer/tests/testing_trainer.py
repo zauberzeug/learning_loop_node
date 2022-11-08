@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Optional
 from learning_loop_node.trainer import Trainer
-from learning_loop_node.trainer.model import PretrainedModel
+from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 import subprocess
+import asyncio
+import logging
 
 
 class TestingTrainer(Trainer):
@@ -26,3 +28,12 @@ class TestingTrainer(Trainer):
 
     async def start_training_from_scratch(self, id: str) -> None:
         await self.start_training(model=f'model_{id}.pt')
+
+
+    async def _prepare(self) -> None:
+        await super()._prepare()
+        await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
+
+    async def _download_model(self) -> None:
+        await super()._download_model()
+        await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
