@@ -53,7 +53,7 @@ class TrainerNode(Node):
 
         @self.on_event("shutdown")
         async def shutdown():
-            self.shutdown()
+            await self.shutdown()
 
     async def begin_training(self, context: Context, details: dict):
         self.status.reset_error('start_training')
