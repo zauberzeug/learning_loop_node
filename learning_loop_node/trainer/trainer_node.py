@@ -225,6 +225,7 @@ class TrainerNode(Node):
 
     async def shutdown(self):
         logging.info('shutdown detected, stopping training')
+        self.trainer.stop()
         if self.trainer.executor:
             try:
                 self.trainer.executor.stop()
