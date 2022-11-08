@@ -53,12 +53,7 @@ class TrainerNode(Node):
 
         @self.on_event("shutdown")
         async def shutdown():
-            logging.info('shutdown detected, stopping training')
-            try:
-                self.trainer.executor.stop()
-            except:
-                logging.exception('could not kill training.')
-                pass
+            self.shutdown()
 
     async def begin_training(self, context: Context, details: dict):
         self.status.reset_error('start_training')
@@ -227,6 +222,14 @@ class TrainerNode(Node):
             if status.state != State.Idle:
                 # TODO was soll passieren, wenn wir z.B. Stopping sind, und das Event von der Loop abgelehnt wird?
                 await self.stop_training(save_and_detect=False)
+
+    async def shutdown(self):
+        logging.info('shutdown detected, stopping training')
+        if self.trainer.executor:
+            try:
+                self.trainer.executor.stop()
+            except:
+                logging.exception('could not kill training.')
 
     def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
