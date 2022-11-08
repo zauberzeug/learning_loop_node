@@ -52,8 +52,9 @@ async def test_abort_preparing():
                'flip_ud': False}
 
     assert trainer.training is None
-    training_task = asyncio.get_running_loop().create_task(
-        trainer.begin_training(Context(organization='zauberzeug', project='demo'), details))
+    trainer.init(Context(organization='zauberzeug', project='demo'), details)
+    training_task = asyncio.get_running_loop().create_task(trainer.prepare())
+
     await asyncio.sleep(0.1)
     assert trainer.training is not None
     assert trainer.training.training_state == 'init'
@@ -82,22 +83,20 @@ async def test_abort_download_model():
                'flip_ud': False}
 
     assert trainer.training is None
-    training_task = asyncio.get_running_loop().create_task(
-        trainer.begin_training(Context(organization='zauberzeug', project='demo'), details))
-    await asyncio.sleep(0.1)
-
-    with Timeout(seconds=1, error_message='state should be prepared'):
-        while True:
-            if trainer.training.training_state == 'prepared':
-                break
-            logging.warning(trainer.training.training_state)
-            await asyncio.sleep(0.01)
+    trainer.init(Context(organization='zauberzeug', project='demo'), details)
+    await trainer.prepare()
 
     assert trainer.training.training_state == 'prepared'
     assert_training_file(exists=True)
+
+    download_task = asyncio.get_running_loop().create_task(trainer.download_model())
+
+    await asyncio.sleep(0.0)
+
     assert trainer.download_model_task.cancelled() == False
 
     trainer.stop()
+
     await asyncio.sleep(0.0)
 
     assert trainer.download_model_task.cancelled() == True
@@ -106,7 +105,7 @@ async def test_abort_download_model():
     assert trainer.training == None
     assert_training_file(exists=False)
 
-    training_task.cancel()
+    download_task.cancel()
 
 
 def assert_training_file(exists: bool) -> None:

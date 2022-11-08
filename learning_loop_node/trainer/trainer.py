@@ -43,50 +43,51 @@ class Trainer():
         self.download_model_task = None
 
     async def begin_training(self, context: Context, details: dict) -> None:
-        try:
-            self.init(context, details)
+        # try:
+        #     self.init(context, details)
 
-            self.prepare_task = asyncio.get_running_loop().create_task(self.prepare())
-            try:
-                await self.prepare_task
-            except asyncio.CancelledError:
-                logging.info('cancelled prepare task')
-                self.training = None
-                active_training.delete()
-                return
-            finally:
-                logging.info('setting prepare_task to None')
-                self.prepare_task = None
+        #     self.prepare_task = asyncio.get_running_loop().create_task(self.prepare())
+        #     try:
+        #         await self.prepare_task
+        #     except asyncio.CancelledError:
+        #         logging.info('cancelled prepare task')
+        #         self.training = None
+        #         active_training.delete()
+        #         return
+        #     finally:
+        #         logging.info('setting prepare_task to None')
+        #         self.prepare_task = None
 
-            self.download_model_task = asyncio.get_running_loop().create_task(self.download_model())
-            try:
-                await self.download_model_task
-            except asyncio.CancelledError:
-                logging.info('cancelled download model task')
-                self.training = None
-                active_training.delete()
-                return
-            finally:
-                logging.info('setting download_model_task to None')
-                self.download_model_task = None
+        #     self.download_model_task = asyncio.get_running_loop().create_task(self.download_model())
+        #     try:
+        #         await self.download_model_task
+        #     except asyncio.CancelledError:
+        #         logging.info('cancelled download model task')
+        #         self.training = None
+        #         active_training.delete()
+        #         return
+        #     finally:
+        #         logging.info('setting download_model_task to None')
+        #         self.download_model_task = None
 
-            self.executor = Executor(self.training.training_folder)
-            base_model_id = self.training.id
-            if not is_valid_uuid4(base_model_id):
-                if base_model_id in [m.name for m in self.provided_pretrained_models]:
-                    logging.debug('Starting with pretrained model')
-                    await self.start_training_from_scratch(base_model_id)
-                else:
-                    raise ValueError(f'Pretrained model {base_model_id} is not supported')
-            else:
-                logging.info(f'starting training')
-                await self.start_training()
-            self.start_time = time.time()
+        #     self.executor = Executor(self.training.training_folder)
+        #     base_model_id = self.training.id
+        #     if not is_valid_uuid4(base_model_id):
+        #         if base_model_id in [m.name for m in self.provided_pretrained_models]:
+        #             logging.debug('Starting with pretrained model')
+        #             await self.start_training_from_scratch(base_model_id)
+        #         else:
+        #             raise ValueError(f'Pretrained model {base_model_id} is not supported')
+        #     else:
+        #         logging.info(f'starting training')
+        #         await self.start_training()
+        #     self.start_time = time.time()
 
-        except:
-            logging.exception('begin training')
+        # except:
+        #     logging.exception('begin training')
 
-        logging.info(f'training with categories: {self.training.data.categories}')
+        # logging.info(f'training with categories: {self.training.data.categories}')
+        pass
 
     def init(self, context: Context, details: dict) -> None:
         try:
@@ -101,6 +102,33 @@ class Trainer():
             logging.exception('Error in init')
 
     async def prepare(self) -> None:
+        if self.training.training_state != 'init':
+            raise Exception("Training must be in state 'init', but was {self.training.training_state}")
+        try:
+            self.prepare_task = asyncio.get_running_loop().create_task(self._prepare())
+            try:
+                await self.prepare_task
+            except asyncio.CancelledError:
+                logging.info('cancelled prepare task')
+                self.training = None
+                active_training.delete()
+                return False
+            except GeneratorExit:
+                logging.info('cancelled prepare task')
+                self.training = None
+                active_training.delete()
+                return False
+            except Exception:
+                logging.exception("Unknown error in 'prepare'")
+            finally:
+                logging.info('setting prepare_task to None')
+                self.prepare_task = None
+        except:
+            logging.exception('error in prepare training')
+
+        return True
+
+    async def _prepare(self) -> None:
         downloader = TrainingsDownloader(self.training.context)
 
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
@@ -111,6 +139,20 @@ class Trainer():
         active_training.save(self.training)
 
     async def download_model(self) -> None:
+        self.download_model_task = asyncio.get_running_loop().create_task(self._download_model())
+        try:
+            await self.download_model_task
+            logging.info('download_model_task finished')
+        except asyncio.CancelledError:
+            logging.info('cancelled download model task')
+            self.training = None
+            active_training.delete()
+            return
+        finally:
+            logging.info(f'setting download_model_task to None')
+            self.download_model_task = None
+
+    async def _download_model(self) -> None:
         model_id = self.training.base_model_id
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
@@ -124,9 +166,13 @@ class Trainer():
 
     def stop(self) -> None:
         if self.training.training_state == TrainingState.Init:
-            self.prepare_task.cancel()
+            if self.prepare_task:
+                self.prepare_task.cancel()
+
         elif self.training.training_state == TrainingState.Prepared:
-            self.download_model_task.cancel()
+            if self.download_model_task:
+                self.download_model_task.cancel()
+
         else:
             raise NotImplementedError(f'can not stop training: {self.training.training_state}')
 
@@ -179,7 +225,7 @@ class Trainer():
     def get_new_model(self) -> Optional[BasicModel]:
         '''Is called frequently to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
-        `confusion_matrix` contains a dict of all classes: 
+        `confusion_matrix` contains a dict of all classes:
             - The classes must be identified by their id, not their name.
             - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
         `meta_information` can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
@@ -195,9 +241,9 @@ class Trainer():
         raise NotImplementedError()
 
     def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
-        '''Called when the Learning Loop requests to backup the latest model for the training. 
+        '''Called when the Learning Loop requests to backup the latest model for the training.
         Should return a list of file paths which describe the model.
-        These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.) 
+        These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.)
         and will be stored in the Learning Loop unter the format of this trainer.
         Note: by convention the weightfile should be named "model.<extension>" where extension is the file format of the weightfile.
         For example "model.pt" for pytorch or "model.weights" for darknet/yolo.
@@ -240,7 +286,7 @@ class Trainer():
         await self._upload_detections(context, jsonable_encoder(detections))
         return detections
 
-    @staticmethod
+    @ staticmethod
     def images_for_ids(image_ids, image_folder) -> List[str]:
         logging.info(f'### Going to get images for {len(image_ids)} images ids')
         start = perf_counter()
@@ -274,12 +320,12 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    @property
-    @abstractmethod
+    @ property
+    @ abstractmethod
     def provided_pretrained_models(self) -> List[PretrainedModel]:
         raise NotImplementedError()
 
-    @staticmethod
+    @ staticmethod
     def generate_training(context: Context) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
@@ -291,13 +337,13 @@ class Trainer():
             training_folder=Trainer.create_training_folder(project_folder, training_uuid)
         )
 
-    @staticmethod
+    @ staticmethod
     def create_training_folder(project_folder: str, trainings_id: str) -> str:
         training_folder = f'{project_folder}/trainings/{trainings_id}'
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
 
-    @property
+    @ property
     def hyperparameters(self) -> dict:
         if self.training and self.training.data:
             information = {}
@@ -308,7 +354,7 @@ class Trainer():
         else:
             return None
 
-    @property
+    @ property
     def model_architecture(self) -> Union[str, None]:
         return None
 
