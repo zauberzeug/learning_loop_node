@@ -175,6 +175,8 @@ class Trainer():
         active_training.save(self.training)
 
     def stop(self) -> None:
+        if not self.training:
+            return
         if self.training.training_state == TrainingState.DataDownloading:
             if self.prepare_task:
                 self.prepare_task.cancel()
