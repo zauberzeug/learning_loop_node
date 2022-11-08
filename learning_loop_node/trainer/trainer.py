@@ -28,8 +28,8 @@ from learning_loop_node.trainer.hyperparameter import Hyperparameter
 import time
 from time import perf_counter
 from learning_loop_node.trainer.training import State as TrainingState
-from learning_loop_node.trainer import training as training_module
 from learning_loop_node.trainer.training_data import TrainingData
+from learning_loop_node.trainer import active_training
 
 
 class Trainer():
@@ -52,7 +52,7 @@ class Trainer():
             except asyncio.CancelledError:
                 logging.info('cancelled prepare task')
                 self.training = None
-                training_module.delete()
+                active_training.delete()
                 return
             finally:
                 logging.info('setting prepare_task to None')
@@ -64,7 +64,7 @@ class Trainer():
             except asyncio.CancelledError:
                 logging.info('cancelled download model task')
                 self.training = None
-                training_module.delete()
+                active_training.delete()
                 return
             finally:
                 logging.info('setting download_model_task to None')
@@ -96,7 +96,7 @@ class Trainer():
             self.training.training_number = details['training_number']
             self.training.base_model_id = details['id']
             self.training.training_state = TrainingState.Init
-            training_module.save(self.training)
+            active_training.save(self.training)
         except:
             logging.exception('Error in init')
 
@@ -108,7 +108,7 @@ class Trainer():
         self.training.data.skipped_image_count = skipped_image_count
 
         self.training.training_state = TrainingState.Prepared
-        training_module.save(self.training)
+        active_training.save(self.training)
 
     async def download_model(self) -> None:
         model_id = self.training.base_model_id
@@ -120,7 +120,7 @@ class Trainer():
                         f'{self.training.training_folder}/base_model.json')
 
         self.training.training_state = TrainingState.ModelDownloaded
-        training_module.save(self.training)
+        active_training.save(self.training)
 
     def stop(self) -> None:
         if self.training.training_state == TrainingState.Init:

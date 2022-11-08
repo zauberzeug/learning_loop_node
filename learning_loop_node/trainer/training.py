@@ -25,21 +25,6 @@ class Training(BaseModel):
     training_sub_state: Optional[str]
 
 
-def save(training: Training):
-    with open('last_training.json', 'w') as f:
-        json.dump(jsonable_encoder(training), f)
-
-
-def load() -> Training:
-    with open('last_training.json', 'r') as f:
-        return Training(**json.load(f))
-
-
-def delete() -> None:
-    import os
-    os.remove('last_training.json')
-
-
 class TrainingOut(BaseModel):
     confusion_matrix: Optional[dict]
     train_image_count: Optional[int]

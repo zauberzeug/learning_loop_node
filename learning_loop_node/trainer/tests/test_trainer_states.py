@@ -4,7 +4,7 @@ from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.training import Training
 from uuid import uuid4
 from learning_loop_node.context import Context
-from learning_loop_node.trainer import training as training_module
+from learning_loop_node.trainer import active_training
 import asyncio
 import os
 import pytest
@@ -37,8 +37,8 @@ def test_fixture_trainer_node(test_trainer_node):
 def test_save_load_training():
     training = create_training()
     training.training_state = 'preparing'
-    training_module.save(training)
-    training = training_module.load()
+    active_training.save(training)
+    training = active_training.load()
     assert training.training_state == 'preparing'
 
 
@@ -110,7 +110,7 @@ async def test_abort_download_model():
 
 
 def assert_training_file(exists: bool) -> None:
-    assert os.path.isfile('last_training.json') == exists
+    assert active_training.exists() == exists
 
 
 class Timeout:
