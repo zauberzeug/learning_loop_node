@@ -15,6 +15,7 @@ import logging
 from ..socket_response import SocketResponse
 from .rest import controls
 from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.training import State as TrainingState
 
 
 class TrainerNode(Node):
@@ -133,18 +134,24 @@ class TrainerNode(Node):
                 training = active_training.load()
                 logging.warning(jsonable_encoder(training))
                 self.trainer.training = training
-            if training and training.training_state == 'initialized':
+            if training and training.training_state == TrainingState.Initialized:
                 # TODO sio event?
                 success = await self.trainer.prepare()
                 logging.warning(f'prepare returned {success}')
                 if not success:
                     return
                 # TODO sio event?
-            if training and training.training_state == 'data_downloaded':
+            if training and training.training_state == TrainingState.DataDownloaded:
                 # TODO sio event?
                 logging.warning('going to download model.')
                 await self.trainer.download_model()
                 # TODO sio event?
+            if training and training.training_state == TrainingState.TrainModelDownloaded:
+                # TODO sio event?
+                logging.warning('going to train.')
+                await self.trainer.run_training()
+                # TODO sio event?
+
         except:
             logging.exception('error during training')
             raise
