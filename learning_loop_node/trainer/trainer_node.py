@@ -16,6 +16,7 @@ from ..socket_response import SocketResponse
 from .rest import controls
 from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.training import State as TrainingState
+from learning_loop_node.trainer import training_syncronizer
 
 
 class TrainerNode(Node):
@@ -151,10 +152,24 @@ class TrainerNode(Node):
                 logging.warning('going to train.')
                 await self.trainer.run_training()
                 # TODO sio event?
+            if training and training.training_state == TrainingState.TrainingFinished:
+                # maybe the training finished while node was offline.
+                # so we need try to update the confusion matrix first.
+                try:
+                    await self.ensure_confusion_matrix_synced()
+                except:
+                    logging.exception('could not sync confusion matrix')
+                    # TODO what to do here?
 
         except:
             logging.exception('error during training')
             raise
+
+    async def ensure_confusion_matrix_synced(self):
+        await training_syncronizer.try_sync_model(self.trainer)
+        self.trainer.training.training_state = TrainingState.ConfusionMatrixSynced
+        logging.error(f'trainingstate: {self.trainer.training.training_state}')
+        active_training.save(self.trainer.training)
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
@@ -185,6 +200,8 @@ class TrainerNode(Node):
         await self.try_get_new_model()
 
     async def try_get_new_model(self) -> None:
+        # TODO use new training_syncronizer
+
         self.status.reset_error('get_new_model')
 
         try:
@@ -212,6 +229,7 @@ class TrainerNode(Node):
                     logging.info(f'successfully updated training {jsonable_encoder(new_training)}')
                     self.trainer.on_model_published(model)
                     self.model_published = True
+                    # hier.
 
         except Exception as e:
             msg = f'Could not get new model: {str(e)}'

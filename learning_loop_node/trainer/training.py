@@ -41,3 +41,4 @@ class State(str, Enum):
     TrainModelDownloaded = 'train_model_downloaded'
     TrainingRunning = 'training_running'
     TrainingFinished = 'training_finished'
+    ConfusionMatrixSynced = 'confusion_matrix_synced'

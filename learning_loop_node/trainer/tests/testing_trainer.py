@@ -29,6 +29,8 @@ class TestingTrainer(Trainer):
     async def start_training_from_scratch(self, id: str) -> None:
         await self.start_training(model=f'model_{id}.pt')
 
+    def get_new_model(self) -> Optional[BasicModel]:
+        return None
 
     async def _prepare(self) -> None:
         await super()._prepare()
