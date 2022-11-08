@@ -1,3 +1,5 @@
+import time
+from typing import Callable
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.trainer_node import TrainerNode
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
@@ -109,8 +111,60 @@ async def test_abort_download_model():
     download_task.cancel()
 
 
+async def test_initialized_training_can_be_resumed(test_trainer_node: TrainerNode):
+    # Generate File on disc
+    trainer = TestingTrainer()
+    details = {'categories': [],
+               'id': '00000000-1111-2222-3333-555555555555',
+               'training_number': 0,
+               'resolution': 800,
+               'flip_rl': False,
+               'flip_ud': False}
+    trainer.init(Context(organization='zauberzeug', project='demo'), details)
+
+    assert test_trainer_node.trainer.training is None
+    train_task = asyncio.get_running_loop().create_task(test_trainer_node.train())
+    await asyncio.sleep(0.0)
+    await assert_training_state(test_trainer_node.trainer.training, 'initialized', timeout=1, interval=0.01)
+
+    await assert_training_state(test_trainer_node.trainer.training, 'data_downloading', timeout=1, interval=0.001)
+    await assert_training_state(test_trainer_node.trainer.training, 'data_downloaded', timeout=1, interval=0.001)
+
+
+async def test_data_downloaded_training_can_be_resumed(test_trainer_node: TrainerNode):
+    # Generate File on disc
+    trainer = TestingTrainer()
+    details = {'categories': [],
+               'id': '00000000-1111-2222-3333-555555555555',
+               'training_number': 0,
+               'resolution': 800,
+               'flip_rl': False,
+               'flip_ud': False}
+    trainer.init(Context(organization='zauberzeug', project='demo'), details)
+    await trainer.prepare()
+
+    assert test_trainer_node.trainer.training is None
+    train_task = asyncio.get_running_loop().create_task(test_trainer_node.train())
+    await asyncio.sleep(0.0)
+
+    # await assert_training_state(test_trainer_node.trainer.training, 'train_model_downloading', timeout=1, interval=0.01)
+    await assert_training_state(test_trainer_node.trainer.training, 'train_model_downloaded', timeout=1, interval=0.01)
+
+
 def assert_training_file(exists: bool) -> None:
     assert active_training.exists() == exists
+
+
+async def assert_training_state(training: Training, state: str, timeout: float, interval: float) -> None:
+    try:
+        await condition(lambda: training.training_state == state, timeout=timeout, interval=interval)
+    except TimeoutError:
+        logging.error('h############################')
+        msg = f"Trainer state should be '{state}' after {timeout} seconds, but is {training.training_state}"
+        raise AssertionError(msg)
+    except Exception as e:
+        logging.exception('##### was ist das hier?')
+        raise
 
 
 class Timeout:
@@ -128,3 +182,11 @@ class Timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
+
+
+async def condition(condition: Callable, *, timeout: float = 1.0, interval: float = 0.1):
+    start = time.time()
+    while not condition():
+        if time.time() > start + timeout:
+            raise TimeoutError(f'condition {condition} took longer than {timeout}s')
+        await asyncio.sleep(interval)

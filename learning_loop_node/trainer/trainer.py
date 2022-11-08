@@ -30,6 +30,7 @@ from time import perf_counter
 from learning_loop_node.trainer.training import State as TrainingState
 from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node.trainer import active_training
+from learning_loop_node.rest.downloads import DownloadError
 
 
 class Trainer():
@@ -162,9 +163,13 @@ class Trainer():
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
             logging.info(f'downloading model {model_id} as {self.model_format}')
-            await downloads.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
-            shutil.move(f'{self.training.training_folder}/model.json',
-                        f'{self.training.training_folder}/base_model.json')
+            try:
+                await downloads.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
+                shutil.move(f'{self.training.training_folder}/model.json',
+                            f'{self.training.training_folder}/base_model.json')
+            except DownloadError:
+                logging.exception('DownloadError')
+                # TODO what should be done here? Maybe the Model does not exist in the format?
 
         self.training.training_state = TrainingState.TrainModelDownloaded
         active_training.save(self.training)

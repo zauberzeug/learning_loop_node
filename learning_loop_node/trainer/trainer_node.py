@@ -12,10 +12,9 @@ from .trainer import Trainer
 from .training_status import TrainingStatus
 from learning_loop_node.node import Node, State
 import logging
-from datetime import datetime
 from ..socket_response import SocketResponse
-from .helper import is_valid_uuid4
 from .rest import controls
+from learning_loop_node.trainer import active_training
 
 
 class TrainerNode(Node):
@@ -30,8 +29,9 @@ class TrainerNode(Node):
 
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):
+            self.trainer.init(Context(organization=organization, project=project), details)
             loop = asyncio.get_event_loop()
-            loop.create_task(self.begin_training(Context(organization=organization, project=project), details))
+            loop.create_task(self.train())
             return True
 
         @self.sio_client.on('stop_training')
@@ -124,6 +124,30 @@ class TrainerNode(Node):
         except Exception as e:
             traceback.print_exc()
             self.status.set_error('clear_training_data', f'Could not delete training data: {str(e)}')
+
+    async def train(self):
+        try:
+            training = None
+            if active_training.exists():
+                logging.warning('found active training on hd')
+                training = active_training.load()
+                logging.warning(jsonable_encoder(training))
+                self.trainer.training = training
+            if training and training.training_state == 'initialized':
+                # TODO sio event?
+                success = await self.trainer.prepare()
+                logging.warning(f'prepare returned {success}')
+                if not success:
+                    return
+                # TODO sio event?
+            if training and training.training_state == 'data_downloaded':
+                # TODO sio event?
+                logging.warning('going to download model.')
+                await self.trainer.download_model()
+                # TODO sio event?
+        except:
+            logging.exception('error during training')
+            raise
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
