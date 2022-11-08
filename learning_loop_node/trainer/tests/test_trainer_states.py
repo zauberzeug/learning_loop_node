@@ -151,6 +151,33 @@ async def test_data_downloaded_training_can_be_resumed(test_trainer_node: Traine
     await assert_training_state(test_trainer_node.trainer.training, 'train_model_downloaded', timeout=1, interval=0.01)
 
 
+async def test_stop_running_training():
+    # Generate File on disc
+    trainer = TestingTrainer()
+    details = {'categories': [],
+               'id': '00000000-1111-2222-3333-555555555555',
+               'training_number': 0,
+               'resolution': 800,
+               'flip_rl': False,
+               'flip_ud': False}
+    trainer.init(Context(organization='zauberzeug', project='demo'), details)
+    await trainer.prepare()
+    await trainer.download_model()
+    assert trainer.training.training_state == 'train_model_downloaded'
+    assert trainer.executor is None
+
+    train_task = asyncio.get_running_loop().create_task(trainer.run_training())
+    await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
+    await condition(lambda: trainer.executor is not None, timeout=1, interval=0.01)
+
+    trainer.stop()
+
+    await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
+
+    assert trainer.training is not None
+    assert_training_file(exists=True)
+
+
 def assert_training_file(exists: bool) -> None:
     assert active_training.exists() == exists
 

@@ -39,3 +39,5 @@ class State(str, Enum):
     DataDownloaded = 'data_downloaded'
     TrainModelDownloading = 'train_model_downloading'
     TrainModelDownloaded = 'train_model_downloaded'
+    TrainingRunning = 'training_running'
+    TrainingFinished = 'training_finished'

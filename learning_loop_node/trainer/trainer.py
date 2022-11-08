@@ -42,53 +42,7 @@ class Trainer():
         self.start_time: Optional[int] = None
         self.prepare_task = None
         self.download_model_task = None
-
-    async def begin_training(self, context: Context, details: dict) -> None:
-        # try:
-        #     self.init(context, details)
-
-        #     self.prepare_task = asyncio.get_running_loop().create_task(self.prepare())
-        #     try:
-        #         await self.prepare_task
-        #     except asyncio.CancelledError:
-        #         logging.info('cancelled prepare task')
-        #         self.training = None
-        #         active_training.delete()
-        #         return
-        #     finally:
-        #         logging.info('setting prepare_task to None')
-        #         self.prepare_task = None
-
-        #     self.download_model_task = asyncio.get_running_loop().create_task(self.download_model())
-        #     try:
-        #         await self.download_model_task
-        #     except asyncio.CancelledError:
-        #         logging.info('cancelled download model task')
-        #         self.training = None
-        #         active_training.delete()
-        #         return
-        #     finally:
-        #         logging.info('setting download_model_task to None')
-        #         self.download_model_task = None
-
-        #     self.executor = Executor(self.training.training_folder)
-        #     base_model_id = self.training.id
-        #     if not is_valid_uuid4(base_model_id):
-        #         if base_model_id in [m.name for m in self.provided_pretrained_models]:
-        #             logging.debug('Starting with pretrained model')
-        #             await self.start_training_from_scratch(base_model_id)
-        #         else:
-        #             raise ValueError(f'Pretrained model {base_model_id} is not supported')
-        #     else:
-        #         logging.info(f'starting training')
-        #         await self.start_training()
-        #     self.start_time = time.time()
-
-        # except:
-        #     logging.exception('begin training')
-
-        # logging.info(f'training with categories: {self.training.data.categories}')
-        pass
+        self.training_task = None
 
     def init(self, context: Context, details: dict) -> None:
         try:
@@ -174,17 +128,60 @@ class Trainer():
         self.training.training_state = TrainingState.TrainModelDownloaded
         active_training.save(self.training)
 
+    async def run_training(self):
+        try:
+            self.executor = Executor(self.training.training_folder)
+            self.training.training_state = TrainingState.TrainingRunning
+            try:
+                if self.can_resume():
+                    logging.warning(1)
+                    self.training_task = asyncio.get_running_loop().create_task(self.resume())
+            except NotImplementedError:
+                pass
+
+            if not self.training_task:
+                model_id = self.training.base_model_id
+                if not is_valid_uuid4(model_id):
+                    logging.warning(2)
+                    self.training_task = asyncio.get_running_loop().create_task(self.start_training_from_scratch(model_id))
+                else:
+                    logging.warning(3)
+                    self.training_task = asyncio.get_running_loop().create_task(self.start_training(model_id))
+
+            await self.training_task
+
+            while True:
+                if not self.executor.is_process_running():
+                    # TODO how  / where to check for error?
+                    break
+                if self.training_task.cancelled():
+                    break
+                await asyncio.sleep(0.1)
+            self.training.training_state = TrainingState.TrainingFinished
+            active_training.save(self.training)
+
+        except:
+            logging.exception('Error in run_training')
+
+    def can_resume(self) -> bool:
+        return False
+
+    async def resume(self) -> None:
+        raise NotImplementedError()
+
     def stop(self) -> None:
         if not self.training:
             return
+
         if self.training.training_state == TrainingState.DataDownloading:
             if self.prepare_task:
                 self.prepare_task.cancel()
-
         elif self.training.training_state == TrainingState.TrainModelDownloading:
             if self.download_model_task:
                 self.download_model_task.cancel()
-
+        elif self.training.training_state == TrainingState.TrainingRunning:
+            self.training_task.cancel()
+            self.executor.stop()
         else:
             raise NotImplementedError(f'can not stop training: {self.training.training_state}')
 
