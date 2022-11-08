@@ -34,6 +34,8 @@ class TrainingOut(BaseModel):
 
 
 class State(str, Enum):
-    Init = 'init'
-    Prepared = 'prepared'
-    ModelDownloaded = 'model_downloaded'
+    Initialized = 'initialized'
+    DataDownloading = 'data_downloading'
+    DataDownloaded = 'data_downloaded'
+    TrainModelDownloading = 'train_model_downloading'
+    TrainModelDownloaded = 'train_model_downloaded'

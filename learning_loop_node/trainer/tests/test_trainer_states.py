@@ -57,7 +57,7 @@ async def test_abort_preparing():
 
     await asyncio.sleep(0.1)
     assert trainer.training is not None
-    assert trainer.training.training_state == 'init'
+    assert trainer.training.training_state == 'data_downloading'
     assert trainer.prepare_task is not None
     assert_training_file(exists=True)
 
@@ -86,7 +86,7 @@ async def test_abort_download_model():
     trainer.init(Context(organization='zauberzeug', project='demo'), details)
     await trainer.prepare()
 
-    assert trainer.training.training_state == 'prepared'
+    assert trainer.training.training_state == 'data_downloaded'
     assert_training_file(exists=True)
 
     download_task = asyncio.get_running_loop().create_task(trainer.download_model())
@@ -94,7 +94,8 @@ async def test_abort_download_model():
     await asyncio.sleep(0.0)
 
     assert trainer.download_model_task.cancelled() == False
-
+    await asyncio.sleep(0.0)
+    assert trainer.training.training_state == 'train_model_downloading'
     trainer.stop()
 
     await asyncio.sleep(0.0)

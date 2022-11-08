@@ -96,14 +96,14 @@ class Trainer():
             self.training.data.hyperparameter = Hyperparameter.from_dict(details)
             self.training.training_number = details['training_number']
             self.training.base_model_id = details['id']
-            self.training.training_state = TrainingState.Init
+            self.training.training_state = TrainingState.Initialized
             active_training.save(self.training)
         except:
             logging.exception('Error in init')
 
     async def prepare(self) -> None:
-        if self.training.training_state != 'init':
-            raise Exception("Training must be in state 'init', but was {self.training.training_state}")
+        if self.training.training_state != 'initialized':
+            raise Exception(f"Training must be in state 'initialized', but was '{self.training.training_state}'")
         try:
             self.prepare_task = asyncio.get_running_loop().create_task(self._prepare())
             try:
@@ -129,17 +129,19 @@ class Trainer():
         return True
 
     async def _prepare(self) -> None:
+        self.training.training_state = TrainingState.DataDownloading
         downloader = TrainingsDownloader(self.training.context)
-
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         self.training.data.image_data = image_data
         self.training.data.skipped_image_count = skipped_image_count
 
-        self.training.training_state = TrainingState.Prepared
+        self.training.training_state = TrainingState.DataDownloaded
         active_training.save(self.training)
 
     async def download_model(self) -> None:
+        logging.warning(1)
         self.download_model_task = asyncio.get_running_loop().create_task(self._download_model())
+        logging.warning(2)
         try:
             await self.download_model_task
             logging.info('download_model_task finished')
@@ -153,6 +155,9 @@ class Trainer():
             self.download_model_task = None
 
     async def _download_model(self) -> None:
+        logging.warning(3)
+        self.training.training_state = TrainingState.TrainModelDownloading
+        logging.warning(4)
         model_id = self.training.base_model_id
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
@@ -161,15 +166,15 @@ class Trainer():
             shutil.move(f'{self.training.training_folder}/model.json',
                         f'{self.training.training_folder}/base_model.json')
 
-        self.training.training_state = TrainingState.ModelDownloaded
+        self.training.training_state = TrainingState.TrainModelDownloaded
         active_training.save(self.training)
 
     def stop(self) -> None:
-        if self.training.training_state == TrainingState.Init:
+        if self.training.training_state == TrainingState.DataDownloading:
             if self.prepare_task:
                 self.prepare_task.cancel()
 
-        elif self.training.training_state == TrainingState.Prepared:
+        elif self.training.training_state == TrainingState.TrainModelDownloading:
             if self.download_model_task:
                 self.download_model_task.cancel()
 
