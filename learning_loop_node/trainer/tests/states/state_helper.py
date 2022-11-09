@@ -10,7 +10,7 @@ from learning_loop_node.tests.test_helper import condition
 def create_active_training_file():
     trainer = TestingTrainer()
     details = {'categories': [],
-               'id': '00000000-1111-2222-3333-555555555555',
+               'id': '7f5eabb4-227a-e7c7-8f0b-f825cc47340d',  # version 1.2
                'training_number': 0,
                'resolution': 800,
                'flip_rl': False,
