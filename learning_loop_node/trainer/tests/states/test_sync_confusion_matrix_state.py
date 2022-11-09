@@ -24,7 +24,7 @@ async def test_nothing_to_sync():
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
     trainer.executor.stop()  # NOTE normally a training terminates itself e.g
 
-    await trainer.ensure_confusion_matrix_synced('some_node_uuid')
+    await trainer.ensure_confusion_matrix_synced(trainer_node_uuid=None, sio_client=None)
     assert trainer.training.training_state == 'confusion_matrix_synced'
 
 

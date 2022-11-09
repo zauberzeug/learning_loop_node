@@ -44,37 +44,6 @@ def test_save_load_training():
     assert training.training_state == 'preparing'
 
 
-async def test_finished_training_can_be_resumed(test_trainer_node: TrainerNode):
-    await test_trainer_node.connect()
-
-    # Generate File on disc
-    trainer = TestingTrainer()
-    details = {'categories': [],
-               'id': '00000000-1111-2222-3333-555555555555',
-               'training_number': 0,
-               'resolution': 800,
-               'flip_rl': False,
-               'flip_ud': False}
-    trainer.init(Context(organization='zauberzeug', project='demo'), details)
-    await trainer.prepare()
-    await trainer.download_model()
-    train_task = asyncio.get_running_loop().create_task(trainer.run_training())
-    assert trainer.training is not None
-    await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
-    trainer.stop()
-    await asyncio.sleep(0.1)
-    assert trainer.training.training_state == 'training_finished'
-
-    assert test_trainer_node.trainer.training is None
-
-    train_task = asyncio.get_running_loop().create_task(test_trainer_node.train())
-    await asyncio.sleep(0.0)
-
-    await assert_training_state(test_trainer_node.trainer.training, 'confusion_matrix_synced', timeout=5, interval=0.001)
-
-    # TODO test syncronize model fehlt noch.
-
-
 async def test_model_downloaded_training_can_be_resumed(test_trainer_node: TrainerNode):
     # Generate File on disc
     trainer = TestingTrainer()
