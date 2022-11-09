@@ -143,6 +143,7 @@ class Trainer():
                     self.training_task = asyncio.get_running_loop().create_task(self.start_training())
 
             await self.training_task
+            # TODO abort training before executor is started
 
             while True:
                 if not self.executor.is_process_running():

@@ -53,3 +53,28 @@ async def test_training_can_maybe_resumed_can_be_resumed():
     await asyncio.sleep(0)
 
     assert get_coro_name(trainer.training_task) == 'TestingTrainer.resume'
+
+
+async def test_stop_running_training():
+    def _assert_training_contains_all_data(training: Training) -> None:
+        assert trainer.training.training_state == 'training_finished'
+
+    state_helper.create_active_training_file()
+    trainer = TestingTrainer()
+    trainer.training = active_training.load()  # normally done by node
+    await trainer.prepare()
+    await trainer.download_model()
+
+    train_task = asyncio.get_running_loop().create_task(trainer.run_training())
+
+    await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
+    assert get_coro_name(trainer.training_task) == 'TestingTrainer.start_training'
+
+    trainer.stop()
+    await asyncio.sleep(0.1)
+
+    _assert_training_contains_all_data(trainer.training)
+    assert_training_file(exists=True)
+
+    loaded_training = active_training.load()
+    _assert_training_contains_all_data(loaded_training)
