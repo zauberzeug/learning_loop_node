@@ -140,7 +140,7 @@ class Trainer():
                 if not is_valid_uuid4(model_id):
                     self.training_task = asyncio.get_running_loop().create_task(self.start_training_from_scratch(model_id))
                 else:
-                    self.training_task = asyncio.get_running_loop().create_task(self.start_training(model_id))
+                    self.training_task = asyncio.get_running_loop().create_task(self.start_training())
 
             await self.training_task
 
