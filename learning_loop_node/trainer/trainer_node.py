@@ -156,7 +156,7 @@ class TrainerNode(Node):
                 # maybe the training finished while node was offline.
                 # so we need try to update the confusion matrix first.
                 try:
-                    await self.ensure_confusion_matrix_synced()
+                    await self.trainer.ensure_confusion_matrix_synced()
                 except:
                     logging.exception('could not sync confusion matrix')
                     # TODO what to do here?
@@ -169,12 +169,6 @@ class TrainerNode(Node):
         except:
             logging.exception('error during training')
             raise
-
-    async def ensure_confusion_matrix_synced(self):
-        await training_syncronizer.try_sync_model(self.trainer)
-        self.trainer.training.training_state = TrainingState.ConfusionMatrixSynced
-        logging.error(f'trainingstate: {self.trainer.training.training_state}')
-        active_training.save(self.trainer.training)
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')

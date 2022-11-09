@@ -14,6 +14,7 @@ class TestingTrainer(Trainer):
     def __init__(self, can_resume=False) -> None:
         super().__init__('mocked')
         self._can_resume = can_resume
+        self.has_new_model = False
 
     async def start_training(self) -> None:
         self.executor.start('while true; do sleep 1; done')
@@ -33,7 +34,13 @@ class TestingTrainer(Trainer):
         await self.start_training(model=f'model_{id}.pt')
 
     def get_new_model(self) -> Optional[BasicModel]:
+        if self.has_new_model:
+            return BasicModel(confusion_matrix={})
+
         return None
+
+    def on_model_published(self, basic_model: BasicModel) -> None:
+        pass
 
     async def _prepare(self) -> None:
         await super()._prepare()

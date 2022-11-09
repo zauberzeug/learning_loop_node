@@ -31,6 +31,8 @@ from learning_loop_node.trainer.training import State as TrainingState
 from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node.trainer import active_training
 from learning_loop_node.rest.downloads import DownloadError
+from learning_loop_node.trainer import training_syncronizer
+import socketio
 
 
 class Trainer():
@@ -157,6 +159,12 @@ class Trainer():
 
         except:
             logging.exception('Error in run_training')
+
+    async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+        await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
+
+        self.training.training_state = TrainingState.ConfusionMatrixSynced
+        active_training.save(self.training)
 
     async def upload_model(self) -> None:
         # TODO is it correct, that this can not be aborted?
