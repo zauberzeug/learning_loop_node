@@ -5,7 +5,7 @@ import pytest
 import shutil
 import icecream
 from learning_loop_node.globals import GLOBALS
-
+import os
 icecream.install()
 logging.basicConfig(level=logging.DEBUG)
 
@@ -35,15 +35,16 @@ def clea_loggers():
 
 
 @pytest.fixture(autouse=True, scope='function')
-def data_folder():
-    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-    yield
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-
-
-@pytest.fixture(autouse=True, scope='function')
 def loop_session():
     loop.session = None
     yield
     loop.session = None
+
+
+@pytest.fixture(autouse=True, scope='function')
+def data_folder():
+    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+    os.makedirs(GLOBALS.data_folder, exist_ok=True)
+    yield
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
