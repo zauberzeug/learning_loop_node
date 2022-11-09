@@ -161,7 +161,11 @@ class Trainer():
             logging.exception('Error in run_training')
 
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
-        await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
+        try:
+            await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
+        except socketio.exceptions.BadNamespaceError:
+            logging.error('Error during confusion matrix syncronization. BadNamespaceError')
+            return
 
         self.training.training_state = TrainingState.ConfusionMatrixSynced
         active_training.save(self.training)
