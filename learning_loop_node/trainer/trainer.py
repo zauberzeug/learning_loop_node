@@ -163,6 +163,43 @@ class Trainer():
         except:
             logging.exception('Error in run_training')
 
+    async def upload_model(self) -> None:
+        # TODO is it correct, that this can not be aborted?
+
+        self.training.training_state = TrainingState.TrainModelUploading
+        uploaded_model = await self._upload_model(self.training.context)
+        # TODO where to catch errors?
+        if not uploaded_model:
+            raise Exception('Something went wrong while uploading the model')
+            # uploaded model can be None - but we need the id for detecting.
+        self.training.model_id_for_detecting = uploaded_model['id']
+        self.training.training_state = TrainingState.TrainModelUploaded
+        active_training.save(self.training)
+        return uploaded_model
+
+    async def _upload_model(self, context: Context) -> dict:
+        files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
+        model_json_content = self.create_model_json_content()
+        model_json_path = '/tmp/model.json'
+        with open(model_json_path, 'w') as f:
+            json.dump(model_json_content, f)
+
+        if isinstance(files, list):
+            files = {self.model_format: files}
+        uploaded_model = None
+        if isinstance(files, dict):
+            for format in files:
+                # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
+                assert len([file for file in files[format] if 'model.json' in file]) == 0, \
+                    "It is not allowed to provide a 'model.json' file."
+                _files = files[format]
+                _files.append(model_json_path)
+                uploaded_model = await uploads.upload_model_for_training(context, _files, self.training.training_number, format)
+
+        else:
+            raise TypeError(f'can only save model as list or dict, but was {files}')
+        return uploaded_model
+
     def can_resume(self) -> bool:
         return False
 
@@ -207,29 +244,6 @@ class Trainer():
 
     def get_log(self) -> str:
         return self.executor.get_log()
-
-    async def save_model(self, context: Context) -> dict:
-        files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
-        model_json_content = self.create_model_json_content()
-        model_json_path = '/tmp/model.json'
-        with open(model_json_path, 'w') as f:
-            json.dump(model_json_content, f)
-
-        if isinstance(files, list):
-            files = {self.model_format: files}
-        uploaded_model = None
-        if isinstance(files, dict):
-            for format in files:
-                # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
-                assert len([file for file in files[format] if 'model.json' in file]) == 0, \
-                    "It is not allowed to provide a 'model.json' file."
-                _files = files[format]
-                _files.append(model_json_path)
-                uploaded_model = await uploads.upload_model_for_training(context, _files, self.training.training_number, format)
-
-        else:
-            raise TypeError(f'can only save model as list or dict, but was {files}')
-        return uploaded_model
 
     def get_new_model(self) -> Optional[BasicModel]:
         '''Is called frequently to check if a new "best" model is availabe.

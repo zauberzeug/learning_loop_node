@@ -24,6 +24,8 @@ class Training(BaseModel):
     training_state: Optional[str]
     training_sub_state: Optional[str]
 
+    model_id_for_detecting: Optional[str]
+
 
 class TrainingOut(BaseModel):
     confusion_matrix: Optional[dict]
@@ -42,3 +44,5 @@ class State(str, Enum):
     TrainingRunning = 'training_running'
     TrainingFinished = 'training_finished'
     ConfusionMatrixSynced = 'confusion_matrix_synced'
+    TrainModelUploading = 'train_model_uploading'
+    TrainModelUploaded = 'train_model_uploaded'

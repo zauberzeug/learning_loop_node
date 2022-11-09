@@ -160,6 +160,11 @@ class TrainerNode(Node):
                 except:
                     logging.exception('could not sync confusion matrix')
                     # TODO what to do here?
+            if training and training.training_state == TrainingState.ConfusionMatrixSynced:
+                # TODO sio event?
+                logging.warning('going to upload model.')
+                await self.trainer.upload_model()
+                # TODO sio event?
 
         except:
             logging.exception('error during training')
