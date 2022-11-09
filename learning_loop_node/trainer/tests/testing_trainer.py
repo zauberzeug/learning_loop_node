@@ -11,8 +11,9 @@ from learning_loop_node.context import Context
 class TestingTrainer(Trainer):
     __test__ = False
 
-    def __init__(self, ) -> None:
+    def __init__(self, can_resume=False) -> None:
         super().__init__('mocked')
+        self._can_resume = can_resume
 
     async def start_training(self) -> None:
         self.executor.start('while true; do sleep 1; done')
@@ -64,3 +65,9 @@ class TestingTrainer(Trainer):
         with open(more_data_file, 'w') as f:
             f.write('zweiundvierzig')
         return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
+
+    def can_resume(self) -> bool:
+        return self._can_resume
+
+    async def resume(self) -> None:
+        return await self.start_training()
