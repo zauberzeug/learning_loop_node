@@ -1,5 +1,5 @@
-import time
-from typing import Callable
+from learning_loop_node.tests.test_helper import condition
+from learning_loop_node.trainer.tests.states.state_helper import assert_training_file, assert_training_state
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.trainer_node import TrainerNode
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
@@ -231,22 +231,6 @@ async def test_model_downloaded_training_can_be_resumed(test_trainer_node: Train
     await assert_training_state(test_trainer_node.trainer.training, 'training_running', timeout=1, interval=0.01)
 
 
-def assert_training_file(exists: bool) -> None:
-    assert active_training.exists() == exists
-
-
-async def assert_training_state(training: Training, state: str, timeout: float, interval: float) -> None:
-    try:
-        await condition(lambda: training.training_state == state, timeout=timeout, interval=interval)
-    except TimeoutError:
-        logging.error('h############################')
-        msg = f"Trainer state should be '{state}' after {timeout} seconds, but is {training.training_state}"
-        raise AssertionError(msg)
-    except Exception as e:
-        logging.exception('##### was ist das hier?')
-        raise
-
-
 class Timeout:
     # see https://stackoverflow.com/a/22348885/4082686
     def __init__(self, seconds=1, error_message='Timeout'):
@@ -262,11 +246,3 @@ class Timeout:
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
-
-
-async def condition(condition: Callable, *, timeout: float = 1.0, interval: float = 0.1):
-    start = time.time()
-    while not condition():
-        if time.time() > start + timeout:
-            raise TimeoutError(f'condition {condition} took longer than {timeout}s')
-        await asyncio.sleep(interval)
