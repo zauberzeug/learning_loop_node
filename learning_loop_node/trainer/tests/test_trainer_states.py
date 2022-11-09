@@ -44,37 +44,6 @@ def test_save_load_training():
     assert training.training_state == 'preparing'
 
 
-async def test_abort_preparing():
-    trainer = Trainer(model_format='mocked')
-    details = {'categories': [],
-               'id': 'some_id',
-               'training_number': 0,
-               'resolution': 800,
-               'flip_rl': False,
-               'flip_ud': False}
-
-    assert trainer.training is None
-    trainer.init(Context(organization='zauberzeug', project='demo'), details)
-    training_task = asyncio.get_running_loop().create_task(trainer.prepare())
-
-    await asyncio.sleep(0.1)
-    assert trainer.training is not None
-    assert trainer.training.training_state == 'data_downloading'
-    assert trainer.prepare_task is not None
-    assert_training_file(exists=True)
-
-    trainer.stop()
-    await asyncio.sleep(0.0)
-
-    assert trainer.prepare_task.cancelled() == True
-    await asyncio.sleep(0.1)
-    assert trainer.prepare_task is None
-    assert trainer.training == None
-    assert_training_file(exists=False)
-
-    training_task.cancel()
-
-
 async def test_abort_download_model():
     trainer = TestingTrainer()
     details = {'categories': [],
