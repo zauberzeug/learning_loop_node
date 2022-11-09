@@ -166,6 +166,10 @@ class Trainer():
         except socketio.exceptions.BadNamespaceError:
             logging.error('Error during confusion matrix syncronization. BadNamespaceError')
             return
+        except:
+            # TODO maybe we should handle {'success:False'} separately?
+            logging.exception('Error during confusion matrix syncronization')
+            return
 
         self.training.training_state = TrainingState.ConfusionMatrixSynced
         active_training.save(self.training)

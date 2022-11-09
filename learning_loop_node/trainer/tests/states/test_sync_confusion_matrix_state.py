@@ -78,5 +78,35 @@ async def test_unsynced_model_available_but_sio_connection_not_connected(test_tr
 
     trainer.has_new_model = True
     await trainer.ensure_confusion_matrix_synced(test_trainer_node.uuid, sio_client=test_trainer_node.sio_client)
+
+    # syncronization failed, State is still 'training_finished'
+    assert trainer.training.training_state == 'training_finished'
+    await train_task
+
+
+async def test_unsynced_model_available_but_request_is_not_successful(test_trainer_node: TrainerNode, mocker):
+    patched_call_return_value = asyncio.Future()
+    patched_call_return_value.set_result(
+        {'success': False})
+    mocker.patch.object(test_trainer_node.sio_client, 'call', return_value=patched_call_return_value)
+
+    state_helper.create_active_training_file()
+
+    trainer = test_trainer_node.trainer
+    trainer.training = active_training.load()  # normally done by node
+
+    await trainer.prepare()
+    await trainer.download_model()
+    train_task = asyncio.get_running_loop().create_task(trainer.run_training())
+
+    await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
+    trainer.executor.stop()  # NOTE normally a training terminates itself e.g
+    await asyncio.sleep(0.1)
+    assert trainer.training.training_state == 'training_finished'
+
+    trainer.has_new_model = True
+    await trainer.ensure_confusion_matrix_synced(test_trainer_node.uuid, sio_client=test_trainer_node.sio_client)
+
+    # syncronization failed, State is still 'training_finished'
     assert trainer.training.training_state == 'training_finished'
     await train_task
