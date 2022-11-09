@@ -44,42 +44,6 @@ def test_save_load_training():
     assert training.training_state == 'preparing'
 
 
-async def test_abort_download_model():
-    trainer = TestingTrainer()
-    details = {'categories': [],
-               'id': '00000000-1111-2222-3333-555555555555',
-               'training_number': 0,
-               'resolution': 800,
-               'flip_rl': False,
-               'flip_ud': False}
-
-    assert trainer.training is None
-    trainer.init(Context(organization='zauberzeug', project='demo'), details)
-    await trainer.prepare()
-
-    assert trainer.training.training_state == 'data_downloaded'
-    assert_training_file(exists=True)
-
-    download_task = asyncio.get_running_loop().create_task(trainer.download_model())
-
-    await asyncio.sleep(0.0)
-
-    assert trainer.download_model_task.cancelled() == False
-    await asyncio.sleep(0.0)
-    assert trainer.training.training_state == 'train_model_downloading'
-    trainer.stop()
-
-    await asyncio.sleep(0.0)
-
-    assert trainer.download_model_task.cancelled() == True
-    await asyncio.sleep(0.1)
-    assert trainer.download_model_task is None
-    assert trainer.training == None
-    assert_training_file(exists=False)
-
-    download_task.cancel()
-
-
 async def test_initialized_training_can_be_resumed(test_trainer_node: TrainerNode):
     # Generate File on disc
     trainer = TestingTrainer()
