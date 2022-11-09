@@ -94,9 +94,8 @@ class Trainer():
         active_training.save(self.training)
 
     async def download_model(self) -> None:
-        logging.warning(1)
         self.download_model_task = asyncio.get_running_loop().create_task(self._download_model())
-        logging.warning(2)
+
         try:
             await self.download_model_task
             logging.info('download_model_task finished')
@@ -110,9 +109,7 @@ class Trainer():
             self.download_model_task = None
 
     async def _download_model(self) -> None:
-        logging.warning(3)
         self.training.training_state = TrainingState.TrainModelDownloading
-        logging.warning(4)
         model_id = self.training.base_model_id
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
@@ -134,7 +131,6 @@ class Trainer():
             self.training.training_state = TrainingState.TrainingRunning
             try:
                 if self.can_resume():
-                    logging.warning(1)
                     self.training_task = asyncio.get_running_loop().create_task(self.resume())
             except NotImplementedError:
                 pass
@@ -142,10 +138,8 @@ class Trainer():
             if not self.training_task:
                 model_id = self.training.base_model_id
                 if not is_valid_uuid4(model_id):
-                    logging.warning(2)
                     self.training_task = asyncio.get_running_loop().create_task(self.start_training_from_scratch(model_id))
                 else:
-                    logging.warning(3)
                     self.training_task = asyncio.get_running_loop().create_task(self.start_training(model_id))
 
             await self.training_task
