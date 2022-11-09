@@ -9,22 +9,24 @@ from learning_loop_node.trainer.training import Training
 import os
 from learning_loop_node.globals import GLOBALS
 
-file_path = f'{GLOBALS.data_folder}/last_training.json'
+
+def file_path() -> str:
+    return f'{GLOBALS.data_folder}/last_training.json'
 
 
 def save(training: Training):
-    with open(file_path, 'w') as f:
+    with open(file_path(), 'w') as f:
         json.dump(jsonable_encoder(training), f)
 
 
 def load() -> Training:
-    with open(file_path, 'r') as f:
+    with open(file_path(), 'r') as f:
         return Training(**json.load(f))
 
 
 def delete() -> None:
-    os.remove(file_path)
+    os.remove(file_path())
 
 
 def exists() -> bool:
-    return os.path.exists(file_path)
+    return os.path.exists(file_path())
