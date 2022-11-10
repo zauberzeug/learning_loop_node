@@ -30,7 +30,6 @@ async def test_abort_preparing():
     trainer.stop()
     await asyncio.sleep(0.1)
 
-    assert trainer.prepare_task is None
     assert trainer.training == None
     assert_training_file(exists=False)
 
@@ -46,7 +45,6 @@ async def test_request_error():
 
     await preparing_task
 
-    assert trainer.prepare_task is None
     assert trainer.training is not None
     assert trainer.training.training_state == 'some_previous_state'
     assert active_training.load() == trainer.training

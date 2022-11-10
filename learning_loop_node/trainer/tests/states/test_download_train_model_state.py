@@ -36,11 +36,8 @@ async def test_abort_download_model():
     trainer.stop()
     await asyncio.sleep(0.1)
 
-    assert trainer.download_model_task is None
     assert trainer.training == None
     assert_training_file(exists=False)
-
-    download_task.cancel()
 
 
 async def test_downloading_failed():
@@ -52,10 +49,6 @@ async def test_downloading_failed():
     download_task = asyncio.get_running_loop().create_task(trainer.download_model())
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
     await download_task
-
-    await asyncio.sleep(0.1)
-
-    assert trainer.download_model_task is None
 
     assert trainer.training is not None
     assert trainer.training.training_state == 'some_previous_state'
