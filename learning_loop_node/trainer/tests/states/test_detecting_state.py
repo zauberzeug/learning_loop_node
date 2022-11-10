@@ -62,8 +62,8 @@ def test_save_load_detections():
     active_training.save_detections(trainer.training, detections)
     assert active_training.detections_exist(trainer.training)
 
-    loaded_detections = active_training.load_detections(trainer.training)
-    assert loaded_detections == detections
+    stored_detections = active_training.load_detections(trainer.training)
+    assert stored_detections == detections
 
     active_training.delete_detections(trainer.training)
     assert active_training.detections_exist(trainer.training) is False

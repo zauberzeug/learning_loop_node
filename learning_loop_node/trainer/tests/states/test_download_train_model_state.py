@@ -52,4 +52,4 @@ async def test_downloading_failed():
 
     assert trainer.training is not None
     assert trainer.training.training_state == 'some_previous_state'
-    assert_training_file(exists=True)
+    assert active_training.load() == trainer.training

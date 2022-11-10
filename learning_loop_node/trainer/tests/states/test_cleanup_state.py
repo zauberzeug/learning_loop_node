@@ -2,7 +2,6 @@ from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.training import Training
-
 import os
 
 
