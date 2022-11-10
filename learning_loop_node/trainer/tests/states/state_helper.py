@@ -7,7 +7,7 @@ from learning_loop_node.trainer.training import Training
 from learning_loop_node.tests.test_helper import condition
 
 
-def create_active_training_file():
+def create_active_training_file(current_training_state: str = None) -> None:
     trainer = TestingTrainer()
     details = {'categories': [],
                'id': '7f5eabb4-227a-e7c7-8f0b-f825cc47340d',  # version 1.2
@@ -16,6 +16,9 @@ def create_active_training_file():
                'flip_rl': False,
                'flip_ud': False}
     trainer.init(Context(organization='zauberzeug', project='demo'), details)
+    if current_training_state:
+        trainer.training.training_state = current_training_state
+        active_training.save(trainer.training)
 
 
 def assert_training_file(exists: bool) -> None:

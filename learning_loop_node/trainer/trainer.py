@@ -33,6 +33,7 @@ from learning_loop_node.trainer import active_training
 from learning_loop_node.rest.downloads import DownloadError
 from learning_loop_node.trainer import training_syncronizer
 import socketio
+from aiohttp import ClientResponseError
 
 
 class Trainer():
@@ -177,15 +178,22 @@ class Trainer():
     async def upload_model(self) -> None:
         # TODO is it correct, that this can not be aborted?
 
-        self.training.training_state = TrainingState.TrainModelUploading
-        uploaded_model = await self._upload_model(self.training.context)
-        # TODO where to catch errors?
-        if not uploaded_model:
-            raise Exception('Something went wrong while uploading the model')
-            # uploaded model can be None - but we need the id for detecting.
-        self.training.model_id_for_detecting = uploaded_model['id']
-        self.training.training_state = TrainingState.TrainModelUploaded
-        active_training.save(self.training)
+        previous_state = self.training.training_state
+        try:
+            self.training.training_state = TrainingState.TrainModelUploading
+            try:
+                uploaded_model = await self._upload_model(self.training.context)
+            except ClientResponseError:
+                # TODO this is the most common error. Do something special here?
+                raise
+            self.training.model_id_for_detecting = uploaded_model['id']
+            self.training.training_state = TrainingState.TrainModelUploaded
+            active_training.save(self.training)
+        except:
+            logging.exception('Error in upload_model')
+            self.training.training_state = previous_state
+            return
+
         return uploaded_model
 
     async def _upload_model(self, context: Context) -> dict:
