@@ -1,4 +1,3 @@
-
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer import Trainer
 import asyncio
@@ -53,14 +52,6 @@ async def test_unsynced_model_available__sync_successfull(test_trainer_node: Tra
     await train_task
 
 
-async def test_basic_mock(test_trainer_node: TrainerNode, mocker):
-    patched_call_return_value = asyncio.Future()
-    patched_call_return_value.set_result(
-        {'success': True})
-    mocker.patch.object(test_trainer_node.sio_client, 'call', return_value=patched_call_return_value)
-    assert await test_trainer_node.sio_client.call() == {'success': True}
-
-
 async def test_unsynced_model_available_but_sio_connection_not_connected(test_trainer_node: TrainerNode):
     state_helper.create_active_training_file()
 
@@ -110,3 +101,11 @@ async def test_unsynced_model_available_but_request_is_not_successful(test_train
     # syncronization failed, State is still 'training_finished'
     assert trainer.training.training_state == 'training_finished'
     await train_task
+
+
+async def test_basic_mock(test_trainer_node: TrainerNode, mocker):
+    patched_call_return_value = asyncio.Future()
+    patched_call_return_value.set_result(
+        {'success': True})
+    mocker.patch.object(test_trainer_node.sio_client, 'call', return_value=patched_call_return_value)
+    assert await test_trainer_node.sio_client.call() == {'success': True}
