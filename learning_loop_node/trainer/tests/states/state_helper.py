@@ -2,7 +2,6 @@ from learning_loop_node.context import Context
 from learning_loop_node.trainer import active_training
 import logging
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-
 from learning_loop_node.trainer.training import Training
 from learning_loop_node.tests.test_helper import condition
 from learning_loop_node.tests.test_helper import update_attributes

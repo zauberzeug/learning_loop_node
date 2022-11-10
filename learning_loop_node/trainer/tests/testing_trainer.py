@@ -29,7 +29,6 @@ class TestingTrainer(Trainer):
             PretrainedModel(name='large', label='Large', description='a large model')]
 
     async def start_training(self, model: str = 'model.model') -> None:
-        subprocess.call(['touch', '{self.training.training_folder}/{model}'])
         self.executor.start('while true; do sleep 1; done')
 
     async def start_training_from_scratch(self, id: str) -> None:
