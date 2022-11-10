@@ -68,16 +68,12 @@ class Trainer():
             await self.prepare_task
         except asyncio.CancelledError:
             logging.info('cancelled prepare task')
+            self.training.training_state = TrainingState.ReadyForCleanup
+            active_training.save(self.training)
             self.training = None
-            active_training.delete()
-        except GeneratorExit:
-            logging.info('cancelled prepare task')
-            self.training = None
-            active_training.delete()
         except Exception:
             logging.exception("Unknown error in 'prepare'")
             self.training.training_state = previous_state
-            # TODO test this.
         else:
             self.training.training_state = TrainingState.DataDownloaded
             active_training.save(self.training)
