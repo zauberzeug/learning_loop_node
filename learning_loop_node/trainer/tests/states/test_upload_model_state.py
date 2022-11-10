@@ -36,7 +36,7 @@ async def test_bad_server_response_content(mocker):
         assert trainer.training.training_state == 'some_previous_state'
         assert trainer.training.model_id_for_detecting == None
 
-    state_helper.create_active_training_file('some_previous_state')
+    state_helper.create_active_training_file(training_state='some_previous_state')
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
 

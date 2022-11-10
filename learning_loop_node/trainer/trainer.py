@@ -160,18 +160,21 @@ class Trainer():
             logging.exception('Error in run_training')
 
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+        previous_state = self.training.training_state
+        self.training.training_state = TrainingState.ConfusionMatrixSyncing
+
         try:
             await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
         except socketio.exceptions.BadNamespaceError:
             logging.error('Error during confusion matrix syncronization. BadNamespaceError')
-            return
+            self.training.training_state = previous_state
         except:
             # TODO maybe we should handle {'success:False'} separately?
             logging.exception('Error during confusion matrix syncronization')
-            return
-
-        self.training.training_state = TrainingState.ConfusionMatrixSynced
-        active_training.save(self.training)
+            self.training.training_state = previous_state
+        else:
+            self.training.training_state = TrainingState.ConfusionMatrixSynced
+            active_training.save(self.training)
 
     async def upload_model(self) -> None:
         # TODO is it correct, that this can not be aborted?

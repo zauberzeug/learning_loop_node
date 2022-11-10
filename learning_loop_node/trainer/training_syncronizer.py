@@ -4,6 +4,7 @@ from learning_loop_node.socket_response import SocketResponse
 from fastapi.encoders import jsonable_encoder
 import logging
 import socketio
+import asyncio
 
 
 async def try_sync_model(trainer: any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
@@ -27,6 +28,8 @@ async def sync_model(trainer, trainer_node_uuid, sio_client, model):
         train_image_count=current_training.data.train_image_count(),
         test_image_count=current_training.data.test_image_count(),
         hyperparameters=trainer.hyperparameters)
+
+    await asyncio.sleep(0.1)  # NOTE needed for tests.
 
     result = await sio_client.call('update_training', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_training)))
     response = SocketResponse.from_dict(result)

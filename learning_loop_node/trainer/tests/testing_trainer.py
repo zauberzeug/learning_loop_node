@@ -7,6 +7,7 @@ import asyncio
 import logging
 import time
 from learning_loop_node.context import Context
+import socketio
 
 
 class TestingTrainer(Trainer):
@@ -49,6 +50,12 @@ class TestingTrainer(Trainer):
 
     async def _download_model(self) -> None:
         await super()._download_model()
+        await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
+
+    async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+        await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
+        logging.error('#### hier')
+        await super().ensure_confusion_matrix_synced(trainer_node_uuid, sio_client)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
     async def upload_model(self) -> None:
