@@ -289,6 +289,17 @@ class Trainer():
             self.training.training_state = TrainingState.ReadyForCleanup
             active_training.save(self.training)
 
+    async def clear_training(self):
+        active_training.delete_detections(self.training)
+        try:
+            await self.clear_training_data(self.training.training_folder)
+        except NotImplementedError:
+            logging.exception('clear_training_data not implemented')
+            pass
+        else:
+            self.training = None
+            active_training.delete()
+
     def can_resume(self) -> bool:
         return False
 

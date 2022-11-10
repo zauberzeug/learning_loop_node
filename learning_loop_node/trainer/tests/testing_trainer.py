@@ -89,3 +89,6 @@ class TestingTrainer(Trainer):
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         detections = []
         return detections
+
+    async def clear_training_data(self, training_folder: str) -> None:
+        return
