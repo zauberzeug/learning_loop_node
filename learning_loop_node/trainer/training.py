@@ -46,3 +46,5 @@ class State(str, Enum):
     ConfusionMatrixSynced = 'confusion_matrix_synced'
     TrainModelUploading = 'train_model_uploading'
     TrainModelUploaded = 'train_model_uploaded'
+    Detecting = 'detecting'
+    Detected = 'detected'

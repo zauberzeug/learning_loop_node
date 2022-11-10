@@ -46,6 +46,7 @@ class Trainer():
         self.prepare_task = None
         self.download_model_task = None
         self.training_task = None
+        self.detecting_task = None
 
     def init(self, context: Context, details: dict) -> None:
         try:
@@ -219,6 +220,65 @@ class Trainer():
             raise TypeError(f'can only save model as list or dict, but was {files}')
         return uploaded_model
 
+    async def do_detections(self):
+        previous_state = self.training.training_state
+        try:
+            self.training.training_state = TrainingState.Detecting
+
+            self.detecting_task = asyncio.get_running_loop().create_task(self._do_detections())
+            try:
+                detections = await self.detecting_task
+            except asyncio.CancelledError:
+                logging.info('cancelled detecting task')
+                self.training = None
+                active_training.delete()
+                return False
+            active_training.save_detections(self.training, detections)
+            self.training.training_state = TrainingState.Detected
+            active_training.save(self.training)
+        except:
+            logging.exception('Error in do_detections')
+            self.training.training_state = previous_state
+            return
+
+    async def _do_detections(self) -> List:
+        context = self.training.context
+        model_id = self.training.model_id_for_detecting
+        tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
+
+        shutil.rmtree(tmp_folder, ignore_errors=True)
+        os.makedirs(tmp_folder)
+        logging.info('downloading model for detecting')
+        try:
+            await downloads.download_model(tmp_folder, context, model_id, self.model_format)
+        except:
+            logging.exception('download error')
+            raise
+
+        with open(f'{tmp_folder}/model.json', 'r') as f:
+            content = json.load(f)
+            model_information = ModelInformation.parse_obj(content)
+
+        project_folder = Node.create_project_folder(context)
+        image_folder = node_helper.create_image_folder(project_folder)
+        downloader = DataDownloader(context)
+        image_ids = []
+        for state in ['inbox', 'annotate', 'review', 'complete']:
+            logging.info(f'fetching image ids of {state}')
+            new_ids = await downloader.fetch_image_ids(query_params=f'state={state}')
+            image_ids += new_ids
+            logging.info(f'downloading {len(new_ids)} images')
+            await downloader.download_images(new_ids, image_folder)
+        images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
+        logging.info(f'running detections on {len(images)} images')
+        detections = await self._detect(model_information, images, tmp_folder)
+        return detections
+
+    # async def upload_detections(self):
+    #     context = self.training.context
+    #     model_id = self.training.model_id_for_detecting
+    #     await self._upload_detections(context, jsonable_encoder(detections))
+
     def can_resume(self) -> bool:
         return False
 
@@ -238,6 +298,8 @@ class Trainer():
         elif self.training.training_state == TrainingState.TrainingRunning:
             self.training_task.cancel()
             self.executor.stop()
+        elif self.training.training_state == TrainingState.Detecting:
+            self.detecting_task.cancel()
         else:
             raise NotImplementedError(f'can not stop training: {self.training.training_state}')
 
@@ -294,39 +356,6 @@ class Trainer():
         a dictionary mapping format -> list of files can be returned.
         '''
         raise NotImplementedError()
-
-    async def do_detections(self, context: Context, model_id: str):
-
-        tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
-
-        shutil.rmtree(tmp_folder, ignore_errors=True)
-        os.makedirs(tmp_folder)
-        logging.info('downloading model for detecting')
-        try:
-            await downloads.download_model(tmp_folder, context, model_id, self.model_format)
-        except:
-            logging.exception('download error')
-            return
-        with open(f'{tmp_folder}/model.json', 'r') as f:
-            content = json.load(f)
-            model_information = ModelInformation.parse_obj(content)
-
-        project_folder = Node.create_project_folder(context)
-        image_folder = node_helper.create_image_folder(project_folder)
-        downloader = DataDownloader(context)
-        image_ids = []
-        for state in ['inbox', 'annotate', 'review', 'complete']:
-            logging.info(f'fetching image ids of {state}')
-            new_ids = await downloader.fetch_image_ids(query_params=f'state={state}')
-            image_ids += new_ids
-            logging.info(f'downloading {len(new_ids)} images')
-            await downloader.download_images(new_ids, image_folder)
-        images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
-        logging.info(f'running detections on {len(images)} images')
-        detections = await self._detect(model_information, images, tmp_folder)
-        logging.info(f'uploading {len(detections)} detections')
-        await self._upload_detections(context, jsonable_encoder(detections))
-        return detections
 
     @ staticmethod
     def images_for_ids(image_ids, image_folder) -> List[str]:

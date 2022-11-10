@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional, Union
+from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.trainer import Trainer
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 import subprocess
@@ -78,3 +79,7 @@ class TestingTrainer(Trainer):
 
     async def resume(self) -> None:
         return await self.start_training()
+
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
+        detections = []
+        return detections

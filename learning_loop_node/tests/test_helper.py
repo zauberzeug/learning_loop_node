@@ -83,3 +83,23 @@ async def condition(condition: Callable, *, timeout: float = 1.0, interval: floa
         if time.time() > start + timeout:
             raise TimeoutError(f'condition {condition} took longer than {timeout}s')
         await asyncio.sleep(interval)
+
+
+def update_attributes(obj, **kwargs) -> None:
+    if isinstance(obj, dict):
+        _update_attribute_dict(obj, **kwargs)
+    else:
+        _update_attribute_class_instance(obj, **kwargs)
+
+
+def _update_attribute_class_instance(obj, **kwargs) -> None:
+    for key, value in kwargs.items():
+        if hasattr(obj, key):
+            setattr(obj, key, value)
+        else:
+            raise ValueError(f"Object of type '{type(obj)}' does not have a property '{key}'.")
+
+
+def _update_attribute_dict(obj: dict, **kwargs) -> None:
+    for key, value in kwargs.items():
+        obj[key] = value

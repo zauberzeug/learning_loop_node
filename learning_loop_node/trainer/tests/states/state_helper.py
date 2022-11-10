@@ -5,20 +5,21 @@ from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 
 from learning_loop_node.trainer.training import Training
 from learning_loop_node.tests.test_helper import condition
+from learning_loop_node.tests.test_helper import update_attributes
 
 
-def create_active_training_file(current_training_state: str = None) -> None:
+def create_active_training_file(**kwargs) -> None:
     trainer = TestingTrainer()
     details = {'categories': [],
-               'id': '7f5eabb4-227a-e7c7-8f0b-f825cc47340d',  # version 1.2
+               'id': '7f5eabb4-227a-e7c7-8f0b-f825cc47340d',  # version 1.2 of demo project
                'training_number': 0,
                'resolution': 800,
                'flip_rl': False,
                'flip_ud': False}
     trainer.init(Context(organization='zauberzeug', project='demo'), details)
-    if current_training_state:
-        trainer.training.training_state = current_training_state
-        active_training.save(trainer.training)
+
+    update_attributes(trainer.training, **kwargs)
+    active_training.save(trainer.training)
 
 
 def assert_training_file(exists: bool) -> None:
