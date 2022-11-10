@@ -98,8 +98,10 @@ class Trainer():
         active_training.save(self.training)
 
     async def download_model(self) -> None:
-        self.download_model_task = asyncio.get_running_loop().create_task(self._download_model())
+        previous_state = self.training.training_state
+        self.training.training_state = TrainingState.TrainModelDownloading
 
+        self.download_model_task = asyncio.get_running_loop().create_task(self._download_model())
         try:
             await self.download_model_task
             logging.info('download_model_task finished')
@@ -108,12 +110,16 @@ class Trainer():
             self.training = None
             active_training.delete()
             return
+        except Exception:
+            self.training.training_state = previous_state
+            logging.exception('download_model failed')
+        else:
+            self.training.training_state = TrainingState.TrainModelDownloaded
+            active_training.save(self.training)
         finally:
-            logging.info(f'setting download_model_task to None')
             self.download_model_task = None
 
     async def _download_model(self) -> None:
-        self.training.training_state = TrainingState.TrainModelDownloading
         model_id = self.training.base_model_id
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
@@ -123,11 +129,8 @@ class Trainer():
                 shutil.move(f'{self.training.training_folder}/model.json',
                             f'{self.training.training_folder}/base_model.json')
             except DownloadError:
-                logging.exception('DownloadError')
                 # TODO what should be done here? Maybe the Model does not exist in the format?
-
-        self.training.training_state = TrainingState.TrainModelDownloaded
-        active_training.save(self.training)
+                raise
 
     async def run_training(self):
         try:
