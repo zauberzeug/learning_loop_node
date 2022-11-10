@@ -30,7 +30,6 @@ async def assert_training_state(training: Training, state: str, timeout: float, 
     try:
         await condition(lambda: training.training_state == state, timeout=timeout, interval=interval)
     except TimeoutError:
-        logging.error('h############################')
         msg = f"Trainer state should be '{state}' after {timeout} seconds, but is {training.training_state}"
         raise AssertionError(msg)
     except Exception as e:

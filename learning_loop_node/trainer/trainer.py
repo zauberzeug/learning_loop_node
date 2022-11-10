@@ -61,41 +61,35 @@ class Trainer():
             logging.exception('Error in init')
 
     async def prepare(self) -> None:
-        if self.training.training_state != 'initialized':
-            raise Exception(f"Training must be in state 'initialized', but was '{self.training.training_state}'")
+        previous_state = self.training.training_state
+        self.training.training_state = TrainingState.DataDownloading
+        self.prepare_task = asyncio.get_running_loop().create_task(self._prepare())
         try:
-            self.prepare_task = asyncio.get_running_loop().create_task(self._prepare())
-            try:
-                await self.prepare_task
-            except asyncio.CancelledError:
-                logging.info('cancelled prepare task')
-                self.training = None
-                active_training.delete()
-                return False
-            except GeneratorExit:
-                logging.info('cancelled prepare task')
-                self.training = None
-                active_training.delete()
-                return False
-            except Exception:
-                logging.exception("Unknown error in 'prepare'")
-            finally:
-                logging.info('setting prepare_task to None')
-                self.prepare_task = None
-        except:
-            logging.exception('error in prepare training')
-
-        return True
+            await self.prepare_task
+        except asyncio.CancelledError:
+            logging.info('cancelled prepare task')
+            self.training = None
+            active_training.delete()
+        except GeneratorExit:
+            logging.info('cancelled prepare task')
+            self.training = None
+            active_training.delete()
+        except Exception:
+            logging.exception("Unknown error in 'prepare'")
+            self.training.training_state = previous_state
+            # TODO test this.
+        else:
+            self.training.training_state = TrainingState.DataDownloaded
+            active_training.save(self.training)
+        finally:
+            logging.info('setting prepare_task to None')
+            self.prepare_task = None
 
     async def _prepare(self) -> None:
-        self.training.training_state = TrainingState.DataDownloading
         downloader = TrainingsDownloader(self.training.context)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         self.training.data.image_data = image_data
         self.training.data.skipped_image_count = skipped_image_count
-
-        self.training.training_state = TrainingState.DataDownloaded
-        active_training.save(self.training)
 
     async def download_model(self) -> None:
         previous_state = self.training.training_state

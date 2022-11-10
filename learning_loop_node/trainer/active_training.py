@@ -29,7 +29,8 @@ def load() -> Training:
 
 
 def delete() -> None:
-    os.remove(training_file_path())
+    if exists():
+        os.remove(training_file_path())
 
 
 def exists() -> bool:
@@ -51,4 +52,5 @@ def detections_exist(training: Training) -> bool:
 
 
 def delete_detections(training: Training) -> None:
-    os.remove(detection_file_path(training))
+    if detections_exist(training):
+        os.remove(detection_file_path(training))

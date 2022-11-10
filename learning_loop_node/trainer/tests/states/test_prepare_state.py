@@ -1,41 +1,31 @@
 from learning_loop_node.trainer.trainer import Trainer
 import asyncio
-from learning_loop_node.trainer.tests.states.state_helper import assert_training_file
+from learning_loop_node.trainer.tests.states.state_helper import assert_training_file, assert_training_state
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.training import Training
 
 
-async def test_successful_preparing():
-    def _assert_training_contains_all_data(training: Training) -> None:
-        assert training.training_state == 'data_downloaded'
-        assert training.data is not None
-
+async def test_preparing_is_successful():
     state_helper.create_active_training_file()
     trainer = Trainer(model_format='mocked')
     trainer.training = active_training.load()  # normally done by node
 
     await trainer.prepare()
 
-    _assert_training_contains_all_data(trainer.training)
-    assert_training_file(exists=True)
-
-    loaded_training = active_training.load()
-    _assert_training_contains_all_data(loaded_training)
+    assert trainer.training.training_state == 'data_downloaded'
+    assert trainer.training.data is not None
+    assert active_training.load() == trainer.training
 
 
 async def test_abort_preparing():
-    state_helper.create_active_training_file()
+    state_helper.create_active_training_file(training_state='some_previous_state')
     trainer = Trainer(model_format='mocked')
     trainer.training = active_training.load()  # normally done by node
+    assert trainer.training.training_state == 'some_previous_state'
 
-    training_task = asyncio.get_running_loop().create_task(trainer.prepare())
-
-    await asyncio.sleep(0.1)
-    assert trainer.training is not None
-    assert trainer.training.training_state == 'data_downloading'
-    assert trainer.prepare_task is not None
-    assert_training_file(exists=True)
+    preparing_task = asyncio.get_running_loop().create_task(trainer.prepare())
+    await assert_training_state(trainer.training, 'data_downloading', timeout=3, interval=0.001)
 
     trainer.stop()
     await asyncio.sleep(0.1)
@@ -43,5 +33,3 @@ async def test_abort_preparing():
     assert trainer.prepare_task is None
     assert trainer.training == None
     assert_training_file(exists=False)
-
-    training_task.cancel()
