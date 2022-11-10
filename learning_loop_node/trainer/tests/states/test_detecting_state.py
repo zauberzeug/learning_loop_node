@@ -34,7 +34,7 @@ async def test_detecting_can_be_aborted(mocker):
     await asyncio.sleep(0.1)
 
     assert trainer.training is None
-    assert active_training.exists() is False
+    assert active_training.load().training_state == 'ready_for_cleanup'
 
 
 async def test_model_not_downloadable_error(mocker):

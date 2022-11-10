@@ -37,7 +37,7 @@ async def test_abort_download_model():
     await asyncio.sleep(0.1)
 
     assert trainer.training == None
-    assert_training_file(exists=False)
+    assert active_training.load().training_state == 'ready_for_cleanup'
 
 
 async def test_downloading_failed():

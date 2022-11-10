@@ -97,9 +97,9 @@ class Trainer():
             logging.info('download_model_task finished')
         except asyncio.CancelledError:
             logging.info('cancelled download model task')
+            self.training.training_state = TrainingState.ReadyForCleanup
+            active_training.save(self.training)
             self.training = None
-            active_training.delete()
-            return
         except Exception:
             self.training.training_state = previous_state
             logging.exception('download_model failed')
@@ -189,9 +189,6 @@ class Trainer():
         except:
             logging.exception('Error in upload_model')
             self.training.training_state = previous_state
-            return
-
-        return uploaded_model
 
     async def _upload_model(self, context: Context) -> dict:
         files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
@@ -226,12 +223,13 @@ class Trainer():
                 detections = await self.detecting_task
             except asyncio.CancelledError:
                 logging.info('cancelled detecting task')
+                self.training.training_state = TrainingState.ReadyForCleanup
+                active_training.save(self.training)
                 self.training = None
-                active_training.delete()
-                return False
-            active_training.save_detections(self.training, detections)
-            self.training.training_state = TrainingState.Detected
-            active_training.save(self.training)
+            else:
+                active_training.save_detections(self.training, detections)
+                self.training.training_state = TrainingState.Detected
+                active_training.save(self.training)
         except:
             logging.exception('Error in do_detections')
             self.training.training_state = previous_state
