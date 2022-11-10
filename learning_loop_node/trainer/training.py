@@ -48,3 +48,5 @@ class State(str, Enum):
     TrainModelUploaded = 'train_model_uploaded'
     Detecting = 'detecting'
     Detected = 'detected'
+    DetectionUploading = 'detection_uploading'
+    ReadyForCleanup = 'ready_for_cleanup'

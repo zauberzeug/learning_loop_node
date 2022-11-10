@@ -274,10 +274,20 @@ class Trainer():
         detections = await self._detect(model_information, images, tmp_folder)
         return detections
 
-    # async def upload_detections(self):
-    #     context = self.training.context
-    #     model_id = self.training.model_id_for_detecting
-    #     await self._upload_detections(context, jsonable_encoder(detections))
+    async def upload_detections(self):
+        previous_state = self.training.training_state
+        self.training.training_state = TrainingState.DetectionUploading
+        context = self.training.context
+
+        try:
+            detections = active_training.load_detections(self.training)
+            await self._upload_detections(context, detections)
+        except:
+            logging.exception('Error in upload_detections')
+            self.training.training_state = previous_state
+        else:
+            self.training.training_state = TrainingState.ReadyForCleanup
+            active_training.save(self.training)
 
     def can_resume(self) -> bool:
         return False
