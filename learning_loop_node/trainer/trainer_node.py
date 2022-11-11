@@ -28,12 +28,13 @@ class TrainerNode(Node):
         super().__init__(name, uuid)
         self.trainer = trainer
         self.include_router(controls.router, tags=["controls"])
+        self.train_loop_busy = False
 
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):
             self.trainer.init(Context(organization=organization, project=project), details)
             loop = asyncio.get_event_loop()
-            loop.create_task(self.train())
+            loop.create_task(self.wait_and_train())
             return True
 
         @self.sio_client.on('stop_training')
@@ -56,6 +57,14 @@ class TrainerNode(Node):
         @self.on_event("shutdown")
         async def shutdown():
             await self.shutdown()
+
+        @self.on_event("startup")
+        @repeat_every(seconds=1, raise_exceptions=True, wait_first=False)
+        async def continous_training():
+            try:
+                await self.train()
+            except:
+                logging.exception('Error in continous_training')
 
     async def begin_training(self, context: Context, details: dict):
         self.status.reset_error('start_training')
@@ -127,48 +136,49 @@ class TrainerNode(Node):
             traceback.print_exc()
             self.status.set_error('clear_training_data', f'Could not delete training data: {str(e)}')
 
+    async def wait_and_train(self):
+        while self.train_loop_busy:
+            await asyncio.sleep(0.1)
+        await self.train()
+
     async def train(self):
+        logging.error(self.train_loop_busy)
+        if self.train_loop_busy:
+            return
+        logging.error('train loop started')
+        self.train_loop_busy = True
         try:
             training = None
-            if active_training.exists():
+            if self.trainer.training:
+                training = self.trainer.training
+            elif active_training.exists():
                 logging.warning('found active training on hd')
                 training = active_training.load()
                 logging.warning(jsonable_encoder(training))
                 self.trainer.training = training
-            if training and training.training_state == TrainingState.Initialized:
-                # TODO sio event?
-                success = await self.trainer.prepare()
-                logging.warning(f'prepare returned {success}')
-                if not success:
-                    return
-                # TODO sio event?
-            if training and training.training_state == TrainingState.DataDownloaded:
-                # TODO sio event?
-                logging.warning('going to download model.')
-                await self.trainer.download_model()
-                # TODO sio event?
-            if training and training.training_state == TrainingState.TrainModelDownloaded:
-                # TODO sio event?
-                logging.warning('going to train.')
-                await self.trainer.run_training()
-                # TODO sio event?
-            if training and training.training_state == TrainingState.TrainingFinished:
-                # maybe the training finished while node was offline.
-                # so we need try to update the confusion matrix first.
-                try:
-                    await self.trainer.ensure_confusion_matrix_synced()
-                except:
-                    logging.exception('could not sync confusion matrix')
-                    # TODO what to do here?
-            if training and training.training_state == TrainingState.ConfusionMatrixSynced:
-                # TODO sio event?
-                logging.warning('going to upload model.')
-                await self.trainer.upload_model()
-                # TODO sio event?
 
+            if training and training.training_state == TrainingState.Initialized:
+                await self.trainer.prepare()
+            if training and training.training_state == TrainingState.DataDownloaded:
+                await self.trainer.download_model()
+            if training and training.training_state == TrainingState.TrainModelDownloaded:
+                await self.trainer.run_training()
+            if training and training.training_state == TrainingState.TrainingFinished:
+                await self.trainer.ensure_confusion_matrix_synced()
+            if training and training.training_state == TrainingState.ConfusionMatrixSynced:
+                await self.trainer.upload_model()
+            if training and training.training_state == TrainingState.ModelUploaded:
+                await self.trainer.do_detections()
+            if training and training.training_state == TrainingState.Detected:
+                await self.trainer.upload_detections()
+            if training and training.training_state == TrainingState.DetectionsUploaded:
+                await self.trainer.clear_training_data()
         except:
             logging.exception('error during training')
             raise
+        finally:
+            logging.error('train loop ended')
+            self.train_loop_busy = False
 
     async def check_state(self):
         logging.debug(f'{self.status.state}')
@@ -285,11 +295,11 @@ class TrainerNode(Node):
             return State.Running
         return State.Idle
 
-    @property
+    @ property
     def progress(self) -> Union[float, None]:
         return self.trainer.progress if hasattr(self.trainer, 'progress') else None
 
-    @property
+    @ property
     def training_uptime(self) -> Union[int, None]:
         import time
         now = time.time()
