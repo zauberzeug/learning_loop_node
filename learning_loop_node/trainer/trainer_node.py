@@ -142,10 +142,10 @@ class TrainerNode(Node):
         await self.train()
 
     async def train(self):
-        logging.error(self.train_loop_busy)
+        # logging.error(self.train_loop_busy)
         if self.train_loop_busy:
             return
-        logging.error('train loop started')
+        # logging.error('train loop started')
         self.train_loop_busy = True
         try:
             training = None
@@ -167,17 +167,17 @@ class TrainerNode(Node):
                 await self.trainer.ensure_confusion_matrix_synced()
             if training and training.training_state == TrainingState.ConfusionMatrixSynced:
                 await self.trainer.upload_model()
-            if training and training.training_state == TrainingState.ModelUploaded:
+            if training and training.training_state == TrainingState.TrainModelUploaded:
                 await self.trainer.do_detections()
             if training and training.training_state == TrainingState.Detected:
                 await self.trainer.upload_detections()
-            if training and training.training_state == TrainingState.DetectionsUploaded:
+            if training and training.training_state == TrainingState.ReadyForCleanup:
                 await self.trainer.clear_training_data()
         except:
             logging.exception('error during training')
             raise
         finally:
-            logging.error('train loop ended')
+            # logging.error('train loop ended')
             self.train_loop_busy = False
 
     async def check_state(self):
