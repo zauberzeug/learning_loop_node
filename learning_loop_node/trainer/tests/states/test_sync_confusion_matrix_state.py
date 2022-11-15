@@ -7,11 +7,13 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 
 
 async def test_nothing_to_sync():
-    state_helper.create_active_training_file(training_state='some_previous_state')
+    state_helper.create_active_training_file(training_state='training_finished')
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
 
-    await trainer.ensure_confusion_matrix_synced(trainer_node_uuid=None, sio_client=None)
+    train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
+
+    await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'confusion_matrix_synced'
     assert active_training.load() == trainer.training
@@ -20,46 +22,52 @@ async def test_nothing_to_sync():
 async def test_unsynced_model_available__sync_successfull(test_trainer_node: TrainerNode, mocker):
     mock_socket_io_call(mocker, test_trainer_node, {'success': True})
 
-    state_helper.create_active_training_file(training_state='some_previous_state')
+    state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
     trainer.training = active_training.load()  # normally done by node
-
     trainer.has_new_model = True
-    await trainer.ensure_confusion_matrix_synced(test_trainer_node.uuid, sio_client=test_trainer_node.sio_client)
+
+    train_task = asyncio.get_running_loop().create_task(trainer.train(
+        uuid=test_trainer_node.uuid, sio_client=test_trainer_node.sio_client))
+    await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
+    # await trainer.ensure_confusion_matrix_synced(test_trainer_node.uuid, sio_client=test_trainer_node.sio_client)
 
     assert trainer.training.training_state == 'confusion_matrix_synced'
     assert active_training.load() == trainer.training
 
 
 async def test_unsynced_model_available__sio_not_connected(test_trainer_node: TrainerNode):
-    state_helper.create_active_training_file(training_state='some_previous_state')
+    state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
     trainer.training = active_training.load()  # normally done by node
 
     assert test_trainer_node.sio_client.connected is False
     trainer.has_new_model = True
-    sync_task = asyncio.get_running_loop().create_task(trainer.ensure_confusion_matrix_synced(
-        test_trainer_node.uuid, sio_client=test_trainer_node.sio_client))
+    train_task = asyncio.get_running_loop().create_task(trainer.train(
+        uuid=test_trainer_node.uuid, sio_client=test_trainer_node.sio_client))
 
     await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
-    await sync_task
-
-    assert trainer.training.training_state == 'some_previous_state'
+    assert trainer.training.training_state == 'training_finished'
     assert active_training.load() == trainer.training
 
 
 async def test_unsynced_model_available__request_is_not_successful(test_trainer_node: TrainerNode, mocker):
     mock_socket_io_call(mocker, test_trainer_node, {'success': False})
 
-    state_helper.create_active_training_file(training_state='some_previous_state')
+    state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
     trainer.training = active_training.load()  # normally done by node
 
     trainer.has_new_model = True
-    await trainer.ensure_confusion_matrix_synced(test_trainer_node.uuid, sio_client=test_trainer_node.sio_client)
+    train_task = asyncio.get_running_loop().create_task(trainer.train(
+        uuid=test_trainer_node.uuid, sio_client=test_trainer_node.sio_client))
 
-    assert trainer.training.training_state == 'some_previous_state'
+    await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
+
+    assert trainer.training.training_state == 'training_finished'
     assert active_training.load() == trainer.training
 
 

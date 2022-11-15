@@ -32,6 +32,7 @@ class TrainerNode(Node):
 
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):
+            logging.info('received begin_training from server')
             self.trainer.init(Context(organization=organization, project=project), details)
             loop = asyncio.get_event_loop()
             loop.create_task(self.wait_and_train())
@@ -80,41 +81,8 @@ class TrainerNode(Node):
             return
         await self.update_state(State.Running)
 
-    async def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
-        if self.status.state != State.Running:
-            logging.warning(f'##### stop_training is called but current state is : {self.status.state}')
-            return
-
-        await self.update_state(State.Stopping)
-
-        try:
-            result = self.trainer.stop_training()
-
-            if self.model_published:
-                if save_and_detect:
-                    await self.update_state(State.Uploading)
-                    uploaded_model = await self.save_model(self.trainer.training.context)
-                    await self.update_state(State.Detecting)
-                    try:
-                        await self.trainer.do_detections(context=self.trainer.training.context,
-                                                         model_id=uploaded_model['id'])
-                    except Exception as e:
-                        logging.exception(f'Could not predict detections: {str(e)}')
-
-            await self.clear_training_data(self.trainer.training.training_folder)
-            self.trainer.training = None
-            self.model_published = False
-            await self.update_state(State.Idle)
-            if not result:
-                raise Exception('No Training is running')
-            self.status.reset_all_errors()
-            await self.send_status()
-
-        except Exception as e:
-            self.status.set_error('stop_training', f'Could not stop training: {str(e)})')
-            await self.send_status()
-            return False
-        return True
+    def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
+        result = self.trainer.stop()
 
     async def save_model(self, context: Context):
         self.status.reset_error('save_model')
@@ -128,59 +96,23 @@ class TrainerNode(Node):
         await self.send_status()
         return uploaded_model
 
-    async def clear_training_data(self, training_folder: str):
-        self.status.reset_error('clear_training_data')
-        try:
-            await self.trainer.clear_training_data(training_folder)
-        except Exception as e:
-            traceback.print_exc()
-            self.status.set_error('clear_training_data', f'Could not delete training data: {str(e)}')
-
     async def wait_and_train(self):
         while self.train_loop_busy:
             await asyncio.sleep(0.1)
+        logging.info('going to start training')
         await self.train()
 
     async def train(self):
-        # logging.error(self.train_loop_busy)
         if self.train_loop_busy:
             return
-        # logging.error('train loop started')
-        self.train_loop_busy = True
-        try:
-            training = None
-            if self.trainer.training:
-                training = self.trainer.training
-            elif active_training.exists():
-                logging.warning('found active training on hd')
-                training = active_training.load()
-                logging.warning(jsonable_encoder(training))
-                self.trainer.training = training
 
-            if training and training.training_state == TrainingState.Initialized:
-                await self.trainer.prepare()
-            if training and training.training_state == TrainingState.DataDownloaded:
-                await self.trainer.download_model()
-            if training and training.training_state == TrainingState.TrainModelDownloaded:
-                await self.trainer.run_training()
-            if training and training.training_state == TrainingState.TrainingFinished:
-                await self.trainer.ensure_confusion_matrix_synced()
-            if training and training.training_state == TrainingState.ConfusionMatrixSynced:
-                await self.trainer.upload_model()
-            if training and training.training_state == TrainingState.TrainModelUploaded:
-                await self.trainer.do_detections()
-            if training and training.training_state == TrainingState.Detected:
-                await self.trainer.upload_detections()
-            if training and training.training_state == TrainingState.ReadyForCleanup:
-                await self.trainer.clear_training_data()
-        except:
-            logging.exception('error during training')
-            raise
-        finally:
-            # logging.error('train loop ended')
-            self.train_loop_busy = False
+        self.train_loop_busy = True
+        await self.trainer.train()
+        # logging.error('train loop ended')
+        self.train_loop_busy = False
 
     async def check_state(self):
+        return
         logging.debug(f'{self.status.state}')
         self.status.reset_error('training_error')
         error = self.trainer.get_error()
@@ -248,11 +180,14 @@ class TrainerNode(Node):
         await self.send_status()
 
     async def send_status(self):
-
+        state_for_learning_loop = TrainerNode.state_for_learning_loop(
+            self.trainer.training.training_state) if self.trainer.training else State.Idle
+        logging.warning(f'want to send state to learning loop : {state_for_learning_loop}')
         status = TrainingStatus(
             id=self.uuid,
             name=self.name,
-            state=self.status.state,
+            state=TrainerNode.state_for_learning_loop(
+                self.trainer.training.training_state) if self.trainer.training else State.Idle,
             uptime=self.training_uptime,
             errors=self.status._errors,
             progress=self.progress
@@ -277,10 +212,6 @@ class TrainerNode(Node):
             logging.error('Going to kill training. ')
             logging.exception('update trainer failed')
 
-            if status.state != State.Idle:
-                # TODO was soll passieren, wenn wir z.B. Stopping sind, und das Event von der Loop abgelehnt wird?
-                await self.stop_training(save_and_detect=False)
-
     async def shutdown(self):
         logging.info('shutdown detected, stopping training')
         self.trainer.stop()
@@ -304,3 +235,31 @@ class TrainerNode(Node):
         import time
         now = time.time()
         return now - self.trainer.start_time if self.trainer.start_time else None
+
+    @staticmethod
+    def state_for_learning_loop(trainer_state: TrainingState):
+        if trainer_state in [TrainingState.Initialized,
+                             TrainingState.DataDownloading,
+                             TrainingState.DataDownloaded,
+                             TrainingState.TrainModelDownloading, TrainingState.TrainModelDownloaded]:
+            return State.Preparing
+        if trainer_state == TrainingState.TrainingRunning:
+            return State.Running
+        if trainer_state == TrainingState.TrainingFinished:
+            return State.Running
+        if trainer_state in [TrainingState.TrainingFinished,
+                             TrainingState.ConfusionMatrixSyncing,
+                             TrainingState.ConfusionMatrixSynced,
+                             TrainingState.TrainModelUploading,
+                             TrainingState.TrainModelUploaded]:
+            return State.Running
+        if trainer_state in [TrainingState.Detecting,
+                             TrainingState.Detected]:
+            return State.Detecting
+        if trainer_state == TrainingState.DetectionUploading:
+            return State.Detecting
+        if trainer_state == TrainingState.ReadyForCleanup:
+            return State.Stopping
+
+        logging.error(trainer_state)
+        return 'unknown'

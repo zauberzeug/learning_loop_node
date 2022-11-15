@@ -43,10 +43,8 @@ class Trainer():
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
         self.start_time: Optional[int] = None
-        self.prepare_task = None
-        self.download_model_task = None
-        self.training_task = None
-        self.detecting_task = None
+        self.training_task: Optional[asyncio.Task] = None
+        self.train_task: Optional[asyncio.Task] = None
 
     def init(self, context: Context, details: dict) -> None:
         try:
@@ -57,29 +55,64 @@ class Trainer():
             self.training.base_model_id = details['id']
             self.training.training_state = TrainingState.Initialized
             active_training.save(self.training)
+            logging.info(f'init training: {self.training}')
         except:
             logging.exception('Error in init')
+
+    async def train(self, uuid, sio_client) -> None:
+        try:
+            self.training_task = asyncio.get_running_loop().create_task(self._train(uuid, sio_client))
+            await self.training_task
+
+        except asyncio.CancelledError:
+            logging.info('cancelled training task')
+            self.training.training_state = TrainingState.ReadyForCleanup
+            active_training.save(self.training)
+            await self.clear_training()
+        except BaseException:
+            logging.exception('Error in train')
+
+    async def _train(self, uuid, sio_client) -> None:
+
+        training = None
+        if self.training:
+            training = self.training
+        elif active_training.exists():
+            logging.warning('found active training on hd')
+            training = active_training.load()
+            logging.warning(jsonable_encoder(training))
+            self.training = training
+
+        if training and training.training_state == TrainingState.Initialized:
+            await self.prepare()
+        if training and training.training_state == TrainingState.DataDownloaded:
+            await self.download_model()
+        if training and training.training_state == TrainingState.TrainModelDownloaded:
+            await self.run_training()
+        if training and training.training_state == TrainingState.TrainingFinished:
+            await self.ensure_confusion_matrix_synced(uuid, sio_client)
+        if training and training.training_state == TrainingState.ConfusionMatrixSynced:
+            await self.upload_model()
+        if training and training.training_state == TrainingState.TrainModelUploaded:
+            await self.do_detections()
+        if training and training.training_state == TrainingState.Detected:
+            await self.upload_detections()
+        if training and training.training_state == TrainingState.ReadyForCleanup:
+            await self.clear_training()
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DataDownloading
-        self.prepare_task = asyncio.get_running_loop().create_task(self._prepare())
+
         try:
-            await self.prepare_task
-        except asyncio.CancelledError:
-            logging.info('cancelled prepare task')
-            self.training.training_state = TrainingState.ReadyForCleanup
-            active_training.save(self.training)
-            self.training = None
+            await self._prepare()
         except Exception:
             logging.exception("Unknown error in 'prepare'")
             self.training.training_state = previous_state
+            raise
         else:
             self.training.training_state = TrainingState.DataDownloaded
             active_training.save(self.training)
-        finally:
-            logging.info('setting prepare_task to None')
-            self.prepare_task = None
 
     async def _prepare(self) -> None:
         downloader = TrainingsDownloader(self.training.context)
@@ -90,24 +123,17 @@ class Trainer():
     async def download_model(self) -> None:
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelDownloading
-
-        self.download_model_task = asyncio.get_running_loop().create_task(self._download_model())
         try:
-            await self.download_model_task
+            await self._download_model()
             logging.info('download_model_task finished')
-        except asyncio.CancelledError:
-            logging.info('cancelled download model task')
-            self.training.training_state = TrainingState.ReadyForCleanup
-            active_training.save(self.training)
-            self.training = None
         except Exception:
-            self.training.training_state = previous_state
             logging.exception('download_model failed')
+            self.training.training_state = previous_state
+            # TODO reraise?
+            raise
         else:
             self.training.training_state = TrainingState.TrainModelDownloaded
             active_training.save(self.training)
-        finally:
-            self.download_model_task = None
 
     async def _download_model(self) -> None:
         model_id = self.training.base_model_id
@@ -126,27 +152,26 @@ class Trainer():
         try:
             self.executor = Executor(self.training.training_folder)
             self.training.training_state = TrainingState.TrainingRunning
+            self.train_task = None
             try:
                 if self.can_resume():
-                    self.training_task = asyncio.get_running_loop().create_task(self.resume())
+                    self.train_task = self.resume()
             except NotImplementedError:
                 pass
 
-            if not self.training_task:
+            if not self.train_task:
                 model_id = self.training.base_model_id
                 if not is_valid_uuid4(model_id):
-                    self.training_task = asyncio.get_running_loop().create_task(self.start_training_from_scratch(model_id))
+                    self.train_task = self.start_training_from_scratch(model_id)
                 else:
-                    self.training_task = asyncio.get_running_loop().create_task(self.start_training())
+                    self.train_task = self.start_training()
 
-            await self.training_task
-            # TODO abort training before executor is started
+            await self.train_task
+            # TODO catch normal errors?
 
             while True:
                 if not self.executor.is_process_running():
                     # TODO how  / where to check for error?
-                    break
-                if self.training_task.cancelled():
                     break
                 await asyncio.sleep(0.1)
             self.training.training_state = TrainingState.TrainingFinished
@@ -217,23 +242,14 @@ class Trainer():
         previous_state = self.training.training_state
         try:
             self.training.training_state = TrainingState.Detecting
-
-            self.detecting_task = asyncio.get_running_loop().create_task(self._do_detections())
-            try:
-                detections = await self.detecting_task
-            except asyncio.CancelledError:
-                logging.info('cancelled detecting task')
-                self.training.training_state = TrainingState.ReadyForCleanup
-                active_training.save(self.training)
-                self.training = None
-            else:
-                active_training.save_detections(self.training, detections)
-                self.training.training_state = TrainingState.Detected
-                active_training.save(self.training)
+            detections = await self._do_detections()
+            active_training.save_detections(self.training, detections)
+            self.training.training_state = TrainingState.Detected
+            active_training.save(self.training)
         except:
             logging.exception('Error in do_detections')
             self.training.training_state = previous_state
-            return
+            raise
 
     async def _do_detections(self) -> List:
         context = self.training.context
@@ -246,7 +262,7 @@ class Trainer():
         try:
             await downloads.download_model(tmp_folder, context, model_id, self.model_format)
         except:
-            logging.exception('download error')
+            # logging.exception('download error ...')
             raise
 
         with open(f'{tmp_folder}/model.json', 'r') as f:
@@ -279,9 +295,30 @@ class Trainer():
         except:
             logging.exception('Error in upload_detections')
             self.training.training_state = previous_state
+            raise
         else:
             self.training.training_state = TrainingState.ReadyForCleanup
             active_training.save(self.training)
+
+    async def _upload_detections(self, context: Context, detections: List[dict]):
+        logging.info('uploading detections')
+        batch_size = 500
+
+        for i in tqdm(range(0, len(detections), batch_size), position=0, leave=True):
+            batch_detections = detections[i:i+batch_size]
+            logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
+            try:
+                async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
+                    if response.status != 200:
+                        logging.error(f'could not upload detections. {str(response)}')
+                        # TODO how to handle already uploaded detections?
+                        raise Exception(f'could not upload detections. {str(response)}')
+                    else:
+                        logging.info('successfully uploaded detections')
+            except:
+                logging.exception('error uploading detections.')
+                # TODO where to catch exceptions?
+                raise
 
     async def clear_training(self):
         active_training.delete_detections(self.training)
@@ -303,36 +340,16 @@ class Trainer():
     def stop(self) -> None:
         if not self.training:
             return
-
-        if self.training.training_state == TrainingState.DataDownloading:
-            if self.prepare_task:
-                self.prepare_task.cancel()
-        elif self.training.training_state == TrainingState.TrainModelDownloading:
-            if self.download_model_task:
-                self.download_model_task.cancel()
-        elif self.training.training_state == TrainingState.TrainingRunning:
-            self.training_task.cancel()
+        if self.executor and self.executor.is_process_running():
             self.executor.stop()
-        elif self.training.training_state == TrainingState.Detecting:
-            self.detecting_task.cancel()
-        else:
-            raise NotImplementedError(f'can not stop training: {self.training.training_state}')
+        elif self.training_task:
+            self.training_task.cancel()
 
     async def start_training(self) -> None:
         raise NotImplementedError()
 
     async def start_training_from_scratch(self, identifier: str) -> None:
         raise NotImplementedError()
-
-    def stop_training(self) -> bool:
-        if self.executor:
-            self.executor.stop()
-            self.executor = None
-            self.start_time = None
-            return True
-        else:
-            logging.info('could not stop training, executor is None')
-            return False
 
     def get_error(self) -> Optional[Union[None, str]]:
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
@@ -384,21 +401,6 @@ class Trainer():
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
         raise NotImplementedError()
-
-    async def _upload_detections(self, context: Context, detections: List[dict]):
-        logging.info('uploading detections')
-        batch_size = 500
-        for i in tqdm(range(0, len(detections), batch_size), position=0, leave=True):
-            batch_detections = detections[i:i+batch_size]
-            logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
-            try:
-                async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
-                    if response.status != 200:
-                        logging.error(f'could not upload detections. {str(response)}')
-                    else:
-                        logging.info('successfully uploaded detections')
-            except:
-                logging.exception('error uploading detections.')
 
     async def clear_training_data(self, training_folder: str) -> None:
         '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
