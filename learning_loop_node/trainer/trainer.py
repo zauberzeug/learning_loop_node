@@ -35,6 +35,7 @@ from learning_loop_node.trainer import training_syncronizer
 import socketio
 from aiohttp import ClientResponseError
 from asyncio import coroutine
+from datetime import datetime
 
 
 class Errors():
@@ -121,7 +122,7 @@ class Trainer():
             if training and training.training_state == TrainingState.DataDownloaded:
                 await self.download_model()
             if training and training.training_state == TrainingState.TrainModelDownloaded:
-                await self.run_training()
+                await self.run_training(uuid, sio_client)
             if training and training.training_state == TrainingState.TrainingFinished:
                 await self.ensure_confusion_matrix_synced(uuid, sio_client)
             if training and training.training_state == TrainingState.ConfusionMatrixSynced:
@@ -189,7 +190,7 @@ class Trainer():
                 # TODO what should be done here? Maybe the Model does not exist in the format?
                 raise
 
-    async def run_training(self):
+    async def run_training(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient) -> None:
         error_key = 'run_training'
         previous_state = self.training.training_state
 
@@ -213,11 +214,17 @@ class Trainer():
             await self.train_task
             # TODO catch normal errors?
 
+            last_sync_time = datetime.now()
             while True:
                 if not self.executor.is_process_running():
                     # TODO how  / where to check for error?
                     break
-                await asyncio.sleep(0.1)
+                if (datetime.now() - last_sync_time).total_seconds() > 1:
+                    logging.error('syncing')
+                    last_sync_time = datetime.now()
+                    await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
+                else:
+                    await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             raise
         except Exception as e:

@@ -21,7 +21,6 @@ from learning_loop_node.trainer import training_syncronizer
 
 class TrainerNode(Node):
     trainer: Trainer
-    skip_check_state: bool = False
     model_published: bool = False
 
     def __init__(self, name: str, trainer: Trainer, uuid: str = None):
@@ -49,18 +48,8 @@ class TrainerNode(Node):
             return True
 
         @self.on_event("startup")
-        @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
-        async def check_state():
-            if self.skip_check_state:
-                return
-            try:
-                await self.check_state()
-            except:
-                logging.exception('could not check state')
-
-        @self.on_event("startup")
         @repeat_every(seconds=1, raise_exceptions=True, wait_first=False)
-        async def check_state():
+        async def continous_send_status():
             try:
                 await self.send_status()
             except:
@@ -125,77 +114,9 @@ class TrainerNode(Node):
         finally:
             self.train_loop_busy = False
 
-    async def check_state(self):
-        logging.debug(f'{self.status.state}')
-        self.status.reset_error('training_error')
-        error = self.trainer.get_error()
-
-        if error is not None:
-            try:
-                # NOTE test_model_should_be_uploaded_when_training_has_error will result in exception without this try/except block.
-                logging.error(error + '\n\n' + self.trainer.get_log()[-1000:])
-            except:
-                pass
-            self.status.set_error('training_error', error)
-            await self.stop_training()
-            await self.send_status()
-            return
-
-        if self.status.state != State.Running:
-            return
-
-        if not self.trainer.executor.is_process_running():
-            self.status.set_error('training_error', 'Training crashed.')
-            logging.info(self.trainer.get_log()[-1000:])
-            await self.stop_training()
-            await self.send_status()
-            return
-
-        await self.try_get_new_model()
-
-    async def try_get_new_model(self) -> None:
-        # TODO use new training_syncronizer
-
-        self.status.reset_error('get_new_model')
-
-        try:
-            current_training = self.trainer.training
-            if self.status.state == State.Running and current_training:
-                model = self.trainer.get_new_model()
-                logging.debug(f'new model {model}')
-                if model:
-                    new_training = TrainingOut(
-                        trainer_id=self.uuid,
-                        confusion_matrix=model.confusion_matrix,
-                        train_image_count=current_training.data.train_image_count(),
-                        test_image_count=current_training.data.test_image_count(),
-                        hyperparameters=self.trainer.hyperparameters
-                    )
-
-                    result = await self.sio_client.call('update_training', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_training)))
-                    response = SocketResponse.from_dict(result)
-
-                    if not response.success:
-                        error_msg = f'Error for update_training: Response from loop was : {response.__dict__}'
-                        logging.error(error_msg)
-                        raise Exception(error_msg)
-
-                    logging.info(f'successfully updated training {jsonable_encoder(new_training)}')
-                    self.trainer.on_model_published(model)
-                    self.model_published = True
-                    # hier.
-
-        except Exception as e:
-            msg = f'Could not get new model: {str(e)}'
-            logging.exception(msg)
-            self.status.set_error('get_new_model', msg)
-
-        await self.send_status()
-
     async def send_status(self):
         state_for_learning_loop = TrainerNode.state_for_learning_loop(
             self.trainer.training.training_state) if self.trainer.training else State.Idle
-        logging.warning(f'want to send state to learning loop : {state_for_learning_loop}')
         status = TrainingStatus(
             id=self.uuid,
             name=self.name,
