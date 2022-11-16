@@ -243,7 +243,7 @@ class Trainer():
         try:
             self.training.training_state = TrainingState.Detecting
             detections = await self._do_detections()
-            active_training.save_detections(self.training, detections)
+            active_training.save_detections(self.training, jsonable_encoder(detections))
             self.training.training_state = TrainingState.Detected
             active_training.save(self.training)
         except:
