@@ -66,20 +66,6 @@ class TrainerNode(Node):
             except:
                 logging.exception('Error in continous_training')
 
-    async def begin_training(self, context: Context, details: dict):
-        self.status.reset_error('start_training')
-        await self.update_state(State.Preparing)
-        try:
-            await self.trainer.begin_training(context, details)
-        except Exception as e:
-            self.status.set_error('start_training', f'Could not start training: {str(e)})')
-
-            logging.exception(self.status._errors)
-            self.trainer.stop_training()
-            await self.update_state(State.Idle)
-            return
-        await self.update_state(State.Running)
-
     def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
         result = self.trainer.stop()
 
@@ -120,8 +106,7 @@ class TrainerNode(Node):
         status = TrainingStatus(
             id=self.uuid,
             name=self.name,
-            state=TrainerNode.state_for_learning_loop(
-                self.trainer.training.training_state) if self.trainer.training else State.Idle,
+            state=state_for_learning_loop,
             errors={},
             uptime=self.training_uptime,
             progress=self.progress
