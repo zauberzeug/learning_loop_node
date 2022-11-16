@@ -25,12 +25,12 @@ class TrainingsDownloader():
         await self.downloader.download_images(image_ids, image_folder)
         image_data = await self.downloader.download_images_data(image_ids)
         logging.info('filtering corrupt images')  # download only safes valid images
-        image_data: List[dict] = []
+        valid_image_data: List[dict] = []
         skipped_image_count = 0
         for i in image_data:
             if os.path.isfile(f'{image_folder}/{i["id"]}.jpg'):
-                image_data.append(i)
+                valid_image_data.append(i)
             else:
                 skipped_image_count += 1
         logging.info(f'Done downloading image data for {len(image_data)} images.')
-        return (image_data, skipped_image_count)
+        return (valid_image_data, skipped_image_count)
