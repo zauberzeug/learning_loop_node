@@ -136,11 +136,12 @@ class Trainer():
         error_key = 'prepare'
         try:
             await self._prepare()
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.exception("Unknown error in 'prepare'")
             self.training.training_state = previous_state
             self.errors.set(error_key, str(e))
-            raise
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.DataDownloaded
@@ -158,11 +159,12 @@ class Trainer():
         error_key = 'download_model'
         try:
             await self._download_model()
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.exception('download_model failed')
             self.training.training_state = previous_state
             self.errors.set(error_key, str(e))
-            raise
         else:
             self.errors.reset(error_key)
             logging.info('download_model_task finished')
@@ -183,6 +185,9 @@ class Trainer():
                 raise
 
     async def run_training(self):
+        error_key = 'run_training'
+        previous_state = self.training.training_state
+
         try:
             self.executor = Executor(self.training.training_folder)
             self.training.training_state = TrainingState.TrainingRunning
@@ -208,11 +213,16 @@ class Trainer():
                     # TODO how  / where to check for error?
                     break
                 await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            self.errors.set(error_key, f'Could not start training {str(e)}')
+            self.training.training_state = previous_state
+            logging.exception('Error in run_training')
+        else:
+            self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainingFinished
             active_training.save(self.training)
-
-        except:
-            logging.exception('Error in run_training')
 
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
         previous_state = self.training.training_state
@@ -245,11 +255,12 @@ class Trainer():
         try:
             uploaded_model = await self._upload_model(self.training.context)
             self.training.model_id_for_detecting = uploaded_model['id']
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.exception('Error in upload_model')
             self.errors.set(error_key, str(e))
             self.training.training_state = previous_state
-            raise
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
@@ -285,11 +296,12 @@ class Trainer():
             self.training.training_state = TrainingState.Detecting
             detections = await self._do_detections()
             active_training.save_detections(self.training, jsonable_encoder(detections))
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             self.errors.set(error_key, str(e))
             logging.exception('Error in do_detections')
             self.training.training_state = previous_state
-            raise
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.Detected
@@ -303,12 +315,8 @@ class Trainer():
         shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
         logging.info('downloading model for detecting')
-        try:
-            await downloads.download_model(tmp_folder, context, model_id, self.model_format)
-        except:
-            # logging.exception('download error ...')
-            raise
 
+        await downloads.download_model(tmp_folder, context, model_id, self.model_format)
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
             model_information = ModelInformation.parse_obj(content)
@@ -338,11 +346,12 @@ class Trainer():
         try:
             detections = active_training.load_detections(self.training)
             await self._upload_detections(context, detections)
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             self.errors.set(error_key, str(e))
             logging.exception('Error in upload_detections')
             self.training.training_state = previous_state
-            raise
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.ReadyForCleanup

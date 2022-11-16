@@ -50,7 +50,7 @@ async def test_request_error():
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
     await assert_training_state(trainer.training, 'data_downloading', timeout=3, interval=0.001)
-    await train_task
+    await assert_training_state(trainer.training, 'initialized', timeout=3, interval=0.001)
 
     assert trainer_has_error(trainer)
     assert trainer.training is not None

@@ -33,6 +33,22 @@ async def test_successfull_upload(mocker):
     assert active_training.load() == trainer.training
 
 
+async def test_abort_upload_model():
+    state_helper.create_active_training_file(training_state='confusion_matrix_synced')
+    trainer = TestingTrainer()
+    trainer.training = active_training.load()  # normally done by node
+
+    train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
+
+    await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
+
+    trainer.stop()
+    await asyncio.sleep(0.1)
+
+    assert trainer.training == None
+    assert active_training.exists() == False
+
+
 async def test_bad_server_response_content(mocker):
     # without a running training the loop will not allow uploading.
     state_helper.create_active_training_file(training_state='confusion_matrix_synced')
@@ -42,7 +58,7 @@ async def test_bad_server_response_content(mocker):
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
     await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
-    await train_task
+    await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=2, interval=0.001)
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'confusion_matrix_synced'

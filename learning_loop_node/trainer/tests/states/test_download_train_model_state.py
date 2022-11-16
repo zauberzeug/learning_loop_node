@@ -52,10 +52,9 @@ async def test_downloading_failed():
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
-    await train_task
+    await assert_training_state(trainer.training, 'data_downloaded', timeout=1, interval=0.001)
 
     assert trainer.errors.has_error_for('download_model')
-
     assert trainer.training is not None
     assert trainer.training.training_state == 'data_downloaded'
     assert active_training.load() == trainer.training
