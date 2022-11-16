@@ -54,6 +54,8 @@ async def test_downloading_failed():
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
     await train_task
 
+    assert trainer.errors.has_error_for('download_model')
+
     assert trainer.training is not None
     assert trainer.training.training_state == 'data_downloaded'
     assert active_training.load() == trainer.training

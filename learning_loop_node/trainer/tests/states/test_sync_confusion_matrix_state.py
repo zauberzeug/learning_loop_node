@@ -3,7 +3,14 @@ import asyncio
 from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.trainer_node import TrainerNode
+
+error_key = 'ensure_confusion_matrix_synced'
+
+
+def trainer_has_error(trainer: Trainer):
+    return trainer.errors.has_error_for(error_key)
 
 
 async def test_nothing_to_sync():
@@ -14,7 +21,7 @@ async def test_nothing_to_sync():
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
-
+    assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'confusion_matrix_synced'
     assert active_training.load() == trainer.training
 
@@ -30,8 +37,8 @@ async def test_unsynced_model_available__sync_successfull(test_trainer_node: Tra
     train_task = asyncio.get_running_loop().create_task(trainer.train(
         uuid=test_trainer_node.uuid, sio_client=test_trainer_node.sio_client))
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
-    # await trainer.ensure_confusion_matrix_synced(test_trainer_node.uuid, sio_client=test_trainer_node.sio_client)
 
+    assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'confusion_matrix_synced'
     assert active_training.load() == trainer.training
 
@@ -49,6 +56,10 @@ async def test_unsynced_model_available__sio_not_connected(test_trainer_node: Tr
     await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
+    import logging
+    logging.error(trainer.errors._errors)
+
+    assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
     assert active_training.load() == trainer.training
 
@@ -67,6 +78,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_trainer_
     await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
+    assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
     assert active_training.load() == trainer.training
 

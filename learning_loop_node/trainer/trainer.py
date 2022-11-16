@@ -34,6 +34,33 @@ from learning_loop_node.rest.downloads import DownloadError
 from learning_loop_node.trainer import training_syncronizer
 import socketio
 from aiohttp import ClientResponseError
+from asyncio import coroutine
+
+
+class Errors():
+    def __init__(self):
+        self._errors: Optional[dict] = {}
+
+    def set(self, key: str, value: str):
+        self._errors[key] = value
+
+    def reset(self, key: str):
+        try:
+            del self._errors[key]
+        except AttributeError:
+            pass
+        except KeyError:
+            pass
+
+    def reset_all(self):
+        for key in list(self._errors.keys()):
+            self.reset_error(key)
+
+    def has_error_for(self, key: str) -> bool:
+        return key in self._errors
+
+    def has_error(self) -> bool:
+        return self._errors == {}
 
 
 class Trainer():
@@ -45,6 +72,7 @@ class Trainer():
         self.start_time: Optional[int] = None
         self.training_task: Optional[asyncio.Task] = None
         self.train_task: Optional[asyncio.Task] = None
+        self.errors = Errors()
 
     def init(self, context: Context, details: dict) -> None:
         try:
@@ -73,7 +101,6 @@ class Trainer():
             logging.exception('Error in train')
 
     async def _train(self, uuid, sio_client) -> None:
-
         training = None
         if self.training:
             training = self.training
@@ -85,9 +112,7 @@ class Trainer():
 
         while self.training or active_training.exists():
             if training and training.training_state == TrainingState.Initialized:
-                logging.error(f'before preparing. state is : {training.training_state}')
                 await self.prepare()
-                logging.error(f'finished preparing. state is : {training.training_state}')
             if training and training.training_state == TrainingState.DataDownloaded:
                 await self.download_model()
             if training and training.training_state == TrainingState.TrainModelDownloaded:
@@ -108,14 +133,16 @@ class Trainer():
     async def prepare(self) -> None:
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DataDownloading
-
+        error_key = 'prepare'
         try:
             await self._prepare()
-        except Exception:
+        except Exception as e:
             logging.exception("Unknown error in 'prepare'")
             self.training.training_state = previous_state
+            self.errors.set(error_key, str(e))
             raise
         else:
+            self.errors.reset(error_key)
             self.training.training_state = TrainingState.DataDownloaded
             active_training.save(self.training)
 
@@ -128,15 +155,17 @@ class Trainer():
     async def download_model(self) -> None:
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelDownloading
+        error_key = 'download_model'
         try:
             await self._download_model()
-            logging.info('download_model_task finished')
-        except Exception:
+        except Exception as e:
             logging.exception('download_model failed')
             self.training.training_state = previous_state
-            # TODO reraise?
+            self.errors.set(error_key, str(e))
             raise
         else:
+            self.errors.reset(error_key)
+            logging.info('download_model_task finished')
             self.training.training_state = TrainingState.TrainModelDownloaded
             active_training.save(self.training)
 
@@ -188,37 +217,43 @@ class Trainer():
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
-
+        error_key = 'ensure_confusion_matrix_synced'
         try:
             await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
-        except socketio.exceptions.BadNamespaceError:
+        except socketio.exceptions.BadNamespaceError as e:
             logging.error('Error during confusion matrix syncronization. BadNamespaceError')
+
+            self.errors.set(error_key, str(e))
             self.training.training_state = previous_state
-        except:
+        except Exception as e:
             # TODO maybe we should handle {'success:False'} separately?
             logging.exception('Error during confusion matrix syncronization')
+
+            self.errors.set(error_key, str(e))
             self.training.training_state = previous_state
         else:
+            self.errors.reset(error_key)
             self.training.training_state = TrainingState.ConfusionMatrixSynced
             active_training.save(self.training)
 
     async def upload_model(self) -> None:
         # TODO is it correct, that this can not be aborted?
-
+        error_key = 'upload_model'
         previous_state = self.training.training_state
+        self.training.training_state = TrainingState.TrainModelUploading
+
         try:
-            self.training.training_state = TrainingState.TrainModelUploading
-            try:
-                uploaded_model = await self._upload_model(self.training.context)
-            except ClientResponseError:
-                # TODO this is the most common error. Do something special here?
-                raise
+            uploaded_model = await self._upload_model(self.training.context)
             self.training.model_id_for_detecting = uploaded_model['id']
+        except Exception as e:
+            logging.exception('Error in upload_model')
+            self.errors.set(error_key, str(e))
+            self.training.training_state = previous_state
+            raise
+        else:
+            self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
             active_training.save(self.training)
-        except:
-            logging.exception('Error in upload_model')
-            self.training.training_state = previous_state
 
     async def _upload_model(self, context: Context) -> dict:
         files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
@@ -244,17 +279,21 @@ class Trainer():
         return uploaded_model
 
     async def do_detections(self):
+        error_key = 'detecting'
         previous_state = self.training.training_state
         try:
             self.training.training_state = TrainingState.Detecting
             detections = await self._do_detections()
             active_training.save_detections(self.training, jsonable_encoder(detections))
-            self.training.training_state = TrainingState.Detected
-            active_training.save(self.training)
-        except:
+        except Exception as e:
+            self.errors.set(error_key, str(e))
             logging.exception('Error in do_detections')
             self.training.training_state = previous_state
             raise
+        else:
+            self.errors.reset(error_key)
+            self.training.training_state = TrainingState.Detected
+            active_training.save(self.training)
 
     async def _do_detections(self) -> List:
         context = self.training.context
@@ -290,6 +329,7 @@ class Trainer():
         return detections
 
     async def upload_detections(self):
+        error_key = 'upload_detections'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DetectionUploading
         context = self.training.context
@@ -298,11 +338,13 @@ class Trainer():
         try:
             detections = active_training.load_detections(self.training)
             await self._upload_detections(context, detections)
-        except:
+        except Exception as e:
+            self.errors.set(error_key, str(e))
             logging.exception('Error in upload_detections')
             self.training.training_state = previous_state
             raise
         else:
+            self.errors.reset(error_key)
             self.training.training_state = TrainingState.ReadyForCleanup
             active_training.save(self.training)
 

@@ -6,6 +6,12 @@ from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
 from learning_loop_node.context import Context
 
+error_key = 'prepare'
+
+
+def trainer_has_error(trainer: Trainer):
+    return trainer.errors.has_error_for(error_key)
+
 
 async def test_preparing_is_successful():
     state_helper.create_active_training_file()
@@ -15,6 +21,7 @@ async def test_preparing_is_successful():
     prepare_task = asyncio.get_running_loop().create_task(trainer.prepare())
     await assert_training_state_is_at_least(trainer.training, 'data_downloaded', timeout=1, interval=0.001)
 
+    assert trainer_has_error(trainer) == False
     assert trainer.training.training_state == 'data_downloaded'
     assert trainer.training.data is not None
     assert active_training.load() == trainer.training
@@ -45,6 +52,7 @@ async def test_request_error():
     await assert_training_state(trainer.training, 'data_downloading', timeout=3, interval=0.001)
     await train_task
 
+    assert trainer_has_error(trainer)
     assert trainer.training is not None
     assert trainer.training.training_state == 'initialized'
     assert active_training.load() == trainer.training

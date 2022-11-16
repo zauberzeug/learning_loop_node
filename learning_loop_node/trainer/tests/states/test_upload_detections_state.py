@@ -2,9 +2,16 @@ from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
 from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.training import Training
 from learning_loop_node.context import Context
 import asyncio
+
+error_key = 'upload_detections'
+
+
+def trainer_has_error(trainer: Trainer):
+    return trainer.errors.has_error_for(error_key)
 
 
 def create_detection_file(training: Training):
@@ -37,6 +44,7 @@ async def test_bad_status_from_LearningLoop():
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
+    assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'detected'
     assert active_training.load() == trainer.training
 
@@ -51,5 +59,6 @@ async def test_other_errors():
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
+    assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'detected'
     assert active_training.load() == trainer.training

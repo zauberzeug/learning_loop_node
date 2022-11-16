@@ -2,9 +2,17 @@ from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 import asyncio
 from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
 from learning_loop_node.trainer.tests.states import state_helper
-from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer import active_training, training
 from learning_loop_node.rest.downloads import DownloadError
+from learning_loop_node.trainer.trainer import Trainer
 import pytest
+
+
+error_key = 'detecting'
+
+
+def trainer_has_error(trainer: Trainer):
+    return trainer.errors.has_error_for(error_key)
 
 
 async def test_successfull_detecting(mocker):
@@ -18,6 +26,7 @@ async def test_successfull_detecting(mocker):
     await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
+    assert trainer_has_error(trainer) == False
     assert trainer.training.training_state == 'detected'
     assert active_training.load() == trainer.training
     assert active_training.detections_exist(trainer.training)
@@ -52,6 +61,7 @@ async def test_model_not_downloadable_error(mocker):
     await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'train_model_uploaded', timeout=1, interval=0.001)
 
+    assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'train_model_uploaded'
     assert trainer.training.model_id_for_detecting == '00000000-0000-0000-0000-000000000000'
     assert active_training.load() == trainer.training
