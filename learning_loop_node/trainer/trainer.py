@@ -83,22 +83,27 @@ class Trainer():
             logging.warning(jsonable_encoder(training))
             self.training = training
 
-        if training and training.training_state == TrainingState.Initialized:
-            await self.prepare()
-        if training and training.training_state == TrainingState.DataDownloaded:
-            await self.download_model()
-        if training and training.training_state == TrainingState.TrainModelDownloaded:
-            await self.run_training()
-        if training and training.training_state == TrainingState.TrainingFinished:
-            await self.ensure_confusion_matrix_synced(uuid, sio_client)
-        if training and training.training_state == TrainingState.ConfusionMatrixSynced:
-            await self.upload_model()
-        if training and training.training_state == TrainingState.TrainModelUploaded:
-            await self.do_detections()
-        if training and training.training_state == TrainingState.Detected:
-            await self.upload_detections()
-        if training and training.training_state == TrainingState.ReadyForCleanup:
-            await self.clear_training()
+        while self.training or active_training.exists():
+            if training and training.training_state == TrainingState.Initialized:
+                logging.error(f'before preparing. state is : {training.training_state}')
+                await self.prepare()
+                logging.error(f'finished preparing. state is : {training.training_state}')
+            if training and training.training_state == TrainingState.DataDownloaded:
+                await self.download_model()
+            if training and training.training_state == TrainingState.TrainModelDownloaded:
+                await self.run_training()
+            if training and training.training_state == TrainingState.TrainingFinished:
+                await self.ensure_confusion_matrix_synced(uuid, sio_client)
+            if training and training.training_state == TrainingState.ConfusionMatrixSynced:
+                await self.upload_model()
+            if training and training.training_state == TrainingState.TrainModelUploaded:
+                await self.do_detections()
+            if training and training.training_state == TrainingState.Detected:
+                await self.upload_detections()
+            if training and training.training_state == TrainingState.ReadyForCleanup:
+                await self.clear_training()
+            else:
+                await asyncio.sleep(1)
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
