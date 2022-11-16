@@ -73,6 +73,7 @@ class Trainer():
         self.training_task: Optional[asyncio.Task] = None
         self.train_task: Optional[asyncio.Task] = None
         self.errors = Errors()
+        self.shutdown_event: asyncio.Event = asyncio.Event()
 
     def init(self, context: Context, details: dict) -> None:
         try:
@@ -92,11 +93,15 @@ class Trainer():
             self.training_task = asyncio.get_running_loop().create_task(self._train(uuid, sio_client))
             await self.training_task
 
-        except asyncio.CancelledError:
-            logging.info('cancelled training task')
-            self.training.training_state = TrainingState.ReadyForCleanup
-            active_training.save(self.training)
-            await self.clear_training()
+        except asyncio.CancelledError as e:
+            if not self.shutdown_event.is_set():
+                logging.error(str(e))
+
+                logging.info('cancelled training task')
+                self.training.training_state = TrainingState.ReadyForCleanup
+                active_training.save(self.training)
+                await self.clear_training()
+
         except BaseException:
             logging.exception('Error in train')
 
@@ -401,6 +406,11 @@ class Trainer():
             self.executor.stop()
         elif self.training_task:
             self.training_task.cancel()
+
+    def shutdown(self) -> None:
+        self.shutdown_event.set()
+        self.stop()
+        self.stop()  # NOTE first stop may only stop training.
 
     async def start_training(self) -> None:
         raise NotImplementedError()

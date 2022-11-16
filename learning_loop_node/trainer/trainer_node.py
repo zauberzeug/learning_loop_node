@@ -228,12 +228,7 @@ class TrainerNode(Node):
 
     async def shutdown(self):
         logging.info('shutdown detected, stopping training')
-        self.trainer.stop()
-        if self.trainer.executor:
-            try:
-                self.trainer.executor.stop()
-            except:
-                logging.exception('could not kill training.')
+        self.trainer.shutdown()
 
     def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
