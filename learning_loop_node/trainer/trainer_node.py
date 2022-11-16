@@ -59,7 +59,7 @@ class TrainerNode(Node):
                 logging.exception('could not check state')
 
         @self.on_event("startup")
-        @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
+        @repeat_every(seconds=1, raise_exceptions=True, wait_first=False)
         async def check_state():
             try:
                 await self.send_status()
@@ -201,8 +201,8 @@ class TrainerNode(Node):
             name=self.name,
             state=TrainerNode.state_for_learning_loop(
                 self.trainer.training.training_state) if self.trainer.training else State.Idle,
+            errors={},
             uptime=self.training_uptime,
-            errors=self.status._errors,
             progress=self.progress
         )
         # TODO can self.trainer be None?
@@ -215,6 +215,7 @@ class TrainerNode(Node):
             status.test_image_count = self.trainer.training.data.test_image_count()
             status.skipped_image_count = self.trainer.training.data.skipped_image_count
             status.hyperparameters = self.trainer.hyperparameters
+            status.errors = self.trainer.errors._errors
 
         logging.info(f'sending status {status}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
