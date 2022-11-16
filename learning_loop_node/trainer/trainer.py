@@ -293,6 +293,7 @@ class Trainer():
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DetectionUploading
         context = self.training.context
+        await asyncio.sleep(0.1)  # TODO NOTE for tests
 
         try:
             detections = active_training.load_detections(self.training)
