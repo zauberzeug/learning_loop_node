@@ -71,8 +71,7 @@ class TrainerNode(Node):
             await self.shutdown()
 
         @self.on_event("startup")
-        @repeat_every(seconds=1, raise_exceptions=True, wait_first=False)
-        async def continous_training():
+        async def resume_training_if_exists():
             try:
                 await self.train()
             except:
