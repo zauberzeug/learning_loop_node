@@ -40,9 +40,12 @@ class TrainerNode(Node):
 
         @self.sio_client.on('stop_training')
         async def stop():
-            logging.debug(f'### on stop_training received. Current state : {self.status.state}')
+            logging.info(f'### on stop_training received. Current state : {self.status.state}')
             loop = asyncio.get_event_loop()
-            loop.create_task(self.stop_training())
+            try:
+                self.stop_training()
+            except:
+                logging.exception('error in stop_training')
             return True
 
         @self.on_event("startup")
@@ -54,6 +57,14 @@ class TrainerNode(Node):
                 await self.check_state()
             except:
                 logging.exception('could not check state')
+
+        @self.on_event("startup")
+        @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
+        async def check_state():
+            try:
+                await self.send_status()
+            except:
+                logging.exception('could not send status state')
 
         @self.on_event("shutdown")
         async def shutdown():
@@ -99,20 +110,23 @@ class TrainerNode(Node):
     async def wait_and_train(self):
         while self.train_loop_busy:
             await asyncio.sleep(0.1)
-        logging.info('going to start training')
+        logging.error('going to start training')
+
         await self.train()
 
     async def train(self):
-        if self.train_loop_busy:
-            return
+        try:
+            if self.train_loop_busy:
+                return
 
-        self.train_loop_busy = True
-        await self.trainer.train()
-        # logging.error('train loop ended')
-        self.train_loop_busy = False
+            self.train_loop_busy = True
+            await self.trainer.train(self.uuid, self.sio_client)
+        except:
+            logging.exception('error in train loop')
+        finally:
+            self.train_loop_busy = False
 
     async def check_state(self):
-        return
         logging.debug(f'{self.status.state}')
         self.status.reset_error('training_error')
         error = self.trainer.get_error()
