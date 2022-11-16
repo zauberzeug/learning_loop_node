@@ -33,8 +33,7 @@ class TrainerNode(Node):
         async def on_begin_training(organization: str, project: str, details: dict):
             logging.info('received begin_training from server')
             self.trainer.init(Context(organization=organization, project=project), details)
-            loop = asyncio.get_event_loop()
-            loop.create_task(self.wait_and_train())
+            self.start_training_task()
             return True
 
         @self.sio_client.on('stop_training')
@@ -61,10 +60,7 @@ class TrainerNode(Node):
 
         @self.on_event("startup")
         async def resume_training_if_exists():
-            try:
-                await self.train()
-            except:
-                logging.exception('Error in continous_training')
+            self.start_training_task()
 
     def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
         result = self.trainer.stop()
@@ -81,24 +77,9 @@ class TrainerNode(Node):
         await self.send_status()
         return uploaded_model
 
-    async def wait_and_train(self):
-        while self.train_loop_busy:
-            await asyncio.sleep(0.1)
-        logging.error('going to start training')
-
-        await self.train()
-
-    async def train(self):
-        try:
-            if self.train_loop_busy:
-                return
-
-            self.train_loop_busy = True
-            await self.trainer.train(self.uuid, self.sio_client)
-        except:
-            logging.exception('error in train loop')
-        finally:
-            self.train_loop_busy = False
+    def start_training_task(self):
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.trainer.train(self.uuid, self.sio_client))
 
     async def send_status(self):
         state_for_learning_loop = TrainerNode.state_for_learning_loop(
@@ -129,7 +110,6 @@ class TrainerNode(Node):
 
         if not response.success:
             logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
-            logging.error('Going to kill training. ')
             logging.exception('update trainer failed')
 
     async def shutdown(self):
