@@ -5,7 +5,8 @@ from fastapi import APIRouter,  Request,  HTTPException
 from learning_loop_node.status import Status, State
 import logging
 import asyncio
-
+from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.training import State as TrainingState
 router = APIRouter()
 
 
@@ -50,10 +51,16 @@ async def check_state(request: Request):
 async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
     await _switch_socketio('on', trainer_node)
-    if trainer_node.status.state == State.Running:
-        await trainer_node.stop_training()
 
+    trainer_node.stop_training()
+    trainer_node.stop_training()
+    # NOTE first stop may only kill running training process
+
+    # TODO was muss hier nun aufgerufen werden?
+
+    active_training.delete()
     trainer_node.status.reset_all_errors()
+    logging.error('training should be killed, sending new state to LearningLoop')
     await trainer_node.send_status()
 
 
@@ -70,13 +77,18 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
 @router.post("/steps")
 async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
-    if trainer_node.status.state != State.Running:
+    ...  # here.
+
+    if trainer_node.trainer.training.training_state != TrainingState.TrainingRunning:
+        logging.error(
+            f'cannot add steps when training is not running, state:  { trainer_node.trainer.training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
         await trainer_node.check_state()
+        # TODO was muss hier nun aufgerufen werden?
 
 
 @router.post("/kill_training_process")
