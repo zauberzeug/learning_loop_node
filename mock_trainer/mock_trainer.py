@@ -16,7 +16,7 @@ class MockTrainer(Trainer):
     error_configuration: ErrorConfiguration = ErrorConfiguration()
     max_iterations = 100
     current_iteration = 0
-    provide_new_model = False
+    provide_new_model = True
 
     async def start_training(self) -> None:
         self.current_iteration = 0
