@@ -92,8 +92,8 @@ async def add_steps(request: Request):
         except Exception:
             # Tests can force synchroniation to fail, error state is reported to backend
             pass
-
     trainer_node.trainer.provide_new_model = previous_state
+    await trainer_node.send_status()
 
 
 @router.post("/kill_training_process")
