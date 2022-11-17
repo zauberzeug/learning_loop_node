@@ -1,4 +1,5 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
+from learning_loop_node.trainer import training_syncronizer
 from learning_loop_node.trainer.trainer_node import TrainerNode
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from fastapi import APIRouter,  Request,  HTTPException
@@ -32,19 +33,17 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
             await trainer_node.connect()
 
 
-@router.put("/check_state")
-async def check_state(request: Request):
+@router.put("/provide_new_model")
+async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
     trainer_node = trainer_node_from_request(request)
     if value == 'off':
-        trainer_node.skip_check_state = True
+        trainer_node.trainer.provide_new_model = False
         trainer_node.status.reset_all_errors()
     if value == 'on':
-        trainer_node.skip_check_state = False
-        loop = asyncio.get_event_loop()
-        loop.create_task(trainer_node.check_state())
+        trainer_node.trainer.provide_new_model = True
 
-    logging.debug(f'turning automatically check_state {value}')
+    logging.debug(f'turning automatically provide_new_model {value}')
 
 
 @router.post("/reset")
@@ -77,18 +76,20 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
 @router.post("/steps")
 async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
-    ...  # here.
 
-    if trainer_node.trainer.training.training_state != TrainingState.TrainingRunning:
+    if not trainer_node.trainer.executor or not trainer_node.trainer.executor.is_process_running():
         logging.error(
             f'cannot add steps when training is not running, state:  { trainer_node.trainer.training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
+    previous_state = trainer_node.trainer.provide_new_model
+    trainer_node.trainer.provide_new_model = True
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
-        await trainer_node.check_state()
-        # TODO was muss hier nun aufgerufen werden?
+        await training_syncronizer.try_sync_model(trainer_node.trainer, trainer_node.uuid, trainer_node.sio_client)
+
+    trainer_node.trainer.provide_new_model = previous_state
 
 
 @router.post("/kill_training_process")
