@@ -47,7 +47,7 @@ class TrainerNode(Node):
             return True
 
         @self.on_event("startup")
-        @repeat_every(seconds=1, raise_exceptions=True, wait_first=False)
+        @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def continous_send_status():
             try:
                 await self.send_status()
