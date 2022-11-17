@@ -90,6 +90,7 @@ class Trainer():
             logging.exception('Error in init')
 
     async def train(self, uuid, sio_client) -> None:
+        self.start_time = time.time()
         try:
             self.training_task = asyncio.get_running_loop().create_task(self._train(uuid, sio_client))
             await self.training_task
@@ -105,6 +106,8 @@ class Trainer():
 
         except BaseException:
             logging.exception('Error in train')
+        finally:
+            self.start_time = None
 
     async def _train(self, uuid, sio_client) -> None:
         training = None
