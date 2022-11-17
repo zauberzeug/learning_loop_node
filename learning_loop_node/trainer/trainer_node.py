@@ -28,6 +28,7 @@ class TrainerNode(Node):
         self.trainer = trainer
         self.include_router(controls.router, tags=["controls"])
         self.train_loop_busy = False
+        active_training.init(self.uuid)
 
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):

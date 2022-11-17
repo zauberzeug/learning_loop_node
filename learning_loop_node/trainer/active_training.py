@@ -9,9 +9,19 @@ from learning_loop_node.trainer.training import Training
 import os
 from learning_loop_node.globals import GLOBALS
 
+node_uuid = None
+
+
+def init(uuid: str) -> None:
+    global node_uuid
+    node_uuid = uuid
+
 
 def training_file_path() -> str:
-    return f'{GLOBALS.data_folder}/last_training.json'
+    global node_uuid
+    if not node_uuid:
+        raise Exception('node_uuid not set. You have to call init(uuid: str) first')
+    return f'{GLOBALS.data_folder}/last_training__{node_uuid}.json'
 
 
 def detection_file_path(training: Training) -> str:
