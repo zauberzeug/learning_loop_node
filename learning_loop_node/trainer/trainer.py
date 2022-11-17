@@ -234,8 +234,7 @@ class Trainer():
                     self.errors.set(error_key, error)
                 else:
                     self.errors.reset(error_key)
-                if (datetime.now() - last_sync_time).total_seconds() > 1:
-                    logging.error('syncing')
+                if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
                     try:
                         await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
