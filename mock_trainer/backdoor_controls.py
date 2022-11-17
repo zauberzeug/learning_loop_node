@@ -67,7 +67,7 @@ async def reset(request: Request):
 def set_error_configuration(error_configuration: ErrorConfiguration, request: Request):
     '''
     Example Usage
-        curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json" 
+        curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json"
     '''
     print(f'setting error configuration to: {error_configuration.json()}')
     trainer_node_from_request(request).trainer.error_configuration = error_configuration
@@ -87,7 +87,11 @@ async def add_steps(request: Request):
     trainer_node.trainer.provide_new_model = True
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
-        await training_syncronizer.try_sync_model(trainer_node.trainer, trainer_node.uuid, trainer_node.sio_client)
+        try:
+            await trainer_node.trainer.sync_confusion_matrix(trainer_node.uuid, trainer_node.sio_client)
+        except Exception:
+            # Tests can force synchroniation to fail, error state is reported to backend
+            pass
 
     trainer_node.trainer.provide_new_model = previous_state
 

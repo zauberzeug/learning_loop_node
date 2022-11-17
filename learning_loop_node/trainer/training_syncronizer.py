@@ -8,7 +8,11 @@ import asyncio
 
 
 async def try_sync_model(trainer: any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
-    model = trainer.get_new_model()
+    try:
+        model = trainer.get_new_model()
+    except Exception as e:
+        logging.exception('error while getting new model')
+        raise Exception(f'Could not get new model : {str(e)}')
     logging.debug(f'new model {model}')
 
     if model:
