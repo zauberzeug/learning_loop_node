@@ -6,7 +6,7 @@ from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
-error_key = 'ensure_confusion_matrix_synced'
+error_key = 'sync_confusion_matrix'
 
 
 def trainer_has_error(trainer: Trainer):

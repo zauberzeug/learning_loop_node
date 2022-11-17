@@ -222,7 +222,10 @@ class Trainer():
                 if (datetime.now() - last_sync_time).total_seconds() > 1:
                     logging.error('syncing')
                     last_sync_time = datetime.now()
-                    await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
+                    try:
+                        await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
+                    except:
+                        pass
                 else:
                     await asyncio.sleep(0.1)
         except asyncio.CancelledError:
@@ -239,24 +242,30 @@ class Trainer():
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
-        error_key = 'ensure_confusion_matrix_synced'
+        try:
+            await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
+        except Exception as e:
+            logging.exception('Error in ensure_confusion_matrix_synced')
+            self.training.training_state = previous_state
+        else:
+            self.training.training_state = TrainingState.ConfusionMatrixSynced
+            active_training.save(self.training)
+
+    async def sync_confusion_matrix(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+        error_key = 'sync_confusion_matrix'
         try:
             await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
         except socketio.exceptions.BadNamespaceError as e:
             logging.error('Error during confusion matrix syncronization. BadNamespaceError')
-
             self.errors.set(error_key, str(e))
-            self.training.training_state = previous_state
+            raise
         except Exception as e:
             # TODO maybe we should handle {'success:False'} separately?
             logging.exception('Error during confusion matrix syncronization')
-
             self.errors.set(error_key, str(e))
-            self.training.training_state = previous_state
+            raise
         else:
             self.errors.reset(error_key)
-            self.training.training_state = TrainingState.ConfusionMatrixSynced
-            active_training.save(self.training)
 
     async def upload_model(self) -> None:
         # TODO is it correct, that this can not be aborted?
