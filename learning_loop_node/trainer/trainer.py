@@ -195,8 +195,9 @@ class Trainer():
 
     async def run_training(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient) -> None:
         error_key = 'run_training'
+        # NOTE normally we reset errors after the step was successful. We do not want to display an old error during the whole training.
+        self.errors.reset(error_key)
         previous_state = self.training.training_state
-
         try:
             self.executor = Executor(self.training.training_folder)
             self.training.training_state = TrainingState.TrainingRunning
@@ -238,7 +239,6 @@ class Trainer():
             self.training.training_state = previous_state
             logging.exception('Error in run_training')
         else:
-            self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainingFinished
             active_training.save(self.training)
 
