@@ -38,6 +38,12 @@ from asyncio import coroutine
 from datetime import datetime
 
 
+class TrainingError(Exception):
+    def __init__(self, cause: str, *args: object) -> None:
+        super().__init__(*args)
+        self.cause = cause
+
+
 class Errors():
     def __init__(self):
         self._errors: Optional[dict] = {}
@@ -223,6 +229,11 @@ class Trainer():
                 if not self.executor.is_process_running():
                     # TODO how  / where to check for error?
                     break
+                error = self.get_error()
+                if error:
+                    self.errors.set(error_key, error)
+                else:
+                    self.errors.reset(error_key)
                 if (datetime.now() - last_sync_time).total_seconds() > 1:
                     logging.error('syncing')
                     last_sync_time = datetime.now()
@@ -232,8 +243,19 @@ class Trainer():
                         pass
                 else:
                     await asyncio.sleep(0.1)
+
+            error = self.get_error()
+            if error:
+                self.errors.set(error_key, error)
+                raise TrainingError(cause=error)
+            else:
+                self.errors.reset(error_key)
+
         except asyncio.CancelledError:
             raise
+        except TrainingError as e:
+            logging.exception('Error in TrainingProcess')
+            self.training.training_state = previous_state
         except Exception as e:
             self.errors.set(error_key, f'Could not start training {str(e)}')
             self.training.training_state = previous_state
