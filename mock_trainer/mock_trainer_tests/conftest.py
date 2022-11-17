@@ -5,6 +5,14 @@ from learning_loop_node.globals import GLOBALS
 import shutil
 
 
+@pytest.fixture(autouse=True, scope='function')
+def data_folder():
+    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+    yield
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+
+
 @pytest.fixture()
 def web() -> Generator:
     with test_helper.LiveServerSession() as c:
