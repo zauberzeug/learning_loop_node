@@ -1,6 +1,7 @@
 import logging
 from learning_loop_node.context import Context
 from learning_loop_node.data_classes import Category
+from learning_loop_node.trainer.trainer import Trainer
 from mock_trainer import MockTrainer
 import pytest
 from learning_loop_node.globals import GLOBALS
@@ -30,7 +31,11 @@ async def test_all(create_project):
     trainer = MockTrainer(model_format='mocked')
     context = Context(organization='zauberzeug', project='pytest')
 
-    detections = await trainer.do_detections(context=context, model_id=latest_model_id)
+    training = Trainer.generate_training(context)
+    training.model_id_for_detecting = latest_model_id
+    trainer.training = training
+    detections = await trainer._do_detections()
+
     assert_image_count(10)
     assert len(detections) == 10  # detections run on 10 images
     for img in detections:
