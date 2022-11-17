@@ -191,13 +191,9 @@ class Trainer():
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
             logging.info(f'downloading model {model_id} as {self.model_format}')
-            try:
-                await downloads.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
-                shutil.move(f'{self.training.training_folder}/model.json',
-                            f'{self.training.training_folder}/base_model.json')
-            except DownloadError:
-                # TODO what should be done here? Maybe the Model does not exist in the format?
-                raise
+            await downloads.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
+            shutil.move(f'{self.training.training_folder}/model.json',
+                        f'{self.training.training_folder}/base_model.json')
 
     async def run_training(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient) -> None:
         error_key = 'run_training'
@@ -222,12 +218,10 @@ class Trainer():
                     self.train_task = self.start_training()
 
             await self.train_task
-            # TODO catch normal errors?
 
             last_sync_time = datetime.now()
             while True:
                 if not self.executor.is_process_running():
-                    # TODO how  / where to check for error?
                     break
                 error = self.get_error()
                 if error:
@@ -284,7 +278,6 @@ class Trainer():
             self.errors.set(error_key, str(e))
             raise
         except Exception as e:
-            # TODO maybe we should handle {'success:False'} separately?
             logging.exception('Error during confusion matrix syncronization')
             self.errors.set(error_key, str(e))
             raise
@@ -292,7 +285,6 @@ class Trainer():
             self.errors.reset(error_key)
 
     async def upload_model(self) -> None:
-        # TODO is it correct, that this can not be aborted?
         error_key = 'upload_model'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelUploading
@@ -386,7 +378,8 @@ class Trainer():
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DetectionUploading
         context = self.training.context
-        await asyncio.sleep(0.1)  # TODO NOTE for tests
+
+        await asyncio.sleep(0.1)  # NOTE needed for tests
 
         try:
             detections = active_training.load_detections(self.training)
@@ -409,18 +402,14 @@ class Trainer():
         for i in tqdm(range(0, len(detections), batch_size), position=0, leave=True):
             batch_detections = detections[i:i+batch_size]
             logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
-            try:
-                async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
-                    if response.status != 200:
-                        logging.error(f'could not upload detections. {str(response)}')
-                        # TODO how to handle already uploaded detections?
-                        raise Exception(f'could not upload detections. {str(response)}')
-                    else:
-                        logging.info('successfully uploaded detections')
-            except:
-                logging.exception('error uploading detections.')
-                # TODO where to catch exceptions?
-                raise
+
+            async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
+                if response.status != 200:
+                    logging.error(f'could not upload detections. {str(response)}')
+                    # TODO how to handle already uploaded detections?
+                    raise Exception(f'could not upload detections. {str(response)}')
+                else:
+                    logging.info('successfully uploaded detections')
 
     async def clear_training(self):
         active_training.delete_detections(self.training)

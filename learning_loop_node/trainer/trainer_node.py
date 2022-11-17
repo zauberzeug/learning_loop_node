@@ -96,12 +96,11 @@ class TrainerNode(Node):
             uptime=self.training_uptime,
             progress=self.progress
         )
-        # TODO can self.trainer be None?
-        if self.trainer:
-            status.pretrained_models = self.trainer.provided_pretrained_models
-            status.architecture = self.trainer.model_architecture
 
-        if self.trainer and self.trainer.training:
+        status.pretrained_models = self.trainer.provided_pretrained_models
+        status.architecture = self.trainer.model_architecture
+
+        if self.trainer.training:
             status.train_image_count = self.trainer.training.data.train_image_count()
             status.test_image_count = self.trainer.training.data.test_image_count()
             status.skipped_image_count = self.trainer.training.data.skipped_image_count

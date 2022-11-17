@@ -55,8 +55,6 @@ async def reset(request: Request):
     trainer_node.stop_training()
     # NOTE first stop may only kill running training process
 
-    # TODO was muss hier nun aufgerufen werden?
-
     active_training.delete()
     trainer_node.status.reset_all_errors()
     logging.error('training should be killed, sending new state to LearningLoop')
