@@ -62,6 +62,7 @@ class Node(FastAPI):
         self.register_lifecycle_events()
 
     def read_or_create_uuid(self, identifier: str) -> str:
+        identifier = identifier.lower().replace(' ', '_')
         uuids = {}
         file_path = f'{GLOBALS.data_folder}/uuids.json'
         if os.path.exists(file_path):
