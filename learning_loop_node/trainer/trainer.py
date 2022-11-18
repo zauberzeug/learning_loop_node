@@ -1,7 +1,6 @@
 from abc import abstractmethod
 import asyncio
 import os
-from threading import Thread
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 from learning_loop_node.rest.downloader import DataDownloader
@@ -17,7 +16,6 @@ from .downloader import TrainingsDownloader
 from ..rest import downloads, uploads
 from .. import node_helper
 import logging
-from icecream import ic
 from .helper import is_valid_uuid4
 from glob import glob
 import json
@@ -30,44 +28,11 @@ from time import perf_counter
 from learning_loop_node.trainer.training import State as TrainingState
 from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node.trainer import active_training
-from learning_loop_node.rest.downloads import DownloadError
 from learning_loop_node.trainer import training_syncronizer
 import socketio
-from aiohttp import ClientResponseError
-from asyncio import coroutine
 from datetime import datetime
-
-
-class TrainingError(Exception):
-    def __init__(self, cause: str, *args: object) -> None:
-        super().__init__(*args)
-        self.cause = cause
-
-
-class Errors():
-    def __init__(self):
-        self._errors: Optional[dict] = {}
-
-    def set(self, key: str, value: str):
-        self._errors[key] = value
-
-    def reset(self, key: str):
-        try:
-            del self._errors[key]
-        except AttributeError:
-            pass
-        except KeyError:
-            pass
-
-    def reset_all(self):
-        for key in list(self._errors.keys()):
-            self.reset_error(key)
-
-    def has_error_for(self, key: str) -> bool:
-        return key in self._errors
-
-    def has_error(self) -> bool:
-        return self._errors == {}
+from .errors import TrainingError
+from .errors import Errors
 
 
 class Trainer():
@@ -204,13 +169,10 @@ class Trainer():
             self.executor = Executor(self.training.training_folder)
             self.training.training_state = TrainingState.TrainingRunning
             self.train_task = None
-            try:
-                if self.can_resume():
-                    self.train_task = self.resume()
-            except NotImplementedError:
-                pass
 
-            if not self.train_task:
+            if self.can_resume():
+                self.train_task = self.resume()
+            else:
                 model_id = self.training.base_model_id
                 if not is_valid_uuid4(model_id):
                     self.train_task = self.start_training_from_scratch(model_id)
@@ -422,12 +384,6 @@ class Trainer():
             self.training = None
             active_training.delete()
 
-    def can_resume(self) -> bool:
-        return False
-
-    async def resume(self) -> None:
-        raise NotImplementedError()
-
     def stop(self) -> None:
         if not self.training:
             return
@@ -445,6 +401,16 @@ class Trainer():
         raise NotImplementedError()
 
     async def start_training_from_scratch(self, identifier: str) -> None:
+        raise NotImplementedError()
+
+    def can_resume(self) -> bool:
+        '''Override this method to return True if the trainer can resume training.'''
+        return False
+
+    async def resume(self) -> None:
+        '''Is called when self.can_resume() returns True.
+           One may resume the training on a previously trained model stored by self.on_model_published(basic_model).
+        '''
         raise NotImplementedError()
 
     def get_error(self) -> Optional[Union[None, str]]:
