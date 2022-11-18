@@ -62,6 +62,7 @@ class Trainer():
 
     async def train(self, uuid, sio_client) -> None:
         self.start_time = time.time()
+        self.errors.reset_all()
         try:
             self.training_task = asyncio.get_running_loop().create_task(self._train(uuid, sio_client))
             await self.training_task
