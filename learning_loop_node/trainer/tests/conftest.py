@@ -79,3 +79,10 @@ async def port_is(free: bool):
         else:
             await asyncio.sleep(0.5)
     raise Exception(f'port {pytest.trainer_port} is {"not" if free else ""} free')
+
+
+@pytest.fixture(autouse=True, scope='session')
+def initialize_active_training():
+    from learning_loop_node.trainer import active_training
+    active_training.init('00000000-0000-0000-0000-000000000000')
+    yield
