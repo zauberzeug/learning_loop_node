@@ -53,7 +53,6 @@ class TestingTrainer(Trainer):
 
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        logging.error('#### hier')
         await super().ensure_confusion_matrix_synced(trainer_node_uuid, sio_client)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 

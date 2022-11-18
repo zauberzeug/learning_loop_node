@@ -9,7 +9,6 @@ router = APIRouter()
 
 @router.put("/socketio")
 async def switch_socketio(request: Request):
-    logging.error('############ hier switch_socketio')
     '''
     Example Usage
 

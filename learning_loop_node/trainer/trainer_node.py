@@ -160,5 +160,4 @@ class TrainerNode(Node):
         if trainer_state == TrainingState.ReadyForCleanup:
             return State.Stopping
 
-        logging.error(trainer_state)
         return 'unknown'

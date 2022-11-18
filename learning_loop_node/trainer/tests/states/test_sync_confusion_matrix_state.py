@@ -56,9 +56,6 @@ async def test_unsynced_model_available__sio_not_connected(test_trainer_node: Tr
     await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
-    import logging
-    logging.error(trainer.errors._errors)
-
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
     assert active_training.load() == trainer.training

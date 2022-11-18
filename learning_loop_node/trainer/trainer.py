@@ -367,9 +367,10 @@ class Trainer():
 
             async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
                 if response.status != 200:
-                    logging.error(f'could not upload detections. {str(response)}')
+                    msg = f'could not upload detections. {str(response)}'
+                    logging.error(msg)
                     # TODO how to handle already uploaded detections?
-                    raise Exception(f'could not upload detections. {str(response)}')
+                    raise Exception(msg)
                 else:
                     logging.info('successfully uploaded detections')
 
