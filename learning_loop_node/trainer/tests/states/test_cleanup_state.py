@@ -6,7 +6,7 @@ import os
 
 
 def create_detection_file(training: Training):
-    active_training.save_detections(training, [])
+    active_training.detections.save(training, [])
 
 
 async def test_cleanup_successfull():
@@ -14,16 +14,17 @@ async def test_cleanup_successfull():
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
     create_detection_file(trainer.training)
-
-    training_path = trainer.training.training_folder
-    detections_path = f'{training_path}/detections.json'
+    training = trainer.training
+    active_training.detections_upload_progress.save(training, 42)
 
     assert trainer.training is not None
     assert active_training.exists() is True
-    assert os.path.exists(detections_path) is True
+    assert active_training.detections.exists(training) is True
+    assert active_training.detections_upload_progress.exists(training) is True
 
     await trainer.clear_training()
 
     assert trainer.training is None
     assert active_training.exists() is False
-    assert os.path.exists(detections_path) is False
+    assert active_training.detections.exists(training) is False
+    assert active_training.detections_upload_progress.exists(training) is False

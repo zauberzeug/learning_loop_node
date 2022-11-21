@@ -1,7 +1,7 @@
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer import Trainer
 import asyncio
-from learning_loop_node.trainer.tests.states.state_helper import assert_training_file, assert_training_state, assert_training_state_is_at_least
+from learning_loop_node.trainer.tests.states.state_helper import assert_training_state, assert_training_state_is_at_least
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
 from learning_loop_node.context import Context

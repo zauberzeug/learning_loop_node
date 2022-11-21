@@ -83,7 +83,7 @@ class TrainerNode(Node):
         loop.create_task(self.trainer.train(self.uuid, self.sio_client))
 
     async def send_status(self):
-        if not self.trainer.training and active_training.exists():
+        if not self.trainer.training and training.exists():
             logging.warning('Found active training, but no its not loaded yet. Skipping this status update.')
             return
 

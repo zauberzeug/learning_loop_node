@@ -22,10 +22,6 @@ def create_active_training_file(**kwargs) -> None:
     active_training.save(trainer.training)
 
 
-def assert_training_file(exists: bool) -> None:
-    assert active_training.exists() == exists
-
-
 async def assert_training_state(training: Training, state: str, timeout: float, interval: float) -> None:
     try:
         await condition(lambda: training.training_state == state, timeout=timeout, interval=interval)

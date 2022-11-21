@@ -29,11 +29,10 @@ async def create_valid_detection_file(training: Training):
 
     image_entry = {'image_id': image_id, 'box_detections': box_detections,
                    'point_detections': [], 'segmentation_detections': []}
-    active_training.save_detections(training, jsonable_encoder([image_entry]))
+    active_training.detections.save(training, jsonable_encoder([image_entry]))
 
 
 async def test_upload_successfull():
-
     state_helper.create_active_training_file(training_state='detected')
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
@@ -46,12 +45,23 @@ async def test_upload_successfull():
     assert active_training.load() == trainer.training
 
 
+async def test_detection_upload_progress_is_stored():
+    state_helper.create_active_training_file(training_state='detected')
+    trainer = TestingTrainer()
+    trainer.training = active_training.load()  # normally done by node
+
+    await create_valid_detection_file(trainer.training)
+
+    await trainer.upload_detections()
+    assert active_training.detections_upload_progress.load(trainer.training) == 1
+
+
 async def test_bad_status_from_LearningLoop():
     state_helper.create_active_training_file(training_state='detected', context=Context(
         organization='zauberzeug', project='some_bad_project'))
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
-    active_training.save_detections(trainer.training, [{'some_bad_data': 'some_bad_data'}])
+    active_training.detections.save(trainer.training, [{'some_bad_data': 'some_bad_data'}])
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)

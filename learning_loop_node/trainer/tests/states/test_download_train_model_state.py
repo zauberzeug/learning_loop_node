@@ -2,13 +2,11 @@
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer import Trainer
 import asyncio
-from learning_loop_node.trainer.tests.states.state_helper import assert_training_file, assert_training_state
+from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
-from learning_loop_node.trainer.training import Training
 import os
 import logging
-from learning_loop_node.trainer.training import State as TrainingState
 
 
 async def test_downloading_is_successfull():

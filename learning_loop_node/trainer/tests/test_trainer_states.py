@@ -28,5 +28,6 @@ def test_save_load_training():
     training = create_training()
     training.training_state = 'preparing'
     active_training.save(training)
+
     training = active_training.load()
     assert training.training_state == 'preparing'

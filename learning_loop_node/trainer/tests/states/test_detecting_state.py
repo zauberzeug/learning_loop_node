@@ -1,11 +1,10 @@
+from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 import asyncio
 from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
 from learning_loop_node.trainer.tests.states import state_helper
-from learning_loop_node.trainer import active_training, training
-from learning_loop_node.rest.downloads import DownloadError
+from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.trainer import Trainer
-import pytest
 
 
 error_key = 'detecting'
@@ -29,7 +28,7 @@ async def test_successfull_detecting(mocker):
     assert trainer_has_error(trainer) == False
     assert trainer.training.training_state == 'detected'
     assert active_training.load() == trainer.training
-    assert active_training.detections_exist(trainer.training)
+    assert active_training.detections.exists(trainer.training)
 
 
 async def test_detecting_can_be_aborted():
@@ -46,7 +45,7 @@ async def test_detecting_can_be_aborted():
     await asyncio.sleep(0.1)
 
     assert trainer.training is None
-    assert active_training.detections_exist(training) is False
+    assert active_training.detections.exists(training) is False
     assert active_training.exists() == False
 
 
@@ -73,11 +72,11 @@ def test_save_load_detections():
     trainer = TestingTrainer()
     trainer.training = active_training.load()
 
-    active_training.save_detections(trainer.training, detections)
-    assert active_training.detections_exist(trainer.training)
+    active_training.detections.save(trainer.training, detections)
+    assert active_training.detections.exists(trainer.training)
 
-    stored_detections = active_training.load_detections(trainer.training)
+    stored_detections = active_training.detections.load(trainer.training)
     assert stored_detections == detections
 
-    active_training.delete_detections(trainer.training)
-    assert active_training.detections_exist(trainer.training) is False
+    active_training.detections.delete(trainer.training)
+    assert active_training.detections.exists(trainer.training) is False

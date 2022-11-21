@@ -295,7 +295,7 @@ class Trainer():
         try:
             self.training.training_state = TrainingState.Detecting
             detections = await self._do_detections()
-            active_training.save_detections(self.training, jsonable_encoder(detections))
+            active_training.detections.save(self.training, jsonable_encoder(detections))
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -345,7 +345,7 @@ class Trainer():
         await asyncio.sleep(0.1)  # NOTE needed for tests
 
         try:
-            detections = active_training.load_detections(self.training)
+            detections = active_training.detections.load(self.training)
             await self._upload_detections(context, detections)
         except asyncio.CancelledError:
             raise
@@ -362,7 +362,9 @@ class Trainer():
         logging.info('uploading detections')
         batch_size = 500
 
-        for i in tqdm(range(0, len(detections), batch_size), position=0, leave=True):
+        skip_detections = active_training.detections_upload_progress.load(self.training)
+
+        for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
             batch_detections = detections[i:i+batch_size]
             logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
 
@@ -370,13 +372,14 @@ class Trainer():
                 if response.status != 200:
                     msg = f'could not upload detections. {str(response)}'
                     logging.error(msg)
-                    # TODO how to handle already uploaded detections?
                     raise Exception(msg)
                 else:
                     logging.info('successfully uploaded detections')
+                    active_training.detections_upload_progress.save(self.training, min(i+batch_size, len(detections)))
 
     async def clear_training(self):
-        active_training.delete_detections(self.training)
+        active_training.detections.delete(self.training)
+        active_training.detections_upload_progress.delete(self.training)
         try:
             await self.clear_training_data(self.training.training_folder)
         except NotImplementedError:
