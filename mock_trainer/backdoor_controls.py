@@ -103,7 +103,7 @@ async def kill_process(request: Request):
 
 
 @router.post("/force_status_update")
-async def add_steps(request: Request):
+async def force_status_update(request: Request):
     trainer_node = trainer_node_from_request(request)
     await trainer_node.send_status()
 
