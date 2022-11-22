@@ -196,6 +196,8 @@ class Trainer():
 
                     try:
                         await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
+                    except asyncio.CancelledError:
+                        raise
                     except:
                         pass
                 else:
@@ -226,6 +228,8 @@ class Trainer():
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
         try:
             await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             logging.exception('Error in ensure_confusion_matrix_synced')
             self.training.training_state = previous_state
