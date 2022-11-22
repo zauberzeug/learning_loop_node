@@ -281,14 +281,19 @@ class Trainer():
         if isinstance(files, list):
             files = {self.model_format: files}
         uploaded_model = None
+        already_uploaded_formats = active_training.model_upload_progress.load(self.training)
         if isinstance(files, dict):
             for format in files:
+                if format in already_uploaded_formats:
+                    continue
                 # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
                 assert len([file for file in files[format] if 'model.json' in file]) == 0, \
                     "It is not allowed to provide a 'model.json' file."
                 _files = files[format]
                 _files.append(model_json_path)
                 uploaded_model = await uploads.upload_model_for_training(context, _files, self.training.training_number, format)
+                already_uploaded_formats.append(format)
+                active_training.model_upload_progress.save(self.training, already_uploaded_formats)
 
         else:
             raise TypeError(f'can only save model as list or dict, but was {files}')
