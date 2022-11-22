@@ -14,7 +14,7 @@ def trainer_has_error(trainer: Trainer):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successfull_detecting(mocker):
+async def test_successfull_detecting():
     state_helper.create_active_training_file(training_state='train_model_uploaded',
                                              model_id_for_detecting='7f5eabb4-227a-e7c7-8f0b-f825cc47340d')  # version 1.2 of demo project
     trainer = TestingTrainer()
@@ -49,7 +49,7 @@ async def test_detecting_can_be_aborted():
     assert active_training.exists() == False
 
 
-async def test_model_not_downloadable_error(mocker):
+async def test_model_not_downloadable_error():
     state_helper.create_active_training_file(training_state='train_model_uploaded',
                                              model_id_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
     trainer = TestingTrainer()
