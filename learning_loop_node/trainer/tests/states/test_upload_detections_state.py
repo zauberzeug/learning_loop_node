@@ -85,3 +85,20 @@ async def test_other_errors():
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'detected'
     assert active_training.load() == trainer.training
+
+
+async def test_abort_uploading():
+    state_helper.create_active_training_file(training_state='detected')
+    trainer = TestingTrainer()
+    trainer.training = active_training.load()  # normally done by node
+    await create_valid_detection_file(trainer.training)
+
+    train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
+
+    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
+
+    trainer.stop()
+    await asyncio.sleep(0.1)
+
+    assert trainer.training is None
+    assert active_training.exists() is False
