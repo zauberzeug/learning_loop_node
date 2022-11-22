@@ -186,13 +186,14 @@ class Trainer():
             while True:
                 if not self.executor.is_process_running():
                     break
-                error = self.get_error()
-                if error:
-                    self.errors.set(error_key, error)
-                else:
-                    self.errors.reset(error_key)
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
+                    error = self.get_error()
+                    if error:
+                        self.errors.set(error_key, error)
+                    else:
+                        self.errors.reset(error_key)
+
                     try:
                         await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
                     except:
