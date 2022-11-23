@@ -26,7 +26,7 @@ async def test_nothing_to_sync():
     assert active_training.load() == trainer.training
 
 
-async def test_unsynced_model_available__sync_successfull(test_trainer_node: TrainerNode, mocker):
+async def test_unsynced_model_available__sync_successful(test_trainer_node: TrainerNode, mocker):
     mock_socket_io_call(mocker, test_trainer_node, {'success': True})
 
     state_helper.create_active_training_file(training_state='training_finished')

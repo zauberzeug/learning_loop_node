@@ -32,7 +32,7 @@ async def create_valid_detection_file(training: Training):
     active_training.detections.save(training, jsonable_encoder([image_entry]))
 
 
-async def test_upload_successfull():
+async def test_upload_successful():
     state_helper.create_active_training_file(training_state='detected')
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node

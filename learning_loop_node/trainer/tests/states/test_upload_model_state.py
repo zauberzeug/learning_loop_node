@@ -14,7 +14,7 @@ def trainer_has_error(trainer: Trainer):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successfull_upload(mocker):
+async def test_successful_upload(mocker):
     mock_upload_model_for_training(mocker, {'id': 'some_id'})
 
     state_helper.create_active_training_file()
