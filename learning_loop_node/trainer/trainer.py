@@ -92,21 +92,21 @@ class Trainer():
             self.training = training
 
         while self.training or active_training.exists():
-            if training and training.training_state == TrainingState.Initialized:
+            if training.training_state == TrainingState.Initialized:
                 await self.prepare()
-            if training and training.training_state == TrainingState.DataDownloaded:
+            if training.training_state == TrainingState.DataDownloaded:
                 await self.download_model()
-            if training and training.training_state == TrainingState.TrainModelDownloaded:
+            if training.training_state == TrainingState.TrainModelDownloaded:
                 await self.run_training(uuid, sio_client)
-            if training and training.training_state == TrainingState.TrainingFinished:
+            if training.training_state == TrainingState.TrainingFinished:
                 await self.ensure_confusion_matrix_synced(uuid, sio_client)
-            if training and training.training_state == TrainingState.ConfusionMatrixSynced:
+            if training.training_state == TrainingState.ConfusionMatrixSynced:
                 await self.upload_model()
-            if training and training.training_state == TrainingState.TrainModelUploaded:
+            if training.training_state == TrainingState.TrainModelUploaded:
                 await self.do_detections()
-            if training and training.training_state == TrainingState.Detected:
+            if training.training_state == TrainingState.Detected:
                 await self.upload_detections()
-            if training and training.training_state == TrainingState.ReadyForCleanup:
+            if training.training_state == TrainingState.ReadyForCleanup:
                 await self.clear_training()
             else:
                 await asyncio.sleep(1)
