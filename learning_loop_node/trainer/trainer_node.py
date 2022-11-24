@@ -137,27 +137,38 @@ class TrainerNode(Node):
 
     @staticmethod
     def state_for_learning_loop(trainer_state: TrainingState):
-        if trainer_state in [TrainingState.Initialized,
-                             TrainingState.DataDownloading,
-                             TrainingState.DataDownloaded,
-                             TrainingState.TrainModelDownloading, TrainingState.TrainModelDownloaded]:
-            return State.Preparing
+        logging.error(trainer_state)
+
+        if trainer_state == TrainingState.Initialized:
+            return 'training is initialized'
+        if trainer_state == TrainingState.DataDownloading:
+            return 'Downloading data'
+        if trainer_state == TrainingState.DataDownloaded:
+            return 'Data downloaded'
+        if trainer_state == TrainingState.TrainModelDownloading:
+            return 'Downloading model'
+        if trainer_state == TrainingState.TrainModelDownloaded:
+            return 'Model downloaded'
         if trainer_state == TrainingState.TrainingRunning:
             return State.Running
         if trainer_state == TrainingState.TrainingFinished:
-            return State.Running
-        if trainer_state in [TrainingState.TrainingFinished,
-                             TrainingState.ConfusionMatrixSyncing,
-                             TrainingState.ConfusionMatrixSynced,
-                             TrainingState.TrainModelUploading,
-                             TrainingState.TrainModelUploaded]:
-            return State.Running
-        if trainer_state in [TrainingState.Detecting,
-                             TrainingState.Detected]:
+            return 'Training finished'
+        if trainer_state == TrainingState.Detecting:
             return State.Detecting
+        if trainer_state == TrainingState.ConfusionMatrixSyncing:
+            return 'Syncing confusion matrix'
+        if trainer_state == TrainingState.ConfusionMatrixSynced:
+            return 'Confusion matrix synced'
+        if trainer_state == TrainingState.TrainModelUploading:
+            return 'Uploading trained model'
+        if trainer_state == TrainingState.TrainModelUploaded:
+            return 'Trained model uploaded'
+        if trainer_state == TrainingState.Detecting:
+            return 'calculating detections'
+        if trainer_state == TrainingState.Detected:
+            return 'Detections calculated'
         if trainer_state == TrainingState.DetectionUploading:
-            return State.Detecting
+            return 'Uploading detections'
         if trainer_state == TrainingState.ReadyForCleanup:
-            return State.Stopping
-
-        return 'unknown'
+            return 'Cleaning training'
+        return 'unknown state'
