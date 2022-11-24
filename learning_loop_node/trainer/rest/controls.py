@@ -5,7 +5,6 @@ from learning_loop_node.loop import loop
 from fastapi import APIRouter,  Request, HTTPException
 from fastapi.responses import PlainTextResponse
 import logging
-from enum import Enum
 
 from learning_loop_node.trainer.trainer import Trainer
 
@@ -13,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/controls/detect/{organization}/{project}/{version}")
-async def operation_mode(organization:str, project:str, version:str, request: Request):
+async def operation_mode(organization: str, project: str, version: str, request: Request):
     '''
     Example Usage
         curl -X POST localhost/controls/detect/<organization>/<project>/<model_version>

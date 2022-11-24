@@ -16,6 +16,7 @@ class MockTrainer(Trainer):
     error_configuration: ErrorConfiguration = ErrorConfiguration()
     max_iterations = 100
     current_iteration = 0
+    provide_new_model = True
 
     async def start_training(self) -> None:
         self.current_iteration = 0
@@ -91,6 +92,8 @@ class MockTrainer(Trainer):
     def get_new_model(self) -> Optional[BasicModel]:
         if self.error_configuration.get_new_model:
             raise Exception()
+        if not self.provide_new_model:
+            return None
         self.current_iteration += 1
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 

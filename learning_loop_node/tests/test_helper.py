@@ -1,6 +1,8 @@
+import asyncio
 from glob import glob
 import os
-from typing import List, Optional
+import time
+from typing import Callable, List, Optional
 import zipfile
 from learning_loop_node.loop import loop
 from urllib.parse import urljoin
@@ -73,3 +75,31 @@ def unzip(file_path, target_folder):
     os.makedirs(target_folder)
     with zipfile.ZipFile(file_path, 'r') as zip:
         zip.extractall(target_folder)
+
+
+async def condition(condition: Callable, *, timeout: float = 1.0, interval: float = 0.1):
+    start = time.time()
+    while not condition():
+        if time.time() > start + timeout:
+            raise TimeoutError(f'condition {condition} took longer than {timeout}s')
+        await asyncio.sleep(interval)
+
+
+def update_attributes(obj, **kwargs) -> None:
+    if isinstance(obj, dict):
+        _update_attribute_dict(obj, **kwargs)
+    else:
+        _update_attribute_class_instance(obj, **kwargs)
+
+
+def _update_attribute_class_instance(obj, **kwargs) -> None:
+    for key, value in kwargs.items():
+        if hasattr(obj, key):
+            setattr(obj, key, value)
+        else:
+            raise ValueError(f"Object of type '{type(obj)}' does not have a property '{key}'.")
+
+
+def _update_attribute_dict(obj: dict, **kwargs) -> None:
+    for key, value in kwargs.items():
+        obj[key] = value

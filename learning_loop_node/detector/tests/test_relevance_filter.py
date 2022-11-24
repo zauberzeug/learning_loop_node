@@ -1,7 +1,7 @@
 import numpy as np
 from learning_loop_node import DetectorNode
 import pytest
-from conftest import get_outbox_files
+from learning_loop_node.detector.tests.conftest import get_outbox_files
 import asyncio
 
 

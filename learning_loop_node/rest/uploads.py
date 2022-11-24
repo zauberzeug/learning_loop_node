@@ -27,7 +27,8 @@ async def upload_model_for_training(context: Context, files: List[str], training
     async with loop.put(f'api/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{format}/file', data=data) as response:
         if response.status != 200:
             msg = f'---- could not upload model for training {training_number} and format {format}. Details: {await response.text()}'
-            raise Exception(msg)
+            logging.error(msg)
+            response.raise_for_status()
         else:
             uploaded_model = await response.json()
             logging.info(
