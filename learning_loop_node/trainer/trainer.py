@@ -272,7 +272,11 @@ class Trainer():
             active_training.save(self.training)
 
     async def _upload_model(self, context: Context) -> dict:
-        files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
+        try:
+            files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
+        except FileNotFoundError as e:
+            raise Exception('Could not find any model files to upload.')
+
         model_json_content = self.create_model_json_content()
         model_json_path = '/tmp/model.json'
         with open(model_json_path, 'w') as f:
@@ -405,6 +409,7 @@ class Trainer():
         if self.executor and self.executor.is_process_running():
             self.executor.stop()
         elif self.training_task:
+            logging.error('cancelling training task')
             self.training_task.cancel()
 
     def shutdown(self) -> None:
