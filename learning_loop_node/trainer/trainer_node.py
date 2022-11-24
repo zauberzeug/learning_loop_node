@@ -125,11 +125,11 @@ class TrainerNode(Node):
             return State.Running
         return State.Idle
 
-    @ property
+    @property
     def progress(self) -> Union[float, None]:
         return self.trainer.progress if hasattr(self.trainer, 'progress') else None
 
-    @ property
+    @property
     def training_uptime(self) -> Union[int, None]:
         import time
         now = time.time()

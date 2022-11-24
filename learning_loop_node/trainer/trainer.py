@@ -471,7 +471,7 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    @ staticmethod
+    @staticmethod
     def images_for_ids(image_ids, image_folder) -> List[str]:
         logging.info(f'### Going to get images for {len(image_ids)} images ids')
         start = perf_counter()
@@ -490,12 +490,12 @@ class Trainer():
         '''
         raise NotImplementedError()
 
-    @ property
-    @ abstractmethod
+    @property
+    @abstractmethod
     def provided_pretrained_models(self) -> List[PretrainedModel]:
         raise NotImplementedError()
 
-    @ staticmethod
+    @staticmethod
     def generate_training(context: Context) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
@@ -507,13 +507,13 @@ class Trainer():
             training_folder=Trainer.create_training_folder(project_folder, training_uuid)
         )
 
-    @ staticmethod
+    @staticmethod
     def create_training_folder(project_folder: str, trainings_id: str) -> str:
         training_folder = f'{project_folder}/trainings/{trainings_id}'
         os.makedirs(training_folder, exist_ok=True)
         return training_folder
 
-    @ property
+    @property
     def hyperparameters(self) -> dict:
         if self.training and self.training.data:
             information = {}
@@ -524,7 +524,7 @@ class Trainer():
         else:
             return None
 
-    @ property
+    @property
     def model_architecture(self) -> Union[str, None]:
         return None
 
