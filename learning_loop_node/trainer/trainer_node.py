@@ -137,10 +137,8 @@ class TrainerNode(Node):
 
     @staticmethod
     def state_for_learning_loop(trainer_state: TrainingState):
-        logging.error(trainer_state)
-
         if trainer_state == TrainingState.Initialized:
-            return 'training is initialized'
+            return 'Training is initialized'
         if trainer_state == TrainingState.DataDownloading:
             return 'Downloading data'
         if trainer_state == TrainingState.DataDownloaded:
