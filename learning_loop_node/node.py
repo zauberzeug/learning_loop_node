@@ -14,6 +14,10 @@ import logging
 from uuid import uuid4
 from .socket_response import ensure_socket_response
 from datetime import datetime
+from . import log_conf
+import json
+
+log_conf.init()
 
 
 class Node(FastAPI):
@@ -22,11 +26,13 @@ class Node(FastAPI):
 
     def __init__(self, name: str, uuid: str = None):
         super().__init__()
+        self.log = logging.getLogger()
+
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
         self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
 
         self.name = name
-        self.uuid = self.read_or_create_uuid() if uuid is None else uuid
+        self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
 
         self.sio_client = socketio.AsyncClient(
@@ -55,16 +61,20 @@ class Node(FastAPI):
 
         self.register_lifecycle_events()
 
-    def read_or_create_uuid(self) -> str:
-        if not os.path.exists(f'{GLOBALS.data_folder}/uuid.txt'):
-            os.makedirs(GLOBALS.data_folder, exist_ok=True)
-            uuid = str(uuid4())
-            with open(f'{GLOBALS.data_folder}/uuid.txt', 'a+') as f:
-                f.write(uuid)
-        else:
-            with open(f'{GLOBALS.data_folder}/uuid.txt', 'r') as f:
-                uuid = f.read()
+    def read_or_create_uuid(self, identifier: str) -> str:
+        identifier = identifier.lower().replace(' ', '_')
+        uuids = {}
+        file_path = f'{GLOBALS.data_folder}/uuids.json'
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                uuids = json.load(f)
 
+        uuid = uuids.get(identifier, None)
+        if not uuid:
+            uuid = str(uuid4())
+            uuids[identifier] = uuid
+            with open(file_path, 'w') as f:
+                json.dump(uuids, f)
         return uuid
 
     def register_lifecycle_events(self):
@@ -147,7 +157,12 @@ class Node(FastAPI):
     def _activate_asyncio_warnings() -> None:
         '''Produce warnings for coroutines which take too long on the main loop and hence clog the event loop'''
         try:
-            loop = asyncio.get_running_loop()
+            import sys
+            if sys.version_info.major >= 3 and sys.version_info.minor >= 7:  # most
+                loop = asyncio.get_running_loop()
+            else:
+                loop = asyncio.get_event_loop()
+
             loop.set_debug(True)
             loop.slow_callback_duration = 0.2
             logging.info('activated asyncio warnings')

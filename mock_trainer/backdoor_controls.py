@@ -1,11 +1,13 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
+from learning_loop_node.trainer import training_syncronizer
 from learning_loop_node.trainer.trainer_node import TrainerNode
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from fastapi import APIRouter,  Request,  HTTPException
 from learning_loop_node.status import Status, State
 import logging
 import asyncio
-
+from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.training import State as TrainingState
 router = APIRouter()
 
 
@@ -31,29 +33,31 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
             await trainer_node.connect()
 
 
-@router.put("/check_state")
-async def check_state(request: Request):
+@router.put("/provide_new_model")
+async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
     trainer_node = trainer_node_from_request(request)
     if value == 'off':
-        trainer_node.skip_check_state = True
+        trainer_node.trainer.provide_new_model = False
         trainer_node.status.reset_all_errors()
     if value == 'on':
-        trainer_node.skip_check_state = False
-        loop = asyncio.get_event_loop()
-        loop.create_task(trainer_node.check_state())
+        trainer_node.trainer.provide_new_model = True
 
-    logging.debug(f'turning automatically check_state {value}')
+    logging.debug(f'turning automatically provide_new_model {value}')
 
 
 @router.post("/reset")
 async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
     await _switch_socketio('on', trainer_node)
-    if trainer_node.status.state == State.Running:
-        await trainer_node.stop_training()
 
+    trainer_node.stop_training()
+    trainer_node.stop_training()
+    # NOTE first stop may only kill running training process
+
+    active_training.delete()
     trainer_node.status.reset_all_errors()
+    logging.error('training should be killed, sending new state to LearningLoop')
     await trainer_node.send_status()
 
 
@@ -61,7 +65,7 @@ async def reset(request: Request):
 def set_error_configuration(error_configuration: ErrorConfiguration, request: Request):
     '''
     Example Usage
-        curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json" 
+        curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json"
     '''
     print(f'setting error configuration to: {error_configuration.json()}')
     trainer_node_from_request(request).trainer.error_configuration = error_configuration
@@ -70,21 +74,38 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
 @router.post("/steps")
 async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
-    if trainer_node.status.state != State.Running:
+
+    if not trainer_node.trainer.executor or not trainer_node.trainer.executor.is_process_running():
+        logging.error(
+            f'cannot add steps when training is not running, state:  { trainer_node.trainer.training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
+    previous_state = trainer_node.trainer.provide_new_model
+    trainer_node.trainer.provide_new_model = True
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
-        await trainer_node.check_state()
+        try:
+            await trainer_node.trainer.sync_confusion_matrix(trainer_node.uuid, trainer_node.sio_client)
+        except Exception:
+            # Tests can force synchroniation to fail, error state is reported to backend
+            pass
+    trainer_node.trainer.provide_new_model = previous_state
+    await trainer_node.send_status()
 
 
 @router.post("/kill_training_process")
 async def kill_process(request: Request):
     trainer_node = trainer_node_from_request(request)
-    if trainer_node.status.state != State.Running:
+    if not trainer_node.trainer.executor or not trainer_node.trainer.executor.is_process_running():
         raise HTTPException(status_code=409, detail="trainer is not running")
     trainer_node.trainer.executor.stop()
+
+
+@router.post("/force_status_update")
+async def force_status_update(request: Request):
+    trainer_node = trainer_node_from_request(request)
+    await trainer_node.send_status()
 
 
 def trainer_node_from_request(request: Request) -> TrainerNode:

@@ -1,3 +1,4 @@
+import multiprocessing
 import pytest
 from learning_loop_node import DetectorNode, ModelInformation
 from learning_loop_node.detector import Outbox
@@ -48,17 +49,25 @@ async def test_detector_node(request):
     det.init(model_info=model_info, model_root_path='')
     node = DetectorNode(name='test', detector=det)
     await port_is(free=True)
+
+    multiprocessing.set_start_method('fork', force=True)
+    assert multiprocessing.get_start_method() == 'fork'
     proc = Process(target=uvicorn.run,
                    args=(node,),
                    kwargs={
                        "host": "127.0.0.1",
                        "port": pytest.detector_port,
-                   },
-                   daemon=True)
+
+                   }, daemon=True)
     proc.start()
     await port_is(free=False)
     yield node
-    await node.sio_client.disconnect()
+
+    try:
+        await node.shutdown()
+    except:
+        logging.exception('error while shutting down node')
+
     try:
         proc.kill()
     except:  # for python 3.6

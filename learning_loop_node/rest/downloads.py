@@ -39,7 +39,7 @@ async def download_images_data(organization: str, project: str, image_ids: List[
                 continue
             images_data += (await response.json())['images']
             total_time = round(time.time() - starttime, 1)
-            if(images_data):
+            if (images_data):
                 per100 = total_time / len(images_data) * 100
                 logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {per100:.1f} sec')
             else:

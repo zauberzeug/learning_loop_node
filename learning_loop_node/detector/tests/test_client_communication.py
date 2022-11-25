@@ -1,8 +1,7 @@
 import pytest
 from learning_loop_node import DetectorNode
 import requests
-import json
-from conftest import get_outbox_files
+from learning_loop_node.detector.tests.conftest import get_outbox_files
 
 
 def test_detector_path(test_detector_node: DetectorNode):

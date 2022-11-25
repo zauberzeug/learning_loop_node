@@ -1,4 +1,5 @@
 from enum import auto
+import multiprocessing
 from . import Detections
 from . import Outbox
 from .rest.operation_mode import OperationMode
@@ -28,6 +29,8 @@ from threading import Thread
 from datetime import datetime
 from icecream import ic
 import shutil
+from .. import environment_reader
+from multiprocessing import Event
 
 
 class DetectorNode(Node):
@@ -36,14 +39,16 @@ class DetectorNode(Node):
     def __init__(self, name: str, detector: Detector, uuid: str = None):
         super().__init__(name, uuid)
         self.detector = detector
-        self.organization = os.environ.get('LOOP_ORGANIZATION', None) or os.environ.get('ORGANIZATION', None)
-        self.project = os.environ.get('LOOP_PROJECT', None) or os.environ.get('PROJECT', None)
+        self.organization = environment_reader.organization()
+        self.project = environment_reader.project()
         assert self.organization, 'Detector node needs an organization'
         assert self.project, 'Detector node needs an project'
-        logging.info(f'Using {self.organization}/{self.project}')
+        self.log.info(f'Using {self.organization}/{self.project}')
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
+
         self.outbox: Outbox = Outbox()
+
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
         self.target_model = None
         self.include_router(detect.router, tags=["detect"])
@@ -53,20 +58,19 @@ class DetectorNode(Node):
         @self.on_event("startup")
         @repeat_every(seconds=self.update_frequency, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
-            await self.check_for_update()
-
-        @self.on_event("startup")
-        async def _load_model() -> None:
             try:
-                self.detector.load_model()
-            finally:
-                self.operation_mode = OperationMode.Idle
+                await self.check_for_update()
+            except:
+                self.log.exception("error in '_check_for_update'")
 
         @self.on_event("startup")
-        @repeat_every(seconds=30, raise_exceptions=False, wait_first=False)
-        def submit() -> None:
-            thread = Thread(target=self.outbox.upload)
-            thread.start()
+        async def startup() -> None:
+            try:
+                self.log.info("received 'startup' event")
+                self.outbox.start_continuous_upload()
+                self._load_model()
+            except:
+                self.log.exception("error during 'startup'")
 
         sio = SocketManager(app=self)
 
@@ -81,7 +85,7 @@ class DetectorNode(Node):
                     autoupload=data.get('autoupload', None),
                 )
             except Exception as e:
-                logging.exception('could not detect via socketio')
+                self.log.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
                     f.write(data['image'])
                 return {'error': str(e)}
@@ -98,7 +102,7 @@ class DetectorNode(Node):
             try:
                 await loop.run_in_executor(None, self.outbox.save, data['image'], Detections(), ['picked_by_system'])
             except Exception as e:
-                logging.exception('could not upload via socketio')
+                self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
 
         @self.sio.event
@@ -107,31 +111,48 @@ class DetectorNode(Node):
 
         @self.on_event("shutdown")
         async def shutdown():
-            for sid in self.connected_clients:
-                await self.sio.disconnect(sid)
+            await self.shutdown()
+
+    async def shutdown(self):
+        try:
+            self.log.info("received 'shutdown' event")
+            await self._disconnect_sio_clients()
+            self.outbox.stop_continuous_upload()
+        except:
+            self.log.exception("error during 'shutdown'")
+
+    def _load_model(self) -> None:
+        try:
+            self.detector.load_model()
+        finally:
+            self.operation_mode = OperationMode.Idle
+
+    async def _disconnect_sio_clients(self):
+        for sid in self.connected_clients:
+            await self.sio.disconnect(sid)
 
     async def check_for_update(self):
         if self.operation_mode == OperationMode.Startup:
             return
         try:
-            logging.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
+            self.log.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
             update_to_model_id = await self.send_status()
             if self.detector.current_model:
-                logging.info(
+                self.log.info(
                     f'Current model: {self.detector.current_model.version} with id {self.detector.current_model.id}')
             else:
-                logging.info(f'no model loaded')
+                self.log.info(f'no model loaded')
             if self.operation_mode != OperationMode.Idle:
-                logging.info(f'not checking for updates; operation mode is {self.operation_mode}')
+                self.log.info(f'not checking for updates; operation mode is {self.operation_mode}')
                 return
 
             self.status.reset_error('update_model')
             if self.target_model is None:
-                logging.info(f'not checking for updates; no target model selected')
+                self.log.info(f'not checking for updates; no target model selected')
                 return
-            logging.info('going to check for new updates')
+            self.log.info('going to check for new updates')
             if not self.detector.current_model or self.target_model != self.detector.current_model.version:
-                logging.info(
+                self.log.info(
                     f'Current model "{self.detector.current_model.version if self.detector.current_model else "-"}" needs to be updated to {self.target_model}')
                 with pushd(GLOBALS.data_folder):
                     model_symlink = 'model'
@@ -151,21 +172,21 @@ class DetectorNode(Node):
                     except:
                         pass
                     os.symlink(target_model_folder, model_symlink)
-                    logging.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
+                    self.log.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
 
                     await self.send_status()
                     self.reload(because='new model installed')
             else:
-                logging.info('Versions are identic. Nothing to do.')
+                self.log.info('Versions are identic. Nothing to do.')
         except Exception as e:
-            logging.exception(f'check_for_update failed')
+            self.log.exception(f'check_for_update failed')
             msg = e.cause if isinstance(e, downloads.DownloadError) else str(e)
             self.status.set_error('update_model', f'Could not update model: {msg}')
             await self.send_status()
 
     async def send_status(self) -> Union[str, bool]:
         if not self.sio_client.connected:
-            logging.error('could not send status -- we are not connected to the Learning Loop')
+            self.log.error('could not send status -- we are not connected to the Learning Loop')
             return False
         status = DetectionStatus(
             id=self.uuid,
@@ -179,14 +200,14 @@ class DetectorNode(Node):
             model_format=self.detector.model_format,
         )
 
-        logging.debug(f'sending status {status}')
+        self.log.debug(f'sending status {status}')
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)))
         socket_response = SocketResponse.from_dict(response)
         if not socket_response.success:
-            logging.error(f'Statusupdate failed: {response}')
+            self.log.error(f'Statusupdate failed: {response}')
             return False
         self.target_model = socket_response.payload['target_model_version']
-        logging.debug(f'After sending status. Target_model is {self.target_model}')
+        self.log.debug(f'After sending status. Target_model is {self.target_model}')
         return socket_response.payload['target_model_id']
 
     def get_state(self):
@@ -213,7 +234,7 @@ class DetectorNode(Node):
             detection.shape = ','.join([str(value) for p in detection.shape.points for _, value in p.__dict__.items()])
         info = "\n    ".join([str(d) for d in detections.box_detections +
                              detections.point_detections + detections.segmentation_detections])
-        logging.info(f'detected:\n    {info}')
+        self.log.info(f'detected:\n    {info}')
         if camera_id is not None:
             tags.append(camera_id)
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
@@ -223,7 +244,7 @@ class DetectorNode(Node):
         elif autoupload == 'disabled':
             pass
         else:
-            logging.warning(f'unknown autoupload value {autoupload}')
+            self.log.warning(f'unknown autoupload value {autoupload}')
         return jsonable_encoder(detections)
 
     async def upload_images(self, images: List[bytes]):
