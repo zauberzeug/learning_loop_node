@@ -88,7 +88,6 @@ class Trainer():
         elif active_training.exists():
             logging.warning('found active training on hd')
             training = active_training.load()
-            logging.warning(jsonable_encoder(training))
             self.training = training
 
         while self.training or active_training.exists():
