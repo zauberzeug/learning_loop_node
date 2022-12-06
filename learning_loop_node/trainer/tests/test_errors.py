@@ -30,7 +30,7 @@ async def test_log_can_provide_only_data_for_current_run(test_trainer_node: Trai
         uuid=test_trainer_node.uuid, sio_client=test_trainer_node.sio_client))
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
 
-    assert len(re.findall('Starting excecutor', str(trainer.executor.get_log_by_lines()))) == 1
+    assert len(re.findall('Starting executor', str(trainer.executor.get_log_by_lines()))) == 1
 
     trainer.error_msg = 'some_error'
     await assert_training_state(trainer.training, 'train_model_downloaded', timeout=6, interval=0.001)
@@ -38,6 +38,6 @@ async def test_log_can_provide_only_data_for_current_run(test_trainer_node: Trai
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
     await asyncio.sleep(1)
 
-    assert len(re.findall('Starting excecutor', str(trainer.executor.get_log_by_lines()))) == 2
+    assert len(re.findall('Starting executor', str(trainer.executor.get_log_by_lines()))) == 2
     # Here only the current run is provided
-    assert len(re.findall('Starting excecutor', str(trainer.executor.get_log_by_lines(since_last_start=True)))) == 1
+    assert len(re.findall('Starting executor', str(trainer.executor.get_log_by_lines(since_last_start=True)))) == 1

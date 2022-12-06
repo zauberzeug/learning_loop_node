@@ -34,7 +34,7 @@ class Executor:
 
     def start(self, cmd: str):
         with open(f'{self.path}/last_training.log', 'a') as f:
-            f.write(f'\nStarting excecutor with command: {cmd}\n')
+            f.write(f'\nStarting executor with command: {cmd}\n')
         self.process = subprocess.Popen(
             f'cd {self.path}; {cmd} >> last_training.log 2>&1',
             shell=True,
@@ -73,7 +73,7 @@ class Executor:
                 lines_since_last_start = []
                 for line in reversed(lines):
                     lines_since_last_start.append(line)
-                    if line.startswith('Starting excecutor with command:'):
+                    if line.startswith('Starting executor with command:'):
                         break
                 return list(reversed(lines_since_last_start))
             else:
