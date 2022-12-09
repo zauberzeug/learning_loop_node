@@ -17,6 +17,7 @@ class TestingTrainer(Trainer):
         super().__init__('mocked')
         self._can_resume = can_resume
         self.has_new_model = False
+        self.error_msg = None
 
     async def start_training(self) -> None:
         self.executor.start('while true; do sleep 1; done')
@@ -91,3 +92,6 @@ class TestingTrainer(Trainer):
 
     async def clear_training_data(self, training_folder: str) -> None:
         return
+
+    def get_error(self) -> Optional[Union[None, str]]:
+        return self.error_msg or None

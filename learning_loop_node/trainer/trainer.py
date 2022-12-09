@@ -88,7 +88,6 @@ class Trainer():
         elif active_training.exists():
             logging.warning('found active training on hd')
             training = active_training.load()
-            logging.warning(jsonable_encoder(training))
             self.training = training
 
         while self.training or active_training.exists():
@@ -190,7 +189,7 @@ class Trainer():
                     last_sync_time = datetime.now()
                     error = self.get_error()
                     if error:
-                        self.errors.set(error_key, error)
+                        break
                     else:
                         self.errors.reset(error_key)
 
@@ -214,6 +213,8 @@ class Trainer():
             raise
         except TrainingError as e:
             logging.exception('Error in TrainingProcess')
+            if self.executor.is_process_running():
+                self.executor.stop()
             self.training.training_state = previous_state
         except Exception as e:
             self.errors.set(error_key, f'Could not start training {str(e)}')

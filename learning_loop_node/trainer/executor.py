@@ -33,6 +33,8 @@ class Executor:
         self.process = None
 
     def start(self, cmd: str):
+        with open(f'{self.path}/last_training.log', 'a') as f:
+            f.write(f'\nStarting executor with command: {cmd}\n')
         self.process = subprocess.Popen(
             f'cd {self.path}; {cmd} >> last_training.log 2>&1',
             shell=True,
@@ -63,10 +65,19 @@ class Executor:
         except:
             return ''
 
-    def get_log_by_lines(self) -> List[str]:
+    def get_log_by_lines(self, since_last_start=False) -> List[str]:
         try:
             with open(f'{self.path}/last_training.log') as f:
-                return f.readlines()
+                lines = f.readlines()
+            if since_last_start:
+                lines_since_last_start = []
+                for line in reversed(lines):
+                    lines_since_last_start.append(line)
+                    if line.startswith('Starting executor with command:'):
+                        break
+                return list(reversed(lines_since_last_start))
+            else:
+                return lines
         except:
             return []
 

@@ -16,7 +16,7 @@ WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
 
-RUN python3 -m pip install --no-cache-dir "uvicorn[standard]"  tqdm async_generator aiofiles retry debugpy pytest-asyncio psutil icecream pytest "pytest-mock==3.6.1" autopep8 
+RUN python3 -m pip install --no-cache-dir "uvicorn[standard]"  tqdm async_generator aiofiles retry debugpy pytest-asyncio psutil icecream pytest "pytest-mock==3.6.1" autopep8 pynvml 
 RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.35"
 
 # while development this will be mounted but in deployment we need the latest code baked into the image
