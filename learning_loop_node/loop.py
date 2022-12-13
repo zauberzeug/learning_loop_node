@@ -97,6 +97,17 @@ class Loop():
             async with session.put(f'{self.base_url}/{path}', data=data) as response:
                 yield response
 
+    async def put_json_async(self, path, json):
+        url = f'{self.base_url}{loop.project_path}/{path.lstrip("/")}'
+        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
+            async with session.put(url, json=json) as response:
+                if response.status != 200:
+                    raise Exception(f'bad response: {str(response)} \n {await response.json()}')
+                return await response.json()
+
+    def put_json(self, path, json):
+        return asyncio.get_event_loop().run_until_complete(self.put_json_async(path, json))
+
     @asynccontextmanager
     async def post(self, path, **kwargs):
         async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
