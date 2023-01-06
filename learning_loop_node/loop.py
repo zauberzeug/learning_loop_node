@@ -102,7 +102,8 @@ class Loop():
         async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
             async with session.put(url, json=json) as response:
                 if response.status != 200:
-                    raise Exception(f'bad response: {str(response)} \n {await response.json()}')
+                    res = await response.json()
+                    raise Exception(f'bad response: {str(response)} \n {res}')
                 return await response.json()
 
     def put_json(self, path, json):
