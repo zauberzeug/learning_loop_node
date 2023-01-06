@@ -73,7 +73,7 @@ class Outbox():
                         ('files', open(f'{item}/image.jpg', 'rb'))]
 
                 response = requests.post(self.target_uri, files=data)
-                if response.status_code == 200:
+                if response.status_code == 201:
                     shutil.rmtree(item)
                     self.log.info(f'uploaded {item} successfully')
                 elif response.status_code == 422:
