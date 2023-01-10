@@ -107,8 +107,7 @@ class Trainer():
                 await self.upload_detections()
             if training.training_state == TrainingState.ReadyForCleanup:
                 await self.clear_training()
-            else:
-                await asyncio.sleep(1)
+            await asyncio.sleep(0.5)  # Note: Needed for error reporting
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state

@@ -64,7 +64,8 @@ class Outbox():
 
     def upload(self):
         items = self.get_data_files()
-        self.log.info(f'Found {len(items)} images to upload')
+        if items:
+            self.log.info(f'Found {len(items)} images to upload')
         for item in items:
             if self.shutdown_event and self.shutdown_event.is_set():
                 break
