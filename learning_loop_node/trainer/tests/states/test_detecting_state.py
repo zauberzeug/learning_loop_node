@@ -14,9 +14,9 @@ def trainer_has_error(trainer: Trainer):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successfull_detecting():
+async def test_successful_detecting():
     state_helper.create_active_training_file(training_state='train_model_uploaded',
-                                             model_id_for_detecting='7f5eabb4-227a-e7c7-8f0b-f825cc47340d')  # version 1.2 of demo project
+                                             model_id_for_detecting='917d5c7f-403d-7e92-f95f-577f79c2273a')
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
 
@@ -32,8 +32,7 @@ async def test_successfull_detecting():
 
 
 async def test_detecting_can_be_aborted():
-    state_helper.create_active_training_file(training_state='train_model_uploaded',
-                                             model_id_for_detecting='7f5eabb4-227a-e7c7-8f0b-f825cc47340d')  # version 1.2 of demo project
+    state_helper.create_active_training_file(training_state='train_model_uploaded')
     trainer = TestingTrainer()
     trainer.training = active_training.load()  # normally done by node
     training = trainer.training

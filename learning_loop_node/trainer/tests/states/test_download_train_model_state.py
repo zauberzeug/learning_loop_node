@@ -9,7 +9,7 @@ import os
 import logging
 
 
-async def test_downloading_is_successfull():
+async def test_downloading_is_successful():
     state_helper.create_active_training_file(training_state='data_downloaded')
     trainer = Trainer(model_format='mocked')
     trainer.training = active_training.load()  # normally done by node
