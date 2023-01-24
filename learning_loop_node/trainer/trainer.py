@@ -91,6 +91,7 @@ class Trainer():
             self.training = training
 
         while self.training or active_training.exists():
+            await asyncio.sleep(0.2)  # Note: Needed for error reporting
             if training.training_state == TrainingState.Initialized:
                 await self.prepare()
             if training.training_state == TrainingState.DataDownloaded:
@@ -107,7 +108,6 @@ class Trainer():
                 await self.upload_detections()
             if training.training_state == TrainingState.ReadyForCleanup:
                 await self.clear_training()
-            await asyncio.sleep(0.5)  # Note: Needed for error reporting
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
