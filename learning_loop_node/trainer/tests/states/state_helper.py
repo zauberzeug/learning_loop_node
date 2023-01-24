@@ -9,7 +9,7 @@ from learning_loop_node.trainer.training import Training
 def create_active_training_file(**kwargs) -> None:
     trainer = TestingTrainer()
     details = {'categories': [],
-               'id': '7f5eabb4-227a-e7c7-8f0b-f825cc47340d',  # version 1.2 of demo project
+               'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
                'training_number': 0,
                'resolution': 800,
                'flip_rl': False,

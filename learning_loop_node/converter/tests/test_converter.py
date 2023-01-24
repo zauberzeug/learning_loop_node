@@ -37,5 +37,6 @@ async def test_meta_information(create_project):
 
     categories = pytest_project_model.categories
     assert len(categories) == 2
-    assert categories[0].type == 'box'
-    assert categories[1].type == 'point'
+    category_types = [category.type for category in categories]
+    assert 'box' in category_types
+    assert 'point' in category_types
