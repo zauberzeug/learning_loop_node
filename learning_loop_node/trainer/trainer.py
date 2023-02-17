@@ -374,7 +374,7 @@ class Trainer():
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
         logging.info('uploading detections')
-        batch_size = 500
+        batch_size = 50
 
         skip_detections = active_training.detections_upload_progress.load(self.training)
 
