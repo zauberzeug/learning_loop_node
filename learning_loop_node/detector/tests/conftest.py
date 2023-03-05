@@ -42,7 +42,7 @@ async def test_detector_node(request):
     os.environ['PROJECT'] = 'demo'
 
     model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug',
-                                  project='test', version='1', categories=[Category(id='some_id', name='some_category_name')])
+                                  project='test', version='1', categories=[Category(id='some_id', name='some_category_name'), Category(id='some_id_2', name='some_category_name_2'),  Category(id='some_id_3', name='some_category_name_3')])
     segmentations = should_have_segmentations(request)
 
     det = TestingDetector(segmentation_detections=segmentations)
