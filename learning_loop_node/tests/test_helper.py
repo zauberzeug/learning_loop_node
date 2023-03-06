@@ -22,12 +22,7 @@ class LiveServerSession(Session):
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
-        headers = {}
-        if 'token' in url:
-            return super(LiveServerSession, self).request(method, url, *args, **kwargs)
-
-        headers = loop.get_headers()
-        return super(LiveServerSession, self).request(method, url, headers=headers, *args, **kwargs)
+        return super(LiveServerSession, self).request(method, url, *args, **kwargs)
 
 
 def get_files_in_folder(folder: str):

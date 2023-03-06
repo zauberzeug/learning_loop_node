@@ -10,7 +10,7 @@ repository = "https://github.com/zauberzeug/learning_loop_node"
 [tool.poetry.dependencies]
 python = "^3.6.9"
 requests = "^2.25.1"
-python-socketio = {extras = ["asyncio_client"], version = "^5.0.4"}
+python-socketio = "^5.7.2"
 fastapi-socketio = "^0.0.6"
 fastapi = "^0.70.1"
 uvicorn = "^0.13.3"
