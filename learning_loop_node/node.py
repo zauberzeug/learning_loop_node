@@ -35,6 +35,11 @@ class Node(FastAPI):
         self.name = name
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
+        self.register_lifecycle_events()
+
+    async def create_sio_client(self):
+        if loop.client_session is None:  # NOTE the cookie jar is not yet initialized
+            await self.create_sio_client()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
@@ -61,8 +66,6 @@ class Node(FastAPI):
             logging.debug('received "on_disconnect" from constructor event.')
             await self.update_state(State.Offline)
 
-        self.register_lifecycle_events()
-
     def read_or_create_uuid(self, identifier: str) -> str:
         identifier = identifier.lower().replace(' ', '_')
         uuids = {}
@@ -84,6 +87,8 @@ class Node(FastAPI):
         async def startup():
             logging.debug('received "startup" event')
             Node._activate_asyncio_warnings()
+            await loop.ensure_login()
+            await self.create_sio_client()
 
         @self.on_event("shutdown")
         async def shutdown():

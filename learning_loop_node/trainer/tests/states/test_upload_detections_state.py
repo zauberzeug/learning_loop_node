@@ -17,7 +17,7 @@ def trainer_has_error(trainer: Trainer):
 
 
 async def create_valid_detection_file(training: Training):
-    async with loop.get(f'/api/zauberzeug/projects/demo/data') as response:
+    async with loop.get(f'/zauberzeug/projects/demo/data') as response:
         assert response.status == 200, response
         content = await response.json()
 

@@ -29,28 +29,30 @@ class Loop():
         self.project: str = environment_reader.project(default='')
         base_url: str = f'http{"s" if host != "backend" else ""}://' + host + ("/api" if host != "backend" else "")
         logging.info(f'using base_url: {base_url}')
-        self.client_session = aiohttp.ClientSession(base_url=base_url)
         self.web = WebSession(base_url=base_url)
-        self.login()
+        self.client_session = None
 
-    def login(self):
-        response = self.web.post('login', data={'username': self.username, 'password': self.password})
-        response.raise_for_status()
-        # store the cookies
-        self.web.cookies.update(response.cookies)
-        aiohttp_cookie_jar = self.client_session.cookie_jar
-        for cookie in response.cookies:
-            aiohttp_cookie_jar.update_cookies({cookie.name: cookie.value})
+    async def ensure_login(self):
+        # delayed login because the aiohttp client session needs to be created on the event loop
+        if not self.web.cookies.keys():
+            response = self.web.post('login', data={'username': self.username, 'password': self.password})
+            if response.status_code != 200:
+                self.web.cookies.clear()
+                raise Exception('bad response: ' + str(response))
+            self.web.cookies.update(response.cookies)
+        if self.client_session is None or self.client_session.closed:
+            self.client_session = aiohttp.ClientSession(base_url=self.web.base_url)
+            for cookie in self.web.cookies:
+                self.client_session.cookie_jar.update_cookies({cookie.name: cookie.value})
 
     async def create_headers(self) -> dict:
         return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
 
     @asynccontextmanager
     async def get(self, path):
-        url = f'{self.base_url}/{path.lstrip("/")}'
-        logging.debug(url)
+        await self.ensure_login()
         async with self.client_session as session:
-            async with session.get(url) as response:
+            async with session.get(path) as response:
                 yield response
 
     async def get_json_async(self, path):
@@ -74,12 +76,13 @@ class Loop():
 
     @asynccontextmanager
     async def put(self, path, data):
+        await self.ensure_login()
         async with self.client_session as session:
-            async with session.put(f'{self.base_url}/{path}', data=data) as response:
+            async with session.put(path, data=data) as response:
                 yield response
 
     async def put_json_async(self, path, json):
-        url = f'{self.base_url}{loop.project_path}/{path.lstrip("/")}'
+        url = f'{loop.project_path}/{path.lstrip("/")}'
         async with self.client_session as session:
             async with session.put(url, json=json) as response:
                 if response.status != 200:
@@ -92,13 +95,14 @@ class Loop():
 
     @asynccontextmanager
     async def post(self, path, **kwargs):
+        await self.ensure_login()
         async with self.client_session as session:
-            async with session.post(f'{self.base_url}/{path}', **kwargs) as response:
+            async with session.post(path, **kwargs) as response:
                 yield response
 
     @property
     def project_path(self):
-        return f'/api/{self.organization}/projects/{self.project}'
+        return f'/{self.organization}/projects/{self.project}'
 
 
 loop = Loop()

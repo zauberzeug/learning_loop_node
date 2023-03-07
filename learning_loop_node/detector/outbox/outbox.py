@@ -28,7 +28,7 @@ class Outbox():
         o = environment_reader.organization()
         p = environment_reader.project()
         assert o and p, 'Outbox needs an organization and a projekct '
-        self.target_uri = f'{base}/api/{o}/projects/{p}/images'
+        self.target_uri = f'{base}/{o}/projects/{p}/images'
 
         self.log = logging.getLogger()
         self.shutdown_event = None

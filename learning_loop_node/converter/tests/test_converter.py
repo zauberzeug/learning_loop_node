@@ -17,13 +17,13 @@ class MockedConverter(Converter):
 
 @pytest.fixture()
 def create_project():
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'box_categories': 1,  'point_categories': 1, 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 0, 'image_style': 'plain',
                              'thumbs': False, 'trainings': 1}
-    assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
+    assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
 
 
 async def test_meta_information(create_project):

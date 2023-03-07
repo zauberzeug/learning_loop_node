@@ -58,7 +58,7 @@ class ConverterNode(Node):
         self.status.state = State.Idle
 
     async def convert_models(self) -> None:
-        async with loop.get('api/projects') as response:
+        async with loop.get('projects') as response:
             assert response.status == 200, f'Assert statuscode 200, but was {response.status}.'
             content = await response.json()
             projects = content['projects']

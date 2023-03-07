@@ -17,7 +17,7 @@ async def operation_mode(organization: str, project: str, version: str, request:
     Example Usage
         curl -X POST localhost/controls/detect/<organization>/<project>/<model_version>
     '''
-    path = f'/api/{organization}/projects/{project}/models'
+    path = f'/{organization}/projects/{project}/models'
     async with loop.get(path) as response:
         if response.status != 200:
             raise HTTPException(404, 'could not load latest model')

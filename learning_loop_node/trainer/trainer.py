@@ -387,7 +387,7 @@ class Trainer():
             batch_detections = detections[i:i+batch_size]
             logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
 
-            async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
+            async with loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
                 if response.status != 200:
                     msg = f'could not upload detections. {str(response)}'
                     logging.error(msg)
