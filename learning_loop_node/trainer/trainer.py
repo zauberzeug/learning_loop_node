@@ -76,8 +76,8 @@ class Trainer():
                 active_training.save(self.training)
                 await self.clear_training()
 
-        except BaseException:
-            logging.exception('Error in train')
+        except Exception as e:
+            logging.exception(f'Error in train: {e}')
         finally:
             self.start_time = None
 
@@ -196,7 +196,7 @@ class Trainer():
                         await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
                     except asyncio.CancelledError:
                         raise
-                    except:
+                    except Exception:
                         pass
                 else:
                     await asyncio.sleep(0.1)
@@ -347,7 +347,12 @@ class Trainer():
             await downloader.download_images(new_ids, image_folder)
         images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
         logging.info(f'running detections on {len(images)} images')
-        detections = await self._detect(model_information, images, tmp_folder)
+        batch_size = 200
+        detections = []
+        for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
+            batch_images = images[i:i+batch_size]
+            batch_detections = await self._detect(model_information, batch_images, tmp_folder)
+            detections.extend(batch_detections)
         return detections
 
     async def upload_detections(self):
@@ -374,7 +379,7 @@ class Trainer():
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
         logging.info('uploading detections')
-        batch_size = 500
+        batch_size = 50
 
         skip_detections = active_training.detections_upload_progress.load(self.training)
 

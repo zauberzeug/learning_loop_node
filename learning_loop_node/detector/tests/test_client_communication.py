@@ -18,12 +18,12 @@ async def test_sio_detect(test_detector_node, sio_client):
     assert result['box_detections'][0]['category_id'] == 'some_id'
 
     assert len(result['point_detections']) == 1
-    assert result['point_detections'][0]['category_name'] == 'some_category_name'
-    assert result['point_detections'][0]['category_id'] == 'some_id'
+    assert result['point_detections'][0]['category_name'] == 'some_category_name_2'
+    assert result['point_detections'][0]['category_id'] == 'some_id_2'
 
     assert len(result['segmentation_detections']) == 1
-    assert result['segmentation_detections'][0]['category_name'] == 'some_category_name'
-    assert result['segmentation_detections'][0]['category_id'] == 'some_id'
+    assert result['segmentation_detections'][0]['category_name'] == 'some_category_name_3'
+    assert result['segmentation_detections'][0]['category_id'] == 'some_id_3'
 
 
 @pytest.mark.parametrize('grouping_key', ['mac', 'camera_id'])
@@ -39,12 +39,12 @@ def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     assert result['box_detections'][0]['category_id'] == 'some_id'
 
     assert len(result['point_detections']) == 1
-    assert result['point_detections'][0]['category_name'] == 'some_category_name'
-    assert result['point_detections'][0]['category_id'] == 'some_id'
+    assert result['point_detections'][0]['category_name'] == 'some_category_name_2'
+    assert result['point_detections'][0]['category_id'] == 'some_id_2'
 
     assert len(result['segmentation_detections']) == 1
-    assert result['segmentation_detections'][0]['category_name'] == 'some_category_name'
-    assert result['segmentation_detections'][0]['category_id'] == 'some_id'
+    assert result['segmentation_detections'][0]['category_name'] == 'some_category_name_3'
+    assert result['segmentation_detections'][0]['category_id'] == 'some_id_3'
 
 
 def test_rest_upload(test_detector_node: DetectorNode):

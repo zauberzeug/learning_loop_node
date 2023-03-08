@@ -86,12 +86,13 @@ class Outbox():
                 self.log.exception('could not upload files')
 
     def stop_continuous_upload(self, timeout=5):
+        proc = None
         try:
             self.shutdown_event.set()
             proc = self.upload_thread
             proc.join(timeout)
         except:
             pass
-        if proc.is_alive():
+        if proc and proc.is_alive():
             proc.terminate()
             self.log.info('terminated process')

@@ -17,12 +17,12 @@ class TestingDetector(Detector):
         if self.segmentation_detections:
             return Detections(
                 box_detections=[BoxDetection('some_category_name', 1, 2, 3, 4, 'some_model', .42)],
-                point_detections=[PointDetection('some_category_name', 10, 12, 'some_model', .42)],
+                point_detections=[PointDetection('some_category_name_2', 10, 12, 'some_model', .42)],
                 segmentation_detections=[SegmentationDetection(
-                    'some_category_name', Shape(points=[Point(1, 1)]), 'some_model', .42)]
+                    'some_category_name_3', Shape(points=[Point(1, 1)]), 'some_model', .42)]
             )
 
         return Detections(
             box_detections=[BoxDetection('some_category_name', 1, 2, 3, 4, 'some_model', .42)],
-            point_detections=[PointDetection('some_category_name', 10, 12, 'some_model', .42)]
+            point_detections=[PointDetection('some_category_name_2', 10, 12, 'some_model', .42)]
         )
