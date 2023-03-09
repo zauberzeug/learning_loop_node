@@ -353,7 +353,6 @@ class Trainer():
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             active_training.detections.save(self.training, jsonable_encoder(batch_detections), idx)
-            logging.error(batch_detections)
             idx += 1
 
     async def upload_detections(self):
