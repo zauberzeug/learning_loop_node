@@ -349,6 +349,8 @@ class Trainer():
         logging.info(f'running detections on {len(images)} images')
         batch_size = 200
         idx = 0
+        if not images:
+            active_training.detections.save(self.training, [], idx)
         for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
@@ -366,7 +368,7 @@ class Trainer():
         try:
             json_files = active_training.detections.get_file_names(self.training)
             if not json_files:
-                raise Exception('No detections found.')
+                raise Exception()
             for idx, file in enumerate(json_files):
                 detections = active_training.detections.load(self.training, idx)
                 await self._upload_detections(context, detections)

@@ -51,9 +51,6 @@ class TrainerNode(Node):
         @repeat_every(seconds=5, raise_exceptions=True, wait_first=False)
         async def continous_send_status():
             try:
-                if not self.sio_client.connected:
-                    logging.info(f'###732 current connection state: {self.sio_client.connected}')
-                    await self.connect()
                 await self.send_status()
             except Exception as e:
                 logging.exception(f'could not send status state: {e}')

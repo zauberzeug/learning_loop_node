@@ -88,12 +88,12 @@ class Node(FastAPI):
             logging.debug('received "shutdown" event')
             await self.sio_client.disconnect()
 
-        # @self.on_event("startup")
-        # @repeat_every(seconds=4, raise_exceptions=False, wait_first=False)
-        # async def ensure_connected() -> None:
-        #     logging.info(f'###732 current connection state: {self.sio_client.connected}')
-        #     if not self.sio_client.connected:
-        #         await self.connect()
+        @self.on_event("startup")
+        @repeat_every(seconds=2, raise_exceptions=False, wait_first=False)
+        async def ensure_connected() -> None:
+            logging.info(f'###732 current connection state: {self.sio_client.connected}')
+            if not self.sio_client.connected:
+                await self.connect()
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)

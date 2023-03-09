@@ -11,8 +11,11 @@ def file_path(training: Training, index: int = 0) -> str:
 
 
 def get_file_names(training: Training) -> List:
-    return [f for f in Path(training.training_folder).iterdir()
-            if f.is_file() and f.name.startswith('detections_')]
+    files = [f for f in Path(training.training_folder).iterdir()
+             if f.is_file() and f.name.startswith('detections_')]
+    if not files:
+        return []
+    return files
 
 
 def save(training: Training, detections: List, index: int = 0) -> None:
