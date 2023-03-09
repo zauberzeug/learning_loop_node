@@ -33,6 +33,7 @@ import socketio
 from datetime import datetime
 from .errors import TrainingError
 from .errors import Errors
+from pathlib import Path
 
 
 class Trainer():
@@ -308,8 +309,7 @@ class Trainer():
         previous_state = self.training.training_state
         try:
             self.training.training_state = TrainingState.Detecting
-            detections = await self._do_detections()
-            active_training.detections.save(self.training, jsonable_encoder(detections))
+            await self._do_detections()
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -348,12 +348,13 @@ class Trainer():
         images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
         logging.info(f'running detections on {len(images)} images')
         batch_size = 200
-        detections = []
+        idx = 0
         for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
-            detections.extend(batch_detections)
-        return detections
+            active_training.detections.save(self.training, jsonable_encoder(batch_detections), idx)
+            logging.error(batch_detections)
+            idx += 1
 
     async def upload_detections(self):
         error_key = 'upload_detections'
@@ -364,8 +365,12 @@ class Trainer():
         await asyncio.sleep(0.1)  # NOTE needed for tests
 
         try:
-            detections = active_training.detections.load(self.training)
-            await self._upload_detections(context, detections)
+            json_files = active_training.detections.get_file_names(self.training)
+            if not json_files:
+                raise Exception('No detections found.')
+            for idx, file in enumerate(json_files):
+                detections = active_training.detections.load(self.training, idx)
+                await self._upload_detections(context, detections)
         except asyncio.CancelledError:
             raise
         except Exception as e:

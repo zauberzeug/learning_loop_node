@@ -88,12 +88,12 @@ class Node(FastAPI):
             logging.debug('received "shutdown" event')
             await self.sio_client.disconnect()
 
-        @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
-        async def ensure_connected() -> None:
-            logging.info(f'###732 current connection state: {self.sio_client.connected}')
-            if not self.sio_client.connected:
-                await self.connect()
+        # @self.on_event("startup")
+        # @repeat_every(seconds=4, raise_exceptions=False, wait_first=False)
+        # async def ensure_connected() -> None:
+        #     logging.info(f'###732 current connection state: {self.sio_client.connected}')
+        #     if not self.sio_client.connected:
+        #         await self.connect()
 
     def reset(self):
         self.status = Status(id=self.uuid, name=self.name)
@@ -110,6 +110,7 @@ class Node(FastAPI):
         logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
             headers = await self.get_sio_headers()
+            logging.info(f'headers: {headers}')
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             logging.debug(f'my sid is {self.sio_client.sid}')
             logging.debug(f"connecting as type {headers['nodeType']}")
