@@ -110,7 +110,6 @@ class Node(FastAPI):
         logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
             headers = await self.get_sio_headers()
-            logging.info(f'headers: {headers}')
             await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
             logging.debug(f'my sid is {self.sio_client.sid}')
             logging.debug(f"connecting as type {headers['nodeType']}")
