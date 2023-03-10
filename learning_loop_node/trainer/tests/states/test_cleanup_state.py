@@ -16,11 +16,13 @@ async def test_cleanup_successfull():
     create_detection_file(trainer.training)
     training = trainer.training
     active_training.detections_upload_progress.save(training, 42)
+    active_training.detections_upload_file_index.save(training, 1)
 
     assert trainer.training is not None
     assert active_training.exists() is True
     assert active_training.detections.exists(training) is True
     assert active_training.detections_upload_progress.exists(training) is True
+    assert active_training.detections_upload_file_index.exists(training) is True
 
     await trainer.clear_training()
 
@@ -28,3 +30,4 @@ async def test_cleanup_successfull():
     assert active_training.exists() is False
     assert active_training.detections.exists(training) is False
     assert active_training.detections_upload_progress.exists(training) is False
+    assert active_training.detections_upload_file_index.exists(training) is False
