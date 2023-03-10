@@ -93,7 +93,7 @@ class Trainer():
 
         while True:
             if self.training or active_training.exists():
-                await asyncio.sleep(0.5)  # Note: Needed for error reporting
+                await asyncio.sleep(0.6)  # Note: Needed for error reporting
                 if training.training_state == TrainingState.Initialized:
                     await self.prepare()
                 if training.training_state == TrainingState.DataDownloaded:
