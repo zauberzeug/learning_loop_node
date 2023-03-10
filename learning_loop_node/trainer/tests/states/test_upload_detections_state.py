@@ -52,6 +52,7 @@ async def test_detection_upload_progress_is_stored():
 
     await create_valid_detection_file(trainer.training)
 
+    assert active_training.detections_upload_file_index.load(trainer.training) == 0
     await trainer.upload_detections()
     assert active_training.detections_upload_progress.load(trainer.training) == 1
     assert active_training.detections_upload_file_index.load(trainer.training) == 1
