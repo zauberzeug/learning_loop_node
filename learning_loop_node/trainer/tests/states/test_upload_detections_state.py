@@ -54,6 +54,7 @@ async def test_detection_upload_progress_is_stored():
 
     await trainer.upload_detections()
     assert active_training.detections_upload_progress.load(trainer.training) == 1
+    assert active_training.detections_upload_file_index.load(trainer.training) == 1
 
 
 async def test_bad_status_from_LearningLoop():

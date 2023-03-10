@@ -91,24 +91,27 @@ class Trainer():
             training = active_training.load()
             self.training = training
 
-        while self.training or active_training.exists():
-            await asyncio.sleep(0.2)  # Note: Needed for error reporting
-            if training.training_state == TrainingState.Initialized:
-                await self.prepare()
-            if training.training_state == TrainingState.DataDownloaded:
-                await self.download_model()
-            if training.training_state == TrainingState.TrainModelDownloaded:
-                await self.run_training(uuid, sio_client)
-            if training.training_state == TrainingState.TrainingFinished:
-                await self.ensure_confusion_matrix_synced(uuid, sio_client)
-            if training.training_state == TrainingState.ConfusionMatrixSynced:
-                await self.upload_model()
-            if training.training_state == TrainingState.TrainModelUploaded:
-                await self.do_detections()
-            if training.training_state == TrainingState.Detected:
-                await self.upload_detections()
-            if training.training_state == TrainingState.ReadyForCleanup:
-                await self.clear_training()
+        while True:
+            if self.training or active_training.exists():
+                await asyncio.sleep(0.5)  # Note: Needed for error reporting
+                if training.training_state == TrainingState.Initialized:
+                    await self.prepare()
+                if training.training_state == TrainingState.DataDownloaded:
+                    await self.download_model()
+                if training.training_state == TrainingState.TrainModelDownloaded:
+                    await self.run_training(uuid, sio_client)
+                if training.training_state == TrainingState.TrainingFinished:
+                    await self.ensure_confusion_matrix_synced(uuid, sio_client)
+                if training.training_state == TrainingState.ConfusionMatrixSynced:
+                    await self.upload_model()
+                if training.training_state == TrainingState.TrainModelUploaded:
+                    await self.do_detections()
+                if training.training_state == TrainingState.Detected:
+                    await self.upload_detections()
+                if training.training_state == TrainingState.ReadyForCleanup:
+                    await self.clear_training()
+            else:
+                break
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
@@ -369,9 +372,11 @@ class Trainer():
             json_files = active_training.detections.get_file_names(self.training)
             if not json_files:
                 raise Exception()
-            for idx, file in enumerate(json_files):
-                detections = active_training.detections.load(self.training, idx)
+            current_json_file_index = active_training.detections_upload_file_index.load(self.training)
+            for i in range(current_json_file_index, len(json_files)):
+                detections = active_training.detections.load(self.training, i)
                 await self._upload_detections(context, detections)
+                active_training.detections_upload_file_index.save(self.training, i+1)
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -405,6 +410,7 @@ class Trainer():
     async def clear_training(self):
         active_training.detections.delete(self.training)
         active_training.detections_upload_progress.delete(self.training)
+        active_training.detections_upload_file_index.delete(self.training)
         try:
             await self.clear_training_data(self.training.training_folder)
         except NotImplementedError:

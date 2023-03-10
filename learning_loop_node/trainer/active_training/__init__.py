@@ -1,6 +1,7 @@
 from . import detections
 from . import detections_upload_progress
 from . import model_upload_progress
+from . import detections_upload_file_index
 import json
 from fastapi.encoders import jsonable_encoder
 from learning_loop_node.trainer.training import Training
