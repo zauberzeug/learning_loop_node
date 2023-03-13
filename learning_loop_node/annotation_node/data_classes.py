@@ -41,6 +41,7 @@ class AnnotationData(BaseModel):
     is_shift_key_pressed: Optional[bool]
     key_up: Optional[str] = None
     key_down: Optional[str] = None
+    epsilon: Optional[float] = None
     # keyboard_modifiers: Optional[List[str]]
     # new_annotation_uuid: Optional[str]
     # edit_annotation_uuid: Optional[str]
