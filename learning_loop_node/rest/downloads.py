@@ -105,7 +105,7 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     async with loop.get(path) as response:
         if response.status != 200:
             content = await response.json()
-            logging.error(f'could not download {loop.base_url}/{path}: {response.status}, content: {content}')
+            logging.error(f'could not download {loop.web.base_url}/{path}: {response.status}, content: {content}')
             raise DownloadError(content['detail'])
         try:
             provided_filename = response.headers.get(

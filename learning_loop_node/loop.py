@@ -38,7 +38,7 @@ class Loop():
             response = self.web.post('login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
                 self.web.cookies.clear()
-                raise Exception('bad response: ' + str(response))
+                raise Exception('bad response: ' + str(response.content))
             self.web.cookies.update(response.cookies)
         if self.client_session is None or self.client_session.closed:
             self.client_session = aiohttp.ClientSession(base_url=self.web.base_url)

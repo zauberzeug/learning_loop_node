@@ -19,6 +19,9 @@ class AnnotationNode(Node):
     def __init__(self, name: str, uuid: str, tool: AnnotationTool):
         super().__init__(name, uuid)
         self.tool = tool
+    
+    async def create_sio_client(self):
+        await super().create_sio_client()
 
         @self.sio_client.on('handle_user_input')
         async def on_handle_user_input(user_input):
@@ -83,3 +86,6 @@ class AnnotationNode(Node):
 
         downloader = DataDownloader(context=context)
         await downloader.download_images([uuid], images_folder)
+
+    async def get_state(self):
+        return State.Online
