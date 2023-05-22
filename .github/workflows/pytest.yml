@@ -15,7 +15,7 @@ jobs:
       - name: set up Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
-          poetry-version: "1.1.12"
+          poetry-version: "1.4.0"
       - name: install curl ssl
         run: |
           sudo apt-get update
