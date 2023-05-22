@@ -36,6 +36,7 @@ class Node(FastAPI):
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
         self.register_lifecycle_events()
+        self.sio_client = None
 
     async def create_sio_client(self):
         if loop.client_session is None:  # NOTE the cookie jar is not yet initialized

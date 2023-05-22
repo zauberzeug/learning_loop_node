@@ -11,18 +11,28 @@ import aiohttp
 import logging
 from icecream import ic
 import shutil
+import requests
 
 
 class LiveServerSession(Session):
     """https://stackoverflow.com/a/51026159/364388"""
-
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = loop.base_url
+        self.prefix_url = loop.web.base_url
+        self.cookies = self.get_cookies()
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
-        return super(LiveServerSession, self).request(method, url, *args, **kwargs)
+        return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
+
+    def get_cookies(self) -> dict:
+        user = os.environ.get('USERNAME', None)
+        password = os.environ.get('PASSWORD', None)
+        files = {
+            'username': (None, user),
+            'password': (None, password),
+        }
+        return requests.post(f'{self.prefix_url}/login', files=files).cookies
 
 
 def get_files_in_folder(folder: str):
