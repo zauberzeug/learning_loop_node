@@ -32,7 +32,7 @@ async def download_images_data(organization: str, project: str, image_ids: List[
     starttime = time.time()
     for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_ids = image_ids[i:i+chunk_size]
-        async with loop.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
+        async with loop.get(f'/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
             if response.status != 200:
                 logging.error(
                     f'Error during downloading list of images. Statuscode is {response.status}')
@@ -70,8 +70,7 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
     async with loop.get(path) as response:
         if response.status != HTTPStatus.OK:
             content = await response.read()
-            logging.error(
-                f'bad status code {response.status} for {path}: {content}')
+            logging.error(f'bad status code {response.status} for {path}: {content}')
             return
         filename = f'{image_folder}/{image_id}.jpg'
         async with aiofiles.open(filename, 'wb') as f:
@@ -102,11 +101,11 @@ class DownloadError(Exception):
 
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
-    path = f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
+    path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
     async with loop.get(path) as response:
         if response.status != 200:
             content = await response.json()
-            logging.error(f'could not download {loop.base_url}/{path}: {response.status}, content: {content}')
+            logging.error(f'could not download {loop.web.base_url}/{path}: {response.status}, content: {content}')
             raise DownloadError(content['detail'])
         try:
             provided_filename = response.headers.get(

@@ -14,13 +14,13 @@ from learning_loop_node.trainer import active_training
 
 @pytest.fixture()
 def create_project():
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
                              'box_categories': 1, 'point_categories': 1, 'segmentation_categories': 1, 'thumbs': False, 'trainings': 1}
-    assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
+    assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
 
 
 async def test_all(create_project):

@@ -3,73 +3,56 @@ from datetime import datetime, timedelta
 from async_generator import asynccontextmanager
 import aiohttp
 import os
-import werkzeug
 from icecream import ic
 import logging
-import requests
 from . import environment_reader
+from requests import Session
+from urllib.parse import urljoin
 
 
-class AccessToken():
-    def __init__(self, token: str, local_expire_date: datetime):
-        self.token = token
-        self.local_expire_date = local_expire_date
+class WebSession(Session):
+    def __init__(self, base_url=None):
+        super().__init__()
+        self.base_url = base_url
 
-    def is_still_valid(self) -> bool:
-        return (self.local_expire_date - timedelta(hours=1)) > datetime.now()
-
-    def is_invalid(self) -> bool:
-        return not self.is_still_valid
-
-
-def token_from_response(response: werkzeug.Response) -> AccessToken:
-    content = response.json()
-    server_time = werkzeug.http.parse_date(response.headers['date'])
-    expires_time = datetime.fromtimestamp(content['expires'], tz=server_time.tzinfo)
-    # we do not care about the few seconds wich ellapsed during request.
-    local_expire_time = datetime.now() + (expires_time - server_time)
-    return AccessToken(content['access_token'], local_expire_time)
+    def request(self, method, url, *args, **kwargs):
+        joined_url = urljoin(self.base_url, url)
+        return super().request(method, joined_url, *args, **kwargs)
 
 
 class Loop():
     def __init__(self) -> None:
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
-        self.base_url: str = f'http{"s" if host != "backend" else ""}://' + host
         self.username: str = os.environ.get('LOOP_USERNAME', None) or os.environ.get('USERNAME', None)
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization: str = environment_reader.organization(default='')
         self.project: str = environment_reader.project(default='')
-        self.access_token = None
-        self.web = requests.Session()
+        base_url: str = f'http{"s" if host != "backend" else ""}://' + host + ("/api" if host != "backend" else "")
+        logging.info(f'using base_url: {base_url}')
+        self.web = WebSession(base_url=base_url)
+        self.client_session = None
 
-    def download_token(self):
-
-        response = self.web.post(
-            (self.base_url + '/api/token').replace('//api', '/api'),
-            data={'username': self.username, 'password': self.password}
-        )
-        response.raise_for_status()
-        return token_from_response(response)
+    async def ensure_login(self):
+        # delayed login because the aiohttp client session needs to be created on the event loop
+        if not self.web.cookies.keys():
+            response = self.web.post('login', data={'username': self.username, 'password': self.password})
+            if response.status_code != 200:
+                self.web.cookies.clear()
+                raise Exception('bad response: ' + str(response.content))
+            self.web.cookies.update(response.cookies)
+        if self.client_session is None or self.client_session.closed:
+            self.client_session = aiohttp.ClientSession(base_url=self.web.base_url)
+            for cookie in self.web.cookies:
+                self.client_session.cookie_jar.update_cookies({cookie.name: cookie.value})
 
     async def create_headers(self) -> dict:
         return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
 
-    def get_headers(self):
-        headers = {}
-        if self.username and self.password:
-            if self.access_token is None or self.access_token.is_invalid():
-                self.access_token = self.download_token()
-
-            headers['Authorization'] = f'Bearer {self.access_token.token}'
-
-        return headers
-
     @asynccontextmanager
     async def get(self, path):
-        url = f'{self.base_url}/{path.lstrip("/")}'
-        logging.debug(url)
-        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
-            async with session.get(url) as response:
+        await self.ensure_login()
+        async with self.client_session as session:
+            async with session.get(path) as response:
                 yield response
 
     async def get_json_async(self, path):
@@ -93,13 +76,14 @@ class Loop():
 
     @asynccontextmanager
     async def put(self, path, data):
-        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
-            async with session.put(f'{self.base_url}/{path}', data=data) as response:
+        await self.ensure_login()
+        async with self.client_session as session:
+            async with session.put(path, data=data) as response:
                 yield response
 
     async def put_json_async(self, path, json):
-        url = f'{self.base_url}{loop.project_path}/{path.lstrip("/")}'
-        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
+        url = f'{loop.project_path}/{path.lstrip("/")}'
+        async with self.client_session as session:
             async with session.put(url, json=json) as response:
                 if response.status != 200:
                     res = await response.json()
@@ -111,13 +95,14 @@ class Loop():
 
     @asynccontextmanager
     async def post(self, path, **kwargs):
-        async with aiohttp.ClientSession(headers=await self.create_headers()) as session:
-            async with session.post(f'{self.base_url}/{path}', **kwargs) as response:
+        await self.ensure_login()
+        async with self.client_session as session:
+            async with session.post(path, **kwargs) as response:
                 yield response
 
     @property
     def project_path(self):
-        return f'/api/{self.organization}/projects/{self.project}'
+        return f'/{self.organization}/projects/{self.project}'
 
 
 loop = Loop()

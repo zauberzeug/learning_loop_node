@@ -11,7 +11,7 @@ async def upload_model(context: Context, files: List[str], model_id: str, format
 
     for file_name in files:
         data.add_field('files',  open(file_name, 'rb'))
-    async with loop.put(f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file', data=data) as response:
+    async with loop.put(f'/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file', data=data) as response:
         if response.status != 200:
             msg = f'---- could not upload model with id {model_id} and format {format}. Details: {await response.text()}'
             raise Exception(msg)
@@ -24,7 +24,7 @@ async def upload_model_for_training(context: Context, files: List[str], training
 
     for file_name in files:
         data.add_field('files',  open(file_name, 'rb'))
-    async with loop.put(f'api/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{format}/file', data=data) as response:
+    async with loop.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{format}/file', data=data) as response:
         if response.status != 200:
             msg = f'---- could not upload model for training {training_number} and format {format}. Details: {await response.text()}'
             logging.error(msg)

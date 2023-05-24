@@ -38,6 +38,8 @@ async def test_trainer_node(request):
     trainer = TestingTrainer()
 
     node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
+    if not node.sio_client:
+        await node.create_sio_client()
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)

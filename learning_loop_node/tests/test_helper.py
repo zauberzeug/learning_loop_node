@@ -11,23 +11,28 @@ import aiohttp
 import logging
 from icecream import ic
 import shutil
+import requests
 
 
 class LiveServerSession(Session):
     """https://stackoverflow.com/a/51026159/364388"""
-
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = loop.base_url
+        self.prefix_url = loop.web.base_url
+        self.cookies = self.get_cookies()
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
-        headers = {}
-        if 'token' in url:
-            return super(LiveServerSession, self).request(method, url, *args, **kwargs)
+        return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
 
-        headers = loop.get_headers()
-        return super(LiveServerSession, self).request(method, url, headers=headers, *args, **kwargs)
+    def get_cookies(self) -> dict:
+        user = os.environ.get('USERNAME', None)
+        password = os.environ.get('PASSWORD', None)
+        files = {
+            'username': (None, user),
+            'password': (None, password),
+        }
+        return requests.post(f'{self.prefix_url}/login', files=files).cookies
 
 
 def get_files_in_folder(folder: str):
@@ -37,7 +42,7 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    async with loop.get(f'api/zauberzeug/projects/pytest/trainings') as response:
+    async with loop.get(f'/zauberzeug/projects/pytest/trainings') as response:
         assert response.status == 200
         trainings = await response.json()
         return trainings['charts'][0]['data'][0]['model_id']
@@ -46,7 +51,7 @@ async def get_latest_model_id() -> str:
 async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, format: str = 'mocked', model_id: Optional[str] = None) -> str:
     data = prepare_formdata(file_paths)
 
-    async with loop.put(f'api/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data) as response:
+    async with loop.put(f'/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data) as response:
         if response.status != 200:
             msg = f'unexpected status code {response.status} while putting model'
             logging.error(msg)

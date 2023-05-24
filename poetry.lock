@@ -1219,7 +1219,6 @@ files = [
 ]
 
 [package.dependencies]
-aiohttp = {version = ">=3.4", optional = true, markers = "extra == \"asyncio_client\""}
 bidict = ">=0.21.0"
 python-engineio = ">=4.3.0"
 

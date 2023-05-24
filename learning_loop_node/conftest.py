@@ -12,13 +12,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 @pytest.fixture()
 def create_project():
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
                              'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
-    assert test_helper.LiveServerSession().post(f"/api/zauberzeug/projects/generator",
+    assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
-    test_helper.LiveServerSession().delete(f"/api/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
 
 
 @pytest.fixture(autouse=True, scope='session')
