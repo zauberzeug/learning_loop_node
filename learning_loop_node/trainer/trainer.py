@@ -390,7 +390,7 @@ class Trainer():
             active_training.save(self.training)
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
-        batch_size = 50
+        batch_size = 10
 
         skip_detections = active_training.detections_upload_progress.load(self.training)
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
