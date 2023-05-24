@@ -55,8 +55,8 @@ class TrainerNode(Node):
         async def continous_send_status():
             try:
                 await self.send_status()
-            except:
-                logging.exception('could not send status state')
+            except Exception as e:
+                logging.exception(f'could not send status state: {e}')
 
         @self.on_event("shutdown")
         async def shutdown():

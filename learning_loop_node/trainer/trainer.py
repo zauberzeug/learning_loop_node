@@ -33,6 +33,7 @@ import socketio
 from datetime import datetime
 from .errors import TrainingError
 from .errors import Errors
+from pathlib import Path
 
 
 class Trainer():
@@ -90,24 +91,27 @@ class Trainer():
             training = active_training.load()
             self.training = training
 
-        while self.training or active_training.exists():
-            await asyncio.sleep(0.2)  # Note: Needed for error reporting
-            if training.training_state == TrainingState.Initialized:
-                await self.prepare()
-            if training.training_state == TrainingState.DataDownloaded:
-                await self.download_model()
-            if training.training_state == TrainingState.TrainModelDownloaded:
-                await self.run_training(uuid, sio_client)
-            if training.training_state == TrainingState.TrainingFinished:
-                await self.ensure_confusion_matrix_synced(uuid, sio_client)
-            if training.training_state == TrainingState.ConfusionMatrixSynced:
-                await self.upload_model()
-            if training.training_state == TrainingState.TrainModelUploaded:
-                await self.do_detections()
-            if training.training_state == TrainingState.Detected:
-                await self.upload_detections()
-            if training.training_state == TrainingState.ReadyForCleanup:
-                await self.clear_training()
+        while True:
+            if self.training or active_training.exists():
+                await asyncio.sleep(0.6)  # Note: Needed for error reporting
+                if training.training_state == TrainingState.Initialized:
+                    await self.prepare()
+                if training.training_state == TrainingState.DataDownloaded:
+                    await self.download_model()
+                if training.training_state == TrainingState.TrainModelDownloaded:
+                    await self.run_training(uuid, sio_client)
+                if training.training_state == TrainingState.TrainingFinished:
+                    await self.ensure_confusion_matrix_synced(uuid, sio_client)
+                if training.training_state == TrainingState.ConfusionMatrixSynced:
+                    await self.upload_model()
+                if training.training_state == TrainingState.TrainModelUploaded:
+                    await self.do_detections()
+                if training.training_state == TrainingState.Detected:
+                    await self.upload_detections()
+                if training.training_state == TrainingState.ReadyForCleanup:
+                    await self.clear_training()
+            else:
+                break
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
@@ -308,8 +312,7 @@ class Trainer():
         previous_state = self.training.training_state
         try:
             self.training.training_state = TrainingState.Detecting
-            detections = await self._do_detections()
-            active_training.detections.save(self.training, jsonable_encoder(detections))
+            await self._do_detections()
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -348,12 +351,14 @@ class Trainer():
         images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
         logging.info(f'running detections on {len(images)} images')
         batch_size = 200
-        detections = []
+        idx = 0
+        if not images:
+            active_training.detections.save(self.training, [], idx)
         for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
-            detections.extend(batch_detections)
-        return detections
+            active_training.detections.save(self.training, jsonable_encoder(batch_detections), idx)
+            idx += 1
 
     async def upload_detections(self):
         error_key = 'upload_detections'
@@ -364,8 +369,15 @@ class Trainer():
         await asyncio.sleep(0.1)  # NOTE needed for tests
 
         try:
-            detections = active_training.detections.load(self.training)
-            await self._upload_detections(context, detections)
+            json_files = active_training.detections.get_file_names(self.training)
+            if not json_files:
+                raise Exception()
+            current_json_file_index = active_training.detections_upload_file_index.load(self.training)
+            for i in range(current_json_file_index, len(json_files)):
+                detections = active_training.detections.load(self.training, i)
+                logging.info(f'uploading detections {i}/{len(json_files)}')
+                await self._upload_detections(context, detections)
+                active_training.detections_upload_file_index.save(self.training, i+1)
         except asyncio.CancelledError:
             raise
         except Exception as e:
@@ -378,27 +390,34 @@ class Trainer():
             active_training.save(self.training)
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
-        logging.info('uploading detections')
         batch_size = 10
 
         skip_detections = active_training.detections_upload_progress.load(self.training)
-
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
-            batch_detections = detections[i:i+batch_size]
+            progress = i+batch_size
+            batch_detections = detections[i:progress]
             logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
+            await self._upload_to_learning_loop(context, batch_detections, progress)
+            skip_detections = progress
 
-            async with loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
-                if response.status != 200:
-                    msg = f'could not upload detections. {str(response)}'
-                    logging.error(msg)
-                    raise Exception(msg)
+    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
+        async with loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
+            if response.status != 200:
+                msg = f'could not upload detections. {str(response)}'
+                logging.error(msg)
+                raise Exception(msg)
+            else:
+                logging.info('successfully uploaded detections')
+                if progress > len(batch_detections):
+                    active_training.detections_upload_progress.save(self.training, 0)
                 else:
-                    logging.info('successfully uploaded detections')
-                    active_training.detections_upload_progress.save(self.training, min(i+batch_size, len(detections)))
+                    active_training.detections_upload_progress.save(
+                        self.training, progress)
 
     async def clear_training(self):
         active_training.detections.delete(self.training)
         active_training.detections_upload_progress.delete(self.training)
+        active_training.detections_upload_file_index.delete(self.training)
         try:
             await self.clear_training_data(self.training.training_folder)
         except NotImplementedError:

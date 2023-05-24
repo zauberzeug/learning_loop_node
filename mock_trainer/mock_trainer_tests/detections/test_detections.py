@@ -7,8 +7,9 @@ import pytest
 from learning_loop_node.globals import GLOBALS
 from mock_trainer import MockTrainer
 from learning_loop_node.tests import test_helper
-from glob import glob
 from icecream import ic
+from glob import glob
+from learning_loop_node.trainer import active_training
 
 
 @pytest.fixture()
@@ -34,7 +35,8 @@ async def test_all(create_project):
     training = Trainer.generate_training(context)
     training.model_id_for_detecting = latest_model_id
     trainer.training = training
-    detections = await trainer._do_detections()
+    await trainer._do_detections()
+    detections = active_training.detections.load(training, 0)
 
     assert_image_count(10)
     assert len(detections) == 10  # detections run on 10 images
@@ -47,4 +49,5 @@ async def test_all(create_project):
 def assert_image_count(value: int):
     images_folder = f'{GLOBALS.data_folder}/zauberzeug/pytest'
     files = glob(f'{images_folder}/**/*.*', recursive=True)
+    files = [file for file in files if file.endswith('.jpg')]
     assert len(files) == value
