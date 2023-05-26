@@ -23,6 +23,7 @@ class LiveServerSession(Session):
 
     def request(self, method, url, *args, **kwargs):
         url = urljoin(self.prefix_url, url)
+        ic(url)
         return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
 
     def get_cookies(self) -> dict:
