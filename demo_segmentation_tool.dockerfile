@@ -17,7 +17,7 @@ WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install --no-cache-dir "uvicorn[standard]" tqdm numpy async_generator aiofiles retry debugpy pytest-asyncio psutil icecream psutil pytest autopep8 pynvml
-RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.35"
+RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.53rc1"
 
 RUN apt-get update && apt-get -y install libgl1
 RUN python3 -m pip install --no-cache-dir opencv-python
