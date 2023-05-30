@@ -36,7 +36,7 @@ class LiveServerSession(Session):
             'password': (None, password),
         }
         login_url = 'login' if self.prefix_url.endswith('backend') else 'api/login'
-        return requests.post(f'{self.prefix_url}/{login_url}', files=files).cookies
+        return requests.post(f'{self.prefix_url}/{login_url}', headers={}, files=files).cookies
 
 
 def get_files_in_folder(folder: str):
