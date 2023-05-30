@@ -16,12 +16,14 @@ import requests
 
 class LiveServerSession(Session):
     """https://stackoverflow.com/a/51026159/364388"""
+
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
         self.prefix_url = loop.web.base_url
         self.cookies = self.get_cookies()
 
     def request(self, method, url, *args, **kwargs):
+        url = url if self.prefix_url.endswith('backend') else 'api/' + url
         url = urljoin(self.prefix_url, url)
         ic(url)
         return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
@@ -33,7 +35,8 @@ class LiveServerSession(Session):
             'username': (None, user),
             'password': (None, password),
         }
-        return requests.post(f'{self.prefix_url}/login', files=files).cookies
+        login_url = 'login' if self.prefix_url.endswith('backend') else 'api/login'
+        return requests.post(f'{self.prefix_url}/{login_url}', files=files).cookies
 
 
 def get_files_in_folder(folder: str):
@@ -45,7 +48,7 @@ def get_files_in_folder(folder: str):
 async def get_latest_model_id() -> str:
     async with loop.get(f'/zauberzeug/projects/pytest/trainings') as response:
         assert response.status == 200
-        trainings = await response.json()
+        trainings = await response.json(content_type=None)
         return trainings['charts'][0]['data'][0]['model_id']
 
 

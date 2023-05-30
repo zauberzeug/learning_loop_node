@@ -27,7 +27,7 @@ class Loop():
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization: str = environment_reader.organization(default='')
         self.project: str = environment_reader.project(default='')
-        base_url: str = f'http{"s" if host != "backend" else ""}://' + host + ("/api" if host != "backend" else "")
+        base_url: str = f'http{"s" if host != "backend" else ""}://' + host
         logging.info(f'using base_url: {base_url}')
         self.web = WebSession(base_url=base_url)
         self.client_session = None
@@ -35,7 +35,8 @@ class Loop():
     async def ensure_login(self):
         # delayed login because the aiohttp client session needs to be created on the event loop
         if not self.web.cookies.keys():
-            response = self.web.post('login', data={'username': self.username, 'password': self.password})
+            login_url = 'login' if self.web.base_url.endswith('backend') else 'api/login'
+            response = self.web.post(login_url, data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
                 self.web.cookies.clear()
                 raise Exception('bad response: ' + str(response.content))
@@ -48,10 +49,16 @@ class Loop():
     async def create_headers(self) -> dict:
         return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
 
+    def update_path(self, path: str) -> str:
+        if self.web.base_url.endswith('backend'):
+            return path
+        return f'/api{path}'
+
     @asynccontextmanager
     async def get(self, path):
         await self.ensure_login()
         async with self.client_session as session:
+            path = self.update_path(path)
             async with session.get(path) as response:
                 yield response
 
@@ -78,6 +85,7 @@ class Loop():
     async def put(self, path, data):
         await self.ensure_login()
         async with self.client_session as session:
+            path = self.update_path(path)
             async with session.put(path, data=data) as response:
                 yield response
 
@@ -97,6 +105,7 @@ class Loop():
     async def post(self, path, **kwargs):
         await self.ensure_login()
         async with self.client_session as session:
+            path = self.update_path(path)
             async with session.post(path, **kwargs) as response:
                 yield response
 
