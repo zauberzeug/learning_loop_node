@@ -24,7 +24,9 @@ class Outbox():
             os.makedirs(self.path)
 
         host = os.environ.get('HOST', 'learning-loop.ai')
-        base: str = f'http{"s" if host != "backend" else ""}://' + host
+        base_url = f'http{"s" if host != "backend" else ""}://' + host + \
+            '/api' if host != 'backend' else f'http{"s" if host != "backend" else ""}://' + host
+        base: str = base_url
         o = environment_reader.organization()
         p = environment_reader.project()
         assert o and p, 'Outbox needs an organization and a projekct '
