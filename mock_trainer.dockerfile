@@ -1,6 +1,6 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
 
-RUN apt-get update && apt-get install -y jpeginfo && apt-get -y install python3-pip && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get -allow-unauthenticated update && apt-get install -y jpeginfo && apt-get -y install python3-pip && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sSL https://gist.githubusercontent.com/b01/0a16b6645ab7921b0910603dfb85e4fb/raw/5186ea07a06eac28937fd914a9c8f9ce077a978e/download-vs-code-server.sh | bash
 
