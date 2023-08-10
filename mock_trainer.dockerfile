@@ -1,4 +1,4 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
+FROM zauberzeug/nicegui:1.2.13
 
 
 RUN apt-get update --allow-unauthenticated --allow-insecure-repositories && apt-get install -y jpeginfo && apt-get -y install python3-pip && apt-get clean && rm -rf /var/lib/apt/lists/*
