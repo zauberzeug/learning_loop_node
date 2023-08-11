@@ -1,20 +1,23 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.7
 
-RUN apt-get update --allow-unauthenticated && apt-get install -y jpeginfo && apt-get -y install python3-pip && apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM zauberzeug/nicegui:1.2.13
 
-RUN curl -sSL https://gist.githubusercontent.com/b01/0a16b6645ab7921b0910603dfb85e4fb/raw/5186ea07a06eac28937fd914a9c8f9ce077a978e/download-vs-code-server.sh | bash
-
-ENV VSCODE_SERVER=/root/.vscode-server/bin/*/server.sh
-
-RUN $VSCODE_SERVER --install-extension ms-python.vscode-pylance \
-    $VSCODE_SERVER --install-extension ms-python.python \
-    $VSCODE_SERVER --install-extension himanoa.python-autopep8 \
-    $VSCODE_SERVER --install-extension esbenp.prettier-vscode \
-    $VSCODE_SERVER --install-extension littlefoxteam.vscode-python-test-adapter
+RUN apt-get update && \
+    apt-get install -y jpeginfo \
+    python3-pip \
+    libjpeg-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
+
+# Install system packages required by Pillow
+# TODO upgrade to pillow >=10 in pyproject.toml
+RUN apt-get update && \
+    apt-get install -y \
+    libjpeg-dev\
+    && rm -rf /var/lib/apt/lists/*
 
 RUN python3 -m pip install --no-cache-dir "uvicorn[standard]" tqdm async_generator aiofiles retry debugpy pytest-asyncio psutil icecream pytest autopep8 pynvml
 RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.53rc2"
