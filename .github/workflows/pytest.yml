@@ -11,12 +11,12 @@ jobs:
       - name: set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: "3.7"
+          python-version: "3.8"
       - name: set up Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
           poetry-version: "1.5.0"
-      - name: install curl ssl
+      - name: install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install libcurl4-openssl-dev libssl-dev
