@@ -17,6 +17,17 @@ WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
 
+# Install system packages required by Pillow
+RUN apt-get update && \
+    apt-get install -y \
+    libjpeg62-turbo-dev \
+    zlib1g-dev \
+    libfreetype6-dev \
+    liblcms2-dev \
+    libopenjpeg-dev \
+    libtiff5-dev \
+    libwebp-dev 
+
 RUN python3 -m pip install --no-cache-dir "uvicorn[standard]"  tqdm async_generator aiofiles retry debugpy pytest-asyncio psutil icecream pytest "pytest-mock==3.6.1" autopep8 pynvml 
 RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.53rc2"
 
