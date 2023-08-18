@@ -1,3 +1,8 @@
+if True:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from typing import Dict, List, Optional, Union
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel

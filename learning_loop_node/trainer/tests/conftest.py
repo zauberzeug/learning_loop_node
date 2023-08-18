@@ -1,3 +1,6 @@
+if True:
+    import logging
+    logging.basicConfig(level=logging.INFO)
 import multiprocessing
 from shutil import ExecError
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
@@ -9,7 +12,6 @@ from learning_loop_node.data_classes import Category
 
 import uvicorn
 from multiprocessing import Process, log_to_stderr
-import logging
 import icecream
 import os
 import socket
@@ -18,7 +20,6 @@ from typing import Generator
 import socketio
 from glob import glob
 
-logging.basicConfig(level=logging.INFO)
 
 # show ouptut from uvicorn server https://stackoverflow.com/a/66132186/364388
 log_to_stderr(logging.INFO)
