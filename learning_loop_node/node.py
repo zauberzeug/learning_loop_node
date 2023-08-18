@@ -88,6 +88,8 @@ class Node(FastAPI):
         async def startup():
             logging.debug('received "startup" event')
             Node._activate_asyncio_warnings()
+
+            await loop.backend_ready()
             await loop.ensure_login()
             await self.create_sio_client()
 

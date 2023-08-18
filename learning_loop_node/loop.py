@@ -27,8 +27,9 @@ class Loop():
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization: str = environment_reader.organization(default='')
         self.project: str = environment_reader.project(default='')
-        base_url: str = f'http{"s" if host != "backend" else ""}://' + host
+        base_url: str = f'http{"s" if host != "proxy" else ""}://' + host
         logging.info(f'using base_url: {base_url}')
+        ic(base_url)
         self.web = WebSession(base_url=base_url)
         self.client_session = None
 
@@ -48,6 +49,17 @@ class Loop():
 
     async def create_headers(self) -> dict:
         return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
+
+    async def backend_ready(self) -> bool:
+        while True:
+            try:
+                logging.info('checking if backend is ready')
+                response = self.web.get('/api/status')
+                if response.status_code == 200:
+                    return True
+            except Exception as e:
+                logging.info(f'backend not ready: {e}')
+            await asyncio.sleep(2)
 
     def update_path(self, path: str) -> str:
         if self.web.base_url.endswith('backend'):
