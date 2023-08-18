@@ -30,7 +30,7 @@ class Node(FastAPI):
         self.log = logging.getLogger()
 
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
-        self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
+        self.ws_url = f'ws{"s" if host != "proxy" else ""}://' + host
 
         self.name = name
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid

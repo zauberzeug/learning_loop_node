@@ -36,8 +36,7 @@ class Loop():
     async def ensure_login(self):
         # delayed login because the aiohttp client session needs to be created on the event loop
         if not self.web.cookies.keys():
-            login_url = 'login' if self.web.base_url.endswith('backend') else 'api/login'
-            response = self.web.post(login_url, data={'username': self.username, 'password': self.password})
+            response = self.web.post('api/login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
                 self.web.cookies.clear()
                 raise Exception('bad response: ' + str(response.content))
@@ -62,8 +61,6 @@ class Loop():
             await asyncio.sleep(2)
 
     def update_path(self, path: str) -> str:
-        if self.web.base_url.endswith('backend'):
-            return path
         return f'/api{path}'
 
     @asynccontextmanager

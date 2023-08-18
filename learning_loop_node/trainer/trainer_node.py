@@ -82,6 +82,10 @@ class TrainerNode(Node):
         loop.create_task(self.trainer.train(self.uuid, self.sio_client))
 
     async def send_status(self):
+        if not self.sio_client.connected:
+            self.log.info('could not send status -- we are not connected to the Learning Loop')
+            return
+
         if not self.trainer.training and active_training.exists():
             logging.warning('Found active training, starting now.')
             self.start_training_task()

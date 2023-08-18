@@ -23,7 +23,7 @@ class LiveServerSession(Session):
         self.cookies = self.get_cookies()
 
     def request(self, method, url, *args, **kwargs):
-        url = url if self.prefix_url.endswith('backend') else 'api/' + url
+        url = 'api/' + url
         url = urljoin(self.prefix_url, url)
         ic(url)
         return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
@@ -35,8 +35,7 @@ class LiveServerSession(Session):
             'username': (None, user),
             'password': (None, password),
         }
-        login_url = 'login' if self.prefix_url.endswith('backend') else 'api/login'
-        return requests.post(f'{self.prefix_url}/{login_url}', files=files).cookies
+        return requests.post(f'{self.prefix_url}/api/login', files=files).cookies
 
 
 def get_files_in_folder(folder: str):
