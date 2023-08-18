@@ -29,7 +29,6 @@ class Loop():
         self.project: str = environment_reader.project(default='')
         base_url: str = f'http{"s" if host != "proxy" else ""}://' + host
         logging.info(f'using base_url: {base_url}')
-        ic(base_url)
         self.web = WebSession(base_url=base_url)
         self.client_session = None
 

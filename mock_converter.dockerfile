@@ -24,7 +24,7 @@ RUN python3 -m pip install --no-cache-dir "learning-loop-node==0.7.53rc2"
 ADD ./learning_loop_node /usr/local/lib/python3.7/site-packages/learning_loop_node
 
 COPY ./mock_converter/ /app
-ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
+ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.11/site-packages"
 ENV TZ=Europe/Amsterdam
 
 EXPOSE 80

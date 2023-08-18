@@ -1,3 +1,8 @@
+if True:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+
 from typing import Optional
 import logging
 from fastapi.encoders import jsonable_encoder

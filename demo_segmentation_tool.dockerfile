@@ -24,7 +24,7 @@ RUN apt-get update && apt-get -y install libgl1
 RUN python3 -m pip install --no-cache-dir opencv-python
 
 ADD ./mock_annotation_node /app
-ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.7/site-packages"
+ENV PYTHONPATH "${PYTHONPATH}:/app:/usr/local/lib/python3.11/site-packages"
 ENV TZ=Europe/Amsterdam
 
 EXPOSE 80
