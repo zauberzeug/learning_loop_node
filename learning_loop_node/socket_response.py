@@ -49,8 +49,12 @@ def ensure_socket_response(func):
                 return value
             elif (args[0] in ['connect', 'disconnect', 'connect_error']):
                 return value
+            elif value is None:
+                return None
             else:
-                raise Exception(f"Returntype for sio must be str or bool or SocketResponse', but was {type(value)}'")
+                raise Exception(
+                    f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'"
+                )
         except Exception as e:
             trace = ''.join(traceback.format_stack())
             logging.error(
