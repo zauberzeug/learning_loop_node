@@ -4,7 +4,6 @@ from learning_loop_node.trainer.tests.states.state_helper import assert_training
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer import active_training
 from learning_loop_node.tests.test_helper import condition
-from asyncio import coroutine
 
 
 async def test_successful_training():
