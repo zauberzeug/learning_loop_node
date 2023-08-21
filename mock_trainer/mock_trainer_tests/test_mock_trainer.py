@@ -1,3 +1,4 @@
+import asyncio
 from learning_loop_node.trainer.executor import Executor
 from learning_loop_node.trainer.training_data import TrainingData
 from learning_loop_node.context import Context
@@ -12,6 +13,7 @@ async def create_mock_trainer() -> MockTrainer:
     mock_trainer = MockTrainer(model_format='mocked')
     mock_trainer.executor = Executor(GLOBALS.data_folder)
     await mock_trainer.prepare()
+    await asyncio.sleep(4)
     return mock_trainer
 
 
