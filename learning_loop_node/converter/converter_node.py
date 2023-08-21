@@ -62,48 +62,47 @@ class ConverterNode(Node):
 
     async def convert_models(self) -> None:
         try:
-            async with loop.get('/projects') as response:
-                assert response.status == 200, f'Assert statuscode 200, but was {response.status}.'
-                content = await response.json()
-                projects = content['projects']
+            response = await loop.get('/projects')
+            assert response.status_code == 200, f'Assert statuscode 200, but was {response.status}.'
+            content = response.json()
+            projects = content['projects']
 
             for project in projects:
                 organization_id = project['organization_id']
                 project_id = project['project_id']
 
-                async with loop.get(f'{project["resource"]}') as response:
-                    if response.status != HTTPStatus.OK:
-                        logging.error(
-                            f'got bad response for {response.url}: {response.status}, {response.content}')
-                        continue
-                    project_categories = (await response.json())['categories']
+                response = await loop.get(f'{project["resource"]}')
+                if response.status_code != HTTPStatus.OK:
+                    logging.error(
+                        f'got bad response for {response.url}: {response.status_code}, {response.content}')
+                    continue
+                project_categories = response.json()['categories']
 
                 path = f'{project["resource"]}/models'
-                async with loop.get(path) as models_response:
-                    assert models_response.status == 200
-                    content = await models_response.json()
-                    models = content['models']
+                models_response = await loop.get(path)
+                assert models_response.status_code == 200
+                content = models_response.json()
+                models = content['models']
 
-                    for model in models:
-                        if (model['version']
-                                and self.converter.source_format in model['formats']
-                                and self.converter.target_format not in model['formats']
-                                ):
-                            # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
-                            model_information = ModelInformation(
-                                host=loop.web.base_url,
-                                organization=organization_id,
-                                project=project_id,
-                                id=model['id'],
-                                categories=project_categories,
-                                version=model['version'],
-                            )
-                            await self.convert_model(model_information)
+                for model in models:
+                    if (model['version']
+                            and self.converter.source_format in model['formats']
+                            and self.converter.target_format not in model['formats']
+                        ):
+                        # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
+                        model_information = ModelInformation(
+                            host=loop.web.base_url,
+                            organization=organization_id,
+                            project=project_id,
+                            id=model['id'],
+                            categories=project_categories,
+                            version=model['version'],
+                        )
+                        await self.convert_model(model_information)
         except Exception as e:
             import traceback
             logging.error(str(e))
             print(traceback.format_exc())
-            
 
     async def send_status(self):
         # NOTE not yet implemented

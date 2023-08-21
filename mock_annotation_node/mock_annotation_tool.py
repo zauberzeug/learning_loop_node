@@ -34,7 +34,6 @@ class MockAnnotationTool(AnnotationTool):
 
     async def handle_user_input(self, user_input, history: dict):
         out = ToolOutput(svg="", annotation=None)
-        ic(f'received user input: {jsonable_encoder(user_input)}')
         event_type = user_input.data.event_type
         try:
             if user_input.data.event_type == EventType.LeftMouseDown:

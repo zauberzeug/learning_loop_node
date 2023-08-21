@@ -39,13 +39,13 @@ class Node(FastAPI):
         self.sio_client = None
 
     async def create_sio_client(self):
-        if loop.client_session is None:  # NOTE the cookie jar is not yet initialized
-            await self.create_sio_client()
+        if loop.async_client is None:  # NOTE the cookie jar is not yet initialized
+            await loop.ensure_login()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
-            http_session=aiohttp.ClientSession(cookie_jar=loop.client_session.cookie_jar),
+            http_session=aiohttp.ClientSession(cookies=loop.async_client.cookies),
             # logger=True, engineio_logger=True
         )
         self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)

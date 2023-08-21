@@ -18,12 +18,12 @@ async def operation_mode(organization: str, project: str, version: str, request:
         curl -X POST localhost/controls/detect/<organization>/<project>/<model_version>
     '''
     path = f'/{organization}/projects/{project}/models'
-    async with loop.get(path) as response:
-        if response.status != 200:
-            raise HTTPException(404, 'could not load latest model')
-        models = (await response.json())['models']
-        model_id = next(m for m in models if m['version'] == version)['id']
-        logging.info(model_id)
+    response = await loop.get(path)
+    if response.status_code != 200:
+        raise HTTPException(404, 'could not load latest model')
+    models = response.json()['models']
+    model_id = next(m for m in models if m['version'] == version)['id']
+    logging.info(model_id)
     trainer: Trainer = request.app.trainer
     await trainer.do_detections(Context(organization=organization, project=project), model_id)
     return "OK"

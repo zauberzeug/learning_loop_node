@@ -25,7 +25,6 @@ class LiveServerSession(Session):
     def request(self, method, url, *args, **kwargs):
         url = 'api/' + url
         url = urljoin(self.prefix_url, url)
-        ic(url)
         return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
 
     def get_cookies(self) -> dict:
@@ -45,23 +44,24 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    async with loop.get(f'/zauberzeug/projects/pytest/trainings') as response:
-        assert response.status == 200
-        trainings = await response.json(content_type=None)
-        return trainings['charts'][0]['data'][0]['model_id']
+    response = await loop.get(f'/zauberzeug/projects/pytest/trainings')
+    assert response.status_code == 200
+    trainings = response.json()
+    ic(trainings)
+    return trainings['charts'][0]['data'][0]['model_id']
 
 
 async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, format: str = 'mocked', model_id: Optional[str] = None) -> str:
     data = prepare_formdata(file_paths)
 
-    async with loop.put(f'/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data) as response:
-        if response.status != 200:
-            msg = f'unexpected status code {response.status} while putting model'
-            logging.error(msg)
-            raise (Exception(msg))
-        model = await response.json()
+    response = await loop.put(f'/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data)
+    if response.status_code != 200:
+        msg = f'unexpected status code {response.status_code} while putting model'
+        logging.error(msg)
+        raise (Exception(msg))
+    model = response.json()
 
-        return model['id']
+    return model['id']
 
 
 def prepare_formdata(file_paths: Optional[List[str]]) -> aiohttp.FormData:

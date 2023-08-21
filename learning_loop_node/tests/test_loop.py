@@ -22,16 +22,14 @@ async def test_multiple_get_requests_after_post_request_should_not_causes_timeou
 
     data = test_helper.prepare_formdata(['/tmp/some_model/model.pt', '/tmp/some_model/model.json'])
     from learning_loop_node.loop import loop
-    async with loop.post(f'/zauberzeug/projects/pytest/models/yolov5_pytorch', data=data) as response:
-        if response.status != 200:
-            msg = f'unexpected status code {response.status} while putting model'
-            logging.error(msg)
-            raise (Exception(msg))
-        model = await response.json()
+    response = await loop.post(f'/zauberzeug/projects/pytest/models/yolov5_pytorch', data=data)
+    if response.status_code != 200:
+        msg = f'unexpected status code {response.status_code} while putting model'
+        logging.error(msg)
+        raise (Exception(msg))
+    model = response.json()
 
     for i in range(10):
-        ic('going to download model from loop')
-
         import shutil
         shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
         os.makedirs(GLOBALS.data_folder)

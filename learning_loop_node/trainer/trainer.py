@@ -401,18 +401,17 @@ class Trainer():
             skip_detections = progress
 
     async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
-        async with loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
-            if response.status != 200:
-                msg = f'could not upload detections. {str(response)}'
-                logging.error(msg)
-                raise Exception(msg)
+        response = await loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
+        if response.status_code != 200:
+            msg = f'could not upload detections. {str(response)}'
+            logging.error(msg)
+            raise Exception(msg)
+        else:
+            logging.info('successfully uploaded detections')
+            if progress > len(batch_detections):
+                active_training.detections_upload_progress.save(self.training, 0)
             else:
-                logging.info('successfully uploaded detections')
-                if progress > len(batch_detections):
-                    active_training.detections_upload_progress.save(self.training, 0)
-                else:
-                    active_training.detections_upload_progress.save(
-                        self.training, progress)
+                active_training.detections_upload_progress.save(self.training, progress)
 
     async def clear_training(self):
         active_training.detections.delete(self.training)

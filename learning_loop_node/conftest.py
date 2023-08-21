@@ -36,9 +36,9 @@ def clea_loggers():
 
 @pytest.fixture(autouse=True, scope='function')
 def loop_session():
-    loop.session = None
+    loop.async_client = None
     yield
-    loop.session = None
+    loop.async_client = None
 
 
 @pytest.fixture(autouse=True, scope='function')

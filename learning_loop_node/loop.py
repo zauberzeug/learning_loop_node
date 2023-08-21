@@ -8,6 +8,7 @@ import logging
 from . import environment_reader
 from requests import Session
 from urllib.parse import urljoin
+import httpx
 
 
 class WebSession(Session):
@@ -30,7 +31,7 @@ class Loop():
         base_url: str = f'http{"s" if host != "proxy" else ""}://' + host
         logging.info(f'using base_url: {base_url}')
         self.web = WebSession(base_url=base_url)
-        self.client_session = None
+        self.async_client: httpx.AsyncClient = None
 
     async def ensure_login(self):
         # delayed login because the aiohttp client session needs to be created on the event loop
@@ -40,10 +41,10 @@ class Loop():
                 self.web.cookies.clear()
                 raise Exception('bad response: ' + str(response.content))
             self.web.cookies.update(response.cookies)
-        if self.client_session is None or self.client_session.closed:
-            self.client_session = aiohttp.ClientSession(base_url=self.web.base_url)
+        if self.async_client is None or self.async_client.is_closed:
+            self.async_client = httpx.AsyncClient(base_url=self.web.base_url)
             for cookie in self.web.cookies:
-                self.client_session.cookie_jar.update_cookies({cookie.name: cookie.value})
+                self.async_client.cookies.update({cookie.name: cookie.value})
 
     async def create_headers(self) -> dict:
         return await asyncio.get_event_loop().run_in_executor(None, self.get_headers)
@@ -62,60 +63,50 @@ class Loop():
     def update_path(self, path: str) -> str:
         return f'/api{path}'
 
-    @asynccontextmanager
-    async def get(self, path):
+    async def get(self, path) -> httpx.Response:
         await self.ensure_login()
-        async with self.client_session as session:
-            path = self.update_path(path)
-            async with session.get(path) as response:
-                yield response
+        path = self.update_path(path)
+        return await self.async_client.get(path)
 
     async def get_json_async(self, path):
         url = f'{loop.project_path}{path}'
-        async with self.get(url) as response:
-            if response.status != 200:
-                raise Exception('bad response: ' + str(response))
-            return await response.json()
+        response = await self.get(url)
+        if response.status_code != 200:
+            raise Exception('bad response: ' + str(response))
+        return response.json()
 
     def get_json(self, path):
         return asyncio.get_event_loop().run_until_complete(self.get_json_async(path))
 
-    async def get_data_async(self, path):
-        async with self.get(f'{loop.project_path}{path}') as response:
-            if response.status != 200:
-                raise Exception('bad response: ' + str(response))
-            return await response.read()
+    async def get_data_async(self, path) -> bytes:
+        response = await self.get(f'{loop.project_path}{path}')
+        if response.status_code != 200:
+            raise Exception('bad response: ' + str(response))
+        return response.content
 
     def get_data(self, path):
         return asyncio.get_event_loop().run_until_complete(self.get_data_async(path))
 
-    @asynccontextmanager
-    async def put(self, path, data):
+    async def put(self, path, data) -> httpx.Response:
         await self.ensure_login()
-        async with self.client_session as session:
-            path = self.update_path(path)
-            async with session.put(path, data=data) as response:
-                yield response
+        path = self.update_path(path)
+        return await self.async_client.put(path, data=data)
 
-    async def put_json_async(self, path, json):
+    async def put_json_async(self, path, json) -> dict:
         url = f'{loop.project_path}/{path.lstrip("/")}'
-        async with self.client_session as session:
-            async with session.put(url, json=json) as response:
-                if response.status != 200:
-                    res = await response.json()
-                    raise Exception(f'bad response: {str(response)} \n {res}')
-                return await response.json()
+        response = await self.async_client.put(url, json=json)
+        if response.status_code != 200:
+            res = response.json()
+            raise Exception(f'bad response: {str(response)} \n {res}')
+        return response.json()
 
     def put_json(self, path, json):
         return asyncio.get_event_loop().run_until_complete(self.put_json_async(path, json))
 
-    @asynccontextmanager
-    async def post(self, path, **kwargs):
+    async def post(self, path, **kwargs) -> httpx.Response:
         await self.ensure_login()
-        async with self.client_session as session:
-            path = self.update_path(path)
-            async with session.post(path, **kwargs) as response:
-                yield response
+        path = self.update_path(path)
+        return await self.async_client.post(path, **kwargs)
 
     @property
     def project_path(self):
