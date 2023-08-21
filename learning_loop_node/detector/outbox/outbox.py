@@ -25,7 +25,7 @@ class Outbox():
             os.makedirs(self.path)
 
         host = os.environ.get('HOST', 'learning-loop.ai')
-        base_url = f'http{"s" if host != "proxy" else ""}://{host}/api'
+        base_url = f'http{"s" if "learning-loop.ai" in host else ""}://{host}/api'
         base: str = base_url
         o = environment_reader.organization()
         p = environment_reader.project()

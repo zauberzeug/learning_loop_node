@@ -28,7 +28,7 @@ class Loop():
         self.password: str = os.environ.get('LOOP_PASSWORD', None) or os.environ.get('PASSWORD', None)
         self.organization: str = environment_reader.organization(default='')
         self.project: str = environment_reader.project(default='')
-        base_url: str = f'http{"s" if host != "proxy" else ""}://' + host
+        base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
         logging.info(f'using base_url: {base_url}')
         self.web = WebSession(base_url=base_url)
         self.async_client: httpx.AsyncClient = None

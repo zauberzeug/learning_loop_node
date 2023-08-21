@@ -20,21 +20,16 @@ class LiveServerSession(Session):
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
         self.prefix_url = loop.web.base_url
-        self.cookies = self.get_cookies()
+        data = {
+            'username': os.environ.get('LOOP_USERNAME', None),
+            'password': os.environ.get('LOOP_PASSWORD', None),
+        }
+        self.cookies = requests.post(f'{self.prefix_url}/api/login', data=data).cookies
 
     def request(self, method, url, *args, **kwargs):
         url = 'api/' + url
         url = urljoin(self.prefix_url, url)
         return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
-
-    def get_cookies(self) -> dict:
-        user = os.environ.get('USERNAME', None)
-        password = os.environ.get('PASSWORD', None)
-        files = {
-            'username': (None, user),
-            'password': (None, password),
-        }
-        return requests.post(f'{self.prefix_url}/api/login', files=files).cookies
 
 
 def get_files_in_folder(folder: str):
