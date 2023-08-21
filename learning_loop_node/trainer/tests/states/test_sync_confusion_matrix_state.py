@@ -27,7 +27,7 @@ async def test_nothing_to_sync():
 
 
 async def test_unsynced_model_available__sync_successful(test_trainer_node: TrainerNode, mocker):
-    mock_socket_io_call(mocker, test_trainer_node, {'success': True})
+    await mock_socket_io_call(mocker, test_trainer_node, {'success': True})
 
     state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
@@ -62,7 +62,7 @@ async def test_unsynced_model_available__sio_not_connected(test_trainer_node: Tr
 
 
 async def test_unsynced_model_available__request_is_not_successful(test_trainer_node: TrainerNode, mocker):
-    mock_socket_io_call(mocker, test_trainer_node, {'success': False})
+    await mock_socket_io_call(mocker, test_trainer_node, {'success': False})
 
     state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
@@ -85,11 +85,15 @@ async def test_basic_mock(test_trainer_node: TrainerNode, mocker):
     patched_call_return_value.set_result(
         {'success': True})
     mocker.patch.object(test_trainer_node.sio_client, 'call', return_value=patched_call_return_value)
-    assert await test_trainer_node.sio_client.call() == {'success': True}
+    assert await (await test_trainer_node.sio_client.call()) == {'success': True}
 
 
-def mock_socket_io_call(mocker, trainer_node: TrainerNode, return_value):
-    patched_call_return_value = asyncio.Future()
-    patched_call_return_value.set_result(
-        return_value)
-    mocker.patch.object(trainer_node.sio_client, 'call', return_value=patched_call_return_value)
+async def mock_socket_io_call(mocker, trainer_node: TrainerNode, return_value):
+    for _ in range(10):
+        if trainer_node.sio_client is None:
+            await asyncio.sleep(0.1)
+        else:
+            break
+    else:
+        raise Exception('sio_client is not available ' + str(trainer_node.sio_client))
+    mocker.patch.object(trainer_node.sio_client, 'call', return_value=return_value)

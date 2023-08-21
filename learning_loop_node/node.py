@@ -38,6 +38,11 @@ class Node(FastAPI):
         self.register_lifecycle_events()
         self.sio_client = None
 
+    async def prepare(self):
+        await loop.backend_ready()
+        await loop.ensure_login()
+        await self.create_sio_client()
+
     async def create_sio_client(self):
         if loop.async_client is None:  # NOTE the cookie jar is not yet initialized
             await loop.ensure_login()
@@ -88,10 +93,7 @@ class Node(FastAPI):
         async def startup():
             logging.debug('received "startup" event')
             Node._activate_asyncio_warnings()
-
-            await loop.backend_ready()
-            await loop.ensure_login()
-            await self.create_sio_client()
+            await self.prepare()
 
         @self.on_event("shutdown")
         async def shutdown():
