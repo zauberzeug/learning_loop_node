@@ -17,7 +17,7 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {'project_name': 'pytest', 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
                              'box_categories': 1, 'point_categories': 1, 'segmentation_categories': 1, 'thumbs': False, 'trainings': 1}
-    for _ in range(10):
+    for _ in range(10):  # NOTE this retry seems to fix huge flakyness in test runs on drone (local it's fine without)
         test_helper.LiveServerSession().get("/status")
         response = test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator", json=project_configuration)
         if response.status_code == 200:
