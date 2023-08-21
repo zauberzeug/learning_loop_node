@@ -78,7 +78,4 @@ async def test_mock_loop_response_example(mocker):
 
 
 def mock_upload_model_for_training(mocker, return_value):
-    patched_call_return_value = asyncio.Future()
-    patched_call_return_value.set_result(
-        return_value)
-    mocker.patch('learning_loop_node.rest.uploads.upload_model_for_training', return_value=patched_call_return_value)
+    mocker.patch('learning_loop_node.rest.uploads.upload_model_for_training', return_value=return_value)
