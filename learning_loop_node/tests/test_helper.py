@@ -20,6 +20,7 @@ class LiveServerSession(Session):
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
         self.prefix_url = loop.web.base_url
+        ic(self.prefix_url)
         self.cookies = self.get_cookies()
 
     def request(self, method, url, *args, **kwargs):
