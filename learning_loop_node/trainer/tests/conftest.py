@@ -34,7 +34,7 @@ async def test_trainer_node(request):
     trainer = TestingTrainer()
 
     node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
-    await node.prepare()
+    await node.startup()
 
     yield node
 

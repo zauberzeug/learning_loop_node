@@ -38,7 +38,7 @@ class Node(FastAPI):
         self.register_lifecycle_events()
         self.sio_client = None
 
-    async def prepare(self):
+    async def startup(self):
         await loop.backend_ready()
         await loop.ensure_login()
         await self.create_sio_client()
@@ -93,7 +93,7 @@ class Node(FastAPI):
         async def startup():
             logging.debug('received "startup" event')
             Node._activate_asyncio_warnings()
-            await self.prepare()
+            await self.startup()
 
         @self.on_event("shutdown")
         async def shutdown():

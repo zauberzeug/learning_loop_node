@@ -12,8 +12,6 @@ from learning_loop_node.globals import GLOBALS
 async def create_mock_trainer() -> MockTrainer:
     mock_trainer = MockTrainer(model_format='mocked')
     mock_trainer.executor = Executor(GLOBALS.data_folder)
-    await mock_trainer.prepare()
-    await asyncio.sleep(14)
     return mock_trainer
 
 
