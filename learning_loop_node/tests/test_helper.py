@@ -51,33 +51,6 @@ async def get_latest_model_id() -> str:
     return trainings['charts'][0]['data'][0]['model_id']
 
 
-async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, format: str = 'mocked', model_id: Optional[str] = None) -> str:
-    data = prepare_formdata(file_paths)
-
-    response = await loop.put(f'/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data)
-    if response.status_code != 200:
-        msg = f'unexpected status code {response.status_code} while putting model'
-        logging.error(msg)
-        raise (Exception(msg))
-    model = response.json()
-
-    return model['id']
-
-
-def prepare_formdata(file_paths: Optional[List[str]]) -> aiohttp.FormData:
-    module_path = os.path.dirname(os.path.realpath(__file__))
-    if not file_paths:
-        file_paths = [f'{module_path}/test_data/file_1.txt',
-                      f'{module_path}/test_data/file_2.txt',
-                      f'{module_path}/test_data/model.json']
-
-    data = [('files', open(path, 'rb')) for path in file_paths]
-    data = aiohttp.FormData()
-    for path in file_paths:
-        data.add_field('files',  open(path, 'rb'))
-    return data
-
-
 def unzip(file_path, target_folder):
     shutil.rmtree(target_folder, ignore_errors=True)
     os.makedirs(target_folder)
