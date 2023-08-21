@@ -69,8 +69,7 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
 async def download_one_image(path: str, image_id: str, image_folder: str):
     response = await loop.get(path)
     if response.status_code != HTTPStatus.OK:
-        content = await response.read()
-        logging.error(f'bad status code {response.status_code} for {path}: {content}')
+        logging.error(f'bad status code {response.status_code} for {path}: {response.content}')
         return
     filename = f'{image_folder}/{image_id}.jpg'
     async with aiofiles.open(filename, 'wb') as f:
