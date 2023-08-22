@@ -42,7 +42,6 @@ async def get_latest_model_id() -> str:
     response = await loop.get(f'/zauberzeug/projects/pytest/trainings')
     assert response.status_code == 200
     trainings = response.json()
-    ic(trainings)
     return trainings['charts'][0]['data'][0]['model_id']
 
 
