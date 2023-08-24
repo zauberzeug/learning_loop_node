@@ -9,6 +9,7 @@ from . import environment_reader
 from requests import Session
 from urllib.parse import urljoin
 import httpx
+from typing import List
 
 
 class WebSession(Session):
@@ -87,7 +88,7 @@ class Loop():
     def get_data(self, path):
         return asyncio.get_event_loop().run_until_complete(self.get_data_async(path))
 
-    async def put(self, path, files: list[str]) -> httpx.Response:
+    async def put(self, path, files: List[str]) -> httpx.Response:
         file_list = [('files', open(f, 'rb')) for f in files]
         ic(file_list)
         await self.ensure_login()
