@@ -5,7 +5,7 @@ from learning_loop_node.detector.tests.conftest import get_outbox_files
 import asyncio
 
 
-@pytest.mark.parametrize('autoupload,expected_file_count', [(None, 2), ('all', 4)])
+@pytest.mark.parametrize('autoupload, expected_file_count', [(None, 2), ('all', 4)])
 async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autoupload, expected_file_count):
     assert test_detector_node.outbox.path.startswith('/tmp')
     assert len(get_outbox_files(test_detector_node.outbox)) == 0

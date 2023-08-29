@@ -19,6 +19,9 @@ class ConverterNode(Node):
         super().__init__(name, uuid)
         self.converter = converter
 
+    async def create_sio_client(self):
+        await super().create_sio_client()
+
         @self.on_event("startup")
         @repeat_every(seconds=60, raise_exceptions=True, wait_first=False)
         async def check_state():
@@ -45,7 +48,7 @@ class ConverterNode(Node):
                 f'could not convert model {model_information.id} for {model_information.context.organization}/{model_information.context.project}. Details: {str(e)}.')
 
     async def check_state(self):
-        logging.debug(f'checking state: {self.status.state}')
+        logging.info(f'checking state: {self.status.state}')
 
         if self.status.state == State.Running:
             return
@@ -58,36 +61,37 @@ class ConverterNode(Node):
         self.status.state = State.Idle
 
     async def convert_models(self) -> None:
-        async with loop.get('api/projects') as response:
-            assert response.status == 200, f'Assert statuscode 200, but was {response.status}.'
-            content = await response.json()
+        try:
+            response = await loop.get('/projects')
+            assert response.status_code == 200, f'Assert statuscode 200, but was {response.status}.'
+            content = response.json()
             projects = content['projects']
 
-        for project in projects:
-            organization_id = project['organization_id']
-            project_id = project['project_id']
+            for project in projects:
+                organization_id = project['organization_id']
+                project_id = project['project_id']
 
-            async with loop.get(f'api{project["resource"]}') as response:
-                if response.status != HTTPStatus.OK:
+                response = await loop.get(f'{project["resource"]}')
+                if response.status_code != HTTPStatus.OK:
                     logging.error(
-                        f'got bad response for {response.url}: {response.status}, {response.content}')
+                        f'got bad response for {response.url}: {response.status_code}, {response.content}')
                     continue
-                project_categories = (await response.json())['categories']
+                project_categories = response.json()['categories']
 
-            path = f'api{project["resource"]}/models'
-            async with loop.get(path) as models_response:
-                assert models_response.status == 200
-                content = await models_response.json()
+                path = f'{project["resource"]}/models'
+                models_response = await loop.get(path)
+                assert models_response.status_code == 200
+                content = models_response.json()
                 models = content['models']
 
                 for model in models:
                     if (model['version']
                             and self.converter.source_format in model['formats']
                             and self.converter.target_format not in model['formats']
-                            ):
+                        ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
-                            host=loop.base_url,
+                            host=loop.web.base_url,
                             organization=organization_id,
                             project=project_id,
                             id=model['id'],
@@ -95,6 +99,10 @@ class ConverterNode(Node):
                             version=model['version'],
                         )
                         await self.convert_model(model_information)
+        except Exception as e:
+            import traceback
+            logging.error(str(e))
+            print(traceback.format_exc())
 
     async def send_status(self):
         # NOTE not yet implemented

@@ -11,6 +11,7 @@ import aiohttp
 import logging
 from icecream import ic
 import shutil
+import requests
 
 
 class LiveServerSession(Session):
@@ -18,16 +19,17 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = loop.base_url
+        self.prefix_url = loop.web.base_url
+        data = {
+            'username': os.environ.get('LOOP_USERNAME', None),
+            'password': os.environ.get('LOOP_PASSWORD', None),
+        }
+        self.cookies = requests.post(f'{self.prefix_url}/api/login', data=data).cookies
 
     def request(self, method, url, *args, **kwargs):
+        url = 'api/' + url
         url = urljoin(self.prefix_url, url)
-        headers = {}
-        if 'token' in url:
-            return super(LiveServerSession, self).request(method, url, *args, **kwargs)
-
-        headers = loop.get_headers()
-        return super(LiveServerSession, self).request(method, url, headers=headers, *args, **kwargs)
+        return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
 
 
 def get_files_in_folder(folder: str):
@@ -37,37 +39,10 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    async with loop.get(f'api/zauberzeug/projects/pytest/trainings') as response:
-        assert response.status == 200
-        trainings = await response.json()
-        return trainings['charts'][0]['data'][0]['model_id']
-
-
-async def assert_upload_model_with_id(file_paths: Optional[List[str]] = None, format: str = 'mocked', model_id: Optional[str] = None) -> str:
-    data = prepare_formdata(file_paths)
-
-    async with loop.put(f'api/zauberzeug/projects/pytest/models/{model_id}/{format}/file', data) as response:
-        if response.status != 200:
-            msg = f'unexpected status code {response.status} while putting model'
-            logging.error(msg)
-            raise (Exception(msg))
-        model = await response.json()
-
-        return model['id']
-
-
-def prepare_formdata(file_paths: Optional[List[str]]) -> aiohttp.FormData:
-    module_path = os.path.dirname(os.path.realpath(__file__))
-    if not file_paths:
-        file_paths = [f'{module_path}/test_data/file_1.txt',
-                      f'{module_path}/test_data/file_2.txt',
-                      f'{module_path}/test_data/model.json']
-
-    data = [('files', open(path, 'rb')) for path in file_paths]
-    data = aiohttp.FormData()
-    for path in file_paths:
-        data.add_field('files',  open(path, 'rb'))
-    return data
+    response = await loop.get(f'/zauberzeug/projects/pytest/trainings')
+    assert response.status_code == 200
+    trainings = response.json()
+    return trainings['charts'][0]['data'][0]['model_id']
 
 
 def unzip(file_path, target_folder):

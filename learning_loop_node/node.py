@@ -1,3 +1,4 @@
+import aiohttp
 from learning_loop_node.context import Context
 import logging
 from learning_loop_node.globals import GLOBALS
@@ -29,15 +30,27 @@ class Node(FastAPI):
         self.log = logging.getLogger()
 
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
-        self.ws_url = f'ws{"s" if host != "backend" else ""}://' + host
+        self.ws_url = f'ws{"s" if "learning-loop.ai" in host else ""}://' + host
 
         self.name = name
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
+        self.register_lifecycle_events()
+        self.sio_client = None
+
+    async def startup(self):
+        await loop.backend_ready()
+        await loop.ensure_login()
+        await self.create_sio_client()
+
+    async def create_sio_client(self):
+        if loop.async_client is None:  # NOTE the cookie jar is not yet initialized
+            await loop.ensure_login()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
+            http_session=aiohttp.ClientSession(cookies=loop.async_client.cookies),
             # logger=True, engineio_logger=True
         )
         self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
@@ -58,8 +71,6 @@ class Node(FastAPI):
         async def on_disconnect():
             logging.debug('received "on_disconnect" from constructor event.')
             await self.update_state(State.Offline)
-
-        self.register_lifecycle_events()
 
     def read_or_create_uuid(self, identifier: str) -> str:
         identifier = identifier.lower().replace(' ', '_')
@@ -82,6 +93,7 @@ class Node(FastAPI):
         async def startup():
             logging.debug('received "startup" event')
             Node._activate_asyncio_warnings()
+            await self.startup()
 
         @self.on_event("shutdown")
         async def shutdown():
@@ -109,10 +121,9 @@ class Node(FastAPI):
 
         logging.info(f'connecting to Learning Loop at {self.ws_url}')
         try:
-            headers = await self.get_sio_headers()
-            await self.sio_client.connect(f"{self.ws_url}", headers=headers, socketio_path="/ws/socket.io")
+            await self.sio_client.connect(f"{self.ws_url}", headers=self.get_sio_headers(), socketio_path="/ws/socket.io")
             logging.debug(f'my sid is {self.sio_client.sid}')
-            logging.debug(f"connecting as type {headers['nodeType']}")
+            logging.debug(f"connecting as type {self.get_node_type()}")
             logging.info(f'connected to Learning Loop at {self.ws_url}')
         except socketio.exceptions.ConnectionError as e:
             logging.error(f'socket.io connection error to "{self.ws_url}"')
@@ -127,8 +138,8 @@ class Node(FastAPI):
     async def send_status(self):
         raise Exception("Override this in subclass")
 
-    async def get_sio_headers(self) -> dict:
-        headers = await asyncio.get_event_loop().run_in_executor(None, loop.get_headers)
+    def get_sio_headers(self) -> dict:
+        headers = {}
         headers['organization'] = loop.organization
         headers['project'] = loop.project
         headers['nodeType'] = self.get_node_type()

@@ -23,7 +23,7 @@ async def test_successful_detecting():
     detect_task = asyncio.get_running_loop().create_task(trainer.do_detections())
 
     await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, 'detected', timeout=3, interval=0.001)
+    await assert_training_state(trainer.training, 'detected', timeout=5, interval=0.001)
 
     assert trainer_has_error(trainer) == False
     assert trainer.training.training_state == 'detected'

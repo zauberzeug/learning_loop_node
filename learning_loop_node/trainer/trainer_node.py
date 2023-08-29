@@ -30,6 +30,9 @@ class TrainerNode(Node):
         self.train_loop_busy = False
         active_training.init(self.uuid)
 
+    async def create_sio_client(self):
+        await super().create_sio_client()
+
         @self.sio_client.on('begin_training')
         async def on_begin_training(organization: str, project: str, details: dict):
             logging.info('received begin_training from server')
@@ -59,10 +62,6 @@ class TrainerNode(Node):
         async def shutdown():
             await self.shutdown()
 
-        @self.on_event("startup")
-        async def resume_training_if_exists():
-            self.start_training_task()
-
     def stop_training(self, save_and_detect: bool = True) -> Union[bool, str]:
         result = self.trainer.stop()
 
@@ -83,8 +82,13 @@ class TrainerNode(Node):
         loop.create_task(self.trainer.train(self.uuid, self.sio_client))
 
     async def send_status(self):
+        if not self.sio_client.connected:
+            self.log.info('could not send status -- we are not connected to the Learning Loop')
+            return
+
         if not self.trainer.training and active_training.exists():
-            logging.warning('Found active training, but no its not loaded yet. Skipping this status update.')
+            logging.warning('Found active training, starting now.')
+            self.start_training_task()
             return
 
         state_for_learning_loop = TrainerNode.state_for_learning_loop(

@@ -186,7 +186,7 @@ class DetectorNode(Node):
 
     async def send_status(self) -> Union[str, bool]:
         if not self.sio_client.connected:
-            self.log.error('could not send status -- we are not connected to the Learning Loop')
+            self.log.info('could not send status -- we are not connected to the Learning Loop')
             return False
         status = DetectionStatus(
             id=self.uuid,

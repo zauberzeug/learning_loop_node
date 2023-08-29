@@ -14,6 +14,6 @@ async def start(training: Training):
     if training.training_state != training_state.Preparing:
         raise Exception('Training is not in preparing state.')
     if training.training_sub_state is SubState.Empty:
-        downloader = TrainingsDownloader(training.context))
-        training.data=await downloader.download_training_data(training.images_folder)
+        downloader = TrainingsDownloader(training.context)
+        training.data = await downloader.download_training_data(training.images_folder)
         training.save()

@@ -19,18 +19,20 @@ import shutil
 class Outbox():
 
     def __init__(self) -> None:
+        self.log = logging.getLogger()
         self.path = f'{GLOBALS.data_folder}/outbox'
         if not os.path.exists(self.path):
             os.makedirs(self.path)
 
         host = os.environ.get('HOST', 'learning-loop.ai')
-        base: str = f'http{"s" if host != "backend" else ""}://' + host
+        base_url = f'http{"s" if "learning-loop.ai" in host else ""}://{host}/api'
+        base: str = base_url
         o = environment_reader.organization()
         p = environment_reader.project()
         assert o and p, 'Outbox needs an organization and a projekct '
-        self.target_uri = f'{base}/api/{o}/projects/{p}/images'
+        self.target_uri = f'{base}/{o}/projects/{p}/images'
+        self.log.info(f'Outbox initialized with target_uri: {self.target_uri}')
 
-        self.log = logging.getLogger()
         self.shutdown_event = None
         self.upload_thread = None
 

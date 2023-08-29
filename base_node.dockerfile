@@ -1,0 +1,28 @@
+FROM zauberzeug/nicegui:1.2.13
+
+RUN apt-get update && \
+    apt-get install -y \
+    jpeginfo \
+    python3-pip \
+    libjpeg-dev \
+    curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/
+
+RUN python3 -m pip install --upgrade pip
+
+# We use Poetry for dependency management
+RUN curl -sSL https://install.python-poetry.org | python3 - && \
+    cd /usr/local/bin && \
+    ln -s ~/.local/bin/poetry && \
+    poetry config virtualenvs.create false
+
+COPY pyproject.toml ./
+
+# Allow installing dev dependencies to run tests
+ARG INSTALL_DEV=true
+RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install -vvv --no-root ; else poetry install -vvv --no-root --no-dev ; fi"
+
+# while development this will be mounted but in deployment we need the latest code baked into the image
+ADD ./learning_loop_node /usr/local/lib/python3.11/site-packages/learning_loop_node

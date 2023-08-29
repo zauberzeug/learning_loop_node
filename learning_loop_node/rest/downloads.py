@@ -32,18 +32,18 @@ async def download_images_data(organization: str, project: str, image_ids: List[
     starttime = time.time()
     for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_ids = image_ids[i:i+chunk_size]
-        async with loop.get(f'api/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}') as response:
-            if response.status != 200:
-                logging.error(
-                    f'Error during downloading list of images. Statuscode is {response.status}')
-                continue
-            images_data += (await response.json())['images']
-            total_time = round(time.time() - starttime, 1)
-            if (images_data):
-                per100 = total_time / len(images_data) * 100
-                logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {per100:.1f} sec')
-            else:
-                logging.debug(f'[+] Performance: {total_time} sec total.')
+        response = await loop.get(f'/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}')
+        if response.status_code != 200:
+            logging.error(
+                f'Error during downloading list of images. Statuscode is {response.status_code}')
+            continue
+        images_data += response.json()['images']
+        total_time = round(time.time() - starttime, 1)
+        if (images_data):
+            per100 = total_time / len(images_data) * 100
+            logging.debug(f'[+] Performance: {total_time} sec total. Per 100 : {per100:.1f} sec')
+        else:
+            logging.debug(f'[+] Performance: {total_time} sec total.')
     return images_data
 
 
@@ -67,17 +67,15 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
 
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
-    async with loop.get(path) as response:
-        if response.status != HTTPStatus.OK:
-            content = await response.read()
-            logging.error(
-                f'bad status code {response.status} for {path}: {content}')
-            return
-        filename = f'{image_folder}/{image_id}.jpg'
-        async with aiofiles.open(filename, 'wb') as f:
-            await f.write(await response.read())
-        if not await is_valid_image(filename):
-            os.remove(filename)
+    response = await loop.get(path)
+    if response.status_code != HTTPStatus.OK:
+        logging.error(f'bad status code {response.status_code} for {path}: {response.content}')
+        return
+    filename = f'{image_folder}/{image_id}.jpg'
+    async with aiofiles.open(filename, 'wb') as f:
+        await f.write(response.content)
+    if not await is_valid_image(filename):
+        os.remove(filename)
 
 
 async def is_valid_image(file):
@@ -102,23 +100,23 @@ class DownloadError(Exception):
 
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
-    path = f'api/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
-    async with loop.get(path) as response:
-        if response.status != 200:
-            content = await response.json()
-            logging.error(f'could not download {loop.base_url}/{path}: {response.status}, content: {content}')
-            raise DownloadError(content['detail'])
+    path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
+    response = await loop.get(path)
+    if response.status_code != 200:
+        content = response.json()
+        logging.error(f'could not download {loop.web.base_url}/{path}: {response.status_code}, content: {content}')
+        raise DownloadError(content['detail'])
+    try:
+        provided_filename = response.headers.get(
+            "Content-Disposition").split("filename=")[1].strip('"')
+        content = response.content
+    except:
+        logging.error(f'Error during downloading model {path}:')
         try:
-            provided_filename = response.headers.get(
-                "Content-Disposition").split("filename=")[1].strip('"')
-            content = await response.read()
+            logging.exception(response.json())
         except:
-            logging.error(f'Error during downloading model {path}:')
-            try:
-                logging.exception(await response.json())
-            except:
-                pass
-            raise
+            pass
+        raise
 
     # unzip and place downloaded model
     tmp_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'

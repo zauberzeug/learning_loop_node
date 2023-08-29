@@ -375,6 +375,7 @@ class Trainer():
             current_json_file_index = active_training.detections_upload_file_index.load(self.training)
             for i in range(current_json_file_index, len(json_files)):
                 detections = active_training.detections.load(self.training, i)
+                logging.info(f'uploading detections {i}/{len(json_files)}')
                 await self._upload_detections(context, detections)
                 active_training.detections_upload_file_index.save(self.training, i+1)
         except asyncio.CancelledError:
@@ -389,23 +390,28 @@ class Trainer():
             active_training.save(self.training)
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
-        logging.info('uploading detections')
-        batch_size = 50
+        batch_size = 10
 
         skip_detections = active_training.detections_upload_progress.load(self.training)
-
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
-            batch_detections = detections[i:i+batch_size]
+            progress = i+batch_size
+            batch_detections = detections[i:progress]
             logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
+            await self._upload_to_learning_loop(context, batch_detections, progress)
+            skip_detections = progress
 
-            async with loop.post(f'api/{context.organization}/projects/{context.project}/detections', json=batch_detections) as response:
-                if response.status != 200:
-                    msg = f'could not upload detections. {str(response)}'
-                    logging.error(msg)
-                    raise Exception(msg)
-                else:
-                    logging.info('successfully uploaded detections')
-                    active_training.detections_upload_progress.save(self.training, min(i+batch_size, len(detections)))
+    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
+        response = await loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
+        if response.status_code != 200:
+            msg = f'could not upload detections. {str(response)}'
+            logging.error(msg)
+            raise Exception(msg)
+        else:
+            logging.info('successfully uploaded detections')
+            if progress > len(batch_detections):
+                active_training.detections_upload_progress.save(self.training, 0)
+            else:
+                active_training.detections_upload_progress.save(self.training, progress)
 
     async def clear_training(self):
         active_training.detections.delete(self.training)

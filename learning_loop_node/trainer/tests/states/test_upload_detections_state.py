@@ -16,20 +16,22 @@ def trainer_has_error(trainer: Trainer):
     return trainer.errors.has_error_for(error_key)
 
 
-async def create_valid_detection_file(training: Training):
-    async with loop.get(f'/api/zauberzeug/projects/demo/data') as response:
-        assert response.status == 200, response
-        content = await response.json()
+async def create_valid_detection_file(training: Training, number_of_entries: int = 1, file_index: int = 0):
+    response = await loop.get(f'/zauberzeug/projects/demo/data')
+    assert response.status_code == 200, response
+    content = response.json()
 
     category = content['categories'][0]
     image_id = content['image_ids'][0]
     model_version = '1.2'
-    box_detections = [BoxDetection(category['name'], x=1, y=2, width=30, height=40,
-                                   net=model_version, confidence=.99, category_id=category['id'])]
+    box_detection = BoxDetection(category['name'], x=1, y=2, width=30, height=40,
+                                 net=model_version, confidence=.99, category_id=category['id'])
+    box_detections = [box_detection]
 
     image_entry = {'image_id': image_id, 'box_detections': box_detections,
                    'point_detections': [], 'segmentation_detections': []}
-    active_training.detections.save(training, jsonable_encoder([image_entry]))
+    image_entries = [image_entry] * number_of_entries
+    active_training.detections.save(training, jsonable_encoder(image_entries), file_index)
 
 
 async def test_upload_successful():
@@ -54,8 +56,48 @@ async def test_detection_upload_progress_is_stored():
 
     assert active_training.detections_upload_file_index.load(trainer.training) == 0
     await trainer.upload_detections()
-    assert active_training.detections_upload_progress.load(trainer.training) == 1
+    assert active_training.detections_upload_progress.load(trainer.training) == 0  # Progress is reset for every file
     assert active_training.detections_upload_file_index.load(trainer.training) == 1
+
+
+async def test_ensure_all_detections_are_uploaded():
+    state_helper.create_active_training_file(training_state='detected')
+    trainer = TestingTrainer()
+    trainer.training = active_training.load()  # normally done by node
+
+    await create_valid_detection_file(trainer.training, 2, 0)
+    await create_valid_detection_file(trainer.training, 2, 1)
+
+    assert active_training.detections_upload_file_index.load(trainer.training) == 0
+    detections = active_training.detections.load(trainer.training, 0)
+    assert len(detections) == 2
+
+    batch_size = 1
+    skip_detections = active_training.detections_upload_progress.load(trainer.training)
+    for i in range(skip_detections, len(detections), batch_size):
+        batch_detections = detections[i:i+batch_size]
+        await trainer._upload_to_learning_loop(trainer.training.context, batch_detections, i + batch_size)
+
+        expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
+        assert active_training.detections_upload_progress.load(
+            trainer.training) == expected_value
+
+    assert active_training.detections_upload_file_index.load(trainer.training) == 0
+    active_training.detections_upload_file_index.save(trainer.training, 1)
+    assert active_training.detections_upload_file_index.load(trainer.training) == 1
+    assert active_training.detections_upload_progress.load(trainer.training) == 0  # Progress is reset for every file
+
+    detections = active_training.detections.load(trainer.training, 1)
+
+    skip_detections = active_training.detections_upload_progress.load(trainer.training)
+    for i in range(skip_detections, len(detections), batch_size):
+        batch_detections = detections[i:i+batch_size]
+        await trainer._upload_to_learning_loop(trainer.training.context, batch_detections, i + batch_size)
+
+        expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
+        assert active_training.detections_upload_progress.load(
+            trainer.training) == expected_value
+        assert active_training.detections_upload_file_index.load(trainer.training) == 1
 
 
 async def test_bad_status_from_LearningLoop():
