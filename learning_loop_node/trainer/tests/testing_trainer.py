@@ -1,13 +1,15 @@
+import asyncio
+import logging
+import subprocess
+import time
 from typing import Dict, List, Optional, Union
+
+import socketio
+
+from learning_loop_node.data_classes.context import Context
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.trainer import Trainer
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel
-import subprocess
-import asyncio
-import logging
-import time
-from learning_loop_node.context import Context
-import socketio
 
 
 class TestingTrainer(Trainer):

@@ -1,5 +1,6 @@
 import logging
-from learning_loop_node.context import Context
+
+from learning_loop_node.data_classes.context import Context
 from learning_loop_node.tests.test_helper import condition, update_attributes
 from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer

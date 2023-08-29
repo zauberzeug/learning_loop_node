@@ -1,14 +1,17 @@
 
-from learning_loop_node.context import Context
 import pytest
 from fastapi.encoders import jsonable_encoder
 from icecream import ic
+
 from demo_segmentation_tool import DemoSegmentationTool
-from learning_loop_node.annotation_node.data_classes import AnnotationData, EventType, Point, UserInput, EventType
 from learning_loop_node.annotation_node.annotation_node import AnnotationNode
+from learning_loop_node.annotation_node.data_classes import (AnnotationData,
+                                                             EventType, Point,
+                                                             UserInput)
 from learning_loop_node.data_classes.category import Category, CategoryType
-from learning_loop_node.tests.mock_async_client import MockAsyncClient
+from learning_loop_node.data_classes.context import Context
 from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.tests.mock_async_client import MockAsyncClient
 
 
 def default_user_input() -> UserInput:
@@ -23,7 +26,7 @@ def default_user_input() -> UserInput:
     return UserInput(frontend_id='some_id', data=annotation_data)
 
 
-async def test_start_creating(create_project):
+async def test_start_creating(setup_test_project):
 
     mock_async_client = MockAsyncClient()
     node = AnnotationNode(name='', uuid='', tool=DemoSegmentationTool())

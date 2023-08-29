@@ -1,12 +1,13 @@
 import asyncio
-from learning_loop_node.trainer.executor import Executor
-from learning_loop_node.trainer.training_data import TrainingData
-from learning_loop_node.context import Context
-from learning_loop_node.trainer.training import Training
-from mock_trainer import MockTrainer
-from learning_loop_node.trainer.model import Model
 from uuid import uuid4
+
+from learning_loop_node.data_classes.context import Context
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.trainer.executor import Executor
+from learning_loop_node.trainer.model import Model
+from learning_loop_node.trainer.training import Training
+from learning_loop_node.trainer.training_data import TrainingData
+from mock_trainer import MockTrainer
 
 
 async def create_mock_trainer() -> MockTrainer:

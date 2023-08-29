@@ -4,7 +4,16 @@
       "path": "."
     }
   ],
-  "settings": {},
+  "settings": {
+    "window.title": "### NODE LIBRARY ### ${activeEditorShort}${separator}${rootName} ### NODE LIBRARY ###",
+    "workbench.colorCustomizations": {
+      "titleBar.activeBackground": "#eee5ca",
+      "titleBar.activeForeground": "#FFFFFF",
+      "statusBar.background": "#eee5ca",
+      "activityBar.background": "#eee5ca",
+      "activityBar.foreground": "#FFFFFF"
+    }
+  },
   "extensions": {
     "recommendations": [
       "esbenp.prettier-vscode",

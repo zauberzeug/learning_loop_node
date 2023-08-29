@@ -1,14 +1,17 @@
 
-from fastapi.encoders import jsonable_encoder
-from learning_loop_node.node import Node
-from learning_loop_node.status import State, AnnotationNodeStatus
-from learning_loop_node.context import Context
-from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
-from learning_loop_node.annotation_node.data_classes import EventType, UserInput
-from learning_loop_node.rest.downloader import DataDownloader
-from learning_loop_node.rest.downloader import node_helper
 import logging
+
+from fastapi.encoders import jsonable_encoder
 from icecream import ic
+
+from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
+from learning_loop_node.annotation_node.data_classes import (EventType,
+                                                             UserInput)
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.node import Node
+from learning_loop_node.rest.downloader import DataDownloader, node_helper
+from learning_loop_node.status import AnnotationNodeStatus, State
+
 from ..socket_response import SocketResponse
 
 
@@ -19,7 +22,7 @@ class AnnotationNode(Node):
     def __init__(self, name: str, uuid: str, tool: AnnotationTool):
         super().__init__(name, uuid)
         self.tool = tool
-    
+
     async def create_sio_client(self):
         await super().create_sio_client()
 

@@ -1,39 +1,40 @@
-from abc import abstractmethod
 import asyncio
+import json
+import logging
 import os
+import shutil
+import time
+from abc import abstractmethod
+from datetime import datetime
+from glob import glob
+from pathlib import Path
+from time import perf_counter
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
-from learning_loop_node.rest.downloader import DataDownloader
-from learning_loop_node.loop import loop
-from tqdm import tqdm
-from ..model_information import ModelInformation
-from .executor import Executor
-from .training import Training
-from .model import BasicModel, Model, PretrainedModel
-from ..context import Context
-from ..node import Node
-from .downloader import TrainingsDownloader
-from ..rest import downloads, uploads
-from .. import node_helper
-import logging
-from .helper import is_valid_uuid4
-from glob import glob
-import json
+
+import socketio
 from fastapi.encoders import jsonable_encoder
-import shutil
+from tqdm import tqdm
+
 from learning_loop_node.data_classes.category import Category
+from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.trainer import active_training, training_syncronizer
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
-import time
-from time import perf_counter
 from learning_loop_node.trainer.training import State as TrainingState
 from learning_loop_node.trainer.training_data import TrainingData
-from learning_loop_node.trainer import active_training
-from learning_loop_node.trainer import training_syncronizer
-import socketio
-from datetime import datetime
-from .errors import TrainingError
-from .errors import Errors
-from pathlib import Path
+
+from .. import node_helper
+from ..data_classes.context import Context
+from ..model_information import ModelInformation
+from ..node import Node
+from ..rest import downloads, uploads
+from .downloader import TrainingsDownloader
+from .errors import Errors, TrainingError
+from .executor import Executor
+from .helper import is_valid_uuid4
+from .model import BasicModel, Model, PretrainedModel
+from .training import Training
 
 
 class Trainer():
@@ -401,7 +402,7 @@ class Trainer():
             skip_detections = progress
 
     async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
-        response = await loop.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
+        response = await global_loop_com.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
         if response.status_code != 200:
             msg = f'could not upload detections. {str(response)}'
             logging.error(msg)

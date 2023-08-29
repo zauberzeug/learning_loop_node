@@ -1,19 +1,21 @@
-from http import HTTPStatus
-from typing import List
-import shutil
-from io import BytesIO
-import zipfile
-import os
-from glob import glob
-import aiofiles
 import asyncio
-import time
-from learning_loop_node.loop import loop
-from learning_loop_node.context import Context
-from learning_loop_node.task_logger import create_task
 import logging
+import os
+import shutil
+import time
+import zipfile
+from glob import glob
+from http import HTTPStatus
+from io import BytesIO
+from typing import List
+
+import aiofiles
 from icecream import ic
 from tqdm.asyncio import tqdm
+
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.task_logger import create_task
 
 check_jpeg = shutil.which('jpeginfo') is not None
 
@@ -32,7 +34,7 @@ async def download_images_data(organization: str, project: str, image_ids: List[
     starttime = time.time()
     for i in tqdm(range(0, len(image_ids), chunk_size), position=0, leave=True):
         chunk_ids = image_ids[i:i+chunk_size]
-        response = await loop.get(f'/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}')
+        response = await global_loop_com.get(f'/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}')
         if response.status_code != 200:
             logging.error(
                 f'Error during downloading list of images. Statuscode is {response.status_code}')
@@ -67,7 +69,7 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
 
 
 async def download_one_image(path: str, image_id: str, image_folder: str):
-    response = await loop.get(path)
+    response = await global_loop_com.get(path)
     if response.status_code != HTTPStatus.OK:
         logging.error(f'bad status code {response.status_code} for {path}: {response.content}')
         return
@@ -101,10 +103,11 @@ class DownloadError(Exception):
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
     path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
-    response = await loop.get(path)
+    response = await global_loop_com.get(path)
     if response.status_code != 200:
         content = response.json()
-        logging.error(f'could not download {loop.web.base_url}/{path}: {response.status_code}, content: {content}')
+        logging.error(
+            f'could not download {global_loop_com.web.base_url}/{path}: {response.status_code}, content: {content}')
         raise DownloadError(content['detail'])
     try:
         provided_filename = response.headers.get(

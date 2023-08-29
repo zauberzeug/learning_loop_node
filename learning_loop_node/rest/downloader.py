@@ -1,24 +1,25 @@
-from typing import List, Optional
+import asyncio
+import logging
 import os
 from glob import glob
-import asyncio
-from learning_loop_node.context import Context
-from learning_loop_node.loop import loop
-from learning_loop_node.rest import downloads
-from learning_loop_node import node_helper
-import logging
-from icecream import ic
 from time import perf_counter
+from typing import List, Optional
+
+from learning_loop_node import node_helper
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.loop_communication import LoopCommunication
+from learning_loop_node.rest import downloads
 
 
 class DataDownloader():
     context: Context
 
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, loop_com: LoopCommunication):
         self.context = context
+        self.loop_com = loop_com
 
     async def fetch_image_ids(self, query_params: Optional[str] = '') -> List[str]:
-        response = await loop.get(f'/{self.context.organization}/projects/{self.context.project}/data?{query_params}')
+        response = await self.loop_com.get(f'/{self.context.organization}/projects/{self.context.project}/data?{query_params}')
         assert response.status_code == 200, response
         return (response.json())['image_ids']
 

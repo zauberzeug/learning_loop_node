@@ -1,16 +1,14 @@
 import sys
-if sys.version_info.major >= 3 and sys.version_info.minor >= 7:  # most code needs at least python 3.7
+
+if sys.version_info.major >= 3 and sys.version_info.minor >= 8:  # most code needs at least python 3.8
     from .trainer.trainer_node import TrainerNode
     from .converter.converter_node import ConverterNode
 
-from .context import Context
-from .detector.detector_node import DetectorNode
-from .detector.detector import Detector
-from .model_information import ModelInformation
-from .data_classes.category import CategoryType
-from .globals import GLOBALS
-from .loop import loop
-
 from . import log_conf
-
-log_conf.init()
+from .data_classes.category import CategoryType
+from .data_classes.context import Context
+from .detector.detector import Detector
+from .detector.detector_node import DetectorNode
+from .globals import GLOBALS
+from .loop_communication import LoopCommunication
+from .model_information import ModelInformation

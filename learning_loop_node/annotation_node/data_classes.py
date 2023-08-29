@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from typing import List, Optional
-from pydantic import BaseModel
 from enum import Enum
-from learning_loop_node.context import Context
+from typing import List, Optional
+
+from pydantic import BaseModel
+
 from learning_loop_node.data_classes.category import Category
+from learning_loop_node.data_classes.context import Context
 
 
 class Point(BaseModel):

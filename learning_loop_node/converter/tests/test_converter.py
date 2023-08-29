@@ -1,10 +1,11 @@
+import logging
 from typing import List
+
 import pytest
 
-import logging
-from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.converter.converter import Converter
 from learning_loop_node.converter.converter_node import ConverterNode
+from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.tests import test_helper
 
 
@@ -16,17 +17,18 @@ class MockedConverter(Converter):
 
 
 @pytest.fixture()
-def create_project():
+def setup_test_project():
     test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'box_categories': 1,  'point_categories': 1, 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 0, 'image_style': 'plain',
-                             'thumbs': False, 'trainings': 1}
+    project_configuration = {
+        'project_name': 'pytest', 'box_categories': 1, 'point_categories': 1, 'inbox': 0, 'annotate': 0, 'review': 0,
+        'complete': 0, 'image_style': 'plain', 'thumbs': False, 'trainings': 1}
     assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
     test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
 
 
-async def test_meta_information(create_project):
+async def test_meta_information(setup_test_project):
     model_id = await test_helper.get_latest_model_id()
 
     converter = MockedConverter(source_format='mocked', target_format='test')

@@ -1,32 +1,32 @@
-import aiohttp
-from learning_loop_node.context import Context
-import logging
-from learning_loop_node.globals import GLOBALS
-from .status import Status, State
-from fastapi import FastAPI
-import socketio
 import asyncio
-import asyncio
-import os
-from icecream import ic
-from .loop import loop
-from fastapi_utils.tasks import repeat_every
-import logging
-from uuid import uuid4
-from .socket_response import ensure_socket_response
-from datetime import datetime
-from . import log_conf
 import json
+import logging
+import os
+from datetime import datetime
+from typing import Optional
+from uuid import uuid4
 
-log_conf.init()
+import aiohttp
+import socketio
+from fastapi import FastAPI
+from fastapi_utils.tasks import repeat_every
+
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.globals import GLOBALS
+
+from . import log_conf
+from .loop_communication import global_loop_com
+from .socket_response import ensure_socket_response
+from .status import State, Status
 
 
 class Node(FastAPI):
     name: str
     uuid: str
 
-    def __init__(self, name: str, uuid: str = None):
+    def __init__(self, name: str, uuid: Optional[str] = None):
         super().__init__()
+        log_conf.init()
         self.log = logging.getLogger()
 
         host = os.environ.get('LOOP_HOST', None) or os.environ.get('HOST', 'learning-loop.ai')
@@ -39,18 +39,18 @@ class Node(FastAPI):
         self.sio_client = None
 
     async def startup(self):
-        await loop.backend_ready()
-        await loop.ensure_login()
+        await global_loop_com.backend_ready()
+        await global_loop_com.get_asyncclient()
         await self.create_sio_client()
 
     async def create_sio_client(self):
-        if loop.async_client is None:  # NOTE the cookie jar is not yet initialized
-            await loop.ensure_login()
+        if global_loop_com.async_client is None:  # NOTE the cookie jar is not yet initialized
+            await global_loop_com.get_asyncclient()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
-            http_session=aiohttp.ClientSession(cookies=loop.async_client.cookies),
+            http_session=aiohttp.ClientSession(cookies=global_loop_com.async_client.cookies),
             # logger=True, engineio_logger=True
         )
         self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
@@ -140,8 +140,8 @@ class Node(FastAPI):
 
     def get_sio_headers(self) -> dict:
         headers = {}
-        headers['organization'] = loop.organization
-        headers['project'] = loop.project
+        headers['organization'] = global_loop_com.organization
+        headers['project'] = global_loop_com.project
         headers['nodeType'] = self.get_node_type()
         return headers
 

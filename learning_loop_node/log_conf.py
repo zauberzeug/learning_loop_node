@@ -1,5 +1,5 @@
-import datetime
 import logging.config
+
 LOGGING_CONF = {
     'version': 1,
     'disable_existing_loggers': True,  # to make sure this config is used
@@ -29,4 +29,3 @@ LOGGING_CONF = {
 
 def init():
     logging.config.dictConfig(LOGGING_CONF)
-    logger = logging.getLogger()

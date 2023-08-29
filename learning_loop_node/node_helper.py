@@ -1,5 +1,5 @@
-from typing import List, Tuple
 import os
+from typing import List, Tuple
 
 
 def create_resource_paths(organization_name: str, project_name: str, image_ids: List[str]) -> Tuple[List[str], List[str]]:

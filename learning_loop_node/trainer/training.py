@@ -1,10 +1,12 @@
-from enum import Enum
-from learning_loop_node.trainer.training_data import TrainingData
-from pydantic import BaseModel
-from typing import Optional
-from learning_loop_node.context import Context
 import json
+from enum import Enum
+from typing import Optional
+
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
+
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.trainer.training_data import TrainingData
 
 
 class Training(BaseModel):

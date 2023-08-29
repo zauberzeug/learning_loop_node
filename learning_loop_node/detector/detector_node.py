@@ -1,48 +1,42 @@
-from enum import auto
-import multiprocessing
-from . import Detections
-from . import Outbox
-from .rest.operation_mode import OperationMode
-from .detector import Detector
-from .rest import detect, upload, operation_mode
-from ..socket_response import SocketResponse
-from ..inbox_filter.relevance_filter import RelevanceFilter
-from ..rest import downloads
-from ..node import Node
-from ..status import State
-from ..status import DetectionStatus, State
-from ..context import Context
-from ..globals import GLOBALS
-from ..data_classes.category import Category
-from ..model_information import ModelInformation
-from fastapi.encoders import jsonable_encoder
-from fastapi_utils.tasks import repeat_every
-from typing import List, Union
-import os
-import contextlib
-import logging
-import subprocess
 import asyncio
-import numpy as np
-from fastapi_socketio import SocketManager
-from threading import Thread
-from datetime import datetime
-from icecream import ic
+import contextlib
+import os
 import shutil
+import subprocess
+from datetime import datetime
+from threading import Thread
+from typing import Dict, List, Optional, Union
+
+import numpy as np
+from fastapi.encoders import jsonable_encoder
+from fastapi_socketio import SocketManager
+from fastapi_utils.tasks import repeat_every
+
 from .. import environment_reader
-from multiprocessing import Event
+from ..data_classes.category import Category
+from ..data_classes.context import Context
+from ..globals import GLOBALS
+from ..inbox_filter.relevance_filter import RelevanceFilter
+from ..model_information import ModelInformation
+from ..node import Node
+from ..rest import downloads
+from ..socket_response import SocketResponse
+from ..status import DetectionStatus, State
+from . import Detections, Outbox
+from .detector import Detector
+from .rest import detect, operation_mode, upload
+from .rest.operation_mode import OperationMode
 
 
 class DetectorNode(Node):
     update_frequency = 10
 
-    def __init__(self, name: str, detector: Detector, uuid: str = None):
+    def __init__(self, name: str, detector: Detector, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.detector = detector
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
-        assert self.organization, 'Detector node needs an organization'
-        assert self.project, 'Detector node needs an project'
+        assert self.organization and self.project, 'Detector node needs an organization and an project'
         self.log.info(f'Using {self.organization}/{self.project}')
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
@@ -59,23 +53,28 @@ class DetectorNode(Node):
         @repeat_every(seconds=self.update_frequency, raise_exceptions=False, wait_first=False)
         async def _check_for_update() -> None:
             try:
-                await self.check_for_update()
-            except:
+                await self._check_for_update()
+            except Exception:
                 self.log.exception("error in '_check_for_update'")
 
         @self.on_event("startup")
-        async def startup() -> None:
+        async def _startup() -> None:
             try:
                 self.log.info("received 'startup' event")
                 self.outbox.start_continuous_upload()
                 self._load_model()
-            except:
+            except Exception:
                 self.log.exception("error during 'startup'")
 
+        @self.on_event("shutdown")
+        async def shutdown():
+            await self.shutdown()
+
+        # NOTE this decorator structure is weird, but it is the default way (https://github.com/pyropy/fastapi-socketio)
         sio = SocketManager(app=self)
 
         @self.sio.on("detect")
-        async def _detect(sid, data) -> None:
+        async def _detect(sid, data) -> Dict:
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
                 return await self.get_detections(
@@ -91,13 +90,13 @@ class DetectorNode(Node):
                 return {'error': str(e)}
 
         @self.sio.on("info")
-        async def _info(sid) -> None:
+        async def _info(sid) -> Union[str, Dict]:
             if self.detector.current_model:
                 return self.detector.current_model.__dict__
             return 'No model loaded'
 
         @self.sio.on('upload')
-        async def _upload(sid, data):
+        async def _upload(sid, data) -> Optional[Dict]:
             loop = asyncio.get_event_loop()
             try:
                 await loop.run_in_executor(None, self.outbox.save, data['image'], Detections(), ['picked_by_system'])
@@ -106,19 +105,16 @@ class DetectorNode(Node):
                 return {'error': str(e)}
 
         @self.sio.event
-        def connect(sid, environ, auth):
+        def _connect(sid, environ, auth):
             self.connected_clients.append(sid)
-
-        @self.on_event("shutdown")
-        async def shutdown():
-            await self.shutdown()
 
     async def shutdown(self):
         try:
             self.log.info("received 'shutdown' event")
-            await self._disconnect_sio_clients()
+            for sid in self.connected_clients:
+                await self.sio.disconnect(sid)
             self.outbox.stop_continuous_upload()
-        except:
+        except Exception:
             self.log.exception("error during 'shutdown'")
 
     def _load_model(self) -> None:
@@ -127,15 +123,11 @@ class DetectorNode(Node):
         finally:
             self.operation_mode = OperationMode.Idle
 
-    async def _disconnect_sio_clients(self):
-        for sid in self.connected_clients:
-            await self.sio.disconnect(sid)
-
-    async def check_for_update(self):
+    async def _check_for_update(self):
         if self.operation_mode == OperationMode.Startup:
             return
         try:
-            self.log.info(f'periodically checking operation mode. Current mode is {self.operation_mode}')
+            self.log.info(f'Current operation mode is {self.operation_mode}')
             update_to_model_id = await self.send_status()
             if self.detector.current_model:
                 self.log.info(

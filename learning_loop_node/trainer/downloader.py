@@ -1,11 +1,13 @@
+import logging
+import os
 from typing import List, Optional, Tuple
-from learning_loop_node.context import Context
+
+from icecream import ic
+
+from learning_loop_node.data_classes.context import Context
 from learning_loop_node.rest.downloader import DataDownloader
 from learning_loop_node.task_logger import create_task
 from learning_loop_node.trainer.training_data import TrainingData
-import logging
-import os
-from icecream import ic
 
 
 class TrainingsDownloader():

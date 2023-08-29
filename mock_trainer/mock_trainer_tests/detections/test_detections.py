@@ -1,22 +1,24 @@
 import logging
-from learning_loop_node.context import Context
+from glob import glob
+
+import pytest
+from icecream import ic
+
 from learning_loop_node.data_classes import Category
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.globals import GLOBALS
+from learning_loop_node.tests import test_helper
+from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.trainer import Trainer
 from mock_trainer import MockTrainer
-import pytest
-from learning_loop_node.globals import GLOBALS
-from mock_trainer import MockTrainer
-from learning_loop_node.tests import test_helper
-from icecream import ic
-from glob import glob
-from learning_loop_node.trainer import active_training
 
 
 @pytest.fixture()
-def create_project():
+def setup_test_project():
     test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
-                             'box_categories': 1, 'point_categories': 1, 'segmentation_categories': 1, 'thumbs': False, 'trainings': 1}
+    project_configuration = {
+        'project_name': 'pytest', 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
+        'box_categories': 1, 'point_categories': 1, 'segmentation_categories': 1, 'thumbs': False, 'trainings': 1}
     for _ in range(10):  # NOTE this retry seems to fix huge flakyness in test runs on drone (local it's fine without)
         test_helper.LiveServerSession().get("/status")
         response = test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator", json=project_configuration)
@@ -28,7 +30,7 @@ def create_project():
     test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
 
 
-async def test_all(create_project):
+async def test_all(setup_test_project):
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 

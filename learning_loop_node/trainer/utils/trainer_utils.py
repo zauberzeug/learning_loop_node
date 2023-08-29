@@ -1,7 +1,8 @@
 import pynvml
 
 
-def get_free_memory_mb():
+def get_free_gpu_memory():
+    '''Returns the free GPU memory in MB'''
     pynvml.nvmlInit()
     h = pynvml.nvmlDeviceGetHandleByIndex(0)
     info = pynvml.nvmlDeviceGetMemoryInfo(h)

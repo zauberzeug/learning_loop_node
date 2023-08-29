@@ -1,9 +1,11 @@
-from pydantic.main import BaseModel
-from typing import List, Optional
-from learning_loop_node.context import Context
-from learning_loop_node.data_classes.category import Category
-import os
 import json
+import os
+from typing import List, Optional
+
+from pydantic.main import BaseModel
+
+from learning_loop_node.data_classes.category import Category
+from learning_loop_node.data_classes.context import Context
 
 
 class ModelInformation(BaseModel):

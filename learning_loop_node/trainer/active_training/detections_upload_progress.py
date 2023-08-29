@@ -1,5 +1,6 @@
-from learning_loop_node.trainer.training import Training
 import os
+
+from learning_loop_node.trainer.training import Training
 
 
 def file_path(training: Training) -> str:

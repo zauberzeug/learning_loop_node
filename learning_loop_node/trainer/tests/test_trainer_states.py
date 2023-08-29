@@ -1,12 +1,14 @@
-from learning_loop_node.trainer.trainer_node import TrainerNode
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.training import Training
-from uuid import uuid4
-from learning_loop_node.context import Context
-from learning_loop_node.trainer import active_training
 import os
-import pytest
 import signal
+from uuid import uuid4
+
+import pytest
+
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.trainer_node import TrainerNode
+from learning_loop_node.trainer.training import Training
 
 
 def create_training() -> Training:

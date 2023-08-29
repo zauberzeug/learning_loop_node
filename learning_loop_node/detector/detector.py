@@ -1,8 +1,9 @@
-from typing import Optional, Union, Any
 import logging
-from learning_loop_node.model_information import ModelInformation
+from typing import Any, Optional
+
 from learning_loop_node.detector.detections import Detections
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.model_information import ModelInformation
 
 
 class Detector():

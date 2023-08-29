@@ -1,5 +1,6 @@
-from learning_loop_node.trainer.training import Training
 import os
+
+from learning_loop_node.trainer.training import Training
 
 
 def file_path(training: Training) -> str:
@@ -19,7 +20,6 @@ def load(training: Training) -> int:
 
 
 def delete(training) -> None:
-    path = file_path(training)
     if exists(training):
         os.remove(file_path(training))
 

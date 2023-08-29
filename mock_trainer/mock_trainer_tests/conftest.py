@@ -1,8 +1,10 @@
-import pytest
-from typing import Generator
-from learning_loop_node.tests import test_helper
-from learning_loop_node.globals import GLOBALS
 import shutil
+from typing import Generator
+
+import pytest
+
+from learning_loop_node.globals import GLOBALS
+from learning_loop_node.tests import test_helper
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -20,10 +22,12 @@ def web() -> Generator:
 
 
 @pytest.fixture(autouse=True, scope='module')
-def create_project():
+def setup_test_project():
     test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'plain',
-                             'box_categories': 2, 'segmentation_categories': 2, 'point_categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
+    project_configuration = {
+        'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'plain',
+        'box_categories': 2, 'segmentation_categories': 2, 'point_categories': 2, 'thumbs': False, 'tags': 0,
+        'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
     assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield

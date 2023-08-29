@@ -1,17 +1,19 @@
 import asyncio
-from glob import glob
-import os
-import time
-from typing import Callable, List, Optional
-import zipfile
-from learning_loop_node.loop import loop
-from urllib.parse import urljoin
-from requests import Session
-import aiohttp
 import logging
-from icecream import ic
+import os
 import shutil
+import time
+import zipfile
+from glob import glob
+from typing import Callable, List, Optional
+from urllib.parse import urljoin
+
+import aiohttp
 import requests
+from icecream import ic
+from requests import Session
+
+from learning_loop_node.loop_communication import global_loop_com
 
 
 class LiveServerSession(Session):
@@ -19,7 +21,7 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = loop.web.base_url
+        self.prefix_url = global_loop_com.web.base_url
         data = {
             'username': os.environ.get('LOOP_USERNAME', None),
             'password': os.environ.get('LOOP_PASSWORD', None),
@@ -39,7 +41,7 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    response = await loop.get(f'/zauberzeug/projects/pytest/trainings')
+    response = await global_loop_com.get(f'/zauberzeug/projects/pytest/trainings')
     assert response.status_code == 200
     trainings = response.json()
     return trainings['charts'][0]['data'][0]['model_id']

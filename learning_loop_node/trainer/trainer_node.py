@@ -1,22 +1,24 @@
 import asyncio
-from learning_loop_node.context import Context
+import logging
 import traceback
-from fastapi_utils.tasks import repeat_every
-from fastapi.encoders import jsonable_encoder
 from typing import Union
 from uuid import uuid4
+
+from fastapi.encoders import jsonable_encoder
+from fastapi_utils.tasks import repeat_every
 from icecream import ic
+
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.node import Node, State
+from learning_loop_node.trainer import active_training, training_syncronizer
+from learning_loop_node.trainer.training import State as TrainingState
 from learning_loop_node.trainer.training import TrainingOut
+
+from ..socket_response import SocketResponse
 from .model import Model
+from .rest import controls
 from .trainer import Trainer
 from .training_status import TrainingStatus
-from learning_loop_node.node import Node, State
-import logging
-from ..socket_response import SocketResponse
-from .rest import controls
-from learning_loop_node.trainer import active_training
-from learning_loop_node.trainer.training import State as TrainingState
-from learning_loop_node.trainer import training_syncronizer
 
 
 class TrainerNode(Node):

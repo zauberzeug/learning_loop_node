@@ -1,8 +1,10 @@
 from enum import Enum
-from learning_loop_node.context import Context
-from learning_loop_node.trainer.downloader import TrainingsDownloader
-from training import Training
+
 from training import State as training_state
+from training import Training
+
+from learning_loop_node.data_classes.context import Context
+from learning_loop_node.trainer.downloader import TrainingsDownloader
 
 
 class SubState(str, Enum):

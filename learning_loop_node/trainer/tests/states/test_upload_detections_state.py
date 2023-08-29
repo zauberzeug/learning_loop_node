@@ -1,14 +1,18 @@
+import asyncio
+
+from fastapi.encoders import jsonable_encoder
+
+from learning_loop_node import loop
+from learning_loop_node.data_classes.context import Context
 from learning_loop_node.detector.box_detection import BoxDetection
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.tests.states import state_helper
-from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
 from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.tests.states import state_helper
+from learning_loop_node.trainer.tests.states.state_helper import \
+    assert_training_state
+from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.training import Training
-from learning_loop_node.context import Context
-import asyncio
-from learning_loop_node import loop
-from fastapi.encoders import jsonable_encoder
+
 error_key = 'upload_detections'
 
 

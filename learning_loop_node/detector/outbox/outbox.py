@@ -1,19 +1,21 @@
-import os
-from glob import glob
-from threading import Thread
-from fastapi.encoders import jsonable_encoder
-import os
-from learning_loop_node.detector import Detections
-from typing import List
 import json
-from datetime import datetime
-from ...globals import GLOBALS
-from ... import environment_reader
-from multiprocessing import Event
-import time
 import logging
-import requests
+import os
 import shutil
+import time
+from datetime import datetime
+from glob import glob
+from multiprocessing import Event
+from threading import Thread
+from typing import List
+
+import requests
+from fastapi.encoders import jsonable_encoder
+
+from learning_loop_node.detector import Detections
+
+from ... import environment_reader
+from ...globals import GLOBALS
 
 
 class Outbox():
