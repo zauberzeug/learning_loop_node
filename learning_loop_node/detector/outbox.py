@@ -14,8 +14,8 @@ from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.detector import Detections
 
-from ... import environment_reader
-from ...globals import GLOBALS
+from .. import environment_reader
+from ..globals import GLOBALS
 
 
 class Outbox():

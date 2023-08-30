@@ -1,7 +1,6 @@
 
-import pytest
+
 from fastapi.encoders import jsonable_encoder
-from icecream import ic
 
 from demo_segmentation_tool import DemoSegmentationTool
 from learning_loop_node.annotation_node.annotation_node import AnnotationNode
@@ -10,7 +9,6 @@ from learning_loop_node.annotation_node.data_classes import (AnnotationData,
                                                              UserInput)
 from learning_loop_node.data_classes.category import Category, CategoryType
 from learning_loop_node.data_classes.context import Context
-from learning_loop_node.rest.downloader import DataDownloader
 from learning_loop_node.tests.mock_async_client import MockAsyncClient
 
 

@@ -2,11 +2,9 @@
 import logging
 
 from fastapi.encoders import jsonable_encoder
-from icecream import ic
 
 from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
-from learning_loop_node.annotation_node.data_classes import (EventType,
-                                                             UserInput)
+from learning_loop_node.annotation_node.data_classes import UserInput
 from learning_loop_node.data_classes.context import Context
 from learning_loop_node.node import Node
 from learning_loop_node.rest.downloader import DataDownloader, node_helper

@@ -10,8 +10,5 @@ from .data_classes.context import Context
 from .detector.detector import Detector
 from .detector.detector_node import DetectorNode
 from .globals import GLOBALS
-from .inbox_filter.observation import Observation
-from .inbox_filter.relevance_filter import RelevanceFilter
-from .inbox_filter.relevance_group import RelevanceGroup
 from .loop_communication import LoopCommunication
 from .model_information import ModelInformation
