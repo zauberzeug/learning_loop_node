@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.data_classes.context import Context
 from learning_loop_node.detector.detections import BoxDetection
-from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.loop_communication import glc
 from learning_loop_node.trainer import active_training
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer.tests.states.state_helper import \
@@ -21,7 +21,7 @@ def trainer_has_error(trainer: Trainer):
 
 
 async def create_valid_detection_file(training: Training, number_of_entries: int = 1, file_index: int = 0):
-    response = await global_loop_com.get(f'/zauberzeug/projects/demo/data')
+    response = await glc.get(f'/zauberzeug/projects/demo/data')
     assert response.status_code == 200, response
     content = response.json()
 

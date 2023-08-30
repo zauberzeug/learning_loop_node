@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
-from learning_loop_node.inbox_filter.observation import Observation
-from learning_loop_node.detector.box_detection import BoxDetection
 import time
+from datetime import datetime, timedelta
+
+from learning_loop_node.detector.detections import BoxDetection
+from learning_loop_node.inbox_filter.observation import Observation
 
 
 def test_aging():

@@ -29,7 +29,7 @@ class RelevanceGroup:
     def add_detections(self, detections: Detections) -> List[str]:
         causes = set()
         for detection in detections.box_detections + detections.point_detections + detections.seg_detections:
-            if type(detection) is SegmentationDetection:
+            if isinstance(detection, SegmentationDetection):
                 self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')
                 continue

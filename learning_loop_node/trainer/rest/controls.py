@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
 from learning_loop_node.data_classes.context import Context
-from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 
@@ -19,7 +19,7 @@ async def operation_mode(organization: str, project: str, version: str, request:
         curl -X POST localhost/controls/detect/<organization>/<project>/<model_version>
     '''
     path = f'/{organization}/projects/{project}/models'
-    response = await global_loop_com.get(path)
+    response = await glc.get(path)
     if response.status_code != 200:
         raise HTTPException(404, 'could not load latest model')
     models = response.json()['models']

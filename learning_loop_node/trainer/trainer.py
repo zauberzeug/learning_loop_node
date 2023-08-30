@@ -17,7 +17,7 @@ from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
 from learning_loop_node.data_classes.category import Category
-from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.loop_communication import glc
 from learning_loop_node.rest.downloader import DataDownloader
 from learning_loop_node.trainer import active_training, training_syncronizer
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
@@ -402,7 +402,7 @@ class Trainer():
             skip_detections = progress
 
     async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
-        response = await global_loop_com.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
+        response = await glc.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
         if response.status_code != 200:
             msg = f'could not upload detections. {str(response)}'
             logging.error(msg)

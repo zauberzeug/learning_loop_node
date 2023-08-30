@@ -15,7 +15,7 @@ from learning_loop_node.data_classes.context import Context
 from learning_loop_node.globals import GLOBALS
 
 from . import log_conf
-from .loop_communication import global_loop_com
+from .loop_communication import glc
 from .socket_response import ensure_socket_response
 from .status import State, Status
 
@@ -39,18 +39,18 @@ class Node(FastAPI):
         self.sio_client = None
 
     async def startup(self):
-        await global_loop_com.backend_ready()
-        await global_loop_com.get_asyncclient()
+        await glc.backend_ready()
+        await glc.get_asyncclient()
         await self.create_sio_client()
 
     async def create_sio_client(self):
-        if global_loop_com.async_client is None:  # NOTE the cookie jar is not yet initialized
-            await global_loop_com.get_asyncclient()
+        if glc.async_client is None:  # NOTE the cookie jar is not yet initialized
+            await glc.get_asyncclient()
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
             request_timeout=0.5,
-            http_session=aiohttp.ClientSession(cookies=global_loop_com.async_client.cookies),
+            http_session=aiohttp.ClientSession(cookies=glc.async_client.cookies),
             # logger=True, engineio_logger=True
         )
         self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
@@ -140,8 +140,8 @@ class Node(FastAPI):
 
     def get_sio_headers(self) -> dict:
         headers = {}
-        headers['organization'] = global_loop_com.organization
-        headers['project'] = global_loop_com.project
+        headers['organization'] = glc.organization
+        headers['project'] = glc.project
         headers['nodeType'] = self.get_node_type()
         return headers
 

@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 
 from ..converter.converter import Converter
-from ..loop_communication import global_loop_com
+from ..loop_communication import glc
 from ..model_information import ModelInformation
 from ..node import Node
 from ..status import State
@@ -63,7 +63,7 @@ class ConverterNode(Node):
 
     async def convert_models(self) -> None:
         try:
-            response = await global_loop_com.get('/projects')
+            response = await glc.get('/projects')
             assert response.status_code == 200, f'Assert statuscode 200, but was {response.status}.'
             content = response.json()
             projects = content['projects']
@@ -72,7 +72,7 @@ class ConverterNode(Node):
                 organization_id = project['organization_id']
                 project_id = project['project_id']
 
-                response = await global_loop_com.get(f'{project["resource"]}')
+                response = await glc.get(f'{project["resource"]}')
                 if response.status_code != HTTPStatus.OK:
                     logging.error(
                         f'got bad response for {response.url}: {response.status_code}, {response.content}')
@@ -80,7 +80,7 @@ class ConverterNode(Node):
                 project_categories = response.json()['categories']
 
                 path = f'{project["resource"]}/models'
-                models_response = await global_loop_com.get(path)
+                models_response = await glc.get(path)
                 assert models_response.status_code == 200
                 content = models_response.json()
                 models = content['models']
@@ -92,7 +92,7 @@ class ConverterNode(Node):
                         ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
-                            host=global_loop_com.web.base_url,
+                            host=glc.web.base_url,
                             organization=organization_id,
                             project=project_id,
                             id=model['id'],

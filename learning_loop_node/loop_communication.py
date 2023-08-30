@@ -106,4 +106,4 @@ class LoopCommunication():
         return response.json()
 
 
-global_loop_com = LoopCommunication()
+glc = LoopCommunication()

@@ -7,7 +7,7 @@ import icecream
 import pytest
 
 from learning_loop_node.globals import GLOBALS
-from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.loop_communication import glc
 from learning_loop_node.tests import test_helper
 
 icecream.install()
@@ -44,9 +44,9 @@ def clear_loggers():
 
 @pytest.fixture(autouse=True, scope='function')
 async def loop_session():
-    await global_loop_com.shutdown()
+    await glc.shutdown()
     yield
-    await global_loop_com.shutdown()
+    await glc.shutdown()
 
 
 @pytest.fixture(autouse=True, scope='function')

@@ -13,7 +13,7 @@ import requests
 from icecream import ic
 from requests import Session
 
-from learning_loop_node.loop_communication import global_loop_com
+from learning_loop_node.loop_communication import glc
 
 
 class LiveServerSession(Session):
@@ -21,7 +21,7 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = global_loop_com.web.base_url
+        self.prefix_url = glc.web.base_url
         data = {
             'username': os.environ.get('LOOP_USERNAME', None),
             'password': os.environ.get('LOOP_PASSWORD', None),
@@ -41,7 +41,7 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    response = await global_loop_com.get(f'/zauberzeug/projects/pytest/trainings')
+    response = await glc.get(f'/zauberzeug/projects/pytest/trainings')
     assert response.status_code == 200
     trainings = response.json()
     return trainings['charts'][0]['data'][0]['model_id']
