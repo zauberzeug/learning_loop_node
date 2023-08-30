@@ -12,10 +12,9 @@ from typing import List
 import requests
 from fastapi.encoders import jsonable_encoder
 
-from learning_loop_node.detector import Detections
-
-from .. import environment_reader
-from ..globals import GLOBALS
+from learning_loop_node import environment_reader
+from learning_loop_node.detector.detections import Detections
+from learning_loop_node.globals import GLOBALS
 
 
 class Outbox():

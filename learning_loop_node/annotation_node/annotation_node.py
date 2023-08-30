@@ -8,9 +8,8 @@ from learning_loop_node.annotation_node.data_classes import UserInput
 from learning_loop_node.data_classes.context import Context
 from learning_loop_node.node import Node
 from learning_loop_node.rest.downloader import DataDownloader, node_helper
+from learning_loop_node.socket_response import SocketResponse
 from learning_loop_node.status import AnnotationNodeStatus, State
-
-from ..socket_response import SocketResponse
 
 
 class AnnotationNode(Node):

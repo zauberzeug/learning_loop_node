@@ -4,7 +4,7 @@ import pytest
 
 from learning_loop_node.detector.detections import (BoxDetection, Detections,
                                                     PointDetection)
-from learning_loop_node.detector.outbox.outbox import Outbox
+from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.inbox_filter.relevance_filter import RelevanceFilter
 
 high_conf_box_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .9)
