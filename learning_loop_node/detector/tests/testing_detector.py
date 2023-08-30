@@ -1,6 +1,8 @@
-import logging
-from learning_loop_node.detector import BoxDetection, PointDetection, SegmentationDetection, Shape, Point, Detections
+
 from learning_loop_node import Detector, ModelInformation
+from learning_loop_node.detector import (BoxDetection, Detections, Point,
+                                         PointDetection, SegmentationDetection,
+                                         Shape)
 
 
 class TestingDetector(Detector):

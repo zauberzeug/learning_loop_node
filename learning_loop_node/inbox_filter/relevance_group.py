@@ -1,10 +1,10 @@
-from typing import List, Union
+from typing import List
 
-from learning_loop_node.detector.segmentation_detection import SegmentationDetection
-from .observation import Observation
-from ..detector.box_detection import BoxDetection
-from ..detector.point_detection import PointDetection
-from ..detector.detections import Detections
+from observation import Observation
+
+from learning_loop_node.detector.detections import (BoxDetection, Detections,
+                                                    PointDetection,
+                                                    SegmentationDetection)
 
 
 class RelevanceGroup:
@@ -35,7 +35,7 @@ class RelevanceGroup:
                 causes.add('segmentation_detection')
                 continue
             similar = self.find_similar_observations(detection)
-            if(any(similar)):
+            if (any(similar)):
                 [s.update_last_seen() for s in similar]
                 continue
             else:

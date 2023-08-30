@@ -1,5 +1,3 @@
-from .detections import Detections
-from .box_detection import BoxDetection
-from .point_detection import PointDetection
-from .segmentation_detection import SegmentationDetection, Shape, Point
+from .detections import (BoxDetection, Detections, Point, PointDetection,
+                         SegmentationDetection, Shape)
 from .outbox.outbox import Outbox

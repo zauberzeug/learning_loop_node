@@ -3,18 +3,21 @@ if True:
     logging.basicConfig(level=logging.INFO)
 
 
-from learning_loop_node.trainer.error_configuration import ErrorConfiguration
+import asyncio
+import time
 from typing import Dict, List, Optional, Union
+
+import progress_simulator
+
+from learning_loop_node.detector.detections import (BoxDetection,
+                                                    ClassificationDetection,
+                                                    Point, PointDetection,
+                                                    SegmentationDetection,
+                                                    Shape)
+from learning_loop_node.model_information import ModelInformation
+from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
-import progress_simulator
-import time
-from learning_loop_node.model_information import ModelInformation
-from learning_loop_node.detector.box_detection import BoxDetection
-from learning_loop_node.detector.point_detection import PointDetection
-from learning_loop_node.detector.segmentation_detection import SegmentationDetection, Shape, Point
-from learning_loop_node.detector.classification_detection import ClassificationDetection
-import asyncio
 
 
 class MockTrainer(Trainer):
@@ -64,8 +67,10 @@ class MockTrainer(Trainer):
             point_detections = []
             segmentation_detections = []
             classification_detections = []
-            image_entry = {'image_id': image_id, 'box_detections': box_detections,
-                           'point_detections': point_detections, 'segmentation_detections': segmentation_detections, 'classification_detections': classification_detections}
+            image_entry = {
+                'image_id': image_id, 'box_detections': box_detections, 'point_detections': point_detections,
+                'segmentation_detections': segmentation_detections,
+                'classification_detections': classification_detections}
             for c in model_information.categories:
                 if c.type == 'box':
                     d = BoxDetection(c.name, x=1, y=2, width=30, height=40,

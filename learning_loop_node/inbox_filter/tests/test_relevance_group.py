@@ -1,8 +1,10 @@
 # group Tests incoming
 from datetime import datetime, timedelta
-from learning_loop_node.detector.box_detection import BoxDetection
-from learning_loop_node.detector.point_detection import PointDetection
-from learning_loop_node.detector.segmentation_detection import Point, SegmentationDetection, Shape
+
+from learning_loop_node.detector.detections import (BoxDetection, Point,
+                                                    PointDetection,
+                                                    SegmentationDetection,
+                                                    Shape)
 from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
 
 dirt_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .3)
