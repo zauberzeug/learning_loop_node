@@ -1,10 +1,9 @@
 from typing import List
 
-from observation import Observation
-
 from learning_loop_node.detector.detections import (BoxDetection, Detections,
                                                     PointDetection,
                                                     SegmentationDetection)
+from learning_loop_node.inbox_filter.observation import Observation
 
 
 class RelevanceGroup:
@@ -24,12 +23,12 @@ class RelevanceGroup:
     def add_point_detections(self, point_detections: List[PointDetection]) -> List[str]:
         return self.add_detections(Detections(point_detections=point_detections))
 
-    def add_segmentation_detections(self, segmentation_detections: List[SegmentationDetection]) -> List[str]:
-        return self.add_detections(Detections(segmentation_detections=segmentation_detections))
+    def add_segmentation_detections(self, seg_detections: List[SegmentationDetection]) -> List[str]:
+        return self.add_detections(Detections(seg_detections=seg_detections))
 
     def add_detections(self, detections: Detections) -> List[str]:
         causes = set()
-        for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections:
+        for detection in detections.box_detections + detections.point_detections + detections.seg_detections:
             if type(detection) is SegmentationDetection:
                 self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')

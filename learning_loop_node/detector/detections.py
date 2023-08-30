@@ -158,10 +158,10 @@ class SegmentationDetection:
 class Detections:
     box_detections: List[BoxDetection] = field(default_factory=list)
     point_detections: List[PointDetection] = field(default_factory=list)
-    segmentation_detections: List[SegmentationDetection] = field(default_factory=list)
+    seg_detections: List[SegmentationDetection] = field(default_factory=list)
     classification_detections: List[ClassificationDetection] = field(default_factory=list)
     tags: Optional[List[str]] = field(default_factory=list)
     date: Optional[str] = datetime.now().isoformat(sep='_', timespec='milliseconds')
 
     def __len__(self):
-        return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
+        return len(self.box_detections) + len(self.point_detections) + len(self.seg_detections) + len(self.classification_detections)

@@ -222,10 +222,10 @@ class DetectorNode(Node):
         loop = asyncio.get_event_loop()
         detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
-        for detection in detections.segmentation_detections:
+        for detection in detections.seg_detections:
             detection.shape = ','.join([str(value) for p in detection.shape.points for _, value in p.__dict__.items()])
         info = "\n    ".join([str(d) for d in detections.box_detections +
-                             detections.point_detections + detections.segmentation_detections])
+                             detections.point_detections + detections.seg_detections])
         self.log.info(f'detected:\n    {info}')
         if camera_id is not None:
             tags.append(camera_id)
@@ -257,7 +257,7 @@ class DetectorNode(Node):
             category_name = point_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             point_detection.category_id = category_id
-        for segmentation_detection in detections.segmentation_detections:
+        for segmentation_detection in detections.seg_detections:
             category_name = segmentation_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             segmentation_detection.category_id = category_id

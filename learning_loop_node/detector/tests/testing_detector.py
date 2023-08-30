@@ -20,7 +20,7 @@ class TestingDetector(Detector):
             return Detections(
                 box_detections=[BoxDetection('some_category_name', 1, 2, 3, 4, 'some_model', .42)],
                 point_detections=[PointDetection('some_category_name_2', 10, 12, 'some_model', .42)],
-                segmentation_detections=[SegmentationDetection(
+                seg_detections=[SegmentationDetection(
                     'some_category_name_3', Shape(points=[Point(1, 1)]), 'some_model', .42)]
             )
 
