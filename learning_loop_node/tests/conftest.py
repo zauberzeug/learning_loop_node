@@ -1,4 +1,4 @@
-import asyncio
+
 import logging
 import os
 import shutil
@@ -7,6 +7,7 @@ import icecream
 import pytest
 
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.loop_communication import global_loop_com
 from learning_loop_node.tests import test_helper
 
 icecream.install()
@@ -43,10 +44,9 @@ def clear_loggers():
 
 @pytest.fixture(autouse=True, scope='function')
 async def loop_session():
-    glc = GLOBALS.loop_communication
-    await glc.shutdown()
+    await global_loop_com.shutdown()
     yield
-    await glc.shutdown()
+    await global_loop_com.shutdown()
 
 
 @pytest.fixture(autouse=True, scope='function')
