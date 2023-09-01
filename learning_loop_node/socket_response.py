@@ -1,15 +1,17 @@
-from typing import Any, Optional
-from pydantic import BaseModel
 import asyncio
 import functools
 import logging
 import traceback
+from typing import Any, Optional
+
+# pylint: disable=no-name-in-module
+from pydantic import BaseModel
 
 
 class SocketResponse(BaseModel):
     success: bool
-    error_msg: Optional[str]
-    payload: Optional[Any]
+    error_msg: Optional[str] = None
+    payload: Optional[Any] = None
 
     @staticmethod
     def for_failure(error_msg: str):

@@ -1,18 +1,17 @@
-if True:
-    import logging
-    logging.basicConfig(level=logging.INFO)
-
-
+import logging
 from typing import Optional
-import logging
-from fastapi.encoders import jsonable_encoder
-from icecream import ic
+
+# pylint: disable=no-name-in-module
 from pydantic import BaseModel
-import logging
-from learning_loop_node.annotation_node.data_classes import ToolOutput, UserInput, EventType
-from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
+
+from learning_loop_node.annotation.annotator_model import ToolOutput
+from learning_loop_node.annotation.annotator_node import AnnotatorNode
+from learning_loop_node.data_classes import EventType
+
+logging.basicConfig(level=logging.INFO)
 
 
+# NOTE: This is a mock annotator tool. It is used for testing purposes only.
 class SvgBox(BaseModel):
     x: int
     y: int
@@ -25,16 +24,15 @@ class SvgBox(BaseModel):
         return f'<rect x="{min(self.x, self.x2)}" y="{min(self.y, self.y2)}" width="{width or 1}" height="{height or 1}" fill="blue">'
 
 
-class MockAnnotationTool(AnnotationTool):
-    box: Optional[SvgBox]
-
+class MockAnnotatorNode(AnnotatorNode):
     def __init__(self):
         super().__init__()
-        self.box: SvgBox = None
+        self.box: Optional[SvgBox] = None
 
-    async def handle_user_input(self, user_input, history: dict):
+    async def handle_user_input(self, user_input):
         out = ToolOutput(svg="", annotation=None)
         event_type = user_input.data.event_type
+        assert isinstance(self.box, SvgBox)
         try:
             if user_input.data.event_type == EventType.LeftMouseDown:
                 coordinate = user_input.data.coordinate

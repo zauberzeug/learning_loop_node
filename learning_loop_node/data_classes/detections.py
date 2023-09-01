@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
+
+import numpy as np
 
 
 @dataclass
@@ -135,7 +137,7 @@ class Shape:
 @dataclass
 class SegmentationDetection:
     category_name: str
-    shape: Shape
+    shape: Union[Shape, str]
     model_name: str
     confidence: float
     category_id: str = ''

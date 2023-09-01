@@ -1,8 +1,9 @@
 from typing import List
 
-from learning_loop_node.detector.detections import (BoxDetection, Detections,
-                                                    PointDetection,
-                                                    SegmentationDetection)
+from learning_loop_node.data_classes.detections import (BoxDetection,
+                                                        Detections,
+                                                        PointDetection,
+                                                        SegmentationDetection)
 from learning_loop_node.inbox_filter.observation import Observation
 
 
@@ -33,14 +34,16 @@ class RelevanceGroup:
                 self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')
                 continue
+            if not isinstance(detection, BoxDetection):
+                continue
             similar = self.find_similar_observations(detection)
             if (any(similar)):
-                [s.update_last_seen() for s in similar]
+                for s in similar:
+                    s.update_last_seen()
                 continue
-            else:
-                self.recent_observations.append(Observation(detection))
-                if 0.3 <= detection.confidence <= .6:
-                    causes.add('uncertain')
+            self.recent_observations.append(Observation(detection))
+            if 0.3 <= detection.confidence <= 0.6:
+                causes.add('uncertain')
         return list(causes)
 
     def find_similar_observations(self, new_detection: BoxDetection):

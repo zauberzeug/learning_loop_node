@@ -1,13 +1,14 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
-from learning_loop_node.trainer import training_syncronizer
-from learning_loop_node.trainer.trainer_node import TrainerNode
-from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-from fastapi import APIRouter,  Request,  HTTPException
-from learning_loop_node.status import Status, State
+
 import logging
-import asyncio
-from learning_loop_node.trainer import active_training
-from learning_loop_node.trainer.training import State as TrainingState
+
+from fastapi import APIRouter, HTTPException, Request
+
+from learning_loop_node.status import State
+from learning_loop_node.trainer import active_training_module
+from learning_loop_node.trainer.error_configuration import ErrorConfiguration
+from learning_loop_node.trainer.trainer_node import TrainerNode
+
 router = APIRouter()
 
 
@@ -51,11 +52,11 @@ async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
     await _switch_socketio('on', trainer_node)
 
-    trainer_node.stop_training()
-    trainer_node.stop_training()
+    trainer_node.trainer.stop()
+    trainer_node.trainer.stop()
     # NOTE first stop may only kill running training process
 
-    active_training.delete()
+    active_training_module.delete()
     trainer_node.status.reset_all_errors()
     logging.error('training should be killed, sending new state to LearningLoop')
     await trainer_node.send_status()

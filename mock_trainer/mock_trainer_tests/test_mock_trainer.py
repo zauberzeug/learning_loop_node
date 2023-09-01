@@ -1,13 +1,10 @@
-import asyncio
 from uuid import uuid4
 
-from learning_loop_node.data_classes.context import Context
+from learning_loop_node.data_classes import (Context, Model, Training,
+                                             TrainingData)
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
-from learning_loop_node.trainer.model import Model
-from learning_loop_node.trainer.training import Training
-from learning_loop_node.trainer.training_data import TrainingData
-from mock_trainer import MockTrainer
+from mock_trainer.mock_trainer import MockTrainer
 
 
 async def create_mock_trainer() -> MockTrainer:
@@ -29,10 +26,10 @@ async def test_get_new_model():
     mock_trainer = await create_mock_trainer()
     await mock_trainer.start_training()
 
-    model = Model(id=(str(uuid4())))
+    model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
     mock_trainer.training = Training(
-        id=str(uuid4()),
+        uuid=str(uuid4()),
         context=context,
         project_folder="",
         images_folder="")

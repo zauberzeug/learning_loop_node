@@ -1,39 +1,38 @@
-import multiprocessing
-import pytest
-from learning_loop_node import DetectorNode, ModelInformation
-from learning_loop_node.detector import Outbox
-from learning_loop_node.data_classes import Category
-from testing_detector import TestingDetector
-import uvicorn
-from multiprocessing import Process, log_to_stderr
+import asyncio
 import logging
-import icecream
+import multiprocessing
 import os
 import socket
-import asyncio
-from typing import Generator
-import socketio
 from glob import glob
+from multiprocessing import Process, log_to_stderr
+from typing import AsyncGenerator
+
+import pytest
+import socketio
+import uvicorn
+from testing_detector import TestingDetector
+
+from learning_loop_node import DetectorNode
+from learning_loop_node.data_classes.general import Category, ModelInformation
+from learning_loop_node.detector.outbox import Outbox
 
 logging.basicConfig(level=logging.INFO)
 
 # show ouptut from uvicorn server https://stackoverflow.com/a/66132186/364388
 log_to_stderr(logging.INFO)
 
-icecream.install()
-
 
 def pytest_configure():
-    pytest.detector_port = 5000
+    pytest.detector_port = 5000  # TODO rather use globals?
 
 
 def should_have_segmentations(request) -> bool:
-    should_have_segmentations = False
+    should_have_seg = False
     try:
-        should_have_segmentations = request.param
-    except:
+        should_have_seg = request.param
+    except Exception:
         pass
-    return should_have_segmentations
+    return should_have_seg
 
 
 @pytest.fixture()
@@ -41,8 +40,11 @@ async def test_detector_node(request):
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
-    model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug',
-                                  project='test', version='1', categories=[Category(id='some_id', name='some_category_name'), Category(id='some_id_2', name='some_category_name_2'),  Category(id='some_id_3', name='some_category_name_3')])
+    model_info = ModelInformation(
+        id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1',
+        categories=[Category(identifier='some_id_1', name='some_category_name_1'),
+                    Category(identifier='some_id_2', name='some_category_name_2'),
+                    Category(identifier='some_id_3', name='some_category_name_3')])
     segmentations = should_have_segmentations(request)
 
     det = TestingDetector(segmentation_detections=segmentations)
@@ -64,13 +66,13 @@ async def test_detector_node(request):
     yield node
 
     try:
-        await node.shutdown()
-    except:
+        await node.on_shutdown()
+    except Exception:
         logging.exception('error while shutting down node')
 
     try:
         proc.kill()
-    except:  # for python 3.6
+    except Exception:  # for python 3.6
         proc.terminate()
     proc.join()
 
@@ -88,13 +90,12 @@ async def port_is(free: bool):
             return
         if free and not is_port_in_use(pytest.detector_port):
             return
-        else:
-            await asyncio.sleep(0.5)
+        await asyncio.sleep(0.5)
     raise Exception(f'port {pytest.detector_port} is {"not" if free else ""} free')
 
 
 @pytest.fixture()
-async def sio_client() -> Generator:
+async def sio_client() -> AsyncGenerator[socketio.AsyncClient, None]:
     sio = socketio.AsyncClient()
     try_connect = True
     retry_count = 0
@@ -102,7 +103,7 @@ async def sio_client() -> Generator:
         try:
             await sio.connect(f"ws://localhost:{pytest.detector_port}", socketio_path="/ws/socket.io")
             try_connect = False
-        except:
+        except Exception:
             logging.warning('trying again')
             await asyncio.sleep(1)
         retry_count += 1

@@ -2,11 +2,9 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import PlainTextResponse
 
-from learning_loop_node.data_classes.context import Context
+from learning_loop_node.data_classes import Context
 from learning_loop_node.loop_communication import glc
-from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 
 router = APIRouter()

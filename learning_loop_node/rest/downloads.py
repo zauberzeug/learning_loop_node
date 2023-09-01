@@ -10,10 +10,9 @@ from io import BytesIO
 from typing import List
 
 import aiofiles
-from icecream import ic
 from tqdm.asyncio import tqdm
 
-from learning_loop_node.data_classes.context import Context
+from learning_loop_node.data_classes import Context
 from learning_loop_node.loop_communication import glc
 from learning_loop_node.task_logger import create_task
 
@@ -60,8 +59,8 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
         chunk_paths = paths[i:i+chunk_size]
         chunk_ids = image_ids[i:i+chunk_size]
         tasks = []
-        for j in range(len(chunk_paths)):
-            tasks.append(create_task(download_one_image(chunk_paths[j], chunk_ids[j], image_folder)))
+        for j, chunk_j in enumerate(chunk_paths):
+            tasks.append(create_task(download_one_image(chunk_j, chunk_ids[j], image_folder)))
         await asyncio.gather(*tasks)
         total_time = round(time.time() - starttime, 1)
         per100 = total_time / (i + len(tasks)) * 100
@@ -107,7 +106,7 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     if response.status_code != 200:
         content = response.json()
         logging.error(
-            f'could not download {glc.web.base_url}/{path}: {response.status_code}, content: {content}')
+            f'could not download {glc.base_url}/{path}: {response.status_code}, content: {content}')
         raise DownloadError(content['detail'])
     try:
         provided_filename = response.headers.get(
@@ -117,7 +116,7 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
         logging.error(f'Error during downloading model {path}:')
         try:
             logging.exception(response.json())
-        except:
+        except Exception:
             pass
         raise
 

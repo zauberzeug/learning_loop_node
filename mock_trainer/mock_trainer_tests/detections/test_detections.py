@@ -1,14 +1,12 @@
-import logging
+
 from glob import glob
 
 import pytest
-from icecream import ic
 
-from learning_loop_node.data_classes import Category
-from learning_loop_node.data_classes.context import Context
+from learning_loop_node.data_classes import Context
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.tests import test_helper
-from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer import active_training_module
 from learning_loop_node.trainer.trainer import Trainer
 from mock_trainer import MockTrainer
 
@@ -39,11 +37,11 @@ async def test_all(setup_test_project):
     trainer = MockTrainer(model_format='mocked')
     context = Context(organization='zauberzeug', project='pytest')
 
-    training = Trainer.generate_training(context)
+    training = Trainer.generate_new_training(context)
     training.model_id_for_detecting = latest_model_id
     trainer.training = training
     await trainer._do_detections()
-    detections = active_training.detections.load(training, 0)
+    detections = active_training_module.detections.load(training, 0)
 
     assert_image_count(10)
     assert len(detections) == 10  # detections run on 10 images

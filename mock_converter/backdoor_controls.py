@@ -1,15 +1,16 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 
-from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-from fastapi import APIRouter,  Request,  HTTPException
 import asyncio
-from learning_loop_node.status import Status, State
+
+from fastapi import APIRouter, HTTPException, Request
+
+from learning_loop_node.status import State
 
 router = APIRouter()
 
 
 @router.put("/socketio")
-async def switch_socketio(request: Request):
+async def put_socketio(request: Request):
     '''
     Example Usage
 
@@ -28,7 +29,7 @@ async def switch_socketio(request: Request):
 
 
 @router.put("/check_state")
-async def switch_socketio(request: Request):
+async def put_check_state(request: Request):
     value = str(await request.body(), 'utf-8')
     if value == 'off':
         request.app.skip_check_state = True

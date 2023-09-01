@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import requests
-from icecream import ic
 
 # https://stackoverflow.com/a/39225272/4082686
 
@@ -14,7 +13,6 @@ def g_download(file_id: str, destination: str):
         'id': file_id,
         'confirm': 't'},  # large file warning.
         stream=True)
-    ic(str(response))
     token = get_confirm_token(response)
 
     if token:

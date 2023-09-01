@@ -1,6 +1,8 @@
-import pytest
-from learning_loop_node import node_helper
 from typing import List
+
+import pytest
+
+from learning_loop_node import node_helper
 
 
 @pytest.mark.parametrize("image_ids,expected_urls,expected_ids", [

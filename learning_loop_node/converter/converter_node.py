@@ -1,22 +1,23 @@
 import logging
 from http import HTTPStatus
+from typing import Optional
 
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 
-from ..converter.converter import Converter
-from ..loop_communication import glc
-from ..model_information import ModelInformation
-from ..node import Node
-from ..status import State
+from learning_loop_node.converter.converter_model import ConverterModel
+from learning_loop_node.data_classes import ModelInformation
+from learning_loop_node.loop_communication import glc
+from learning_loop_node.node import Node
+from learning_loop_node.status import State
 
 
 class ConverterNode(Node):
-    converter: Converter
+    converter: ConverterModel
     skip_check_state: bool = False
     bad_model_ids = []
 
-    def __init__(self, name: str, converter: Converter, uuid: str = None):
+    def __init__(self, name: str, converter: ConverterModel, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.converter = converter
 
@@ -29,7 +30,7 @@ class ConverterNode(Node):
             if not self.skip_check_state:
                 try:
                     await self.check_state()
-                except:
+                except Exception:
                     logging.error('could not check state. Is loop reachable?')
 
     async def convert_model(self, model_information: ModelInformation):
@@ -56,15 +57,15 @@ class ConverterNode(Node):
         self.status.state = State.Running
         try:
             await self.convert_models()
-        except Exception as e:
-            logging.error(str(e))
+        except Exception as exc:
+            logging.error(str(exc))
 
         self.status.state = State.Idle
 
     async def convert_models(self) -> None:
         try:
             response = await glc.get('/projects')
-            assert response.status_code == 200, f'Assert statuscode 200, but was {response.status}.'
+            assert response.status_code == 200, f'Assert statuscode 200, but was {response.status_code}.'
             content = response.json()
             projects = content['projects']
 
@@ -89,10 +90,10 @@ class ConverterNode(Node):
                     if (model['version']
                             and self.converter.source_format in model['formats']
                             and self.converter.target_format not in model['formats']
-                        ):
+                            ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
-                            host=glc.web.base_url,
+                            host=glc.base_url,
                             organization=organization_id,
                             project=project_id,
                             id=model['id'],
@@ -109,5 +110,8 @@ class ConverterNode(Node):
         # NOTE not yet implemented
         pass
 
-    def get_state(self):
-        return State.Idle
+    async def get_state(self):
+        return State.Idle  # NOTE unused for this node type
+
+    def get_node_type(self):
+        return 'converter'

@@ -1,10 +1,9 @@
 import logging
 
-from learning_loop_node.data_classes.context import Context
+from learning_loop_node.data_classes import Context
 from learning_loop_node.tests.test_helper import condition, update_attributes
-from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer import Training, active_training_module
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.training import Training
 
 
 def create_active_training_file(**kwargs) -> None:
@@ -18,7 +17,7 @@ def create_active_training_file(**kwargs) -> None:
     trainer.init(Context(organization='zauberzeug', project='demo'), details)
 
     update_attributes(trainer.training, **kwargs)
-    active_training.save(trainer.training)
+    active_training_module.save(trainer.training)
 
 
 async def assert_training_state(training: Training, state: str, timeout: float, interval: float) -> None:

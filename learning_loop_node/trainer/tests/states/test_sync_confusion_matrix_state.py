@@ -1,8 +1,10 @@
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 import asyncio
-from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
+
+from learning_loop_node.trainer import active_training_module
 from learning_loop_node.trainer.tests.states import state_helper
-from learning_loop_node.trainer import active_training
+from learning_loop_node.trainer.tests.states.state_helper import \
+    assert_training_state
+from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
@@ -16,14 +18,14 @@ def trainer_has_error(trainer: Trainer):
 async def test_nothing_to_sync():
     state_helper.create_active_training_file(training_state='training_finished')
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'confusion_matrix_synced'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_unsynced_model_available__sync_successful(test_trainer_node: TrainerNode, mocker):
@@ -31,7 +33,7 @@ async def test_unsynced_model_available__sync_successful(test_trainer_node: Trai
 
     state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
     trainer.has_new_model = True
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(
@@ -40,13 +42,13 @@ async def test_unsynced_model_available__sync_successful(test_trainer_node: Trai
 
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'confusion_matrix_synced'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_unsynced_model_available__sio_not_connected(test_trainer_node: TrainerNode):
     state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     assert test_trainer_node.sio_client.connected is False
     trainer.has_new_model = True
@@ -58,7 +60,7 @@ async def test_unsynced_model_available__sio_not_connected(test_trainer_node: Tr
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_unsynced_model_available__request_is_not_successful(test_trainer_node: TrainerNode, mocker):
@@ -66,7 +68,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_trainer_
 
     state_helper.create_active_training_file(training_state='training_finished')
     trainer = test_trainer_node.trainer
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     trainer.has_new_model = True
     train_task = asyncio.get_running_loop().create_task(trainer.train(
@@ -77,7 +79,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_trainer_
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_basic_mock(test_trainer_node: TrainerNode, mocker):

@@ -1,12 +1,26 @@
 from abc import abstractmethod
+from typing import Optional
+
+# pylint: disable=no-name-in-module
 from pydantic import BaseModel
-from learning_loop_node.annotation_node.data_classes import UserInput, ToolOutput
-import logging
+
+from learning_loop_node.data_classes import (AnnotationData,
+                                             SegmentationAnnotation)
 
 
-class AnnotationTool(BaseModel):
+class UserInput(BaseModel):
+    frontend_id: str
+    data: AnnotationData
 
-    @abstractmethod
+
+class ToolOutput(BaseModel):
+    svg: str
+    annotation: Optional[SegmentationAnnotation] = None
+
+
+class AnnotatatorModel(BaseModel):
+
+    @abstractmethod  # TODO: Auch bei anderen
     async def handle_user_input(self, user_input: UserInput, history: dict) -> ToolOutput:
         pass
 
@@ -19,9 +33,9 @@ class AnnotationTool(BaseModel):
         pass
 
 
-class EmptyAnnotationTool():
+class EmptyAnnotatator(AnnotatatorModel):
     async def handle_user_input(self, user_input: UserInput, history: dict) -> ToolOutput:
-        return ToolOutput(svg="", shape={})
+        return ToolOutput(svg="")
 
     def create_empty_history(self) -> dict:
         return {}

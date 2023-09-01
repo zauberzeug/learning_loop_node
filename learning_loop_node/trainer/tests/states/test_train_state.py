@@ -1,15 +1,17 @@
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 import asyncio
-from learning_loop_node.trainer.tests.states.state_helper import assert_training_state
-from learning_loop_node.trainer.tests.states import state_helper
-from learning_loop_node.trainer import active_training
+
 from learning_loop_node.tests.test_helper import condition
+from learning_loop_node.trainer import active_training_module
+from learning_loop_node.trainer.tests.states import state_helper
+from learning_loop_node.trainer.tests.states.state_helper import \
+    assert_training_state
+from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 
 
 async def test_successful_training():
     state_helper.create_active_training_file(training_state='train_model_downloaded')
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
@@ -20,13 +22,13 @@ async def test_successful_training():
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_stop_running_training():
     state_helper.create_active_training_file(training_state='train_model_downloaded')
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
@@ -38,14 +40,14 @@ async def test_stop_running_training():
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_training_can_maybe_resumed():
     # NOTE e.g. when a node-computer is restarted
     state_helper.create_active_training_file(training_state='train_model_downloaded')
     trainer = TestingTrainer(can_resume=True)
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
@@ -57,4 +59,4 @@ async def test_training_can_maybe_resumed():
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training

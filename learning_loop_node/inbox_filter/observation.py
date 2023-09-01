@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from typing import Union
 
-from learning_loop_node.detector.detections import (BoxDetection,
-                                                    PointDetection,
-                                                    SegmentationDetection)
+from learning_loop_node.data_classes.detections import (BoxDetection,
+                                                        PointDetection,
+                                                        SegmentationDetection)
 
 
 class Observation():

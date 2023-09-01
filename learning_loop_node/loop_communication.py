@@ -42,6 +42,10 @@ class LoopCommunication():
 
         return self._async_client
 
+    async def get_cookies(self):
+        ac = await self.get_asyncclient()
+        return ac.cookies
+
     async def shutdown(self):
         if self._async_client is not None and not self._async_client.is_closed:
             await self._async_client.aclose()

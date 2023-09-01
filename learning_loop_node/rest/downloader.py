@@ -6,20 +6,19 @@ from time import perf_counter
 from typing import List, Optional
 
 from learning_loop_node import node_helper
-from learning_loop_node.data_classes.context import Context
-from learning_loop_node.loop_communication import LoopCommunication
+from learning_loop_node.data_classes.general import Context
+from learning_loop_node.loop_communication import glc
 from learning_loop_node.rest import downloads
 
 
 class DataDownloader():
     context: Context
 
-    def __init__(self, context: Context, loop_com: LoopCommunication):
+    def __init__(self, context: Context):
         self.context = context
-        self.loop_com = loop_com
 
     async def fetch_image_ids(self, query_params: Optional[str] = '') -> List[str]:
-        response = await self.loop_com.get(f'/{self.context.organization}/projects/{self.context.project}/data?{query_params}')
+        response = await glc.get(f'/{self.context.organization}/projects/{self.context.project}/data?{query_params}')
         assert response.status_code == 200, response
         return (response.json())['image_ids']
 

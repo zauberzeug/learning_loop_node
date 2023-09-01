@@ -1,8 +1,7 @@
 import pytest
-from icecream import ic
 
 import learning_loop_node.rest.downloads as downloads
-from learning_loop_node.data_classes.context import Context
+from learning_loop_node.data_classes import Context
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.downloader import DataDownloader
@@ -12,16 +11,15 @@ from learning_loop_node.trainer.tests import trainer_test_helper
 @pytest.fixture(autouse=True, scope='module')
 def create_project_for_module():
     # TODO can we use the 'create_project' fixture here?
-    test_helper.LiveServerSession().delete(
-        f"/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete("/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {
         'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
         'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0,
         'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
-    assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
+    assert test_helper.LiveServerSession().post("/zauberzeug/projects/generator",
                                                 json=project_configuration).status_code == 200
     yield
-    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete("/zauberzeug/projects/pytest?keep_images=true")
 
 
 @pytest.fixture
@@ -54,6 +52,7 @@ async def test_download_model():
     assert '"format": "mocked"' in open(model_json, 'r').read(), 'should have base_model.json'
 
 
+# pylint: disable=redefined-outer-name
 async def test_fetching_image_ids(data_downloader: DataDownloader):
     ids = await data_downloader.fetch_image_ids()
     assert len(ids) == 3

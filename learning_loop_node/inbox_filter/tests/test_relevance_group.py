@@ -1,10 +1,10 @@
 # group Tests incoming
 from datetime import datetime, timedelta
 
-from learning_loop_node.detector.detections import (BoxDetection, Point,
-                                                    PointDetection,
-                                                    SegmentationDetection,
-                                                    Shape)
+from learning_loop_node.data_classes.detections import (BoxDetection, Point,
+                                                        PointDetection,
+                                                        SegmentationDetection,
+                                                        Shape)
 from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
 
 dirt_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .3)
@@ -23,15 +23,15 @@ def test_group_confidence():
 
     filter_cause = group.add_box_detections([dirt_detection])
     assert len(group.recent_observations) == 1, f'Detection should already be stored'
-    assert filter_cause == []
+    assert not filter_cause
 
     filter_cause = group.add_box_detections([conf_too_low_detection])
     assert len(group.recent_observations) == 1, 'Confidence of detection too low'
-    assert filter_cause == []
+    assert not filter_cause
 
     filter_cause = group.add_box_detections([conf_too_high_detection])
     assert len(group.recent_observations) == 1, 'Confidence of detection too high'
-    assert filter_cause == []
+    assert not filter_cause
 
 
 def test_add_second_detection_to_group():
@@ -121,7 +121,7 @@ def test_ignoring_similar_points():
     filter_cause = group.add_point_detections(
         [PointDetection('point', 104, 98, 'xyz', 0.3)])
     assert len(group.recent_observations) == 1, f'detection should already be stored'
-    assert filter_cause == []
+    assert not filter_cause
 
 
 def test_getting_low_confidence_points():
@@ -134,7 +134,7 @@ def test_getting_low_confidence_points():
 
     filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
     assert len(group.recent_observations) == 1, 'detection should already be stored'
-    assert filter_cause == []
+    assert not filter_cause
 
 
 def test_getting_segmentation_detections():

@@ -1,4 +1,3 @@
-
 import os
 import shutil
 
@@ -6,7 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from learning_loop_node.detector.detections import Detections
+from learning_loop_node.data_classes import Detections
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.detector.outbox import Outbox
 

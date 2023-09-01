@@ -1,8 +1,10 @@
-import numpy as np
-from learning_loop_node import DetectorNode
-import pytest
-from learning_loop_node.detector.tests.conftest import get_outbox_files
 import asyncio
+
+import numpy as np
+import pytest
+
+from learning_loop_node import DetectorNode
+from learning_loop_node.detector.tests.conftest import get_outbox_files
 
 
 @pytest.mark.parametrize('autoupload, expected_file_count', [(None, 2), ('all', 4)])

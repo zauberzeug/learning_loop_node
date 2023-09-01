@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from ..detector.detections import Detections
+from ..data_classes.detections import Detections
 from ..detector.outbox import Outbox
 from .relevance_group import RelevanceGroup
 

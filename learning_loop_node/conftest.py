@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 @pytest.fixture()
 def setup_test_project():
-    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
+    test_helper.LiveServerSession().delete("/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {
         'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
         'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0,

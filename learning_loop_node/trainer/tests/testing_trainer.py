@@ -1,28 +1,22 @@
 import asyncio
-import logging
-import subprocess
 import time
 from typing import Dict, List, Optional, Union
 
 import socketio
 
-from learning_loop_node.data_classes.context import Context
-from learning_loop_node.model_information import ModelInformation
-from learning_loop_node.trainer import Trainer
-from learning_loop_node.trainer.model import BasicModel, PretrainedModel
+from learning_loop_node.data_classes import (BasicModel, Context,
+                                             ModelInformation, PretrainedModel)
+from learning_loop_node.trainer.trainer import Trainer
 
 
 class TestingTrainer(Trainer):
     __test__ = False
 
-    def __init__(self, can_resume=False) -> None:
+    def __init__(self, can_resume: bool = False) -> None:
         super().__init__('mocked')
-        self._can_resume = can_resume
-        self.has_new_model = False
-        self.error_msg = None
-
-    async def start_training(self) -> None:
-        self.executor.start('while true; do sleep 1; done')
+        self._can_resume: bool = can_resume
+        self.has_new_model: bool = False
+        self.error_msg: Optional[str] = None
 
     @property
     def provided_pretrained_models(self) -> List[PretrainedModel]:
@@ -40,7 +34,6 @@ class TestingTrainer(Trainer):
     def get_new_model(self) -> Optional[BasicModel]:
         if self.has_new_model:
             return BasicModel(confusion_matrix={})
-
         return None
 
     def on_model_published(self, basic_model: BasicModel) -> None:
@@ -95,5 +88,5 @@ class TestingTrainer(Trainer):
     async def clear_training_data(self, training_folder: str) -> None:
         return
 
-    def get_error(self) -> Optional[Union[None, str]]:
-        return self.error_msg or None
+    def get_error(self) -> Optional[str]:
+        return self.error_msg

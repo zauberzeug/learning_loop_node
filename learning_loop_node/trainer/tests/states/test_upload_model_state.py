@@ -1,7 +1,7 @@
 import asyncio
 
-from learning_loop_node.data_classes.context import Context
-from learning_loop_node.trainer import active_training
+from learning_loop_node.data_classes import Context
+from learning_loop_node.trainer import active_training_module
 from learning_loop_node.trainer.tests.states import state_helper
 from learning_loop_node.trainer.tests.states.state_helper import \
     assert_training_state
@@ -20,7 +20,7 @@ async def test_successful_upload(mocker):
 
     state_helper.create_active_training_file()
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.upload_model())
 
@@ -30,13 +30,13 @@ async def test_successful_upload(mocker):
     assert trainer_has_error(trainer) == False
     assert trainer.training.training_state == 'train_model_uploaded'
     assert trainer.training.model_id_for_detecting == 'some_id'
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_abort_upload_model():
     state_helper.create_active_training_file(training_state='confusion_matrix_synced')
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
@@ -46,14 +46,14 @@ async def test_abort_upload_model():
     await asyncio.sleep(0.1)
 
     assert trainer.training == None
-    assert active_training.exists() == False
+    assert active_training_module.exists() == False
 
 
 async def test_bad_server_response_content(mocker):
     # without a running training the loop will not allow uploading.
     state_helper.create_active_training_file(training_state='confusion_matrix_synced')
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     train_task = asyncio.get_running_loop().create_task(trainer.train(None, None))
 
@@ -63,7 +63,7 @@ async def test_bad_server_response_content(mocker):
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'confusion_matrix_synced'
     assert trainer.training.model_id_for_detecting == None
-    assert active_training.load() == trainer.training
+    assert active_training_module.load() == trainer.training
 
 
 async def test_mock_loop_response_example(mocker):
@@ -71,7 +71,7 @@ async def test_mock_loop_response_example(mocker):
 
     state_helper.create_active_training_file()
     trainer = TestingTrainer()
-    trainer.training = active_training.load()  # normally done by node
+    trainer.training = active_training_module.load()  # normally done by node
 
     result = await trainer._upload_model(Context(organization='zauberzeug', project='demo'))
 

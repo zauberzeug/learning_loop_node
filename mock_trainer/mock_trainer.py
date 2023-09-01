@@ -9,11 +9,9 @@ from typing import Dict, List, Optional, Union
 
 import progress_simulator
 
-from learning_loop_node.detector.detections import (BoxDetection,
-                                                    ClassificationDetection,
-                                                    Point, PointDetection,
-                                                    SegmentationDetection,
-                                                    Shape)
+from learning_loop_node.data_classes.detections import (
+    BoxDetection, ClassificationDetection, Point, PointDetection,
+    SegmentationDetection, Shape)
 from learning_loop_node.model_information import ModelInformation
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from learning_loop_node.trainer.model import BasicModel, PretrainedModel

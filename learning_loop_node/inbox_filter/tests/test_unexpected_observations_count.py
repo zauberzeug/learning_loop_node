@@ -2,8 +2,9 @@ from typing import List
 
 import pytest
 
-from learning_loop_node.detector.detections import (BoxDetection, Detections,
-                                                    PointDetection)
+from learning_loop_node.data_classes.detections import (BoxDetection,
+                                                        Detections,
+                                                        PointDetection)
 from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.inbox_filter.relevance_filter import RelevanceFilter
 

@@ -1,16 +1,16 @@
 import logging
+from abc import abstractmethod
 from typing import Any, Optional
 
-from learning_loop_node.detector.detections import Detections
+from learning_loop_node.data_classes import Detections, ModelInformation
 from learning_loop_node.globals import GLOBALS
-from learning_loop_node.model_information import ModelInformation
 
 
 class Detector():
 
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
-        self.current_model: Optional[ModelInformation] = None
+        self.model_info: Optional[ModelInformation] = None
         self.target_model: Optional[str] = None
 
     def load_model(self):
@@ -18,17 +18,19 @@ class Detector():
             model_information = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
             try:
                 self.init(model_information)
-                self.current_model = model_information
-                logging.info(f'Successfully loaded model {self.current_model}')
+                self.model_info = model_information
+                logging.info(f'Successfully loaded model {self.model_info}')
             except Exception:
                 logging.error(f'Could not init model {model_information}')
                 raise
         except Exception:
-            self.current_model = None
+            self.model_info = None
             logging.exception('An error occured during loading model.')
 
+    @abstractmethod
     def init(self,  model_info: ModelInformation):
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def evaluate(self, image: Any) -> Detections:
-        raise NotImplementedError()
+        pass

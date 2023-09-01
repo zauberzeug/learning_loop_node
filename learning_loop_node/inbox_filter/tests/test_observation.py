@@ -1,15 +1,15 @@
 import time
 from datetime import datetime, timedelta
 
-from learning_loop_node.detector.detections import BoxDetection
+from learning_loop_node.data_classes.detections import BoxDetection
 from learning_loop_node.inbox_filter.observation import Observation
 
 
 def test_aging():
     _detection = Observation(BoxDetection(None, None, None, None, None, None, None))
     time.sleep(0.2)
-    assert _detection.is_older_than(0.1) == True
-    assert _detection.is_older_than(0.3) == False
+    assert _detection.is_older_than(0.1)
+    assert not _detection.is_older_than(0.3)
 
 
 def test_calculate_iou():
@@ -24,4 +24,4 @@ def test_calculate_iou():
 def test_update_last_seen():
     observation = Observation(BoxDetection(None, None, None, None, None, None, None))
     observation.last_seen = datetime.now() - timedelta(seconds=.5)
-    assert observation.is_older_than(0.5) == True
+    assert observation.is_older_than(0.5)

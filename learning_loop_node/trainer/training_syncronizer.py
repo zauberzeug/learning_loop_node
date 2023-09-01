@@ -1,18 +1,21 @@
 
-from learning_loop_node.trainer.training import TrainingOut
-from learning_loop_node.socket_response import SocketResponse
-from fastapi.encoders import jsonable_encoder
-import logging
-import socketio
 import asyncio
+import logging
+from typing import Any
+
+import socketio
+from fastapi.encoders import jsonable_encoder
+
+from learning_loop_node.data_classes import TrainingOut
+from learning_loop_node.socket_response import SocketResponse
 
 
-async def try_sync_model(trainer: any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+async def try_sync_model(trainer: Any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
     try:
         model = trainer.get_new_model()
-    except Exception as e:
+    except Exception as exc:
         logging.exception('error while getting new model')
-        raise Exception(f'Could not get new model : {str(e)}')
+        raise Exception(f'Could not get new model: {str(exc)}') from exc
     logging.debug(f'new model {model}')
 
     if model:

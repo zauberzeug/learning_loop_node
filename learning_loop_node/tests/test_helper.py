@@ -1,16 +1,13 @@
 import asyncio
-import logging
 import os
 import shutil
 import time
 import zipfile
 from glob import glob
-from typing import Callable, List, Optional
+from typing import Callable
 from urllib.parse import urljoin
 
-import aiohttp
 import requests
-from icecream import ic
 from requests import Session
 
 from learning_loop_node.loop_communication import glc
@@ -21,12 +18,13 @@ class LiveServerSession(Session):
 
     def __init__(self, *args, **kwargs):
         super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = glc.web.base_url
+        self.prefix_url = glc.base_url
         data = {
             'username': os.environ.get('LOOP_USERNAME', None),
             'password': os.environ.get('LOOP_PASSWORD', None),
         }
         self.cookies = requests.post(f'{self.prefix_url}/api/login', data=data).cookies
+        # self.cookies = await glc.get_cookies() #TODO it would be better to use glc here as well
 
     def request(self, method, url, *args, **kwargs):
         url = 'api/' + url
@@ -41,7 +39,7 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    response = await glc.get(f'/zauberzeug/projects/pytest/trainings')
+    response = await glc.get('/zauberzeug/projects/pytest/trainings')
     assert response.status_code == 200
     trainings = response.json()
     return trainings['charts'][0]['data'][0]['model_id']
@@ -54,11 +52,11 @@ def unzip(file_path, target_folder):
         zip.extractall(target_folder)
 
 
-async def condition(condition: Callable, *, timeout: float = 1.0, interval: float = 0.1):
+async def condition(c_condition: Callable, *, timeout: float = 1.0, interval: float = 0.1):
     start = time.time()
-    while not condition():
+    while not c_condition():
         if time.time() > start + timeout:
-            raise TimeoutError(f'condition {condition} took longer than {timeout}s')
+            raise TimeoutError(f'condition {c_condition} took longer than {timeout}s')
         await asyncio.sleep(interval)
 
 

@@ -1,11 +1,14 @@
 import pytest
-from learning_loop_node import DetectorNode
 import requests
+
+from learning_loop_node import DetectorNode
 from learning_loop_node.detector.tests.conftest import get_outbox_files
 
 
 def test_detector_path(test_detector_node: DetectorNode):
     assert test_detector_node.outbox.path.startswith('/tmp')
+
+# pylint: disable=unused-argument
 
 
 @pytest.mark.parametrize('test_detector_node', [True], indirect=True)
@@ -51,7 +54,7 @@ def test_rest_upload(test_detector_node: DetectorNode):
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
     image = {('files', open('detector/tests/test.jpg', 'rb'))}
-    response = requests.post(f'http://localhost:{pytest.detector_port}/upload', files=image)
+    response = requests.post(f'http://localhost:{pytest.detector_port}/upload', files=image, timeout=30)
     assert response.status_code == 200
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
@@ -63,5 +66,5 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     with open('detector/tests/test.jpg', 'rb') as f:
         image_bytes = f.read()
     result = await sio_client.call('upload', {'image': image_bytes})
-    assert result == None
+    assert result is None
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'

@@ -1,7 +1,9 @@
-from typing import List, Optional
-from pydantic import BaseModel
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Optional
+
+# pylint: disable=no-name-in-module
+from pydantic import BaseModel
 
 
 class State(str, Enum):
@@ -20,21 +22,21 @@ class Status(BaseModel):
     name: str
     state: Optional[State] = State.Offline
     uptime: Optional[int] = 0
-    _errors: Optional[dict] = {}
+    errors: Dict = {}
 
     def set_error(self, key: str, value: str):
-        self._errors[key] = value
+        self.errors[key] = value
 
     def reset_error(self, key: str):
         try:
-            del self._errors[key]
+            del self.errors[key]
         except AttributeError:
             pass
         except KeyError:
             pass
 
     def reset_all_errors(self):
-        for key in list(self._errors.keys()):
+        for key in list(self.errors.keys()):
             self.reset_error(key)
 
 

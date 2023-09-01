@@ -5,15 +5,14 @@ import shutil
 import time
 from datetime import datetime
 from glob import glob
-from multiprocessing import Event
-from threading import Thread
-from typing import List
+from multiprocessing import Event, Process
+from typing import List, Optional
 
 import requests
 from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node import environment_reader
-from learning_loop_node.detector.detections import Detections
+from learning_loop_node.data_classes import Detections
 from learning_loop_node.globals import GLOBALS
 
 
@@ -35,31 +34,34 @@ class Outbox():
         self.log.info(f'Outbox initialized with target_uri: {self.target_uri}')
 
         self.shutdown_event = None
-        self.upload_thread = None
+        self.upload_process = None
 
-    def save(self, image: bytes, detections: Detections = Detections(), tags: List[str] = []) -> None:
-        id = datetime.now().isoformat(sep='_', timespec='milliseconds')
-        tmp = f'{GLOBALS.data_folder}/tmp/{id}'
+    def save(self, image: bytes, detections: Detections = Detections(), tags: Optional[List[str]] = None) -> None:
+        if not tags:
+            tags = []
+        identifier = datetime.now().isoformat(sep='_', timespec='milliseconds')
+        tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         detections.tags = tags
-        detections.date = id
+        detections.date = identifier
         os.makedirs(tmp, exist_ok=True)
         with open(tmp + '/image.json', 'w') as f:
             json.dump(jsonable_encoder(detections), f)
 
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
-        os.rename(tmp, self.path + '/' + id)  # NOTE rename is atomic so upload can run in parallel
+        os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
 
     def get_data_files(self):
         return glob(f'{self.path}/*')
 
     def start_continuous_upload(self):
         self.shutdown_event = Event()
-        self.upload_thread = Thread(target=self._continuous_upload)
-        self.upload_thread.start()
+        self.upload_process = Process(target=self._continuous_upload)
+        self.upload_process.start()
 
     def _continuous_upload(self):
         self.log.info('start continuous upload')
+        assert self.shutdown_event is not None
         while not self.shutdown_event.is_set():
             self.upload()
             time.sleep(1)
@@ -76,7 +78,7 @@ class Outbox():
                 data = [('files', open(f'{item}/image.json', 'r')),
                         ('files', open(f'{item}/image.jpg', 'rb'))]
 
-                response = requests.post(self.target_uri, files=data)
+                response = requests.post(self.target_uri, files=data, timeout=30)
                 if response.status_code == 200:
                     shutil.rmtree(item)
                     self.log.info(f'uploaded {item} successfully')
@@ -85,17 +87,22 @@ class Outbox():
                     shutil.rmtree(item)
                 else:
                     self.log.error(f'Could not upload {item}: {response.status_code}, {response.content}')
-            except:
+            except Exception:
                 self.log.exception('could not upload files')
 
     def stop_continuous_upload(self, timeout=5):
-        proc = None
+        proc = self.upload_process
+        if not proc:
+            return
+
         try:
+            assert self.shutdown_event is not None
             self.shutdown_event.set()
-            proc = self.upload_thread
+            assert proc is not None
             proc.join(timeout)
-        except:
-            pass
-        if proc and proc.is_alive():
+        except Exception:
+            logging.exception('error while shutting down upload thread')
+
+        if proc.is_alive():
             proc.terminate()
             self.log.info('terminated process')

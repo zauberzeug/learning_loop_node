@@ -1,14 +1,19 @@
+import logging
 from enum import Enum
 from typing import List, Optional
-from learning_loop_node.annotation_node.annotation_tool import AnnotationTool
-from learning_loop_node.annotation_node.data_classes import EventType, Point, SegmentationAnnotation, Shape, ToolOutput, UserInput
 from uuid import uuid4
-from pydantic import BaseModel
-import numpy as np
+
 import cv2
-from icecream import ic
-import logging
+import numpy as np
 from fastapi.encoders import jsonable_encoder
+# pylint: disable=no-name-in-module
+from pydantic import BaseModel
+
+from learning_loop_node.annotation.annotator_model import (AnnotatatorModel,
+                                                           ToolOutput,
+                                                           UserInput)
+from learning_loop_node.data_classes import (EventType, Point,
+                                             SegmentationAnnotation, Shape)
 
 
 class Box(BaseModel):
@@ -29,11 +34,11 @@ class State(str, Enum):
 
 
 class History(BaseModel):
-    bbox: Optional[Box]
+    bbox: Optional[Box] = None
     bg_pixel: List[Point] = []
     fg_pixel: List[Point] = []
     path_pixels: List[Point] = []
-    annotation: Optional[SegmentationAnnotation]
+    annotation: Optional[SegmentationAnnotation] = None
     state: State = State.NONE
 
     def to_svg_path(self, shift_pressed: bool) -> str:
@@ -54,7 +59,7 @@ class History(BaseModel):
         return svg_path
 
 
-class DemoSegmentationTool(AnnotationTool):
+class SegmentationTool(AnnotatatorModel):
     async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)
@@ -69,6 +74,7 @@ class DemoSegmentationTool(AnnotationTool):
 
         elif history.state == State.CREATING and user_input.data.event_type == EventType.MouseMove:
             # update bbox
+            assert history.bbox is not None
             history.bbox.w = coordinate.x - history.bbox.x
             history.bbox.h = coordinate.y - history.bbox.y
             output.svg = history.bbox.to_svg_rect()
@@ -77,15 +83,18 @@ class DemoSegmentationTool(AnnotationTool):
         elif history.state == State.CREATING and user_input.data.event_type == EventType.LeftMouseUp:
             # end update bbox
             history.state = State.IDLE
+            assert history.bbox is not None
             history.bbox.w = coordinate.x - history.bbox.x
             history.bbox.h = coordinate.y - history.bbox.y
 
-            points = autofit(f'/data/{user_input.data.context.organization}/{user_input.data.context.project}/images/{user_input.data.image_uuid}.jpg',
-                             history)
+            points = autofit(
+                f'/data/{user_input.data.context.organization}/{user_input.data.context.project}/images/{user_input.data.image_uuid}.jpg',
+                history)
 
-            history.annotation = SegmentationAnnotation(id=str(uuid4()), shape=Shape(points=[]),
-                                                        image_id=user_input.data.image_uuid, category_id=user_input.data.category.id)
+            history.annotation = SegmentationAnnotation(id=str(uuid4()), shape=Shape(
+                points=[]), image_id=user_input.data.image_uuid, category_id=user_input.data.category.identifier)
             history.annotation.shape.points = points
+            assert isinstance(history.bbox, Box)
             output.svg = history.bbox.to_svg_rect()
             output.annotation = history.annotation
             return output
@@ -107,7 +116,7 @@ class DemoSegmentationTool(AnnotationTool):
 
             history.path_pixels.append(user_input.data.coordinate)
             # TODO use LIST of path.
-            output.svg = history.to_svg_path(user_input.data.is_shift_key_pressed)
+            output.svg = history.to_svg_path(user_input.data.is_shift_key_pressed or False)
             return output
 
         elif history.state == State.EDITING and user_input.data.event_type == EventType.LeftMouseUp:
@@ -120,16 +129,19 @@ class DemoSegmentationTool(AnnotationTool):
                 history.bg_pixel.append(user_input.data.coordinate)
 
             # crabcut
-            points = autofit(f'/data/{user_input.data.context.organization}/{user_input.data.context.project}/images/{user_input.data.image_uuid}.jpg',
-                             history)
+            points = autofit(
+                f'/data/{user_input.data.context.organization}/{user_input.data.context.project}/images/{user_input.data.image_uuid}.jpg',
+                history)
+            if not history.annotation:
+                return output
             history.annotation.shape.points = points
             output.annotation = history.annotation
             return output
 
-        elif (history.state == State.NONE or history.state == State.IDLE) and user_input.data.event_type == EventType.MouseMove:
+        elif (history.state in [State.NONE, State.IDLE]) and user_input.data.event_type == EventType.MouseMove:
             return output
 
-        elif (history.state == State.NONE or history.state == State.IDLE) and user_input.data.key_down == 'Enter':
+        elif (history.state in [State.NONE, State.IDLE]) and user_input.data.key_down == 'Enter':
             history.state = State.NONE
         else:
             logging.error(
@@ -144,13 +156,16 @@ class DemoSegmentationTool(AnnotationTool):
         logging.info(sid)
         return True
 
+# pylint: disable=no-member
+
 
 def autofit(image_path, history: History) -> List[Point]:
     logging.debug('inside grab cut')
     img = cv2.imread(image_path)
+    assert history.bbox is not None
     x_, y_, w_, h_ = int(history.bbox.x), int(history.bbox.y), int(history.bbox.w), int(history.bbox.h)
 
-    # region-of-interest
+    # define region-of-interest
     padding_factor = 4
     H, W = img.shape[:2]
     roi_l = max(x_ - padding_factor * w_, 0)

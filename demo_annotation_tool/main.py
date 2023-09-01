@@ -1,17 +1,15 @@
 import logging
 import os
 
-import backdoor_controls
 import uvicorn
-from mock_annotation_tool import MockAnnotatorNode
 
+from demo_annotation_tool.annotation_tool import AnnotatatorModel
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
 
 logging.basicConfig(level=logging.DEBUG)
-tool = MockAnnotatorNode()
-node = AnnotatorNode(uuid='00000000-1111-2222-3333-444444444444', name=f'Annotation Node {os.uname()[1]}', tool=tool)
 
-node.include_router(backdoor_controls.router, prefix="")
+tool = AnnotatatorModel()
+node = AnnotatorNode(name=f'Demo tool  {os.uname()[1]}', uuid='00000000-1111-2222-3333-555555555555', tool=tool)
 
 if __name__ == "__main__":
     uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on', use_colors=True, reload=True)

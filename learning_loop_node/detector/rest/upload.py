@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Request, File, UploadFile
 from typing import List
 
+from fastapi import APIRouter, File, Request, UploadFile
 
 router = APIRouter()
 

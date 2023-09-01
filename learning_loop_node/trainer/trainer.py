@@ -7,34 +7,32 @@ import time
 from abc import abstractmethod
 from datetime import datetime
 from glob import glob
-from pathlib import Path
 from time import perf_counter
-from typing import Dict, List, Optional, Union
+from typing import Coroutine, Dict, List, Optional, Union
 from uuid import uuid4
 
 import socketio
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
-from learning_loop_node.data_classes.category import Category
+from learning_loop_node.data_classes import (BasicModel, Category, Context,
+                                             Errors, ModelInformation,
+                                             PretrainedModel)
+from learning_loop_node.data_classes import State as TrainingState
+from learning_loop_node.data_classes import (Training, TrainingData,
+                                             TrainingError)
 from learning_loop_node.loop_communication import glc
 from learning_loop_node.rest.downloader import DataDownloader
-from learning_loop_node.trainer import active_training, training_syncronizer
+from learning_loop_node.trainer import training_syncronizer
+from learning_loop_node.trainer.active_training import ActiveTrainingIO
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
-from learning_loop_node.trainer.training import State as TrainingState
-from learning_loop_node.trainer.training_data import TrainingData
 
 from .. import node_helper
-from ..data_classes.context import Context
-from ..model_information import ModelInformation
 from ..node import Node
 from ..rest import downloads, uploads
 from .downloader import TrainingsDownloader
-from .errors import Errors, TrainingError
 from .executor import Executor
 from .helper import is_valid_uuid4
-from .model import BasicModel, Model, PretrainedModel
-from .training import Training
 
 
 class Trainer():
@@ -43,26 +41,35 @@ class Trainer():
         self.model_format: str = model_format
         self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
-        self.start_time: Optional[int] = None
+        self.start_time: Optional[float] = None
         self.training_task: Optional[asyncio.Task] = None
-        self.train_task: Optional[asyncio.Task] = None
+        self.train_task: Optional[Coroutine] = None
         self.errors = Errors()
         self.shutdown_event: asyncio.Event = asyncio.Event()
+        self.progress: float = 0.0
+        self.active_training_io: Optional[ActiveTrainingIO] = None
 
-    def init(self, context: Context, details: dict) -> None:
+    def init(self, context: Context, details: dict, node_uuid: str) -> None:
+        """Called on `begin_training` event from the Learning Loop."""
+
         try:
-            self.training = Trainer.generate_training(context)
+            self.training = Trainer.generate_new_training(context)
             self.training.data = TrainingData(categories=Category.from_list(details['categories']))
             self.training.data.hyperparameter = Hyperparameter.from_dict(details)
             self.training.training_number = details['training_number']
             self.training.base_model_id = details['id']
             self.training.training_state = TrainingState.Initialized
-            active_training.save(self.training)
+            self.active_training_io = ActiveTrainingIO(node_uuid, self.training.training_folder)
             logging.info(f'init training: {self.training}')
-        except:
+        except Exception:
             logging.exception('Error in init')
 
     async def train(self, uuid, sio_client) -> None:
+        """Called on `begin_training` event from the Learning Loop."""
+
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         self.start_time = time.time()
         self.errors.reset_all()
         try:
@@ -75,7 +82,7 @@ class Trainer():
 
                 logging.info('cancelled training task')
                 self.training.training_state = TrainingState.ReadyForCleanup
-                active_training.save(self.training)
+                self.active_training_io.save(self.training)
                 await self.clear_training()
 
         except Exception as e:
@@ -84,43 +91,48 @@ class Trainer():
             self.start_time = None
 
     async def _train(self, uuid, sio_client) -> None:
-        training = None
-        if self.training:
-            training = self.training
-        elif active_training.exists():
-            logging.warning('found active training on hd')
-            training = active_training.load()
-            self.training = training
+        assert self.active_training_io is not None, 'active_training must be set'
+
+        if self.training is None:
+            if self.active_training_io.exists():
+                logging.warning('found active training on hd')
+                self.training = self.active_training_io.load()
+            else:
+                logging.error('no training found')
+                return
 
         while True:
-            if self.training or active_training.exists():
-                await asyncio.sleep(0.6)  # Note: Needed for error reporting
-                if training.training_state == TrainingState.Initialized:
-                    await self.prepare()
-                if training.training_state == TrainingState.DataDownloaded:
-                    await self.download_model()
-                if training.training_state == TrainingState.TrainModelDownloaded:
-                    await self.run_training(uuid, sio_client)
-                if training.training_state == TrainingState.TrainingFinished:
-                    await self.ensure_confusion_matrix_synced(uuid, sio_client)
-                if training.training_state == TrainingState.ConfusionMatrixSynced:
-                    await self.upload_model()
-                if training.training_state == TrainingState.TrainModelUploaded:
-                    await self.do_detections()
-                if training.training_state == TrainingState.Detected:
-                    await self.upload_detections()
-                if training.training_state == TrainingState.ReadyForCleanup:
-                    await self.clear_training()
-            else:
+            if not self.training or not self.active_training_io.exists():
                 break
+            await asyncio.sleep(0.6)  # Note: Needed for error reporting
+            if self.training.training_state == TrainingState.Initialized:
+                await self.prepare()
+            if self.training.training_state == TrainingState.DataDownloaded:
+                await self.download_model()
+            if self.training.training_state == TrainingState.TrainModelDownloaded:
+                await self.run_training(uuid, sio_client)
+            if self.training.training_state == TrainingState.TrainingFinished:
+                await self.ensure_confusion_matrix_synced(uuid, sio_client)
+            if self.training.training_state == TrainingState.ConfusionMatrixSynced:
+                await self.upload_model()
+            if self.training.training_state == TrainingState.TrainModelUploaded:
+                await self.do_detections()
+            if self.training.training_state == TrainingState.Detected:
+                await self.upload_detections()
+            if self.training.training_state == TrainingState.ReadyForCleanup:
+                await self.clear_training()
 
     async def prepare(self) -> None:
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DataDownloading
         error_key = 'prepare'
         try:
             await self._prepare()
         except asyncio.CancelledError:
+            logging.exception('CancelledError in prepare')
             raise
         except Exception as e:
             logging.exception("Unknown error in 'prepare'")
@@ -129,21 +141,26 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.DataDownloaded
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
     async def _prepare(self) -> None:
+        assert self.training is not None and self.training.data is not None, 'training and training.data must be set'
         downloader = TrainingsDownloader(self.training.context)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         self.training.data.image_data = image_data
         self.training.data.skipped_image_count = skipped_image_count
 
     async def download_model(self) -> None:
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelDownloading
         error_key = 'download_model'
         try:
             await self._download_model()
         except asyncio.CancelledError:
+            logging.exception('download_model_task cancelled')
             raise
         except Exception as e:
             logging.exception('download_model failed')
@@ -153,9 +170,11 @@ class Trainer():
             self.errors.reset(error_key)
             logging.info('download_model_task finished')
             self.training.training_state = TrainingState.TrainModelDownloaded
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
     async def _download_model(self) -> None:
+        assert self.training is not None and self.training.training_folder, 'training and training.training_folder must be set'
+        assert self.training.base_model_id, 'training.base_model_id must be set'
         model_id = self.training.base_model_id
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
@@ -165,20 +184,22 @@ class Trainer():
                         f'{self.training.training_folder}/base_model.json')
 
     async def run_training(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient) -> None:
+        assert self.training is not None and self.training.training_folder, 'training and training.training_folder must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
         error_key = 'run_training'
         # NOTE normally we reset errors after the step was successful. We do not want to display an old error during the whole training.
         self.errors.reset(error_key)
         previous_state = self.training.training_state
+        self.executor = Executor(self.training.training_folder)
+        self.training.training_state = TrainingState.TrainingRunning
+        self.train_task = None
         try:
-            self.executor = Executor(self.training.training_folder)
-            self.training.training_state = TrainingState.TrainingRunning
-            self.train_task = None
-
             if self.can_resume():
                 self.train_task = self.resume()
             else:
                 model_id = self.training.base_model_id
                 if not is_valid_uuid4(model_id):
+                    assert isinstance(model_id, str)
                     self.train_task = self.start_training_from_scratch(model_id)
                 else:
                     self.train_task = self.start_training()
@@ -191,15 +212,14 @@ class Trainer():
                     break
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
-                    error = self.get_error()
-                    if error:
+                    if self.get_error():
                         break
-                    else:
-                        self.errors.reset(error_key)
+                    self.errors.reset(error_key)
 
                     try:
                         await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
                     except asyncio.CancelledError:
+                        logging.exception('CancelledError in run_training')
                         raise
                     except Exception:
                         pass
@@ -210,12 +230,12 @@ class Trainer():
             if error:
                 self.errors.set(error_key, error)
                 raise TrainingError(cause=error)
-            else:
-                self.errors.reset(error_key)
+            self.errors.reset(error_key)
 
         except asyncio.CancelledError:
+            logging.exception('CancelledError in run_training')
             raise
-        except TrainingError as e:
+        except TrainingError:
             logging.exception('Error in TrainingProcess')
             if self.executor.is_process_running():
                 self.executor.stop()
@@ -226,21 +246,25 @@ class Trainer():
             logging.exception('Error in run_training')
         else:
             self.training.training_state = TrainingState.TrainingFinished
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
     async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
         try:
             await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
         except asyncio.CancelledError:
+            logging.exception('CancelledError in run_training')
             raise
-        except Exception as e:
+        except Exception:
             logging.exception('Error in ensure_confusion_matrix_synced')
             self.training.training_state = previous_state
         else:
             self.training.training_state = TrainingState.ConfusionMatrixSynced
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
     async def sync_confusion_matrix(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
         error_key = 'sync_confusion_matrix'
@@ -254,18 +278,23 @@ class Trainer():
             logging.exception('Error during confusion matrix syncronization')
             self.errors.set(error_key, str(e))
             raise
-        else:
-            self.errors.reset(error_key)
+
+        self.errors.reset(error_key)
 
     async def upload_model(self) -> None:
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         error_key = 'upload_model'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelUploading
 
         try:
             uploaded_model = await self._upload_model(self.training.context)
+            assert uploaded_model is not None, 'uploaded_model must be set'
             self.training.model_id_for_detecting = uploaded_model['id']
         except asyncio.CancelledError:
+            logging.exception('CancelledError in upload_model')
             raise
         except Exception as e:
             logging.exception('Error in upload_model')
@@ -274,13 +303,16 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
-    async def _upload_model(self, context: Context) -> dict:
+    async def _upload_model(self, context: Context) -> Optional[Dict]:
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         try:
             files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
-        except FileNotFoundError as e:
-            raise Exception('Could not find any model files to upload.')
+        except FileNotFoundError as exc:
+            raise Exception('Could not find any model files to upload.') from exc
 
         model_json_content = self.create_model_json_content()
         model_json_path = '/tmp/model.json'
@@ -290,31 +322,35 @@ class Trainer():
         if isinstance(files, list):
             files = {self.model_format: files}
         uploaded_model = None
-        already_uploaded_formats = active_training.model_upload_progress.load(self.training)
-        if isinstance(files, dict):
-            for format in files:
-                if format in already_uploaded_formats:
+        already_uploaded_formats = self.active_training_io.mup_load()
+        if isinstance(files, Dict):
+            for file_format in files:
+                if file_format in already_uploaded_formats:
                     continue
                 # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
-                assert len([file for file in files[format] if 'model.json' in file]) == 0, \
+                assert len([file for file in files[file_format] if 'model.json' in file]) == 0, \
                     "It is not allowed to provide a 'model.json' file."
-                _files = files[format]
+                _files = files[file_format]
                 _files.append(model_json_path)
-                uploaded_model = await uploads.upload_model_for_training(context, _files, self.training.training_number, format)
-                already_uploaded_formats.append(format)
-                active_training.model_upload_progress.save(self.training, already_uploaded_formats)
+                uploaded_model = await uploads.upload_model_for_training(context, _files, self.training.training_number, file_format)
+                already_uploaded_formats.append(file_format)
+                self.active_training_io.mup_save(already_uploaded_formats)
 
         else:
             raise TypeError(f'can only save model as list or dict, but was {files}')
         return uploaded_model
 
     async def do_detections(self):
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         error_key = 'detecting'
         previous_state = self.training.training_state
         try:
             self.training.training_state = TrainingState.Detecting
             await self._do_detections()
         except asyncio.CancelledError:
+            logging.exception('CancelledError in do_detections')
             raise
         except Exception as e:
             self.errors.set(error_key, str(e))
@@ -323,11 +359,15 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.Detected
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
-    async def _do_detections(self) -> List:
+    async def _do_detections(self) -> Optional[List]:
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         context = self.training.context
         model_id = self.training.model_id_for_detecting
+        assert model_id, 'model_id must be set'
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
 
         shutil.rmtree(tmp_folder, ignore_errors=True)
@@ -354,14 +394,17 @@ class Trainer():
         batch_size = 200
         idx = 0
         if not images:
-            active_training.detections.save(self.training, [], idx)
+            self.active_training_io.det_save([], idx)
         for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
-            active_training.detections.save(self.training, jsonable_encoder(batch_detections), idx)
+            self.active_training_io.det_save(jsonable_encoder(batch_detections), idx)
             idx += 1
 
     async def upload_detections(self):
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
         error_key = 'upload_detections'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DetectionUploading
@@ -370,16 +413,17 @@ class Trainer():
         await asyncio.sleep(0.1)  # NOTE needed for tests
 
         try:
-            json_files = active_training.detections.get_file_names(self.training)
+            json_files = self.active_training_io.det_get_file_names()
             if not json_files:
                 raise Exception()
-            current_json_file_index = active_training.detections_upload_file_index.load(self.training)
+            current_json_file_index = self.active_training_io.dufi_load()
             for i in range(current_json_file_index, len(json_files)):
-                detections = active_training.detections.load(self.training, i)
+                detections = self.active_training_io.det_load(i)
                 logging.info(f'uploading detections {i}/{len(json_files)}')
                 await self._upload_detections(context, detections)
-                active_training.detections_upload_file_index.save(self.training, i+1)
+                self.active_training_io.dufi_save(i+1)
         except asyncio.CancelledError:
+            logging.exception('CancelledError in upload_detections')
             raise
         except Exception as e:
             self.errors.set(error_key, str(e))
@@ -388,12 +432,13 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.ReadyForCleanup
-            active_training.save(self.training)
+            self.active_training_io.save(self.training)
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
+        assert self.active_training_io is not None, 'active_training must be set'
         batch_size = 10
 
-        skip_detections = active_training.detections_upload_progress.load(self.training)
+        skip_detections = self.active_training_io.dup_load()
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
             progress = i+batch_size
             batch_detections = detections[i:progress]
@@ -402,6 +447,8 @@ class Trainer():
             skip_detections = progress
 
     async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
+        assert self.active_training_io is not None, 'active_training must be set'
+
         response = await glc.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
         if response.status_code != 200:
             msg = f'could not upload detections. {str(response)}'
@@ -410,22 +457,24 @@ class Trainer():
         else:
             logging.info('successfully uploaded detections')
             if progress > len(batch_detections):
-                active_training.detections_upload_progress.save(self.training, 0)
+                self.active_training_io.dup_save(0)
             else:
-                active_training.detections_upload_progress.save(self.training, progress)
+                self.active_training_io.dup_save(progress)
 
     async def clear_training(self):
-        active_training.detections.delete(self.training)
-        active_training.detections_upload_progress.delete(self.training)
-        active_training.detections_upload_file_index.delete(self.training)
+        assert self.training is not None, 'training must be set'
+        assert self.active_training_io is not None, 'active_training must be set'
+
+        self.active_training_io.det_delete()
+        self.active_training_io.dup_delete()
+        self.active_training_io.dufi_delete()
         try:
             await self.clear_training_data(self.training.training_folder)
         except NotImplementedError:
             logging.exception('clear_training_data not implemented')
-            pass
         else:
             self.training = None
-            active_training.delete()
+            self.active_training_io.delete()
 
     def stop(self) -> None:
         if not self.training:
@@ -441,29 +490,33 @@ class Trainer():
         self.stop()
         self.stop()  # NOTE first stop may only stop training.
 
+    def get_log(self) -> str:
+        assert self.executor is not None, 'executor must be set'
+        return self.executor.get_log()
+
+    @abstractmethod
     async def start_training(self) -> None:
-        raise NotImplementedError()
+        '''Should be used to start a training.'''
 
+    @abstractmethod
     async def start_training_from_scratch(self, identifier: str) -> None:
-        raise NotImplementedError()
+        '''Should be used to start a training from scratch.'''
 
+    @abstractmethod
     def can_resume(self) -> bool:
         '''Override this method to return True if the trainer can resume training.'''
-        return False
 
+    @abstractmethod
     async def resume(self) -> None:
         '''Is called when self.can_resume() returns True.
            One may resume the training on a previously trained model stored by self.on_model_published(basic_model).
         '''
-        raise NotImplementedError()
 
-    def get_error(self) -> Optional[Union[None, str]]:
+    @abstractmethod
+    def get_error(self) -> Optional[str]:
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
-        pass
 
-    def get_log(self) -> str:
-        return self.executor.get_log()
-
+    @abstractmethod
     def get_new_model(self) -> Optional[BasicModel]:
         '''Is called frequently to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
@@ -472,16 +525,16 @@ class Trainer():
             - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
         `meta_information` can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
         '''
-        raise NotImplementedError()
 
+    @abstractmethod
     def on_model_published(self, basic_model: BasicModel) -> None:
         '''Called after a BasicModel has been successfully send to the Learning Loop.
         The files for this model should be stored.
         self.get_latest_model_files is used to gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
         In the simplest implementation this method just renames the weight file (encoded in BasicModel.meta_information) into a file name like latest_published_model
         '''
-        raise NotImplementedError()
 
+    @abstractmethod
     def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
         '''Called when the Learning Loop requests to backup the latest model for the training.
         Should return a list of file paths which describe the model.
@@ -493,7 +546,21 @@ class Trainer():
         If a trainer can also generate other formats (for example for an detector),
         a dictionary mapping format -> list of files can be returned.
         '''
-        raise NotImplementedError()
+
+    @abstractmethod
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
+        pass
+
+    @abstractmethod
+    async def clear_training_data(self, training_folder: str) -> None:
+        '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
+        weightfiles or any additional files.
+        '''
+
+    @property
+    @abstractmethod
+    def provided_pretrained_models(self) -> List[PretrainedModel]:
+        pass
 
     @staticmethod
     def images_for_ids(image_ids, image_folder) -> List[str]:
@@ -505,26 +572,12 @@ class Trainer():
         logging.info(f'found {len(images)} images for {len(image_ids)} image ids, which took {end-start:0.2f} seconds')
         return images
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
-        raise NotImplementedError()
-
-    async def clear_training_data(self, training_folder: str) -> None:
-        '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
-        weightfiles or any additional files.
-        '''
-        raise NotImplementedError()
-
-    @property
-    @abstractmethod
-    def provided_pretrained_models(self) -> List[PretrainedModel]:
-        raise NotImplementedError()
-
     @staticmethod
-    def generate_training(context: Context) -> Training:
+    def generate_new_training(context: Context) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
         return Training(
-            id=training_uuid,
+            uuid=training_uuid,
             context=context,
             project_folder=project_folder,
             images_folder=node_helper.create_image_folder(project_folder),
@@ -538,23 +591,24 @@ class Trainer():
         return training_folder
 
     @property
-    def hyperparameters(self) -> dict:
-        if self.training and self.training.data:
+    def hyperparameters(self) -> Optional[Dict]:
+        if self.training and self.training.data and self.training.data.hyperparameter:
             information = {}
             information['resolution'] = self.training.data.hyperparameter.resolution
             information['flipRl'] = self.training.data.hyperparameter.flip_rl
             information['flipUd'] = self.training.data.hyperparameter.flip_ud
             return information
-        else:
-            return None
-
-    @property
-    def model_architecture(self) -> Union[str, None]:
         return None
 
-    def create_model_json_content(self):
-        content = {
-            'categories': [c.dict() for c in self.training.data.categories],
-            'resolution': self.training.data.hyperparameter.resolution
-        }
-        return content
+    @property
+    def model_architecture(self) -> Optional[str]:
+        return None
+
+    def create_model_json_content(self) -> Optional[Dict]:
+        if self.training and self.training.data and self.training.data.hyperparameter:
+            content = {
+                'categories': [c.dict() for c in self.training.data.categories],
+                'resolution': self.training.data.hyperparameter.resolution
+            }
+            return content
+        return None
