@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from learning_loop_node.status import NodeState
+from learning_loop_node.data_classes import NodeState
 from learning_loop_node.trainer import active_training_module
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from learning_loop_node.trainer.trainer_node import TrainerNode

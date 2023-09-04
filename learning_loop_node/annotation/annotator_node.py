@@ -5,12 +5,12 @@ from socketio import AsyncClient
 
 from learning_loop_node.annotation.annotator_logic import (AnnotatorLogic,
                                                            UserInput)
+from learning_loop_node.data_classes import AnnotationNodeStatus, NodeState
 from learning_loop_node.data_classes.general import Context
 from learning_loop_node.node import Node
 from learning_loop_node.rest_helpers.downloader import (DataDownloader,
                                                         node_helper)
 from learning_loop_node.socket_response import SocketResponse
-from learning_loop_node.status import AnnotationNodeStatus, NodeState
 
 # TODO: The use case 'segmentation' is hardcoded here. This should be more flexible.
 

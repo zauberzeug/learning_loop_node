@@ -4,7 +4,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, Request
 
-from learning_loop_node.status import NodeState
+from learning_loop_node.data_classes import NodeState
 
 router = APIRouter()
 

@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Request
 
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
-from learning_loop_node.status import NodeState
+from learning_loop_node.data_classes import NodeState
 
 router = APIRouter()
 

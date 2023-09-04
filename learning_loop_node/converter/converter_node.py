@@ -8,10 +8,9 @@ from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
 from learning_loop_node.converter.converter_logic import ConverterLogic
-from learning_loop_node.data_classes import ModelInformation
+from learning_loop_node.data_classes import ModelInformation, NodeState
 from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node
-from learning_loop_node.status import NodeState
 
 
 class ConverterNode(Node):
