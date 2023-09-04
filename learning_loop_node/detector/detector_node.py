@@ -13,7 +13,8 @@ from socketio import AsyncClient, AsyncServer
 
 from learning_loop_node import environment_reader
 from learning_loop_node.data_classes import (Category, Context, Detections,
-                                             ModelInformation, Shape)
+                                             DetectionStatus, ModelInformation,
+                                             NodeState, Shape)
 from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.detector.rest import detect as rest_detect
 from learning_loop_node.detector.rest import operation_mode as rest_mode
@@ -25,7 +26,6 @@ from learning_loop_node.node import Node
 from learning_loop_node.rest_helpers import downloads
 
 from ..socket_response import SocketResponse
-from ..status import DetectionStatus, NodeState
 from .detector_logic import DetectorLogic
 
 
