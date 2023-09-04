@@ -7,7 +7,21 @@ from typing import Dict, List, Optional, Union
 from pydantic import BaseModel
 
 from learning_loop_node.data_classes import Category, Context
-from learning_loop_node.trainer.hyperparameter import Hyperparameter
+
+
+@dataclass
+class Hyperparameter():
+    resolution: int
+    flip_rl: bool
+    flip_ud: bool
+
+    @staticmethod
+    def from_dict(value: dict) -> 'Hyperparameter':
+        return Hyperparameter(
+            resolution=value['resolution'],
+            flip_rl=value['flip_rl'],
+            flip_ud=value['flip_ud']
+        )
 
 
 class TrainingData(BaseModel):

@@ -7,7 +7,7 @@ import zipfile
 from glob import glob
 from http import HTTPStatus
 from io import BytesIO
-from typing import List
+from typing import Dict, List
 
 import aiofiles
 from tqdm.asyncio import tqdm
@@ -26,7 +26,7 @@ def jepeg_check_info():
         logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
 
 
-async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[dict]:
+async def download_images_data(organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[Dict]:
     logging.info('fetching annotations and other image data')
     jepeg_check_info()
     images_data = []
@@ -67,7 +67,7 @@ async def download_images(paths: List[str], image_ids: List[str], image_folder: 
         logging.debug(f'[+] Performance (image files): {total_time} sec total. Per 100 : {per100:.1f}')
 
 
-async def download_one_image(path: str, image_id: str, image_folder: str):
+async def download_one_image(path: str, image_id: str, image_folder: str) -> None:
     response = await glc.get(path)
     if response.status_code != HTTPStatus.OK:
         logging.error(f'bad status code {response.status_code} for {path}: {response.content}')
@@ -79,7 +79,7 @@ async def download_one_image(path: str, image_id: str, image_folder: str):
         os.remove(filename)
 
 
-async def is_valid_image(file):
+async def is_valid_image(file) -> bool:
     if not os.path.isfile(file):
         return False
     if not check_jpeg:
@@ -100,8 +100,8 @@ class DownloadError(Exception):
         self.cause = cause
 
 
-async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
-    path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
+async def download_model(target_folder: str, context: Context, model_id: str, model_format: str) -> List[str]:
+    path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
     response = await glc.get(path)
     if response.status_code != 200:
         content = response.json()
@@ -123,8 +123,8 @@ async def download_model(target_folder: str, context: Context, model_id: str, fo
     # unzip and place downloaded model
     tmp_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
     shutil.rmtree(tmp_path, ignore_errors=True)
-    with zipfile.ZipFile(BytesIO(content), 'r') as zip:
-        zip.extractall(tmp_path)
+    with zipfile.ZipFile(BytesIO(content), 'r') as zip_:
+        zip_.extractall(tmp_path)
 
     created_files = []
     files = glob(f'{tmp_path}/**/*', recursive=True)

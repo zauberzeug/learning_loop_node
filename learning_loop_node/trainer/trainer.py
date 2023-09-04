@@ -6,11 +6,10 @@ import shutil
 import time
 from abc import abstractmethod
 from datetime import datetime
-from functools import wraps
 from glob import glob
 from time import perf_counter
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Union
-from uuid import uuid4
+from typing import Coroutine, Dict, List, Optional, Union
+from uuid import UUID, uuid4
 
 import socketio
 from fastapi.encoders import jsonable_encoder
@@ -18,10 +17,10 @@ from tqdm import tqdm
 
 from learning_loop_node import node_helper
 from learning_loop_node.data_classes import (BasicModel, Category, Context,
-                                             Errors, ModelInformation,
-                                             PretrainedModel, Training,
-                                             TrainingData, TrainingError,
-                                             TrainingState)
+                                             Errors, Hyperparameter,
+                                             ModelInformation, PretrainedModel,
+                                             Training, TrainingData,
+                                             TrainingError, TrainingState)
 from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node
 from learning_loop_node.rest_helpers import downloads, uploads
@@ -29,22 +28,16 @@ from learning_loop_node.rest_helpers.downloader import DataDownloader
 from learning_loop_node.trainer import training_syncronizer
 from learning_loop_node.trainer.downloader import TrainingsDownloader
 from learning_loop_node.trainer.executor import Executor
-from learning_loop_node.trainer.helper import is_valid_uuid4
-from learning_loop_node.trainer.hyperparameter import Hyperparameter
 from learning_loop_node.trainer.training_io_helpers import (ActiveTrainingIO,
                                                             LastTrainingIO)
 
 
-def ensure_initialized(method: Callable[..., Any]) -> Callable[..., Any]:
-
-    @wraps(method)
-    def wrapper(instance, *args, **kwargs):
-        assert (instance.training is not None and instance.active_training_io is not None and instance.node_uuid is not None
-                and instance.node_sio_client is not None), \
-            f'init must be called before calling {method.__name__}'
-
-        return method(instance, *args, **kwargs)
-    return wrapper
+def is_valid_uuid4(val):
+    try:
+        _ = UUID(str(val)).version
+        return True
+    except ValueError:
+        return False
 
 
 class Trainer():

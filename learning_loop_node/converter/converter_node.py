@@ -11,7 +11,7 @@ from learning_loop_node.converter.converter_logic import ConverterLogic
 from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node
-from learning_loop_node.status import State
+from learning_loop_node.status import NodeState
 
 
 class ConverterNode(Node):
@@ -51,15 +51,15 @@ class ConverterNode(Node):
     async def check_state(self):
         logging.info(f'checking state: {self.status.state}')
 
-        if self.status.state == State.Running:
+        if self.status.state == NodeState.Running:
             return
-        self.status.state = State.Running
+        self.status.state = NodeState.Running
         try:
             await self.convert_models()
         except Exception as exc:
             logging.error(str(exc))
 
-        self.status.state = State.Idle
+        self.status.state = NodeState.Idle
 
     async def convert_models(self) -> None:
         try:
@@ -122,7 +122,7 @@ class ConverterNode(Node):
         pass
 
     async def get_state(self):
-        return State.Idle  # NOTE unused for this node type
+        return NodeState.Idle  # NOTE unused for this node type
 
     def get_node_type(self):
         return 'converter'

@@ -49,9 +49,9 @@ class TestingTrainer(Trainer):
         await super()._download_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
-    async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+    async def ensure_confusion_matrix_synced(self):
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        await super().ensure_confusion_matrix_synced(trainer_node_uuid, sio_client)
+        await super().ensure_confusion_matrix_synced()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
     async def upload_model(self) -> None:

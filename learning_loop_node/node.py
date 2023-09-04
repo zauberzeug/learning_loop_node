@@ -21,7 +21,7 @@ from learning_loop_node.globals import GLOBALS
 from . import log_conf
 from .loop_communication import glc
 from .socket_response import ensure_socket_response
-from .status import State, Status
+from .status import NodeState, NodeStatus
 
 
 class Node(FastAPI):
@@ -38,7 +38,7 @@ class Node(FastAPI):
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
         self._sio_client: Optional[AsyncClient] = None
-        self.status = Status(id=self.uuid, name=self.name)
+        self.status = NodeStatus(id=self.uuid, name=self.name)
         self._register_lifecycle_events()
 
     @property
@@ -116,7 +116,7 @@ class Node(FastAPI):
         @self._sio_client.event
         async def disconnect():
             self.log.debug('received "disconnect" from loop.')
-            await self.update_state(State.Offline)
+            await self.update_state(NodeState.Offline)
 
         self.register_sio_events(self._sio_client)
 
@@ -165,11 +165,11 @@ class Node(FastAPI):
         return uuid
 
     def reset_status(self):
-        self.status = Status(id=self.uuid, name=self.name)
+        self.status = NodeStatus(id=self.uuid, name=self.name)
 
-    async def update_state(self, state: State):
+    async def update_state(self, state: NodeState):
         self.status.state = state
-        if self.status.state != State.Offline:
+        if self.status.state != NodeState.Offline:
             await self.send_status()
 
     @abstractmethod
@@ -182,7 +182,7 @@ class Node(FastAPI):
         """Send the current status to the learning loop."""
 
     @abstractmethod
-    async def get_state(self) -> State:
+    async def get_state(self) -> NodeState:
         """Return the current state of the node."""
 
     @abstractmethod

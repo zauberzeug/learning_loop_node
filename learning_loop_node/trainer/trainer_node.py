@@ -10,7 +10,7 @@ from socketio import AsyncClient
 from learning_loop_node.data_classes import (Context, TrainingState,
                                              TrainingStatus)
 from learning_loop_node.loop_communication import glc
-from learning_loop_node.node import Node, State
+from learning_loop_node.node import Node, NodeState
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.training_io_helpers import LastTrainingIO
 
@@ -61,7 +61,7 @@ class TrainerNode(Node):
         self.log.info('shutdown detected, stopping training')
         self.trainer.shutdown()
 
-    async def register_sio_events(self, sio_client: AsyncClient):
+    def register_sio_events(self, sio_client: AsyncClient):
 
         @sio_client.event
         async def begin_training(organization: str, project: str, details: dict):
@@ -133,8 +133,8 @@ class TrainerNode(Node):
 
     async def get_state(self):
         if self.trainer.executor is not None and self.trainer.executor.is_process_running():
-            return State.Running
-        return State.Idle
+            return NodeState.Running
+        return NodeState.Idle
 
     @property
     def progress(self) -> Union[float, None]:
@@ -157,11 +157,11 @@ class TrainerNode(Node):
         if trainer_state == TrainingState.TrainModelDownloaded:
             return 'Model downloaded'
         if trainer_state == TrainingState.TrainingRunning:
-            return State.Running
+            return NodeState.Running
         if trainer_state == TrainingState.TrainingFinished:
             return 'Training finished'
         if trainer_state == TrainingState.Detecting:
-            return State.Detecting
+            return NodeState.Detecting
         if trainer_state == TrainingState.ConfusionMatrixSyncing:
             return 'Syncing confusion matrix'
         if trainer_state == TrainingState.ConfusionMatrixSynced:

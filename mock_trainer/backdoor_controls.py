@@ -4,7 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from learning_loop_node.status import State
+from learning_loop_node.status import NodeState
 from learning_loop_node.trainer import active_training_module
 from learning_loop_node.trainer.error_configuration import ErrorConfiguration
 from learning_loop_node.trainer.trainer_node import TrainerNode
@@ -25,11 +25,11 @@ async def switch_socketio(request: Request):
 
 async def _switch_socketio(state: str, trainer_node: TrainerNode):
     if state == 'off':
-        if trainer_node.status.state != State.Offline:
+        if trainer_node.status.state != NodeState.Offline:
             logging.debug('turning socketio off')
             await trainer_node._sio_client.disconnect()
     if state == 'on':
-        if trainer_node.status.state == State.Offline:
+        if trainer_node.status.state == NodeState.Offline:
             logging.debug('turning socketio on')
             await trainer_node.connect()
 

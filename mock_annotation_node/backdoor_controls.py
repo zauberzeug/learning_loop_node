@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Request
 
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
-from learning_loop_node.status import State
+from learning_loop_node.status import NodeState
 
 router = APIRouter()
 
@@ -18,11 +18,11 @@ async def switch_socketio(request: Request):
 
 async def _switch_socketio(state: str, annotator_node: AnnotatorNode):
     if state == 'off':
-        if annotator_node.status.state != State.Offline:
+        if annotator_node.status.state != NodeState.Offline:
             logging.debug('turning socketio off')
             assert annotator_node._sio_client is not None
             await annotator_node._sio_client.disconnect()
     if state == 'on':
-        if annotator_node.status.state == State.Offline:
+        if annotator_node.status.state == NodeState.Offline:
             logging.debug('turning socketio on')
             await annotator_node.connect()

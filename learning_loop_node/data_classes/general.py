@@ -1,3 +1,5 @@
+from typing import Dict, List, Optional
+from dataclasses import dataclass
 import json
 import os
 from enum import Enum
@@ -85,3 +87,65 @@ class ModelInformation(BaseModel):
             raise Exception("model_root_path is not set")
         with open(self.model_root_path + '/model.json', 'w') as f:
             f.write(self.json(exclude={'model_root_path'}))
+
+
+class ErrorConfiguration(BaseModel):
+    begin_training: Optional[bool] = False
+    save_model: Optional[bool] = False
+    get_new_model: Optional[bool] = False
+    crash_training: Optional[bool] = False
+
+
+# pylint: disable=no-name-in-module
+
+
+class NodeState(str, Enum):
+    Idle = "idle"
+    Offline = "offline"
+    Online = "online"
+    Preparing = "preparing"
+    Running = "running"
+    Stopping = "stopping"
+    Detecting = 'detecting'
+    Uploading = 'uploading'
+
+
+class NodeStatus(BaseModel):
+    id: str
+    name: str
+    state: Optional[NodeState] = NodeState.Offline
+    uptime: Optional[int] = 0
+    errors: Dict = {}
+
+    def set_error(self, key: str, value: str):
+        self.errors[key] = value
+
+    def reset_error(self, key: str):
+        try:
+            del self.errors[key]
+        except AttributeError:
+            pass
+        except KeyError:
+            pass
+
+    def reset_all_errors(self):
+        for key in list(self.errors.keys()):
+            self.reset_error(key)
+
+
+class AnnotationNodeStatus(NodeStatus):
+    capabilities: List[str]
+
+
+@dataclass
+class DetectionStatus():
+    id: str
+    name: str
+    state: Optional[NodeState]
+    errors: Optional[dict]
+    uptime: Optional[int]
+
+    model_format: str
+    current_model: Optional[str]
+    target_model: Optional[str]
+    operation_mode: Optional[str]

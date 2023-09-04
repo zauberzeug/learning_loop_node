@@ -2,8 +2,8 @@ import logging
 import os
 from typing import Dict, List, Optional, Tuple
 
-from learning_loop_node.data_classes import Context, TrainingData
-from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.data_classes import Context
+from learning_loop_node.rest_helpers.downloader import DataDownloader
 
 
 class TrainingsDownloader():
@@ -19,7 +19,7 @@ class TrainingsDownloader():
         image_data, skipped_image_count = await self.download_images_and_annotations(image_ids, image_folder)
         return (image_data, skipped_image_count)
 
-    async def download_images_and_annotations(self, image_ids: List[str], image_folder: str) -> TrainingData:
+    async def download_images_and_annotations(self, image_ids: List[str], image_folder: str) -> Tuple[List[Dict], int]:
         await self.downloader.download_images(image_ids, image_folder)
         image_data = await self.downloader.download_images_data(image_ids)
         logging.info('filtering corrupt images')  # download only safes valid images

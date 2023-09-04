@@ -1,20 +1,15 @@
 """original copied from https://quantlane.com/blog/ensure-asyncio-task-exceptions-get-logged/"""
 
-from typing import Any, Awaitable, Optional, TypeVar, Tuple
-
 import asyncio
 import functools
 import logging
-
+from typing import Any, Coroutine, Optional, Tuple, TypeVar
 
 T = TypeVar('T')
 
 
-def create_task(
-    coroutine: Awaitable[T],
-    *,
-    loop: Optional[asyncio.AbstractEventLoop] = None,
-) -> 'asyncio.Task[T]':  # This type annotation has to be quoted for Python < 3.9, see https://www.python.org/dev/peps/pep-0585/
+# This type annotation has to be quoted for Python < 3.9, see https://www.python.org/dev/peps/pep-0585/
+def create_task(coroutine: Coroutine, *, loop: Optional[asyncio.AbstractEventLoop] = None, ) -> 'asyncio.Task':
     '''
     This helper function wraps a ``loop.create_task(coroutine())`` call and ensures there is
     an exception handler added to the resulting task. If the task raises an exception it is logged

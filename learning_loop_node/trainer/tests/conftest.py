@@ -40,8 +40,7 @@ async def test_initialized_trainer():
 
     trainer = TestingTrainer()
     node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
-    await node._on_startup()
-    assert node._sio_client is not None
+    await node._on_startup()  # pylint: disable=protected-access
 
     trainer.init(context=Context(organization='zauberzeug', project='demo'),
                  details={'categories': [],
@@ -51,7 +50,7 @@ async def test_initialized_trainer():
                           'flip_rl': False,
                           'flip_ud': False},
                  node_uuid=node.uuid,
-                 sio_client=node._sio_client,
+                 sio_client=node.sio_client,
                  last_training_io=node.last_training_io)
 
     yield trainer

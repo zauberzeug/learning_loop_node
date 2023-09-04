@@ -5,7 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from learning_loop_node.data_classes import Context
 from learning_loop_node.data_classes.detections import BoxDetection
 from learning_loop_node.loop_communication import glc
-from learning_loop_node.trainer.tests.states.state_helper import (
+from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer import Trainer
@@ -33,130 +33,124 @@ async def create_valid_detection_file(trainer: Trainer, number_of_entries: int =
                    'point_detections': [], 'segmentation_detections': []}
     image_entries = [image_entry] * number_of_entries
 
-    assert trainer._active_training_io is not None
-    trainer._active_training_io.det_save(jsonable_encoder(image_entries), file_index)
+    assert trainer.active_training_io is not None  # pylint: disable=protected-access
+    trainer.active_training_io.det_save(jsonable_encoder(image_entries), file_index)
 
 
 async def test_upload_successful(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-    assert trainer._training is not None and trainer._active_training_io is not None
 
-    create_active_training_file(training_state='detected')
+    create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
 
     await create_valid_detection_file(trainer)
     await trainer.upload_detections()
 
-    assert trainer._training.training_state == 'ready_for_cleanup'
-    assert trainer._active_training_io.load() == trainer._training
+    assert trainer.training.training_state == 'ready_for_cleanup'
+    assert trainer.last_training_io.load() == trainer.training
 
 
 async def test_detection_upload_progress_is_stored(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-    assert trainer._training is not None and trainer._active_training_io is not None
 
-    create_active_training_file(training_state='detected')
+    create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
 
     await create_valid_detection_file(trainer)
 
-    assert trainer._active_training_io.dufi_load() == 0
+    assert trainer.active_training_io.dufi_load() == 0
     await trainer.upload_detections()
-    assert trainer._active_training_io.dup_load() == 0  # Progress is reset for every file
-    assert trainer._active_training_io.dufi_load() == 1
+    assert trainer.active_training_io.dup_load() == 0  # Progress is reset for every file
+    assert trainer.active_training_io.dufi_load() == 1
 
 
 async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-    assert trainer._training is not None and trainer._active_training_io is not None
 
-    create_active_training_file(training_state='detected')
+    create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
 
     await create_valid_detection_file(trainer, 2, 0)
     await create_valid_detection_file(trainer, 2, 1)
 
-    assert trainer._active_training_io.dufi_load() == 0
-    detections = trainer._active_training_io.det_load(0)
+    assert trainer.active_training_io.dufi_load() == 0
+    detections = trainer.active_training_io.det_load(0)
     assert len(detections) == 2
 
     batch_size = 1
-    skip_detections = trainer._active_training_io.dup_load()
+    skip_detections = trainer.active_training_io.dup_load()
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
-        await trainer._upload_to_learning_loop(trainer._training.context, batch_detections, i + batch_size)
+        await trainer._upload_to_learning_loop(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
-        assert trainer._active_training_io.dup_load() == expected_value
+        assert trainer.active_training_io.dup_load() == expected_value
 
-    assert trainer._active_training_io.dufi_load() == 0
-    trainer._active_training_io.dufi_save(1)
-    assert trainer._active_training_io.dufi_load() == 1
-    assert trainer._active_training_io.dup_load() == 0  # Progress is reset for every file
+    assert trainer.active_training_io.dufi_load() == 0
+    trainer.active_training_io.dufi_save(1)
+    assert trainer.active_training_io.dufi_load() == 1
+    assert trainer.active_training_io.dup_load() == 0  # Progress is reset for every file
 
-    detections = trainer._active_training_io.det_load(1)
+    detections = trainer.active_training_io.det_load(1)
 
-    skip_detections = trainer._active_training_io.dup_load()
+    skip_detections = trainer.active_training_io.dup_load()
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
-        await trainer._upload_to_learning_loop(trainer._training.context, batch_detections, i + batch_size)
+        await trainer._upload_to_learning_loop(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
-        assert trainer._active_training_io.dup_load() == expected_value
-        assert trainer._active_training_io.dufi_load() == 1
+        assert trainer.active_training_io.dup_load() == expected_value
+        assert trainer.active_training_io.dufi_load() == 1
 
 
 async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-    assert trainer._training is not None and trainer._active_training_io is not None
 
-    create_active_training_file(training_state='detected', context=Context(
+    create_active_training_file(trainer, training_state='detected', context=Context(
         organization='zauberzeug', project='some_bad_project'))
     trainer.load_active_training()
-    trainer._active_training_io.det_save([{'some_bad_data': 'some_bad_data'}])
+    trainer.active_training_io.det_save([{'some_bad_data': 'some_bad_data'}])
 
-    _ = asyncio.get_running_loop().create_task(trainer.train(None, None))
-    await assert_training_state(trainer._training, 'detection_uploading', timeout=1, interval=0.001)
-    await assert_training_state(trainer._training, 'detected', timeout=1, interval=0.001)
+    _ = asyncio.get_running_loop().create_task(trainer.train())
+    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer._training.training_state == 'detected'
-    assert trainer._active_training_io.load() == trainer._training
+    assert trainer.training.training_state == 'detected'
+    assert trainer.last_training_io.load() == trainer.training
 
 
 async def test_other_errors(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-    assert trainer._training is not None and trainer._active_training_io is not None
 
     # e.g. missing detection file
-    create_active_training_file(training_state='detected')
+    create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.train(None, None))
-    await assert_training_state(trainer._training, 'detection_uploading', timeout=1, interval=0.001)
-    await assert_training_state(trainer._training, 'detected', timeout=1, interval=0.001)
+    _ = asyncio.get_running_loop().create_task(trainer.train())
+    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer._training.training_state == 'detected'
-    assert trainer._active_training_io.load() == trainer._training
+    assert trainer.training.training_state == 'detected'
+    assert trainer.last_training_io.load() == trainer.training
 
 
 async def test_abort_uploading(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-    assert trainer._training is not None and trainer._active_training_io is not None
 
-    create_active_training_file(training_state='detected')
+    create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
     await create_valid_detection_file(trainer)
 
-    _ = asyncio.get_running_loop().create_task(trainer.train(None, None))
+    _ = asyncio.get_running_loop().create_task(trainer.train())
 
-    await assert_training_state(trainer._training, 'detection_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
 
     trainer.stop()
     await asyncio.sleep(0.1)
 
-    assert trainer._training is None
-    assert trainer._active_training_io.exists() is False
+    assert trainer._training is None  # pylint: disable=protected-access
+    assert trainer.last_training_io.exists() is False

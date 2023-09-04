@@ -25,7 +25,7 @@ from learning_loop_node.node import Node
 from learning_loop_node.rest_helpers import downloads
 
 from ..socket_response import SocketResponse
-from ..status import DetectionStatus, State
+from ..status import DetectionStatus, NodeState
 from .detector_logic import DetectorLogic
 
 
@@ -205,7 +205,7 @@ class DetectorNode(Node):
         return socket_response.payload['target_model_id']
 
     async def get_state(self):
-        return State.Online  # NOTE At the moment only trainer-nodes use a meaningful state
+        return NodeState.Online  # NOTE At the moment only trainer-nodes use a meaningful state
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode

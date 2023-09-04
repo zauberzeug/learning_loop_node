@@ -3,7 +3,7 @@ import logging
 import os
 from glob import glob
 from time import perf_counter
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from learning_loop_node import node_helper
 from learning_loop_node.data_classes import Context
@@ -22,7 +22,7 @@ class DataDownloader():
         assert response.status_code == 200, response
         return (response.json())['image_ids']
 
-    async def download_images_data(self, ids: List[str]) -> List[dict]:
+    async def download_images_data(self, ids: List[str]) -> List[Dict]:
         return await downloads.download_images_data(self.context.organization, self.context.project, ids)
 
     async def download_images(self, image_ids: List[str], image_folder: str) -> None:

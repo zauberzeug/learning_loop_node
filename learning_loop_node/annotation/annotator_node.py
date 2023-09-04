@@ -10,7 +10,7 @@ from learning_loop_node.node import Node
 from learning_loop_node.rest_helpers.downloader import (DataDownloader,
                                                         node_helper)
 from learning_loop_node.socket_response import SocketResponse
-from learning_loop_node.status import AnnotationNodeStatus, State
+from learning_loop_node.status import AnnotationNodeStatus, NodeState
 
 # TODO: The use case 'segmentation' is hardcoded here. This should be more flexible.
 
@@ -69,7 +69,7 @@ class AnnotatorNode(Node):
         status = AnnotationNodeStatus(
             id=self.uuid,
             name=self.name,
-            state=State.Online,
+            state=NodeState.Online,
             capabilities=['segmentation']
         )
 
@@ -91,7 +91,7 @@ class AnnotatorNode(Node):
         await downloader.download_images([uuid], images_folder)
 
     async def get_state(self):
-        return State.Online
+        return NodeState.Online
 
     def get_node_type(self):
         return 'annotation_node'
