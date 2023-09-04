@@ -15,13 +15,13 @@ from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
 from learning_loop_node import environment_reader
+from learning_loop_node.data_classes import NodeState, NodeStatus
 from learning_loop_node.data_classes.general import Context
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.loop_communication import glc
 
 from . import log_conf
-from .loop_communication import glc
 from .socket_response import ensure_socket_response
-from .status import NodeState, NodeStatus
 
 
 class Node(FastAPI):

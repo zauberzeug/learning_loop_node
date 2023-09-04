@@ -3,6 +3,7 @@ import logging
 from typing import List, Optional
 
 import httpx
+from httpx import Timeout
 
 from . import environment_reader
 
@@ -31,7 +32,7 @@ class LoopCommunication():
         """aiohttp client session needs to be created on the event loop"""
 
         if self._async_client is None or self._async_client.is_closed:
-            self._async_client = httpx.AsyncClient(base_url=self.base_url)
+            self._async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
 
         if requires_login and not self._async_client.cookies.keys():
             response = await self._async_client.post('/api/login', data={'username': self.username, 'password': self.password})

@@ -7,10 +7,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from learning_loop_node.data_classes import (Context, TrainingState,
+from learning_loop_node.data_classes import (Context, NodeState, TrainingState,
                                              TrainingStatus)
 from learning_loop_node.loop_communication import glc
-from learning_loop_node.node import Node, NodeState
+from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 from learning_loop_node.trainer.training_io_helpers import LastTrainingIO
 
