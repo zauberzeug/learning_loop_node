@@ -9,7 +9,7 @@ from fastapi.encoders import jsonable_encoder
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
-from learning_loop_node.annotation.annotator_model import (AnnotatatorModel,
+from learning_loop_node.annotation.annotator_logic import (AnnotatorLogic,
                                                            ToolOutput,
                                                            UserInput)
 from learning_loop_node.data_classes import (EventType, Point,
@@ -59,7 +59,7 @@ class History(BaseModel):
         return svg_path
 
 
-class SegmentationTool(AnnotatatorModel):
+class SegmentationTool(AnnotatorLogic):
     async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)

@@ -4,9 +4,8 @@ from typing import Optional
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
-from learning_loop_node.annotation.annotator_model import ToolOutput
-from learning_loop_node.annotation.annotator_node import AnnotatorNode
-from learning_loop_node.data_classes import EventType
+from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
+from learning_loop_node.data_classes import EventType, ToolOutput
 
 logging.basicConfig(level=logging.INFO)
 
@@ -24,12 +23,12 @@ class SvgBox(BaseModel):
         return f'<rect x="{min(self.x, self.x2)}" y="{min(self.y, self.y2)}" width="{width or 1}" height="{height or 1}" fill="blue">'
 
 
-class MockAnnotatorNode(AnnotatorNode):
-    def __init__(self):
+class MockAnnotatorNode(AnnotatorLogic):
+    def __init__(self):  # pylint: disable=super-init-not-called
         super().__init__()
         self.box: Optional[SvgBox] = None
 
-    async def handle_user_input(self, user_input):
+    async def _handle_user_input(self, user_input):
         out = ToolOutput(svg="", annotation=None)
         event_type = user_input.data.event_type
         assert isinstance(self.box, SvgBox)

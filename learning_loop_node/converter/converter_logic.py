@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from abc import abstractmethod
 from typing import List, Optional
 
 # pylint: disable=no-name-in-module
@@ -8,10 +9,10 @@ from pydantic.main import BaseModel
 
 from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.node import Node
-from learning_loop_node.rest import downloads, uploads
+from learning_loop_node.rest_helpers import downloads, uploads
 
 
-class ConverterModel(BaseModel):
+class ConverterLogic(BaseModel):
     model_folder: Optional[str] = None
     source_format: str
     target_format: str
@@ -19,7 +20,7 @@ class ConverterModel(BaseModel):
     async def convert(self, model_information: ModelInformation) -> None:
         project_folder = Node.create_project_folder(model_information.context)
 
-        self.model_folder = ConverterModel.create_model_folder(project_folder, model_information.id)
+        self.model_folder = ConverterLogic.create_model_folder(project_folder, model_information.id)
         await downloads.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
 
         with open(f'{self.model_folder}/model.json', 'r') as f:
@@ -29,15 +30,17 @@ class ConverterModel(BaseModel):
 
         await self._convert(model_information)
 
-    async def _convert(self, model_information: ModelInformation) -> None:
-        raise NotImplementedError()
-
-    def get_converted_files(self, model_id) -> List[str]:
-        raise NotImplementedError()
-
     async def upload_model(self, context, model_id: str) -> None:
         files = self.get_converted_files(model_id)
         await uploads.upload_model(context, files, model_id, self.target_format)
+
+    @abstractmethod
+    async def _convert(self, model_information: ModelInformation) -> None:
+        """Converts the model in self.model_folder to the target format."""
+
+    @abstractmethod
+    def get_converted_files(self, model_id) -> List[str]:
+        """Returns a list of files that should be uploaded to the server."""
 
     @staticmethod
     def create_convert_folder(project_folder: str) -> str:

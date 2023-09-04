@@ -10,7 +10,11 @@ from urllib.parse import urljoin
 import requests
 from requests import Session
 
+from learning_loop_node import node_helper
+from learning_loop_node.data_classes import Context
 from learning_loop_node.loop_communication import glc
+from learning_loop_node.node import Node
+from learning_loop_node.trainer.trainer import Trainer
 
 
 class LiveServerSession(Session):
@@ -78,3 +82,11 @@ def _update_attribute_class_instance(obj, **kwargs) -> None:
 def _update_attribute_dict(obj: dict, **kwargs) -> None:
     for key, value in kwargs.items():
         obj[key] = value
+
+
+def create_needed_folders(base_folder: str, training_uuid: str = 'some_uuid'):  # TODO p?
+    project_folder = Node.create_project_folder(
+        Context(organization='zauberzeug', project='pytest'))
+    image_folder = node_helper.create_image_folder(project_folder)
+    training_folder = Trainer.create_training_folder(project_folder, training_uuid)
+    return project_folder, image_folder, training_folder

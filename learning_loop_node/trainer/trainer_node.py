@@ -1,17 +1,41 @@
 import asyncio
+import logging
 import time
 from typing import Dict, Optional, Union
 
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
+from socketio import AsyncClient
 
-from learning_loop_node.data_classes import Context
-from learning_loop_node.data_classes import State as TrainingState
-from learning_loop_node.data_classes import TrainingStatus
+from learning_loop_node.data_classes import (Context, TrainingState,
+                                             TrainingStatus)
+from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node, State
+from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.training_io_helpers import LastTrainingIO
 
 from ..socket_response import SocketResponse
 from .rest import controls
-from .trainer import Trainer
+
+router = APIRouter()
+
+
+@router.post("/controls/detect/{organization}/{project}/{version}")
+async def operation_mode(organization: str, project: str, version: str, request: Request):
+    '''
+    Example Usage
+        curl -X POST localhost/controls/detect/<organization>/<project>/<model_version>
+    '''
+    path = f'/{organization}/projects/{project}/models'
+    response = await glc.get(path)
+    if response.status_code != 200:
+        raise HTTPException(404, 'could not load latest model')
+    models = response.json()['models']
+    model_id = next(m for m in models if m['version'] == version)['id']
+    logging.info(model_id)
+    trainer: Trainer = request.app.trainer
+    await trainer.do_detections()
+    return "OK"
 
 
 class TrainerNode(Node):
@@ -21,32 +45,34 @@ class TrainerNode(Node):
         self.trainer = trainer
         self.train_loop_busy = False
         self.model_published: bool = False
+        self.last_training_io = LastTrainingIO(self.uuid)
         self.include_router(controls.router, tags=["controls"])
 
+    async def on_startup(self):
+        pass
+
     async def on_repeat(self):
-        await super().on_repeat()
         try:
             await self.send_status()
         except Exception as e:
             self.log.exception(f'could not send status state: {e}')
 
     async def on_shutdown(self):
-        await super().on_shutdown()
         self.log.info('shutdown detected, stopping training')
         self.trainer.shutdown()
 
-    async def create_sio_client(self):
-        await super().create_sio_client()
-        assert self.sio_client is not None
+    async def register_sio_events(self, sio_client: AsyncClient):
 
-        @self.sio_client.event
+        @sio_client.event
         async def begin_training(organization: str, project: str, details: dict):
+            assert self._sio_client is not None
             self.log.info('received begin_training from server')
-            self.trainer.init(Context(organization=organization, project=project), details, self.uuid)
+            self.trainer.init(Context(organization=organization, project=project),
+                              details, self.uuid, self._sio_client, self.last_training_io)
             self.start_training_task()
             return True
 
-        @self.sio_client.event
+        @sio_client.event
         async def stop_training():
             self.log.info(f'### on stop_training received. Current state : {self.status.state}')
             try:
@@ -57,21 +83,24 @@ class TrainerNode(Node):
 
     def start_training_task(self):
         loop = asyncio.get_event_loop()
-        loop.create_task(self.trainer.train(self.uuid, self.sio_client))
+        loop.create_task(self.trainer.train())
 
     async def send_status(self):
-        if self.sio_client is None or not self.sio_client.connected:
+        # NOTE: the send status is used to potentially start an existing training P?
+
+        if self._sio_client is None or not self._sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return
 
-        if not self.trainer.training and self.trainer.active_training_io and self.trainer.active_training_io.exists():
+        if not self.trainer.is_initialized() and self.last_training_io.exists():
             self.log.warning('Found active training, starting now.')
             self.start_training_task()
             return
 
-        if not self.trainer.training or not self.trainer.training.training_state:
+        if not self.trainer.is_initialized():
             state_for_learning_loop = 'unknown state'
         else:
+            assert self.trainer.training.training_state is not None
             state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer.training.training_state)
 
         status = TrainingStatus(
@@ -86,7 +115,7 @@ class TrainerNode(Node):
         status.pretrained_models = self.trainer.provided_pretrained_models
         status.architecture = self.trainer.model_architecture
 
-        if self.trainer.training and self.trainer.training.data:
+        if self.trainer.is_initialized() and self.trainer.training.data:
             status.train_image_count = self.trainer.training.data.train_image_count()
             status.test_image_count = self.trainer.training.data.test_image_count()
             status.skipped_image_count = self.trainer.training.data.skipped_image_count
@@ -94,7 +123,7 @@ class TrainerNode(Node):
             status.errors = self.trainer.errors.errors
 
         self.log.info(f'sending status {status}')
-        result = await self.sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
+        result = await self._sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
         assert isinstance(result, Dict)
         response = SocketResponse.from_dict(result)
 

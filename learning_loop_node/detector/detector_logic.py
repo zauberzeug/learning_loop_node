@@ -6,7 +6,7 @@ from learning_loop_node.data_classes import Detections, ModelInformation
 from learning_loop_node.globals import GLOBALS
 
 
-class Detector():
+class DetectorLogic():
 
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
@@ -24,8 +24,8 @@ class Detector():
                 logging.error(f'Could not init model {model_information}')
                 raise
         except Exception:
-            self.model_info = None
             logging.exception('An error occured during loading model.')
+            self.model_info = None
 
     @abstractmethod
     def init(self,  model_info: ModelInformation):

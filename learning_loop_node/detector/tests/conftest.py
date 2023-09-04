@@ -66,7 +66,7 @@ async def test_detector_node(request):
     yield node
 
     try:
-        await node.on_shutdown()
+        await node._on_shutdown()
     except Exception:
         logging.exception('error while shutting down node')
 

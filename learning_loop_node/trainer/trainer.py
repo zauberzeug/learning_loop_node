@@ -6,40 +6,51 @@ import shutil
 import time
 from abc import abstractmethod
 from datetime import datetime
+from functools import wraps
 from glob import glob
 from time import perf_counter
-from typing import Coroutine, Dict, List, Optional, Union
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Union
 from uuid import uuid4
 
 import socketio
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
+from learning_loop_node import node_helper
 from learning_loop_node.data_classes import (BasicModel, Category, Context,
                                              Errors, ModelInformation,
-                                             PretrainedModel)
-from learning_loop_node.data_classes import State as TrainingState
-from learning_loop_node.data_classes import (Training, TrainingData,
-                                             TrainingError)
+                                             PretrainedModel, Training,
+                                             TrainingData, TrainingError,
+                                             TrainingState)
 from learning_loop_node.loop_communication import glc
-from learning_loop_node.rest.downloader import DataDownloader
+from learning_loop_node.node import Node
+from learning_loop_node.rest_helpers import downloads, uploads
+from learning_loop_node.rest_helpers.downloader import DataDownloader
 from learning_loop_node.trainer import training_syncronizer
-from learning_loop_node.trainer.active_training import ActiveTrainingIO
+from learning_loop_node.trainer.downloader import TrainingsDownloader
+from learning_loop_node.trainer.executor import Executor
+from learning_loop_node.trainer.helper import is_valid_uuid4
 from learning_loop_node.trainer.hyperparameter import Hyperparameter
+from learning_loop_node.trainer.training_io_helpers import (ActiveTrainingIO,
+                                                            LastTrainingIO)
 
-from .. import node_helper
-from ..node import Node
-from ..rest import downloads, uploads
-from .downloader import TrainingsDownloader
-from .executor import Executor
-from .helper import is_valid_uuid4
+
+def ensure_initialized(method: Callable[..., Any]) -> Callable[..., Any]:
+
+    @wraps(method)
+    def wrapper(instance, *args, **kwargs):
+        assert (instance.training is not None and instance.active_training_io is not None and instance.node_uuid is not None
+                and instance.node_sio_client is not None), \
+            f'init must be called before calling {method.__name__}'
+
+        return method(instance, *args, **kwargs)
+    return wrapper
 
 
 class Trainer():
 
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
-        self.training: Optional[Training] = None
         self.executor: Optional[Executor] = None
         self.start_time: Optional[float] = None
         self.training_task: Optional[asyncio.Task] = None
@@ -47,34 +58,69 @@ class Trainer():
         self.errors = Errors()
         self.shutdown_event: asyncio.Event = asyncio.Event()
         self.progress: float = 0.0
-        self.active_training_io: Optional[ActiveTrainingIO] = None
 
-    def init(self, context: Context, details: dict, node_uuid: str) -> None:
+        self._training: Optional[Training] = None
+        self._active_training_io: Optional[ActiveTrainingIO] = None
+        self._node_uuid: Optional[str] = None
+        self._node_sio_client: Optional[socketio.AsyncClient] = None
+        self._last_training_io: Optional[LastTrainingIO] = None
+
+    @property
+    def training(self) -> Training:
+        assert self._training is not None, 'training must be set, call init first'
+        return self._training
+
+    @property
+    def active_training_io(self) -> ActiveTrainingIO:
+        assert self._active_training_io is not None, 'active_training_io must be set, call init first'
+        return self._active_training_io
+
+    @property
+    def node_uuid(self) -> str:
+        assert self._node_uuid is not None, 'node_uuid must be set, call init first'
+        return self._node_uuid
+
+    @property
+    def last_training_io(self) -> LastTrainingIO:
+        assert self._last_training_io is not None, 'last_training_io must be set, call init first'
+        return self._last_training_io
+
+    @property
+    def node_sio_client(self) -> socketio.AsyncClient:
+        assert self._node_sio_client is not None, 'node_sio_client must be set, call init first'
+        return self._node_sio_client
+
+    def is_initialized(self) -> bool:
+        return self._training is not None and self._active_training_io is not None and self._node_uuid is not None and self._node_sio_client is not None
+
+    def init(self, context: Context, details: Dict, node_uuid: str, sio_client: socketio.AsyncClient,
+             last_training_io: LastTrainingIO) -> None:
         """Called on `begin_training` event from the Learning Loop."""
 
+        self._node_uuid = node_uuid
+        self._node_sio_client = sio_client
+        self._last_training_io = last_training_io
+
         try:
-            self.training = Trainer.generate_new_training(context)
-            self.training.data = TrainingData(categories=Category.from_list(details['categories']))
-            self.training.data.hyperparameter = Hyperparameter.from_dict(details)
-            self.training.training_number = details['training_number']
-            self.training.base_model_id = details['id']
-            self.training.training_state = TrainingState.Initialized
-            self.active_training_io = ActiveTrainingIO(node_uuid, self.training.training_folder)
-            logging.info(f'init training: {self.training}')
+            self._training = Trainer.generate_training(context)
+            self._training.data = TrainingData(categories=Category.from_list(details['categories']))
+            self._training.data.hyperparameter = Hyperparameter.from_dict(details)
+            self._training.training_number = details['training_number']
+            self._training.base_model_id = details['id']
+            self._training.training_state = TrainingState.Initialized
+            self._active_training_io = ActiveTrainingIO(self._training.training_folder)
+            logging.info(f'init training: {self._training}')
         except Exception:
             logging.exception('Error in init')
 
-    async def train(self, uuid, sio_client) -> None:
+    async def train(self) -> None:
         """Called on `begin_training` event from the Learning Loop."""
-
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
 
         self.start_time = time.time()
         self.errors.reset_all()
         try:
-            self.training_task = asyncio.get_running_loop().create_task(self._train(uuid, sio_client))
-            await self.training_task
+            self.training_task = asyncio.get_running_loop().create_task(self._train())
+            await self.training_task  # Object is used to potentially cancel the task
 
         except asyncio.CancelledError as e:
             if not self.shutdown_event.is_set():
@@ -82,7 +128,7 @@ class Trainer():
 
                 logging.info('cancelled training task')
                 self.training.training_state = TrainingState.ReadyForCleanup
-                self.active_training_io.save(self.training)
+                self.last_training_io.save(self.training)
                 await self.clear_training()
 
         except Exception as e:
@@ -90,19 +136,21 @@ class Trainer():
         finally:
             self.start_time = None
 
-    async def _train(self, uuid, sio_client) -> None:
-        assert self.active_training_io is not None, 'active_training must be set'
+    def load_active_training(self) -> None:
+        self._training = self.last_training_io.load()
 
-        if self.training is None:
-            if self.active_training_io.exists():
+    async def _train(self) -> None:
+
+        if self._training is None:
+            if self.last_training_io.exists():
                 logging.warning('found active training on hd')
-                self.training = self.active_training_io.load()
+                self.load_active_training()
             else:
                 logging.error('no training found')
                 return
 
         while True:
-            if not self.training or not self.active_training_io.exists():
+            if not self._training or not self.last_training_io.exists():
                 break
             await asyncio.sleep(0.6)  # Note: Needed for error reporting
             if self.training.training_state == TrainingState.Initialized:
@@ -110,9 +158,9 @@ class Trainer():
             if self.training.training_state == TrainingState.DataDownloaded:
                 await self.download_model()
             if self.training.training_state == TrainingState.TrainModelDownloaded:
-                await self.run_training(uuid, sio_client)
+                await self.run_training()
             if self.training.training_state == TrainingState.TrainingFinished:
-                await self.ensure_confusion_matrix_synced(uuid, sio_client)
+                await self.ensure_confusion_matrix_synced()
             if self.training.training_state == TrainingState.ConfusionMatrixSynced:
                 await self.upload_model()
             if self.training.training_state == TrainingState.TrainModelUploaded:
@@ -123,8 +171,6 @@ class Trainer():
                 await self.clear_training()
 
     async def prepare(self) -> None:
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
 
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DataDownloading
@@ -141,18 +187,16 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.DataDownloaded
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        assert self.training is not None and self.training.data is not None, 'training and training.data must be set'
         downloader = TrainingsDownloader(self.training.context)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
+        assert self.training.data is not None, 'training.data must be set'
         self.training.data.image_data = image_data
         self.training.data.skipped_image_count = skipped_image_count
 
     async def download_model(self) -> None:
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
 
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelDownloading
@@ -170,12 +214,11 @@ class Trainer():
             self.errors.reset(error_key)
             logging.info('download_model_task finished')
             self.training.training_state = TrainingState.TrainModelDownloaded
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
     async def _download_model(self) -> None:
-        assert self.training is not None and self.training.training_folder, 'training and training.training_folder must be set'
-        assert self.training.base_model_id, 'training.base_model_id must be set'
         model_id = self.training.base_model_id
+        assert model_id is not None, 'model_id must be set'
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
             logging.info(f'downloading model {model_id} as {self.model_format}')
@@ -183,9 +226,7 @@ class Trainer():
             shutil.move(f'{self.training.training_folder}/model.json',
                         f'{self.training.training_folder}/base_model.json')
 
-    async def run_training(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient) -> None:
-        assert self.training is not None and self.training.training_folder, 'training and training.training_folder must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
+    async def run_training(self) -> None:
         error_key = 'run_training'
         # NOTE normally we reset errors after the step was successful. We do not want to display an old error during the whole training.
         self.errors.reset(error_key)
@@ -212,12 +253,12 @@ class Trainer():
                     break
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
-                    if self.get_error():
+                    if self.get_executor_error_from_log():
                         break
                     self.errors.reset(error_key)
 
                     try:
-                        await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
+                        await self.sync_confusion_matrix()
                     except asyncio.CancelledError:
                         logging.exception('CancelledError in run_training')
                         raise
@@ -226,7 +267,7 @@ class Trainer():
                 else:
                     await asyncio.sleep(0.1)
 
-            error = self.get_error()
+            error = self.get_executor_error_from_log()
             if error:
                 self.errors.set(error_key, error)
                 raise TrainingError(cause=error)
@@ -246,16 +287,14 @@ class Trainer():
             logging.exception('Error in run_training')
         else:
             self.training.training_state = TrainingState.TrainingFinished
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
-    async def ensure_confusion_matrix_synced(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
+    async def ensure_confusion_matrix_synced(self):
 
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
         try:
-            await self.sync_confusion_matrix(trainer_node_uuid, sio_client)
+            await self.sync_confusion_matrix()
         except asyncio.CancelledError:
             logging.exception('CancelledError in run_training')
             raise
@@ -264,13 +303,13 @@ class Trainer():
             self.training.training_state = previous_state
         else:
             self.training.training_state = TrainingState.ConfusionMatrixSynced
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
-    async def sync_confusion_matrix(self, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+    async def sync_confusion_matrix(self):
         error_key = 'sync_confusion_matrix'
         try:
-            await training_syncronizer.try_sync_model(self, trainer_node_uuid, sio_client)
-        except socketio.exceptions.BadNamespaceError as e:
+            await training_syncronizer.try_sync_model(self, self.node_uuid, self.node_sio_client)
+        except socketio.exceptions.BadNamespaceError as e:  # type: ignore
             logging.error('Error during confusion matrix syncronization. BadNamespaceError')
             self.errors.set(error_key, str(e))
             raise
@@ -282,9 +321,6 @@ class Trainer():
         self.errors.reset(error_key)
 
     async def upload_model(self) -> None:
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
-
         error_key = 'upload_model'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelUploading
@@ -303,12 +339,9 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
     async def _upload_model(self, context: Context) -> Optional[Dict]:
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
-
         try:
             files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
         except FileNotFoundError as exc:
@@ -341,9 +374,6 @@ class Trainer():
         return uploaded_model
 
     async def do_detections(self):
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
-
         error_key = 'detecting'
         previous_state = self.training.training_state
         try:
@@ -359,12 +389,9 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.Detected
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
     async def _do_detections(self) -> Optional[List]:
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
-
         context = self.training.context
         model_id = self.training.model_id_for_detecting
         assert model_id, 'model_id must be set'
@@ -402,9 +429,6 @@ class Trainer():
             idx += 1
 
     async def upload_detections(self):
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
-
         error_key = 'upload_detections'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DetectionUploading
@@ -432,10 +456,9 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.ReadyForCleanup
-            self.active_training_io.save(self.training)
+            self.last_training_io.save(self.training)
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
-        assert self.active_training_io is not None, 'active_training must be set'
         batch_size = 10
 
         skip_detections = self.active_training_io.dup_load()
@@ -447,7 +470,7 @@ class Trainer():
             skip_detections = progress
 
     async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
-        assert self.active_training_io is not None, 'active_training must be set'
+        assert self._active_training_io is not None, 'active_training must be set'
 
         response = await glc.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
         if response.status_code != 200:
@@ -457,14 +480,11 @@ class Trainer():
         else:
             logging.info('successfully uploaded detections')
             if progress > len(batch_detections):
-                self.active_training_io.dup_save(0)
+                self._active_training_io.dup_save(0)
             else:
-                self.active_training_io.dup_save(progress)
+                self._active_training_io.dup_save(progress)
 
     async def clear_training(self):
-        assert self.training is not None, 'training must be set'
-        assert self.active_training_io is not None, 'active_training must be set'
-
         self.active_training_io.det_delete()
         self.active_training_io.dup_delete()
         self.active_training_io.dufi_delete()
@@ -473,11 +493,11 @@ class Trainer():
         except NotImplementedError:
             logging.exception('clear_training_data not implemented')
         else:
-            self.training = None
-            self.active_training_io.delete()
+            self._training = None
+            self.last_training_io.delete()
 
     def stop(self) -> None:
-        if not self.training:
+        if not self._training:
             return
         if self.executor and self.executor.is_process_running():
             self.executor.stop()
@@ -513,7 +533,7 @@ class Trainer():
         '''
 
     @abstractmethod
-    def get_error(self) -> Optional[str]:
+    def get_executor_error_from_log(self) -> Optional[str]:
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
 
     @abstractmethod
@@ -573,7 +593,7 @@ class Trainer():
         return images
 
     @staticmethod
-    def generate_new_training(context: Context) -> Training:
+    def generate_training(context: Context) -> Training:
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
         return Training(
@@ -592,11 +612,11 @@ class Trainer():
 
     @property
     def hyperparameters(self) -> Optional[Dict]:
-        if self.training and self.training.data and self.training.data.hyperparameter:
+        if self._training and self._training.data and self._training.data.hyperparameter:
             information = {}
-            information['resolution'] = self.training.data.hyperparameter.resolution
-            information['flipRl'] = self.training.data.hyperparameter.flip_rl
-            information['flipUd'] = self.training.data.hyperparameter.flip_ud
+            information['resolution'] = self._training.data.hyperparameter.resolution
+            information['flipRl'] = self._training.data.hyperparameter.flip_rl
+            information['flipUd'] = self._training.data.hyperparameter.flip_ud
             return information
         return None
 
@@ -605,10 +625,10 @@ class Trainer():
         return None
 
     def create_model_json_content(self) -> Optional[Dict]:
-        if self.training and self.training.data and self.training.data.hyperparameter:
+        if self._training and self._training.data and self._training.data.hyperparameter:
             content = {
-                'categories': [c.dict() for c in self.training.data.categories],
-                'resolution': self.training.data.hyperparameter.resolution
+                'categories': [c.dict() for c in self._training.data.categories],
+                'resolution': self._training.data.hyperparameter.resolution
             }
             return content
         return None

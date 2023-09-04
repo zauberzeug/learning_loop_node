@@ -1,11 +1,13 @@
 import logging
+import traceback
 from http import HTTPStatus
 from typing import Optional
 
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
+from socketio import AsyncClient
 
-from learning_loop_node.converter.converter_model import ConverterModel
+from learning_loop_node.converter.converter_logic import ConverterLogic
 from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node
@@ -13,16 +15,13 @@ from learning_loop_node.status import State
 
 
 class ConverterNode(Node):
-    converter: ConverterModel
+    converter: ConverterLogic
     skip_check_state: bool = False
     bad_model_ids = []
 
-    def __init__(self, name: str, converter: ConverterModel, uuid: Optional[str] = None):
+    def __init__(self, name: str, converter: ConverterLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.converter = converter
-
-    async def create_sio_client(self):
-        await super().create_sio_client()
 
         @self.on_event("startup")
         @repeat_every(seconds=60, raise_exceptions=True, wait_first=False)
@@ -90,7 +89,7 @@ class ConverterNode(Node):
                     if (model['version']
                             and self.converter.source_format in model['formats']
                             and self.converter.target_format not in model['formats']
-                            ):
+                        ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
                             host=glc.base_url,
@@ -102,12 +101,24 @@ class ConverterNode(Node):
                         )
                         await self.convert_model(model_information)
         except Exception as e:
-            import traceback
+
             logging.error(str(e))
             print(traceback.format_exc())
 
     async def send_status(self):
         # NOTE not yet implemented
+        pass
+
+    async def on_startup(self):
+        pass
+
+    async def on_shutdown(self):
+        pass
+
+    async def on_repeat(self):
+        pass
+
+    def register_sio_events(self, sio_client: AsyncClient):
         pass
 
     async def get_state(self):

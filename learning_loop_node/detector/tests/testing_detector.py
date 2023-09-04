@@ -1,11 +1,11 @@
 
-from learning_loop_node import Detector, ModelInformation
+from learning_loop_node import DetectorLogic, ModelInformation
 from learning_loop_node.data_classes import (BoxDetection, Detections, Point,
                                              PointDetection,
                                              SegmentationDetection, Shape)
 
 
-class TestingDetector(Detector):
+class TestingDetector(DetectorLogic):
     __test__ = False
 
     def __init__(self, segmentation_detections: bool = False) -> None:

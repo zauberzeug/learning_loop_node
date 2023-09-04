@@ -1,12 +1,20 @@
 from fastapi.encoders import jsonable_encoder
 
 from demo_annotation_tool.annotation_tool import SegmentationTool
-from learning_loop_node.annotation.annotator_model import UserInput
+from learning_loop_node.annotation.annotator_logic import UserInput
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
 from learning_loop_node.data_classes import AnnotationData, EventType, Point
 from learning_loop_node.data_classes.general import (Category, CategoryType,
                                                      Context)
-from learning_loop_node.tests.mock_async_client import MockAsyncClient
+
+
+class MockAsyncClient():
+    def __init__(self):
+        self.history = []
+
+    async def call(self, *args, **kwargs):
+        self.history.append((args, kwargs))
+        return True
 
 
 def default_user_input() -> UserInput:
@@ -28,9 +36,9 @@ def default_user_input() -> UserInput:
 async def test_start_creating(setup_test_project):
 
     mock_async_client = MockAsyncClient()
-    node = AnnotatorNode(name='', uuid='', tool=SegmentationTool())
-    node.sio_client = mock_async_client  # TODO why  is sio client set to this and not the async client?
+    node = AnnotatorNode(name='', uuid='', annotator_logic=SegmentationTool())
+    node._sio_client = mock_async_client  # TODO why  is sio client set to this and not the async client?
 
     user_input = default_user_input()
-    result = await node.handle_user_input(jsonable_encoder(user_input))
+    result = await node._handle_user_input(jsonable_encoder(user_input))
     assert result == '<rect x="0" y="0" width="0" height="0" stroke="blue" fill="transparent">'

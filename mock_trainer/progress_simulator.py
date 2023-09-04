@@ -1,14 +1,15 @@
-from learning_loop_node.trainer.trainer import Trainer
-from learning_loop_node.trainer.model import BasicModel
 import random
+
+from learning_loop_node.trainer.model import BasicModel
+from learning_loop_node.trainer.trainer import Trainer
 
 
 def increment_time(trainer: Trainer, latest_known_confusion_matrix: dict) -> BasicModel:
-    if not trainer.training or not trainer.training.data:
+    if not trainer._training or not trainer._training.data:
         return None
 
     confusion_matrix = {}
-    for category in trainer.training.data.categories:
+    for category in trainer._training.data.categories:
         try:
             minimum = latest_known_confusion_matrix[category.id]['tp']
         except:

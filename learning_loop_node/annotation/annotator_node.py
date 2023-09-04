@@ -1,47 +1,39 @@
-
-import logging
+from typing import Dict
 
 from fastapi.encoders import jsonable_encoder
+from socketio import AsyncClient
 
-from learning_loop_node.annotation.annotator_model import (AnnotatatorModel,
+from learning_loop_node.annotation.annotator_logic import (AnnotatorLogic,
                                                            UserInput)
 from learning_loop_node.data_classes.general import Context
 from learning_loop_node.node import Node
-from learning_loop_node.rest.downloader import DataDownloader, node_helper
+from learning_loop_node.rest_helpers.downloader import (DataDownloader,
+                                                        node_helper)
 from learning_loop_node.socket_response import SocketResponse
 from learning_loop_node.status import AnnotationNodeStatus, State
 
+# TODO: The use case 'segmentation' is hardcoded here. This should be more flexible.
+
 
 class AnnotatorNode(Node):
-    tool: AnnotatatorModel
 
-    def __init__(self, name: str, uuid: str, tool: AnnotatatorModel):
+    def __init__(self, name: str, uuid: str, annotator_logic: AnnotatorLogic):
         super().__init__(name, uuid)
-        self.tool = tool
-        self.histories: dict = {}
+        self.tool = annotator_logic
+        self.histories: Dict = {}
 
-    async def create_sio_client(self):
-        await super().create_sio_client()
+    def register_sio_events(self, sio_client: AsyncClient):
 
-        assert self.sio_client is not None
-        assert self.sio_client.on is not None
+        @sio_client.event
+        async def handle_user_input(user_input):
+            return await self._handle_user_input(user_input)
 
-        dec_input = self.sio_client.on('handle_user_input')
-        assert dec_input is not None
-
-        @dec_input
-        async def on_handle_user_input(user_input):
-            return await self.handle_user_input(user_input)
-
-        dec_logout = self.sio_client.on('user_logout')
-        assert dec_logout is not None
-
-        @dec_logout
-        async def on_logout_user(sid):
+        @sio_client.event
+        async def user_logout(sid):
             self.reset_history(sid)
             return self.tool.logout_user(sid)
 
-    async def handle_user_input(self, user_input) -> str:
+    async def _handle_user_input(self, user_input) -> str:
         user_input = UserInput.parse_obj(user_input)
 
         if user_input.data.key_up == 'Escape':
@@ -49,32 +41,29 @@ class AnnotatorNode(Node):
             return ''
 
         await self.download_image(user_input.data.context, user_input.data.image_uuid)
-        history = self.get_history(user_input.frontend_id)
+
         try:
-            tool_result = await self.tool.handle_user_input(user_input, history)
-        except:
+            tool_result = await self.tool.handle_user_input(user_input, self.get_history(user_input.frontend_id))
+        except Exception:
             self.reset_history(user_input.frontend_id)
             raise
 
         if tool_result.annotation:
-            if self.sio_client is None:
-                raise Exception('No socket client')
+            if not self.sio_is_initialized():
+                raise Exception('Socket client waas not initialized')
             await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
-                                                                          user_input.data.context.project, jsonable_encoder(tool_result.annotation)), timeout=2)
-
+                                                                          user_input.data.context.project,
+                                                                          jsonable_encoder(tool_result.annotation)), timeout=2)
         return tool_result.svg
 
     def reset_history(self, frontend_id: str) -> None:
-        try:
+        """Reset the history for a given frontend_id."""
+        if frontend_id in self.histories:
             del self.histories[frontend_id]
-        except Exception:
-            pass
 
-    def get_history(self, frontend_id: str) -> dict:
-        if not frontend_id in self.histories:
-            self.histories[frontend_id] = self.tool.create_empty_history()
-
-        return self.histories[frontend_id]
+    def get_history(self, frontend_id: str) -> Dict:
+        """Get the history for a given frontend_id. If no history exists, create a new one."""
+        return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
         status = AnnotationNodeStatus(
@@ -84,15 +73,15 @@ class AnnotatorNode(Node):
             capabilities=['segmentation']
         )
 
-        logging.info(f'sending status {status}')
-        if self.sio_client is None:
+        self.log.info(f'Sending status {status}')
+        if self._sio_client is None:
             raise Exception('No socket client')
-        result = await self.sio_client.call('update_annotation_node', jsonable_encoder(status), timeout=2)
-        assert isinstance(result, dict)
+        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(status), timeout=2)
+        assert isinstance(result, Dict)
         response = SocketResponse.from_dict(result)
 
         if not response.success:
-            logging.error(f'Error for updating: Response from loop was : {response.__dict__}')
+            self.log.error(f'Error for updating: Response from loop was : {response.__dict__}')
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = Node.create_project_folder(context)
@@ -106,3 +95,12 @@ class AnnotatorNode(Node):
 
     def get_node_type(self):
         return 'annotation_node'
+
+    async def on_startup(self):
+        pass
+
+    async def on_shutdown(self):
+        pass
+
+    async def on_repeat(self):
+        pass

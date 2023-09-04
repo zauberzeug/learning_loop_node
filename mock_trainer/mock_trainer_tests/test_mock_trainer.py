@@ -28,11 +28,11 @@ async def test_get_new_model():
 
     model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
-    mock_trainer.training = Training(
+    mock_trainer._training = Training(
         uuid=str(uuid4()),
         context=context,
         project_folder="",
         images_folder="")
-    mock_trainer.training.data = TrainingData(image_data=[], categories=[])
+    mock_trainer._training.data = TrainingData(image_data=[], categories=[])
     model = mock_trainer.get_new_model()
     assert model is not None

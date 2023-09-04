@@ -2,11 +2,11 @@
 import asyncio
 from typing import List
 
-from learning_loop_node.converter.converter_model import ConverterModel
+from learning_loop_node.converter.converter_logic import ConverterLogic
 from learning_loop_node.data_classes import ModelInformation
 
 
-class MockConverterModel(ConverterModel):
+class MockConverterModel(ConverterLogic):
 
     async def _convert(self, model_information: ModelInformation) -> None:
         await asyncio.sleep(1)

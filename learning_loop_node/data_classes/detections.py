@@ -35,7 +35,7 @@ class BoxDetection:
                  other_detection.height)
 
         interArea = max(xB - xA, 0) * max(yB - yA, 0)
-        union = float(self._get_area() + other_detection._get_area() - interArea)
+        union = float(self._get_area() + other_detection._get_area() - interArea)  # pylint: disable=protected-access
         if union == 0:
             print("WARNING: something went wrong while calculating iou")
             return 0

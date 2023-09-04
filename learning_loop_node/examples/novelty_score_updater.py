@@ -4,6 +4,7 @@ from learning_loop_node.loop_communication import glc
 
 glc.organization = 'zauberzeug'
 glc.project = 'demo'
+
 data = glc.get_json('/data')
 categories = data['categories']
 image_ids = data['image_ids'][0:1]  # use only one image for testing

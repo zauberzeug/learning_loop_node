@@ -10,40 +10,46 @@ from learning_loop_node.data_classes import Training
 from learning_loop_node.globals import GLOBALS
 
 
+class LastTrainingIO:
+
+    @staticmethod
+    def create_mocked_last_training_io() -> 'LastTrainingIO':
+        node_uuid = '00000000-0000-0000-0000-000000000000'
+        return LastTrainingIO(node_uuid)
+
+    def __init__(self, node_uuid: str) -> None:
+        self.node_uuid = node_uuid
+
+    def save(self, training: Training) -> None:
+        with open(f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json', 'w') as f:
+            json.dump(jsonable_encoder(training), f)
+
+    def load(self) -> Training:
+        with open(f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json', 'r') as f:
+            return Training(**json.load(f))
+
+    def delete(self) -> None:
+        if self.exists():
+            os.remove(f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json')
+
+    def exists(self) -> bool:
+        return os.path.exists(f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json')
+
+
 class ActiveTrainingIO:
 
-    # @staticmethod
-    # def create_mocked_trainin_io() -> Training:
-    #     mock_id = '00000000-0000-0000-0000-000000000000'
-    #     atio = ActiveTrainingIO(mock_id)
-    #     training = Training(uuid=mock_id)
-    #     training.training_folder = f'{GLOBALS.data_folder}/mocked_training_folder'
+    @staticmethod
+    def create_mocked_training_io() -> 'ActiveTrainingIO':
+        training_folder = ''
+        return ActiveTrainingIO(training_folder)
 
-    def __init__(self, node_uuid: str, training_folder: str):
-        self.node_uuid = node_uuid
+    def __init__(self, training_folder: str):
         self.training_folder = training_folder
-        self.last_training_path = f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json'
         self.mup_path = f'{training_folder}/model_uploading_progress.txt'
         # string with placeholder gor index
         self.det_path = f'{training_folder}/detections_{0}.json'
         self.dufi_path = f'{training_folder}/detection_uploading_json_index.txt'
         self.dup_path = f'{training_folder}/detection_uploading_progress.txt'
-
-    def save(self, training: Training) -> None:
-        with open(self.last_training_path, 'w') as f:
-            json.dump(jsonable_encoder(training), f)
-
-    def load(self) -> Training:
-        with open(self.last_training_path, 'r') as f:
-            return Training(**json.load(f))
-
-    def delete(self) -> None:
-        if self.exists():
-            os.remove(self.last_training_path)
-        self.node_uuid = None
-
-    def exists(self) -> bool:
-        return os.path.exists(self.last_training_path)
 
     # model upload progress
 
@@ -81,6 +87,9 @@ class ActiveTrainingIO:
     def det_delete(self) -> None:
         for file in self.det_get_file_names():
             os.remove(Path(self.training_folder) / file)
+
+    def det_exists(self) -> bool:
+        return bool(self.det_get_file_names())
 
     # detections upload file index
 

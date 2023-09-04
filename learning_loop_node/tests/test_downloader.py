@@ -1,11 +1,10 @@
 import pytest
 
-import learning_loop_node.rest.downloads as downloads
 from learning_loop_node.data_classes import Context
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.rest_helpers import downloads
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.downloader import DataDownloader
-from learning_loop_node.trainer.tests import trainer_test_helper
 
 
 @pytest.fixture(autouse=True, scope='module')
@@ -30,8 +29,7 @@ def data_downloader() -> DataDownloader:
 
 async def test_download_model():
     data_folder = GLOBALS.data_folder
-    _, _, trainings_folder = trainer_test_helper.create_needed_folders(
-        data_folder)
+    _, _, trainings_folder = test_helper.create_needed_folders(data_folder)
     model_id = await test_helper.get_latest_model_id()
 
     await downloads.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
@@ -59,8 +57,7 @@ async def test_fetching_image_ids(data_downloader: DataDownloader):
 
 
 async def test_download_images(data_downloader: DataDownloader):
-    _, image_folder, _ = trainer_test_helper.create_needed_folders(
-        GLOBALS.data_folder)
+    _, image_folder, _ = test_helper.create_needed_folders(GLOBALS.data_folder)
     image_ids = await data_downloader.fetch_image_ids()
     await data_downloader.download_images(image_ids, image_folder)
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)

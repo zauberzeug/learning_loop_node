@@ -9,11 +9,11 @@ from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
 from fastapi.encoders import jsonable_encoder
-from socketio import AsyncServer
+from socketio import AsyncClient, AsyncServer
 
 from learning_loop_node import environment_reader
 from learning_loop_node.data_classes import (Category, Context, Detections,
-                                             ModelInformation)
+                                             ModelInformation, Shape)
 from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.detector.rest import detect as rest_detect
 from learning_loop_node.detector.rest import operation_mode as rest_mode
@@ -22,17 +22,17 @@ from learning_loop_node.detector.rest.operation_mode import OperationMode
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.inbox_filter import RelevanceFilter
 from learning_loop_node.node import Node
-from learning_loop_node.rest import downloads
+from learning_loop_node.rest_helpers import downloads
 
 from ..socket_response import SocketResponse
 from ..status import DetectionStatus, State
-from .detector import Detector
+from .detector_logic import DetectorLogic
 
 
 class DetectorNode(Node):
     update_frequency = 10
 
-    def __init__(self, name: str, detector: Detector, uuid: Optional[str] = None):
+    def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.detector = detector
         self.organization = environment_reader.organization()
@@ -53,17 +53,14 @@ class DetectorNode(Node):
         self.setup_sio_server()
 
     async def on_startup(self):
-        await super().on_startup()
         try:
-            self.log.info("received 'startup' event")
             self.outbox.start_continuous_upload()
-            self._load_model()
+            self.detector.load_model()
         except Exception:
             self.log.exception("error during 'startup'")
+        self.operation_mode = OperationMode.Idle
 
     async def on_shutdown(self):
-        self.log.info("received 'shutdown' event")
-        await super().on_shutdown()
         try:
             self.outbox.stop_continuous_upload()
             if self.sio_server is not None:
@@ -73,7 +70,6 @@ class DetectorNode(Node):
             self.log.exception("error during 'shutdown'")
 
     async def on_repeat(self):
-        await super().on_repeat()
         try:
             await self._check_for_update()
         except Exception:
@@ -121,12 +117,6 @@ class DetectorNode(Node):
         @self.sio_server.event
         def connect(sid, environ, auth):
             self.connected_clients.append(sid)
-
-    def _load_model(self) -> None:
-        try:
-            self.detector.load_model()
-        finally:
-            self.operation_mode = OperationMode.Idle
 
     async def _check_for_update(self):
         if self.operation_mode == OperationMode.Startup:
@@ -185,8 +175,8 @@ class DetectorNode(Node):
             await self.send_status()
 
     async def send_status(self) -> Union[str, Literal[False]]:
-        assert self.sio_client is not None
-        if not self.sio_client.connected:
+        assert self._sio_client is not None
+        if not self._sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return False
         status = DetectionStatus(
@@ -202,8 +192,8 @@ class DetectorNode(Node):
         )
 
         self.log.debug(f'sending status {status}')
-        assert self.sio_client is not None
-        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)))
+        assert self._sio_client is not None
+        response = await self._sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)))
         assert response is not None
         socket_response = SocketResponse.from_dict(response)
         if not socket_response.success:
@@ -240,8 +230,10 @@ class DetectorNode(Node):
         detections: Detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
         detections = self.add_category_id_to_detections(self.detector.model_info, detections)
         for seg_detection in detections.seg_detections:
-            shapes = ','.join([str(value) for p in seg_detection.shape.points for _, value in p.__dict__.items()])
-            seg_detection.shape = shapes  # TODO This seems to be a quick fix..
+            if isinstance(seg_detection.shape, Shape):
+                shapes = ','.join([str(value) for p in seg_detection.shape.points for _, value in p.__dict__.items()])
+                seg_detection.shape = shapes  # TODO This seems to be a quick fix..
+
         # info = "\n    ".join([str(d) for d in detections.box_detections +
         #                      detections.point_detections + detections.seg_detections])
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections),
@@ -285,6 +277,9 @@ class DetectorNode(Node):
 
     def get_node_type(self):
         return 'detector'
+
+    def register_sio_events(self, sio_client: AsyncClient):
+        pass
 
 
 @contextlib.contextmanager

@@ -37,7 +37,7 @@ async def test_all(setup_test_project):
     trainer = MockTrainer(model_format='mocked')
     context = Context(organization='zauberzeug', project='pytest')
 
-    training = Trainer.generate_new_training(context)
+    training = Trainer.generate_training(context)
     training.model_id_for_detecting = latest_model_id
     trainer.training = training
     await trainer._do_detections()

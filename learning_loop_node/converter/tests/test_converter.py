@@ -2,13 +2,13 @@ from typing import List
 
 import pytest
 
-from learning_loop_node.converter.converter_model import ConverterModel
+from learning_loop_node.converter.converter_logic import ConverterLogic
 from learning_loop_node.converter.converter_node import ConverterNode
 from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.tests import test_helper
 
 
-class MockedConverter(ConverterModel):
+class MockedConverter(ConverterLogic):
     models: List[ModelInformation] = []
 
     async def _convert(self, model_information: ModelInformation) -> None:
@@ -31,6 +31,7 @@ def setup_converter_test_project():
 
 
 # pylint: disable=unused-argument
+# pylint: disable=redefined-outer-name
 async def test_meta_information(setup_converter_test_project):
     model_id = await test_helper.get_latest_model_id()
 

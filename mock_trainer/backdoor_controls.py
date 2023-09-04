@@ -27,7 +27,7 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
     if state == 'off':
         if trainer_node.status.state != State.Offline:
             logging.debug('turning socketio off')
-            await trainer_node.sio_client.disconnect()
+            await trainer_node._sio_client.disconnect()
     if state == 'on':
         if trainer_node.status.state == State.Offline:
             logging.debug('turning socketio on')
@@ -78,7 +78,7 @@ async def add_steps(request: Request):
 
     if not trainer_node.trainer.executor or not trainer_node.trainer.executor.is_process_running():
         logging.error(
-            f'cannot add steps when training is not running, state:  { trainer_node.trainer.training.training_state}')
+            f'cannot add steps when training is not running, state:  { trainer_node.trainer._training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
@@ -87,7 +87,7 @@ async def add_steps(request: Request):
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
         try:
-            await trainer_node.trainer.sync_confusion_matrix(trainer_node.uuid, trainer_node.sio_client)
+            await trainer_node.trainer.sync_confusion_matrix(trainer_node.uuid, trainer_node._sio_client)
         except Exception:
             # Tests can force synchroniation to fail, error state is reported to backend
             pass

@@ -6,9 +6,9 @@ from time import perf_counter
 from typing import List, Optional
 
 from learning_loop_node import node_helper
-from learning_loop_node.data_classes.general import Context
+from learning_loop_node.data_classes import Context
 from learning_loop_node.loop_communication import glc
-from learning_loop_node.rest import downloads
+from learning_loop_node.rest_helpers import downloads
 
 
 class DataDownloader():

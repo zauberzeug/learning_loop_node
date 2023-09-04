@@ -1,4 +1,3 @@
-
 from enum import Enum
 from typing import Optional
 
@@ -39,3 +38,13 @@ class AnnotationData(BaseModel):
     # keyboard_modifiers: Optional[List[str]]
     # new_annotation_uuid: Optional[str]
     # edit_annotation_uuid: Optional[str]
+
+
+class UserInput(BaseModel):
+    frontend_id: str
+    data: AnnotationData
+
+
+class ToolOutput(BaseModel):
+    svg: str
+    annotation: Optional[SegmentationAnnotation] = None

@@ -9,7 +9,8 @@ from learning_loop_node.annotation.annotator_node import AnnotatorNode
 
 logging.basicConfig(level=logging.DEBUG)
 tool = MockAnnotatorNode()
-node = AnnotatorNode(uuid='00000000-1111-2222-3333-444444444444', name=f'Annotation Node {os.uname()[1]}', tool=tool)
+node = AnnotatorNode(uuid='00000000-1111-2222-3333-444444444444',
+                     name=f'Annotation Node {os.uname()[1]}', annotator_logic=tool)
 
 node.include_router(backdoor_controls.router, prefix="")
 

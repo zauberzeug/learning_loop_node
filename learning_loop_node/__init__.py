@@ -6,7 +6,7 @@ if sys.version_info.major >= 3 and sys.version_info.minor >= 8:  # most code nee
 
 from . import log_conf
 from .data_classes import CategoryType, Context, ModelInformation
-from .detector.detector import Detector
+from .detector.detector_logic import DetectorLogic
 from .detector.detector_node import DetectorNode
 from .globals import GLOBALS
 from .loop_communication import LoopCommunication

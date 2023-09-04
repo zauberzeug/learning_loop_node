@@ -1,11 +1,11 @@
 from typing import Any
 
 from learning_loop_node.data_classes import Detections
-from learning_loop_node.detector.detector import Detector
+from learning_loop_node.detector.detector_logic import DetectorLogic
 from learning_loop_node.model_information import ModelInformation
 
 
-class MockDetector(Detector):
+class MockDetector(DetectorLogic):
     def __init__(self) -> None:
         super().__init__('mocked')
 

@@ -1,9 +1,8 @@
 from typing import List
 
-from learning_loop_node.data_classes.detections import (BoxDetection,
-                                                        Detections,
-                                                        PointDetection,
-                                                        SegmentationDetection)
+from learning_loop_node.data_classes import (BoxDetection, Detections,
+                                             PointDetection,
+                                             SegmentationDetection)
 from learning_loop_node.inbox_filter.observation import Observation
 
 
@@ -55,8 +54,9 @@ class RelevanceGroup:
         ]
 
     def similar(self, a, b) -> bool:
-        if type(a) is BoxDetection and type(b) is BoxDetection:
+        if isinstance(a, BoxDetection) and isinstance(b, BoxDetection):
             return a.intersection_over_union(b) >= self.iou_threshold
-        if type(a) is PointDetection and type(b) is PointDetection:
+        if isinstance(a, PointDetection) and isinstance(b, PointDetection):
             return a.distance(b) < 10
+
         return False

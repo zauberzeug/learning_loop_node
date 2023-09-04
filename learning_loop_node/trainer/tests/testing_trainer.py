@@ -25,11 +25,13 @@ class TestingTrainer(Trainer):
             PretrainedModel(name='medium', label='Medium', description='a medium model'),
             PretrainedModel(name='large', label='Large', description='a large model')]
 
+    # pylint: disable=unused-argument
     async def start_training(self, model: str = 'model.model') -> None:
+        assert self.executor is not None
         self.executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self, id: str) -> None:
-        await self.start_training(model=f'model_{id}.pt')
+    async def start_training_from_scratch(self, identifier: str) -> None:
+        await self.start_training(model=f'model_{identifier}.pt')
 
     def get_new_model(self) -> Optional[BasicModel]:
         if self.has_new_model:
@@ -62,6 +64,7 @@ class TestingTrainer(Trainer):
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         result = await super()._upload_model(context)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
+        assert isinstance(result, dict)
         return result
 
     def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
@@ -88,5 +91,5 @@ class TestingTrainer(Trainer):
     async def clear_training_data(self, training_folder: str) -> None:
         return
 
-    def get_error(self) -> Optional[str]:
+    def get_executor_error_from_log(self) -> Optional[str]:
         return self.error_msg

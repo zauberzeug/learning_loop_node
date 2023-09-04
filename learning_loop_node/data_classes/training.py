@@ -33,8 +33,9 @@ class PretrainedModel():
     description: str
 
 
-class State(str, Enum):
+class TrainingState(str, Enum):
     Initialized = 'initialized'
+    Preparing = 'preparing'
     DataDownloading = 'data_downloading'
     DataDownloaded = 'data_downloaded'
     TrainModelDownloading = 'train_model_downloading'
@@ -55,7 +56,7 @@ class State(str, Enum):
 class TrainingStatus():
     uuid: str
     name: str
-    state: Union[Optional[State], str]
+    state: Union[Optional[TrainingState], str]
     errors: Optional[Dict]
     uptime: Optional[float]
     progress: Optional[float]
@@ -79,7 +80,7 @@ class Training(BaseModel):
 
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
-    training_state: Optional[State] = None
+    training_state: Optional[TrainingState] = None
     model_id_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
 

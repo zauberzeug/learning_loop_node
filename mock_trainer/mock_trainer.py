@@ -35,7 +35,7 @@ class MockTrainer(Trainer):
         self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
-    def get_error(self) -> str:
+    def get_executor_error_from_log(self) -> str:
         if self.error_configuration.crash_training:
             return 'mocked crash'
 
