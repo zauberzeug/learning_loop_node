@@ -10,6 +10,7 @@ from requests import Session
 from urllib.parse import urljoin
 import httpx
 from typing import List
+from httpx import Timeout
 
 
 class WebSession(Session):
@@ -43,7 +44,8 @@ class Loop():
                 raise Exception('bad response: ' + str(response.content))
             self.web.cookies.update(response.cookies)
         if self.async_client is None or self.async_client.is_closed:
-            self.async_client = httpx.AsyncClient(base_url=self.web.base_url)
+            self.async_client = httpx.AsyncClient(
+                base_url=self.web.base_url, timeout=Timeout(timeout=60.0))
             for cookie in self.web.cookies:
                 self.async_client.cookies.update({cookie.name: cookie.value})
 
