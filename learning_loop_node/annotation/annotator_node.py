@@ -1,26 +1,25 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from learning_loop_node.annotation.annotator_logic import (AnnotatorLogic,
-                                                           UserInput)
-from learning_loop_node.data_classes import AnnotationNodeStatus, NodeState
-from learning_loop_node.data_classes.general import Context
-from learning_loop_node.node import Node
-from learning_loop_node.rest_helpers.downloader import (DataDownloader,
-                                                        node_helper)
-from learning_loop_node.socket_response import SocketResponse
+from .. import node_helper
+from ..data_classes import AnnotationNodeStatus, Context, NodeState, UserInput
+from ..data_exchanger import DataExchanger
+from ..node import Node
+from ..socket_response import SocketResponse
+from .annotator_logic import AnnotatorLogic
 
 # TODO: The use case 'segmentation' is hardcoded here. This should be more flexible.
 
 
 class AnnotatorNode(Node):
 
-    def __init__(self, name: str, uuid: str, annotator_logic: AnnotatorLogic):
+    def __init__(self, name: str, annotator_logic: AnnotatorLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.tool = annotator_logic
         self.histories: Dict = {}
+        annotator_logic.init(self)
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -53,7 +52,7 @@ class AnnotatorNode(Node):
                 raise Exception('Socket client waas not initialized')
             await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
                                                                           user_input.data.context.project,
-                                                                          jsonable_encoder(tool_result.annotation)), timeout=2)
+                                                                          jsonable_encoder(tool_result.annotation)), timeout=10)
         return tool_result.svg
 
     def reset_history(self, frontend_id: str) -> None:
@@ -67,7 +66,7 @@ class AnnotatorNode(Node):
 
     async def send_status(self):
         status = AnnotationNodeStatus(
-            id=self.uuid,
+            node_uuid=self.uuid,
             name=self.name,
             state=NodeState.Online,
             capabilities=['segmentation']
@@ -87,7 +86,7 @@ class AnnotatorNode(Node):
         project_folder = Node.create_project_folder(context)
         images_folder = node_helper.create_image_folder(project_folder)
 
-        downloader = DataDownloader(context=context)
+        downloader = DataExchanger(context=context, lc=self.loop_communicator)
         await downloader.download_images([uuid], images_folder)
 
     async def get_state(self):

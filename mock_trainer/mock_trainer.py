@@ -1,29 +1,29 @@
-if True:
-    import logging
-    logging.basicConfig(level=logging.INFO)
-
 
 import asyncio
 import time
 from typing import Dict, List, Optional, Union
 
-import progress_simulator
-
+from learning_loop_node.data_classes import (BasicModel, ErrorConfiguration,
+                                             ModelInformation, PretrainedModel)
 from learning_loop_node.data_classes.detections import (
     BoxDetection, ClassificationDetection, Point, PointDetection,
     SegmentationDetection, Shape)
-from learning_loop_node.model_information import ModelInformation
-from learning_loop_node.trainer.error_configuration import ErrorConfiguration
-from learning_loop_node.trainer.model import BasicModel, PretrainedModel
 from learning_loop_node.trainer.trainer import Trainer
+from mock_trainer import progress_simulator
 
 
 class MockTrainer(Trainer):
-    latest_known_confusion_matrix: dict = {}
+    latest_known_confusion_matrix: Dict = {}
     error_configuration: ErrorConfiguration = ErrorConfiguration()
     max_iterations = 100
     current_iteration = 0
     provide_new_model = True
+
+    def can_resume(self) -> bool:
+        return False
+
+    async def resume(self) -> None:
+        pass
 
     async def start_training(self) -> None:
         self.current_iteration = 0
@@ -35,9 +35,10 @@ class MockTrainer(Trainer):
         self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
-    def get_executor_error_from_log(self) -> str:
+    def get_executor_error_from_log(self) -> Optional[str]:
         if self.error_configuration.crash_training:
             return 'mocked crash'
+        return None
 
     def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
         if self.error_configuration.save_model:
@@ -72,15 +73,15 @@ class MockTrainer(Trainer):
             for c in model_information.categories:
                 if c.type == 'box':
                     d = BoxDetection(c.name, x=1, y=2, width=30, height=40,
-                                     net=model_information.version, confidence=.99, category_id=c.id)
+                                     model_name=model_information.version, confidence=.99, category_id=c.id)
                     box_detections.append(d)
                 elif c.type == 'point':
                     d = PointDetection(c.name, x=100, y=200,
-                                       net=model_information.version, confidence=.97, category_id=c.id)
+                                       model_name=model_information.version, confidence=.97, category_id=c.id)
                     point_detections.append(d)
                 elif c.type == 'segmentation':
-                    d = SegmentationDetection(c.name, shape=Shape(points=[Point(x=1, y=2), Point(x=3, y=4)]),
-                                              model_name=model_information.version, confidence=.96, category_id=c.id)
+                    d = SegmentationDetection(c.name, shape=Shape(points=[Point(x=1, y=2), Point(
+                        x=3, y=4)]), model_name=model_information.version, confidence=.96, category_id=c.id)
                     segmentation_detections.append(d)
                 elif c.type == 'classification':
                     d = ClassificationDetection(c.name, model_name=model_information.version,
@@ -112,6 +113,7 @@ class MockTrainer(Trainer):
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
     def on_model_published(self, basic_model: BasicModel) -> None:
+        assert isinstance(basic_model.confusion_matrix, Dict)
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
 
     @property

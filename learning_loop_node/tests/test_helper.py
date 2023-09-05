@@ -5,35 +5,13 @@ import time
 import zipfile
 from glob import glob
 from typing import Callable
-from urllib.parse import urljoin
-
-import requests
-from requests import Session
 
 from learning_loop_node import node_helper
 from learning_loop_node.data_classes import Context
-from learning_loop_node.loop_communication import glc
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer import Trainer
 
-
-class LiveServerSession(Session):
-    """https://stackoverflow.com/a/51026159/364388"""
-
-    def __init__(self, *args, **kwargs):
-        super(LiveServerSession, self).__init__(*args, **kwargs)
-        self.prefix_url = glc.base_url
-        data = {
-            'username': os.environ.get('LOOP_USERNAME', None),
-            'password': os.environ.get('LOOP_PASSWORD', None),
-        }
-        self.cookies = requests.post(f'{self.prefix_url}/api/login', data=data).cookies
-        # self.cookies = await glc.get_cookies() #TODO it would be better to use glc here as well
-
-    def request(self, method, url, *args, **kwargs):
-        url = 'api/' + url
-        url = urljoin(self.prefix_url, url)
-        return super(LiveServerSession, self).request(method, url, cookies=self.cookies, *args, **kwargs)
+from ..loop_communication import LoopCommunicator
 
 
 def get_files_in_folder(folder: str):
@@ -43,17 +21,21 @@ def get_files_in_folder(folder: str):
 
 
 async def get_latest_model_id() -> str:
-    response = await glc.get('/zauberzeug/projects/pytest/trainings')
+    lc = LoopCommunicator()
+    response = await lc.get('/zauberzeug/projects/pytest/trainings')
+    await lc.shutdown()
+
     assert response.status_code == 200
     trainings = response.json()
+    # print(trainings) P? es gibt hier keine charts
     return trainings['charts'][0]['data'][0]['model_id']
 
 
 def unzip(file_path, target_folder):
     shutil.rmtree(target_folder, ignore_errors=True)
     os.makedirs(target_folder)
-    with zipfile.ZipFile(file_path, 'r') as zip:
-        zip.extractall(target_folder)
+    with zipfile.ZipFile(file_path, 'r') as zip_:
+        zip_.extractall(target_folder)
 
 
 async def condition(c_condition: Callable, *, timeout: float = 1.0, interval: float = 0.1):
@@ -83,8 +65,10 @@ def _update_attribute_dict(obj: dict, **kwargs) -> None:
     for key, value in kwargs.items():
         obj[key] = value
 
+# TODO p?
 
-def create_needed_folders(base_folder: str, training_uuid: str = 'some_uuid'):  # TODO p?
+
+def create_needed_folders(base_folder: str, training_uuid: str = 'some_uuid'):  # pylint: disable=unused-argument
     project_folder = Node.create_project_folder(
         Context(organization='zauberzeug', project='pytest'))
     image_folder = node_helper.create_image_folder(project_folder)

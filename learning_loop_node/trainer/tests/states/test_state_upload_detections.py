@@ -1,10 +1,11 @@
 import asyncio
 
+import pytest
 from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.data_classes import Context
 from learning_loop_node.data_classes.detections import BoxDetection
-from learning_loop_node.loop_communication import glc
+from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
@@ -18,15 +19,18 @@ def trainer_has_error(trainer: Trainer):
 
 
 async def create_valid_detection_file(trainer: Trainer, number_of_entries: int = 1, file_index: int = 0):
-    response = await glc.get('/zauberzeug/projects/demo/data')
+    loop_communicator = LoopCommunicator()
+    response = await loop_communicator.get('/zauberzeug/projects/demo/data')
+    await loop_communicator.shutdown()
+
     assert response.status_code == 200, response
     content = response.json()
 
     category = content['categories'][0]
     image_id = content['image_ids'][0]
     model_version = '1.2'
-    box_detection = BoxDetection(category['name'], x=1, y=2, width=30, height=40,
-                                 net=model_version, confidence=.99, category_id=category['id'])
+    box_detection = BoxDetection(category_name=category['name'], x=1, y=2, width=30, height=40,
+                                 model_name=model_version, confidence=.99, category_id=category['id'])
     box_detections = [box_detection]
 
     image_entry = {'image_id': image_id, 'box_detections': box_detections,
@@ -37,6 +41,7 @@ async def create_valid_detection_file(trainer: Trainer, number_of_entries: int =
     trainer.active_training_io.det_save(jsonable_encoder(image_entries), file_index)
 
 
+@pytest.mark.asyncio
 async def test_upload_successful(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
 
@@ -47,9 +52,10 @@ async def test_upload_successful(test_initialized_trainer: TestingTrainer):
     await trainer.upload_detections()
 
     assert trainer.training.training_state == 'ready_for_cleanup'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
+@pytest.mark.asyncio
 async def test_detection_upload_progress_is_stored(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
 
@@ -64,6 +70,7 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
     assert trainer.active_training_io.dufi_load() == 1
 
 
+@pytest.mark.asyncio
 async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
 
@@ -105,6 +112,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
         assert trainer.active_training_io.dufi_load() == 1
 
 
+@pytest.mark.asyncio
 async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
 
@@ -119,7 +127,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'detected'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_other_errors(test_initialized_trainer: TestingTrainer):
@@ -135,7 +143,7 @@ async def test_other_errors(test_initialized_trainer: TestingTrainer):
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'detected'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_abort_uploading(test_initialized_trainer: TestingTrainer):
@@ -153,4 +161,4 @@ async def test_abort_uploading(test_initialized_trainer: TestingTrainer):
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access
-    assert trainer.last_training_io.exists() is False
+    assert trainer.node.last_training_io.exists() is False

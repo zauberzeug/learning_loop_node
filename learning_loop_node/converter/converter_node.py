@@ -7,10 +7,9 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
-from learning_loop_node.converter.converter_logic import ConverterLogic
-from learning_loop_node.data_classes import ModelInformation, NodeState
-from learning_loop_node.loop_communication import glc
-from learning_loop_node.node import Node
+from ..data_classes import ModelInformation, NodeState
+from ..node import Node
+from .converter_logic import ConverterLogic
 
 
 class ConverterNode(Node):
@@ -21,6 +20,7 @@ class ConverterNode(Node):
     def __init__(self, name: str, converter: ConverterLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.converter = converter
+        converter.init(self)
 
         @self.on_event("startup")
         @repeat_every(seconds=60, raise_exceptions=True, wait_first=False)
@@ -62,16 +62,17 @@ class ConverterNode(Node):
 
     async def convert_models(self) -> None:
         try:
-            response = await glc.get('/projects')
+            response = await self.loop_communicator.get('/projects')
             assert response.status_code == 200, f'Assert statuscode 200, but was {response.status_code}.'
             content = response.json()
             projects = content['projects']
 
             for project in projects:
+                logging.info(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{project}')
                 organization_id = project['organization_id']
                 project_id = project['project_id']
 
-                response = await glc.get(f'{project["resource"]}')
+                response = await self.loop_communicator.get(f'{project["resource"]}')
                 if response.status_code != HTTPStatus.OK:
                     logging.error(
                         f'got bad response for {response.url}: {response.status_code}, {response.content}')
@@ -79,19 +80,19 @@ class ConverterNode(Node):
                 project_categories = response.json()['categories']
 
                 path = f'{project["resource"]}/models'
-                models_response = await glc.get(path)
+                models_response = await self.loop_communicator.get(path)
                 assert models_response.status_code == 200
                 content = models_response.json()
                 models = content['models']
 
                 for model in models:
                     if (model['version']
-                            and self.converter.source_format in model['formats']
-                            and self.converter.target_format not in model['formats']
+                        and self.converter.source_format in model['formats']
+                        and self.converter.target_format not in model['formats']
                         ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
-                            host=glc.base_url,
+                            host=self.loop_communicator.base_url,
                             organization=organization_id,
                             project=project_id,
                             id=model['id'],
@@ -105,7 +106,6 @@ class ConverterNode(Node):
             print(traceback.format_exc())
 
     async def send_status(self):
-        # NOTE not yet implemented
         pass
 
     async def on_startup(self):

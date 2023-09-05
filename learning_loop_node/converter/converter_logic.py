@@ -4,24 +4,36 @@ import shutil
 from abc import abstractmethod
 from typing import List, Optional
 
-# pylint: disable=no-name-in-module
-from pydantic.main import BaseModel
-
-from learning_loop_node.data_classes import ModelInformation
-from learning_loop_node.node import Node
-from learning_loop_node.rest_helpers import downloads, uploads
+from ..data_classes import ModelInformation
+from ..node import Node
 
 
-class ConverterLogic(BaseModel):
-    model_folder: Optional[str] = None
-    source_format: str
-    target_format: str
+class ConverterLogic():
+
+    def __init__(
+            self, source_format: str, target_format: str):
+        self.source_format = source_format
+        self.target_format = target_format
+        self._node: Optional[Node] = None
+        self.model_folder: Optional[str] = None
+
+    def init(self, node: Node) -> None:
+        self._node = node
+
+    @property
+    def node(self) -> Node:
+        if self._node is None:
+            raise Exception('ConverterLogic not initialized')
+        return self._node
 
     async def convert(self, model_information: ModelInformation) -> None:
         project_folder = Node.create_project_folder(model_information.context)
 
         self.model_folder = ConverterLogic.create_model_folder(project_folder, model_information.id)
-        await downloads.download_model(self.model_folder, model_information.context, model_information.id, self.source_format)
+        await self.node.data_exchanger.download_model(self.model_folder,
+                                                      model_information.context,
+                                                      model_information.id,
+                                                      self.source_format)
 
         with open(f'{self.model_folder}/model.json', 'r') as f:
             content = json.load(f)
@@ -32,7 +44,7 @@ class ConverterLogic(BaseModel):
 
     async def upload_model(self, context, model_id: str) -> None:
         files = self.get_converted_files(model_id)
-        await uploads.upload_model(context, files, model_id, self.target_format)
+        await self.node.data_exchanger.upload_model(context, files, model_id, self.target_format)
 
     @abstractmethod
     async def _convert(self, model_information: ModelInformation) -> None:

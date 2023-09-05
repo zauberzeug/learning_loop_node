@@ -11,7 +11,7 @@ from learning_loop_node.detector.outbox import Outbox
 
 
 @pytest.fixture()
-def outbox():
+def test_outbox():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
     test_outbox = Outbox()
@@ -58,7 +58,9 @@ def test_saving_binary(test_outbox: Outbox):
     assert len(test_outbox.get_data_files()) == 1
 
 
-def test_files_are_automatically_uploaded(test_detector_node: DetectorNode):
+@pytest.mark.asyncio
+async def test_files_are_automatically_uploaded(test_detector_node: DetectorNode):
+    test_detector_node = await test_detector_node
     test_detector_node.outbox.save(Image.new('RGB', (60, 30), color=(73, 109, 137)).tobytes(), Detections())
     assert len(test_detector_node.outbox.get_data_files()) == 1
 

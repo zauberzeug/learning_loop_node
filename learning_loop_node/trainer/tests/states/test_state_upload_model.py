@@ -30,7 +30,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'train_model_uploaded'
     assert trainer.training.model_id_for_detecting == 'some_id'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_abort_upload_model(test_initialized_trainer: TestingTrainer):
@@ -47,7 +47,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainer):
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access
-    assert trainer.last_training_io.exists() is False
+    assert trainer.node.last_training_io.exists() is False
 
 
 async def test_bad_server_response_content(test_initialized_trainer: TestingTrainer):
@@ -65,7 +65,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'confusion_matrix_synced'
     assert trainer.training.model_id_for_detecting is None
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_mock_loop_response_example(mocker: MockerFixture, test_initialized_trainer: TestingTrainer):

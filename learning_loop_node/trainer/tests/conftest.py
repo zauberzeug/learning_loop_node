@@ -25,14 +25,10 @@ async def test_initialized_trainer_node():
     trainer = TestingTrainer()
     node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
 
+    # pylint: disable=protected-access
     await node._on_startup()
-
     yield node
-
-    try:
-        await node._on_shutdown()
-    except Exception:
-        logging.exception('error while shutting down node')
+    await node._on_shutdown()
 
 
 @pytest.fixture()
@@ -40,21 +36,19 @@ async def test_initialized_trainer():
 
     trainer = TestingTrainer()
     node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
-    await node._on_startup()  # pylint: disable=protected-access
+    # pylint: disable=protected-access
+    await node._on_startup()
 
-    trainer.init(context=Context(organization='zauberzeug', project='demo'),
+    trainer.init(context=Context(organization='zauberzeug', project='demo'), node=node,
                  details={'categories': [],
                           'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
                           'training_number': 0,
                           'resolution': 800,
                           'flip_rl': False,
-                          'flip_ud': False},
-                 node_uuid=node.uuid,
-                 sio_client=node.sio_client,
-                 last_training_io=node.last_training_io)
+                          'flip_ud': False})
 
     yield trainer
-
+    await node._on_shutdown()
     # try:
     #     await trainer.
     # except:

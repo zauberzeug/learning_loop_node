@@ -1,41 +1,16 @@
 import asyncio
-import logging
 import time
 from typing import Dict, Optional, Union
 
-from fastapi import APIRouter, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from learning_loop_node.data_classes import (Context, NodeState, TrainingState,
-                                             TrainingStatus)
-from learning_loop_node.loop_communication import glc
-from learning_loop_node.node import Node
-from learning_loop_node.trainer.trainer import Trainer
-from learning_loop_node.trainer.training_io_helpers import LastTrainingIO
-
+from ..data_classes import Context, NodeState, TrainingState, TrainingStatus
+from ..node import Node
 from ..socket_response import SocketResponse
+from ..trainer.trainer import Trainer
 from .rest import controls
-
-router = APIRouter()
-
-
-@router.post("/controls/detect/{organization}/{project}/{version}")
-async def operation_mode(organization: str, project: str, version: str, request: Request):
-    '''
-    Example Usage
-        curl -X POST localhost/controls/detect/<organization>/<project>/<model_version>
-    '''
-    path = f'/{organization}/projects/{project}/models'
-    response = await glc.get(path)
-    if response.status_code != 200:
-        raise HTTPException(404, 'could not load latest model')
-    models = response.json()['models']
-    model_id = next(m for m in models if m['version'] == version)['id']
-    logging.info(model_id)
-    trainer: Trainer = request.app.trainer
-    await trainer.do_detections()
-    return "OK"
+from .training_io_helpers import LastTrainingIO
 
 
 class TrainerNode(Node):
@@ -64,11 +39,10 @@ class TrainerNode(Node):
     def register_sio_events(self, sio_client: AsyncClient):
 
         @sio_client.event
-        async def begin_training(organization: str, project: str, details: dict):
+        async def begin_training(organization: str, project: str, details: Dict):
             assert self._sio_client is not None
             self.log.info('received begin_training from server')
-            self.trainer.init(Context(organization=organization, project=project),
-                              details, self.uuid, self._sio_client, self.last_training_io)
+            self.trainer.init(Context(organization=organization, project=project), details, self)
             self.start_training_task()
             return True
 
@@ -132,7 +106,7 @@ class TrainerNode(Node):
             self.log.exception('update trainer failed')
 
     async def get_state(self):
-        if self.trainer.executor is not None and self.trainer.executor.is_process_running():
+        if self.trainer._executor is not None and self.trainer._executor.is_process_running():  # pylint: disable=protected-access
             return NodeState.Running
         return NodeState.Idle
 

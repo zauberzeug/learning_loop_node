@@ -1,9 +1,8 @@
-from typing import Dict, List, Optional
-from dataclasses import dataclass
 import json
 import os
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
@@ -17,28 +16,29 @@ class CategoryType(str, Enum):
 
 
 class Category(BaseModel):
-    identifier: str
+    id: str  # TODO: rename to identifier or uuid  (cannot be changed because of database / loop communication)
     name: str
     description: Optional[str] = None
     hotkey: Optional[str] = None
     color: Optional[str] = None
     point_size: Optional[int] = None
-    ctype: CategoryType = CategoryType.Box
+    # TODO: rename to ctype (cannot be changed because of database / loop communication)
+    type: CategoryType = CategoryType.Box
 
     @staticmethod
-    def from_list(values: List[dict]) -> List['Category']:
+    def from_list(values: List[Dict]) -> List['Category']:
         categories: List[Category] = []
         for value in values:
             categories.append(Category.from_dict(value))
         return categories
 
     @staticmethod
-    def from_dict(value: dict) -> 'Category':
+    def from_dict(value: Dict) -> 'Category':
         return Category.parse_obj(value)
 
 
 def create_category(identifier: str, name: str, ctype: CategoryType):
-    return Category(identifier=identifier, name=name, description='', hotkey='', color='', ctype=ctype, point_size=None)
+    return Category(id=identifier, name=name, description='', hotkey='', color='', type=ctype, point_size=None)
 
 
 class Context(BaseModel):
@@ -111,11 +111,12 @@ class NodeState(str, Enum):
 
 
 class NodeStatus(BaseModel):
-    id: str
+    node_uuid: str
     name: str
     state: Optional[NodeState] = NodeState.Offline
     uptime: Optional[int] = 0
     errors: Dict = {}
+    capabilities: List[str] = []
 
     def set_error(self, key: str, value: str):
         self.errors[key] = value
@@ -137,12 +138,11 @@ class AnnotationNodeStatus(NodeStatus):
     capabilities: List[str]
 
 
-@dataclass
-class DetectionStatus():
+class DetectionStatus(BaseModel):
     id: str
     name: str
     state: Optional[NodeState]
-    errors: Optional[dict]
+    errors: Optional[Dict]
     uptime: Optional[int]
 
     model_format: str

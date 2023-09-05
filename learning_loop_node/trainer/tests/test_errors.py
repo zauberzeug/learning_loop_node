@@ -24,8 +24,8 @@ async def test_log_can_provide_only_data_for_current_run(test_initialized_traine
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
-    assert trainer.executor is not None
-    assert len(re.findall('Starting executor', str(trainer.executor.get_log_by_lines()))) == 1
+    assert trainer._executor is not None
+    assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines()))) == 1
 
     trainer.error_msg = 'some_error'
     await assert_training_state(trainer.training, 'train_model_downloaded', timeout=6, interval=0.001)
@@ -33,6 +33,6 @@ async def test_log_can_provide_only_data_for_current_run(test_initialized_traine
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
     await asyncio.sleep(1)
 
-    assert len(re.findall('Starting executor', str(trainer.executor.get_log_by_lines()))) > 1
+    assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines()))) > 1
     # Here only the current run is provided
-    assert len(re.findall('Starting executor', str(trainer.executor.get_log_by_lines(since_last_start=True)))) == 1
+    assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines(since_last_start=True)))) == 1

@@ -1,6 +1,6 @@
 from tqdm import tqdm
 
-from learning_loop_node.loop_communication import glc
+from learning_loop_node import global_loop_communication as glc
 
 glc.organization = 'zauberzeug'
 glc.project = 'demo'

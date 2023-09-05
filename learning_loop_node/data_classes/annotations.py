@@ -1,21 +1,14 @@
 from enum import Enum
 from typing import Optional
 
-# pylint: disable=no-name-in-module
+# pylint: disable=no-name-in-module, too-few-public-methods
 from pydantic import BaseModel
 
 from learning_loop_node.data_classes.detections import Point, Shape
 from learning_loop_node.data_classes.general import Category, Context
 
 
-class SegmentationAnnotation(BaseModel):
-    id: str
-    shape: Shape
-    image_id: str
-    category_id: str
-
-
-class EventType(str, Enum):
+class AnnotationEventType(str, Enum):
     LeftMouseDown = 'left_mouse_down'
     RightMouseDown = 'right_mouse_down'
     MouseMove = 'mouse_move'
@@ -27,17 +20,22 @@ class EventType(str, Enum):
 
 class AnnotationData(BaseModel):
     coordinate: Point
-    event_type: EventType
+    event_type: AnnotationEventType
     context: Context
     image_uuid: str
     category: Category
-    is_shift_key_pressed: Optional[bool] = None
-    key_up: Optional[str] = None
+
+    key_up: Optional[str] = None  # TODO really str???
     key_down: Optional[str] = None
     epsilon: Optional[float] = None
-    # keyboard_modifiers: Optional[List[str]]
-    # new_annotation_uuid: Optional[str]
-    # edit_annotation_uuid: Optional[str]
+    is_shift_key_pressed: Optional[bool] = None
+
+
+class SegmentationAnnotation(BaseModel):
+    id: str
+    shape: Shape
+    image_id: str
+    category_id: str
 
 
 class UserInput(BaseModel):

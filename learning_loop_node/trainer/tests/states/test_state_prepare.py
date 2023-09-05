@@ -22,7 +22,7 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainer)
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'data_downloaded'
     assert trainer.training.data is not None
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_abort_preparing(test_initialized_trainer: TestingTrainer):
@@ -37,7 +37,7 @@ async def test_abort_preparing(test_initialized_trainer: TestingTrainer):
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access
-    assert trainer.last_training_io.exists() is False
+    assert trainer.node.last_training_io.exists() is False
 
 
 async def test_request_error(test_initialized_trainer: TestingTrainer):

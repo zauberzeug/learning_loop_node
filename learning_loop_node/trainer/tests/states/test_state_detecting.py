@@ -24,7 +24,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainer):
 
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'detected'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
     assert trainer.active_training_io.det_exists()
 
 
@@ -41,7 +41,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
 
     assert trainer._training is None  # pylint: disable=protected-access
     assert trainer.active_training_io.det_exists() is False
-    assert trainer.last_training_io.exists() is False
+    assert trainer.node.last_training_io.exists() is False
 
 
 async def test_model_not_downloadable_error(test_initialized_trainer: TestingTrainer):
@@ -58,7 +58,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'train_model_uploaded'
     assert trainer.training.model_id_for_detecting == '00000000-0000-0000-0000-000000000000'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 def test_save_load_detections(test_initialized_trainer: TestingTrainer):

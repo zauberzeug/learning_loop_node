@@ -18,12 +18,12 @@ async def test_successful_training(test_initialized_trainer: TestingTrainer):
     assert trainer.train_task is not None
     assert trainer.train_task.__name__ == 'start_training'
 
-    assert trainer.executor is not None
-    trainer.executor.stop()  # NOTE normally a training terminates itself
+    assert trainer._executor is not None
+    trainer._executor.stop()  # NOTE normally a training terminates itself
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_stop_running_training(test_initialized_trainer: TestingTrainer):
@@ -34,7 +34,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainer):
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
-    await condition(lambda: trainer.executor and trainer.executor.is_process_running(), timeout=1, interval=0.01)
+    await condition(lambda: trainer._executor and trainer._executor.is_process_running(), timeout=1, interval=0.01)
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
     assert trainer.train_task is not None
     assert trainer.train_task.__name__ == 'start_training'
@@ -43,7 +43,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainer):
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrainer):
@@ -56,13 +56,13 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
-    await condition(lambda: trainer.executor and trainer.executor.is_process_running(), timeout=1, interval=0.01)
+    await condition(lambda: trainer._executor and trainer._executor.is_process_running(), timeout=1, interval=0.01)
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
     assert trainer.train_task is not None
     assert trainer.train_task.__name__ == 'resume'
 
-    assert trainer.executor is not None
-    trainer.executor.stop()  # NOTE normally a training terminates itself e.g
+    assert trainer._executor is not None
+    trainer._executor.stop()  # NOTE normally a training terminates itself e.g
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'

@@ -1,12 +1,10 @@
-import logging
+
 import os
 
 import uvicorn
 
 from demo_annotation_tool.annotation_tool import AnnotatorLogic
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
-
-logging.basicConfig(level=logging.DEBUG)
 
 tool = AnnotatorLogic()
 node = AnnotatorNode(name=f'Demo tool  {os.uname()[1]}',

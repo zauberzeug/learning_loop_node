@@ -5,7 +5,7 @@ import os
 import sys
 from abc import abstractmethod
 from datetime import datetime
-from typing import Optional
+from typing import Dict, Optional
 from uuid import uuid4
 
 import aiohttp
@@ -14,22 +14,26 @@ from fastapi import FastAPI
 from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
-from learning_loop_node import environment_reader
-from learning_loop_node.data_classes import NodeState, NodeStatus
-from learning_loop_node.data_classes.general import Context
-from learning_loop_node.globals import GLOBALS
-from learning_loop_node.loop_communication import glc
-
-from . import log_conf
+from . import environment_reader, log_conf
+from .data_classes import Context, NodeState, NodeStatus
+from .data_exchanger import DataExchanger
+from .globals import GLOBALS
+from .loop_communication import LoopCommunicator
 from .socket_response import ensure_socket_response
 
 
 class Node(FastAPI):
 
     def __init__(self, name: str, uuid: Optional[str] = None):
+        """Base class for all nodes. A node is a process which communicates with the learning loop.
+        uuid: The uuid of the node. If None, a uuid is generated and stored in a file. 
+        Afterward, the uuid is recovered based on the name of the node."""
+
         super().__init__()
         log_conf.init()
         self.log = logging.getLogger()
+        self.loop_communicator = LoopCommunicator()
+        self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
         host = environment_reader.host(default='learning-loop.ai')
         self.ws_url = f'ws{"s" if "learning-loop.ai" in host else ""}://' + host
@@ -38,7 +42,7 @@ class Node(FastAPI):
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
         self._sio_client: Optional[AsyncClient] = None
-        self.status = NodeStatus(id=self.uuid, name=self.name)
+        self.status = NodeStatus(node_uuid=self.uuid, name=self.name)
         self._register_lifecycle_events()
 
     @property
@@ -70,14 +74,16 @@ class Node(FastAPI):
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
         Node._activate_asyncio_warnings()
-        await glc.backend_ready()
-        await glc.get_asyncclient()
+        await self.loop_communicator.backend_ready()
+        await self.loop_communicator.get_asyncclient()
         await self.create_sio_client()
 
     async def _on_shutdown(self):
         self.log.info('received "shutdown" lifecycle-event')
+        await self.loop_communicator.shutdown()
         if self._sio_client is not None:
             await self._sio_client.disconnect()
+        self.log.info('successfully disconnected from loop.')
 
     async def _on_repeat(self):
         self.log.debug('received "repeat" event')
@@ -90,7 +96,7 @@ class Node(FastAPI):
         self.log.info(f'###732 current connection state: {self._sio_client.connected}')
 
     async def create_sio_client(self):
-        cookies = await glc.get_cookies()
+        cookies = await self.loop_communicator.get_cookies()
 
         self._sio_client = AsyncClient(
             reconnection_delay=1,
@@ -141,10 +147,10 @@ class Node(FastAPI):
         except Exception:
             self.log.exception(f'error while connecting to "{self.ws_url}"')
 
-    def get_sio_headers(self) -> dict:
+    def get_sio_headers(self) -> Dict:
         headers = {}
-        headers['organization'] = glc.organization  # P? warum hat glc organization und project?
-        headers['project'] = glc.project
+        headers['organization'] = self.loop_communicator.organization  # P? warum hat glc organization und project?
+        headers['project'] = self.loop_communicator.project
         headers['nodeType'] = self.get_node_type()
         return headers
 
@@ -165,7 +171,7 @@ class Node(FastAPI):
         return uuid
 
     def reset_status(self):
-        self.status = NodeStatus(id=self.uuid, name=self.name)
+        self.status = NodeStatus(node_uuid=self.uuid, name=self.name)
 
     async def update_state(self, state: NodeState):
         self.status.state = state

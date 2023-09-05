@@ -27,8 +27,8 @@ class TestingTrainer(Trainer):
 
     # pylint: disable=unused-argument
     async def start_training(self, model: str = 'model.model') -> None:
-        assert self.executor is not None
-        self.executor.start('while true; do sleep 1; done')
+        assert self._executor is not None
+        self._executor.start('while true; do sleep 1; done')
 
     async def start_training_from_scratch(self, identifier: str) -> None:
         await self.start_training(model=f'model_{identifier}.pt')

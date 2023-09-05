@@ -26,7 +26,7 @@ async def test_nothing_to_sync(test_initialized_trainer: TestingTrainer):
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'confusion_matrix_synced'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_unsynced_model_available__sync_successful(test_initialized_trainer_node: TrainerNode, mocker: MockerFixture):
@@ -44,7 +44,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
 
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'confusion_matrix_synced'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_unsynced_model_available__sio_not_connected(test_initialized_trainer_node: TrainerNode):
@@ -64,7 +64,7 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_unsynced_model_available__request_is_not_successful(test_initialized_trainer_node: TrainerNode, mocker: MockerFixture):
@@ -84,7 +84,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_initiali
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == 'training_finished'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_basic_mock(test_initialized_trainer_node: TrainerNode, mocker: MockerFixture):

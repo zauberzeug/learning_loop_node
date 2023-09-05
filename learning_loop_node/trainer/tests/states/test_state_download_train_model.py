@@ -19,7 +19,7 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
     await assert_training_state(trainer.training, 'train_model_downloaded', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'train_model_downloaded'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training
 
     # file on disk
     assert os.path.exists(f'{trainer.training.training_folder}/base_model.json')
@@ -39,7 +39,7 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainer):
     await asyncio.sleep(0.1)
 
     assert trainer.training is None
-    assert trainer.last_training_io.exists() is False
+    assert trainer.node.last_training_io.exists() is False
 
 
 async def test_downloading_failed(test_initialized_trainer: TestingTrainer):
@@ -55,4 +55,4 @@ async def test_downloading_failed(test_initialized_trainer: TestingTrainer):
     assert trainer.errors.has_error_for('download_model')
     assert trainer._training is not None  # pylint: disable=protected-access
     assert trainer.training.training_state == 'data_downloaded'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training

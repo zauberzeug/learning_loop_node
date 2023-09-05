@@ -9,11 +9,10 @@ from fastapi.encoders import jsonable_encoder
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
-from learning_loop_node.annotation.annotator_logic import (AnnotatorLogic,
-                                                           ToolOutput,
-                                                           UserInput)
-from learning_loop_node.data_classes import (EventType, Point,
-                                             SegmentationAnnotation, Shape)
+from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
+from learning_loop_node.data_classes import (AnnotationEventType, Point,
+                                             SegmentationAnnotation, Shape,
+                                             ToolOutput, UserInput)
 
 
 class Box(BaseModel):
@@ -26,7 +25,7 @@ class Box(BaseModel):
         return f'<rect x="{self.x}" y="{self.y}" width="{abs(self.w)}" height="{abs(self.h)}" stroke="blue" fill="transparent">'
 
 
-class State(str, Enum):
+class AnnotationState(str, Enum):
     NONE = "NONE"
     CREATING = "CREATING"
     IDLE = "IDLE"
@@ -39,7 +38,7 @@ class History(BaseModel):
     fg_pixel: List[Point] = []
     path_pixels: List[Point] = []
     annotation: Optional[SegmentationAnnotation] = None
-    state: State = State.NONE
+    state: AnnotationState = AnnotationState.NONE
 
     def to_svg_path(self, shift_pressed: bool) -> str:
         def create_path(pixel: List[Point]) -> str:
@@ -65,14 +64,14 @@ class SegmentationTool(AnnotatorLogic):
         output = ToolOutput(svg="", annotation=None)
         # logging.debug(jsonable_encoder(user_input))
 
-        if history.state == State.NONE and user_input.data.event_type == EventType.LeftMouseDown:
+        if history.state == AnnotationState.NONE and user_input.data.event_type == AnnotationEventType.LeftMouseDown:
             # start creating bbox
-            history.state = State.CREATING
+            history.state = AnnotationState.CREATING
             history.bbox = Box(x=coordinate.x, y=coordinate.y, w=0, h=0)
             output.svg = history.bbox.to_svg_rect()
             return output
 
-        elif history.state == State.CREATING and user_input.data.event_type == EventType.MouseMove:
+        elif history.state == AnnotationState.CREATING and user_input.data.event_type == AnnotationEventType.MouseMove:
             # update bbox
             assert history.bbox is not None
             history.bbox.w = coordinate.x - history.bbox.x
@@ -80,9 +79,9 @@ class SegmentationTool(AnnotatorLogic):
             output.svg = history.bbox.to_svg_rect()
             return output
 
-        elif history.state == State.CREATING and user_input.data.event_type == EventType.LeftMouseUp:
+        elif history.state == AnnotationState.CREATING and user_input.data.event_type == AnnotationEventType.LeftMouseUp:
             # end update bbox
-            history.state = State.IDLE
+            history.state = AnnotationState.IDLE
             assert history.bbox is not None
             history.bbox.w = coordinate.x - history.bbox.x
             history.bbox.h = coordinate.y - history.bbox.y
@@ -92,22 +91,22 @@ class SegmentationTool(AnnotatorLogic):
                 history)
 
             history.annotation = SegmentationAnnotation(id=str(uuid4()), shape=Shape(
-                points=[]), image_id=user_input.data.image_uuid, category_id=user_input.data.category.identifier)
+                points=[]), image_id=user_input.data.image_uuid, category_id=user_input.data.category.id)
             history.annotation.shape.points = points
             assert isinstance(history.bbox, Box)
             output.svg = history.bbox.to_svg_rect()
             output.annotation = history.annotation
             return output
 
-        elif history.state == State.IDLE and user_input.data.event_type == EventType.LeftMouseDown:
+        elif history.state == AnnotationState.IDLE and user_input.data.event_type == AnnotationEventType.LeftMouseDown:
             # start gathering bg vg points
-            history.state = State.EDITING
+            history.state = AnnotationState.EDITING
             if user_input.data.is_shift_key_pressed:
                 history.fg_pixel.append(user_input.data.coordinate)
             else:
                 history.bg_pixel.append(user_input.data.coordinate)
 
-        elif history.state == State.EDITING and user_input.data.event_type == EventType.MouseMove:
+        elif history.state == AnnotationState.EDITING and user_input.data.event_type == AnnotationEventType.MouseMove:
             # gathering bg vg points
             if user_input.data.is_shift_key_pressed:
                 history.fg_pixel.append(user_input.data.coordinate)
@@ -119,9 +118,9 @@ class SegmentationTool(AnnotatorLogic):
             output.svg = history.to_svg_path(user_input.data.is_shift_key_pressed or False)
             return output
 
-        elif history.state == State.EDITING and user_input.data.event_type == EventType.LeftMouseUp:
+        elif history.state == AnnotationState.EDITING and user_input.data.event_type == AnnotationEventType.LeftMouseUp:
             # gathering complete
-            history.state = State.IDLE
+            history.state = AnnotationState.IDLE
             history.path_pixels = []
             if user_input.data.is_shift_key_pressed:
                 history.fg_pixel.append(user_input.data.coordinate)
@@ -138,11 +137,11 @@ class SegmentationTool(AnnotatorLogic):
             output.annotation = history.annotation
             return output
 
-        elif (history.state in [State.NONE, State.IDLE]) and user_input.data.event_type == EventType.MouseMove:
+        elif (history.state in [AnnotationState.NONE, AnnotationState.IDLE]) and user_input.data.event_type == AnnotationEventType.MouseMove:
             return output
 
-        elif (history.state in [State.NONE, State.IDLE]) and user_input.data.key_down == 'Enter':
-            history.state = State.NONE
+        elif (history.state in [AnnotationState.NONE, AnnotationState.IDLE]) and user_input.data.key_down == 'Enter':
+            history.state = AnnotationState.NONE
         else:
             logging.error(
                 f"Invalid state transition: Current state: '{history.state}', user input : {jsonable_encoder(user_input)} ")

@@ -3,28 +3,44 @@ import logging
 import os
 import shutil
 
-import icecream
 import pytest
 
-from learning_loop_node.globals import GLOBALS
-from learning_loop_node.loop_communication import glc
-from learning_loop_node.tests import test_helper
+from learning_loop_node.data_classes import Context
 
-icecream.install()
-logging.basicConfig(level=logging.DEBUG)
+from .data_exchanger import DataExchanger
+from .globals import GLOBALS
+from .loop_communication import LoopCommunicator
 
 
 @pytest.fixture()
-def setup_test_project():
-    test_helper.LiveServerSession().delete("/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {
+async def glc():
+    loop_communicator = LoopCommunicator()
+    yield loop_communicator
+    await loop_communicator.shutdown()
+
+
+@pytest.mark.asyncio
+@pytest.fixture()
+async def data_downloader(glc):
+    context = Context(organization='zauberzeug', project='pytest')
+    dc = DataExchanger(context, glc)
+    return dc
+
+
+@pytest.mark.asyncio
+@pytest.fixture()
+async def setup_test_project(glc):  # pylint: disable=redefined-outer-name
+    lc = glc
+    assert (await lc.delete(
+        "/zauberzeug/projects/pytest?keep_images=true")).status_code == 200
+    project_conf = {
         'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
         'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0,
         'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
-    assert test_helper.LiveServerSession().post("/zauberzeug/projects/generator",
-                                                json=project_configuration).status_code == 200
+    assert (await lc.post(
+        "/zauberzeug/projects/generator", json=project_conf)).status_code == 200
     yield
-    test_helper.LiveServerSession().delete("/zauberzeug/projects/pytest?keep_images=true")
+    await lc.delete("/zauberzeug/projects/pytest?keep_images=true")
 
 
 @pytest.fixture(autouse=True, scope='session')
@@ -40,13 +56,6 @@ def clear_loggers():
         handlers = getattr(logger, 'handlers', [])
         for handler in handlers:
             logger.removeHandler(handler)
-
-
-@pytest.fixture(autouse=True, scope='function')
-async def loop_session():
-    await glc.shutdown()
-    yield
-    await glc.shutdown()
 
 
 @pytest.fixture(autouse=True, scope='function')

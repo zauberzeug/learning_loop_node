@@ -8,9 +8,12 @@ from learning_loop_node.data_classes.detections import (BoxDetection,
 from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.inbox_filter.relevance_filter import RelevanceFilter
 
-high_conf_box_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .9)
-high_conf_point_detection = PointDetection('point', 100, 100, 'xyz', .9)
-low_conf_point_detection = PointDetection('point', 100, 100, 'xyz', .3)
+high_conf_box_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100,
+                                       height=100, category_id='xyz', confidence=.9, model_name='test_model',)
+high_conf_point_detection = PointDetection(category_name='point', x=100, y=100,
+                                           category_id='xyz', confidence=.9, model_name='test_model',)
+low_conf_point_detection = PointDetection(category_name='point', x=100, y=100,
+                                          category_id='xyz', confidence=.3, model_name='test_model',)
 
 
 @pytest.mark.parametrize(

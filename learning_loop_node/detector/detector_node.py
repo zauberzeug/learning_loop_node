@@ -11,22 +11,20 @@ import numpy as np
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient, AsyncServer
 
-from learning_loop_node import environment_reader
-from learning_loop_node.data_classes import (Category, Context, Detections,
-                                             DetectionStatus, ModelInformation,
-                                             NodeState, Shape)
-from learning_loop_node.detector.outbox import Outbox
-from learning_loop_node.detector.rest import detect as rest_detect
-from learning_loop_node.detector.rest import operation_mode as rest_mode
-from learning_loop_node.detector.rest import upload as rest_upload
-from learning_loop_node.detector.rest.operation_mode import OperationMode
-from learning_loop_node.globals import GLOBALS
-from learning_loop_node.inbox_filter import RelevanceFilter
-from learning_loop_node.node import Node
-from learning_loop_node.rest_helpers import downloads
-
+from .. import environment_reader
+from ..data_classes import (Category, Context, Detections, DetectionStatus,
+                            ModelInformation, NodeState, Shape)
+from ..data_exchanger import DataExchanger, DownloadError
+from ..globals import GLOBALS
+from ..inbox_filter import RelevanceFilter
+from ..node import Node
 from ..socket_response import SocketResponse
 from .detector_logic import DetectorLogic
+from .outbox import Outbox
+from .rest import detect as rest_detect
+from .rest import operation_mode as rest_mode
+from .rest import upload as rest_upload
+from .rest.operation_mode import OperationMode
 
 
 class DetectorNode(Node):
@@ -43,9 +41,13 @@ class DetectorNode(Node):
         self.connected_clients: List[str] = []
 
         self.outbox: Outbox = Outbox()
+        self.data_exchanger = DataExchanger(
+            Context(organization=self.organization, project=self.project),
+            self.loop_communicator)
 
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
         self.target_model = None
+
         self.include_router(rest_detect.router, tags=["detect"])
         self.include_router(rest_upload.router, prefix="")
         self.include_router(rest_mode.router, tags=["operation_mode"])
@@ -150,7 +152,7 @@ class DetectorNode(Node):
                     shutil.rmtree(target_model_folder, ignore_errors=True)
                     os.makedirs(target_model_folder)
 
-                    await downloads.download_model(
+                    await self.data_exchanger.download_model(
                         target_model_folder,
                         Context(organization=self.organization, project=self.project),
                         update_to_model_id,
@@ -170,7 +172,7 @@ class DetectorNode(Node):
                 self.log.info('Versions are identic. Nothing to do.')
         except Exception as e:
             self.log.exception('check_for_update failed')
-            msg = e.cause if isinstance(e, downloads.DownloadError) else str(e)
+            msg = e.cause if isinstance(e, DownloadError) else str(e)
             self.status.set_error('update_model', f'Could not update model: {msg}')
             await self.send_status()
 
@@ -258,7 +260,7 @@ class DetectorNode(Node):
 
     def add_category_id_to_detections(self, model_info: ModelInformation, detections: Detections):
         def find_category_id_by_name(categories: List[Category], category_name: str):
-            category_id = [category.identifier for category in categories if category.name == category_name]
+            category_id = [category.id for category in categories if category.name == category_name]
             return category_id[0] if category_id else ''
 
         for box_detection in detections.box_detections:

@@ -1,16 +1,9 @@
-import logging
 import os
-
-import backdoor_controls
-import icecream
 
 from learning_loop_node import DetectorNode, ModelInformation
 from learning_loop_node.data_classes.general import Category
-from mock_detector import MockDetector
-
-logging.basicConfig(level=logging.DEBUG)
-icecream.install()
-
+from mock_detector import backdoor_controls
+from mock_detector.mock_detector import MockDetector
 
 DetectorNode.update_frequency = 1
 model_info = ModelInformation(

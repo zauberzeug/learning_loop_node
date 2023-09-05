@@ -76,7 +76,7 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
 async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
 
-    if not trainer_node.trainer.executor or not trainer_node.trainer.executor.is_process_running():
+    if not trainer_node.trainer._executor or not trainer_node.trainer._executor.is_process_running():
         logging.error(
             f'cannot add steps when training is not running, state:  { trainer_node.trainer._training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")
@@ -98,9 +98,9 @@ async def add_steps(request: Request):
 @router.post("/kill_training_process")
 async def kill_process(request: Request):
     trainer_node = trainer_node_from_request(request)
-    if not trainer_node.trainer.executor or not trainer_node.trainer.executor.is_process_running():
+    if not trainer_node.trainer._executor or not trainer_node.trainer._executor.is_process_running():
         raise HTTPException(status_code=409, detail="trainer is not running")
-    trainer_node.trainer.executor.stop()
+    trainer_node.trainer._executor.stop()
 
 
 @router.post("/force_status_update")

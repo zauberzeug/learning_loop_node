@@ -1,3 +1,6 @@
+import logging
+from typing import Any
+
 import pytest
 import requests
 
@@ -5,7 +8,8 @@ from learning_loop_node import DetectorNode
 from learning_loop_node.detector.tests.conftest import get_outbox_files
 
 
-def test_detector_path(test_detector_node: DetectorNode):
+def test_detector_path(test_detector_node: Any):
+    logging.info(f'type(test_detector_node): { type(test_detector_node)}')
     assert test_detector_node.outbox.path.startswith('/tmp')
 
 # pylint: disable=unused-argument

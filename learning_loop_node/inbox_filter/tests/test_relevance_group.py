@@ -7,10 +7,14 @@ from learning_loop_node.data_classes.detections import (BoxDetection, Point,
                                                         Shape)
 from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
 
-dirt_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .3)
-second_dirt_detection = BoxDetection('dirt', 0, 20, 10, 10, 'xyz', .35)
-conf_too_high_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .61)
-conf_too_low_detection = BoxDetection('dirt', 0, 0, 100, 100, 'xyz', .29)
+dirt_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100, height=100,
+                              category_id='xyz', model_name='test_model', confidence=.3)
+second_dirt_detection = BoxDetection(category_name='dirt', x=0, y=20, width=10,
+                                     height=10, category_id='xyz', model_name='test_model', confidence=.35)
+conf_too_high_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100,
+                                       height=100, category_id='xyz', model_name='test_model', confidence=.61)
+conf_too_low_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100,
+                                      height=100, category_id='xyz', model_name='test_model', confidence=.29)
 
 
 def test_group_confidence():

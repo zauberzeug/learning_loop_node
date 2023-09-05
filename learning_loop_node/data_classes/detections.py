@@ -1,12 +1,15 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
+# pylint: disable=no-name-in-module
+from pydantic import BaseModel
+
+# pylint: disable=too-many-instance-attributes
 
 
-@dataclass
-class BoxDetection:
+class BoxDetection(BaseModel):
     category_name: str
     x: int
     y: int
@@ -15,16 +18,6 @@ class BoxDetection:
     model_name: str
     confidence: float
     category_id: str = ''
-
-    def __init__(self, category_name, x, y, width, height, net, confidence, category_id=''):
-        self.category_id = category_id
-        self.category_name = category_name
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.model_name = net
-        self.confidence = confidence
 
     def intersection_over_union(self, other_detection: 'BoxDetection') -> float:
         # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
@@ -46,49 +39,29 @@ class BoxDetection:
         return self.width * self.height
 
     @staticmethod
-    def from_dict(detection: dict):
-        category_id = detection['category_id'] if 'category_id' in detection else ''
+    def from_dict(detection: Dict):
         return BoxDetection(
-            detection['category_name'],
-            detection['x'],
-            detection['y'],
-            detection['width'],
-            detection['height'],
-            detection['model_name'],
-            detection['confidence'],
-            category_id)
+            category_name=detection['category_name'],
+            x=detection['x'],
+            y=detection['y'],
+            width=detection['width'],
+            height=detection['height'],
+            model_name=detection['model_name'],
+            confidence=detection['confidence'],
+            category_id=detection['category_id']
+        )
 
     def __str__(self):
         return f'x:{int(self.x)} y: {int(self.y)}, w: {int(self.width)} h: {int(self.height)} c: {self.confidence:.2f} -> {self.category_name}'
 
 
-@dataclass
-class PointDetection:
+class PointDetection(BaseModel):
     category_name: str
     x: int
     y: int
     model_name: str
     confidence: float
     category_id: str = ''
-
-    def __init__(self, category_name, x, y, net, confidence, category_id=''):
-        self.category_name = category_name
-        self.x = x
-        self.y = y
-        self.model_name = net
-        self.confidence = confidence
-        self.category_id = category_id
-
-    @staticmethod
-    def from_dict(detection: dict):
-        category_id = detection['category_id'] if 'category_id' in detection else ''
-        return PointDetection(
-            detection['category_name'],
-            detection['x'],
-            detection['y'],
-            detection['model_name'],
-            detection['confidence'],
-            category_id)
 
     def distance(self, other: 'PointDetection') -> float:
         return np.sqrt((other.x - self.x)**2 + (other.y - self.y)**2)
@@ -105,7 +78,7 @@ class ClassificationDetection:
     category_id: str = ''
 
     @staticmethod
-    def from_dict(detection: dict):
+    def from_dict(detection: Dict):
         category_id = detection['category_id'] if 'category_id' in detection else ''
         return ClassificationDetection(
             detection['category_name'],

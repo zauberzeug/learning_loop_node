@@ -8,7 +8,7 @@ from abc import abstractmethod
 from datetime import datetime
 from glob import glob
 from time import perf_counter
-from typing import Coroutine, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Coroutine, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 import socketio
@@ -21,15 +21,15 @@ from learning_loop_node.data_classes import (BasicModel, Category, Context,
                                              ModelInformation, PretrainedModel,
                                              Training, TrainingData,
                                              TrainingError, TrainingState)
-from learning_loop_node.loop_communication import glc
-from learning_loop_node.node import Node
-from learning_loop_node.rest_helpers import downloads, uploads
-from learning_loop_node.rest_helpers.downloader import DataDownloader
-from learning_loop_node.trainer import training_syncronizer
-from learning_loop_node.trainer.downloader import TrainingsDownloader
-from learning_loop_node.trainer.executor import Executor
-from learning_loop_node.trainer.training_io_helpers import (ActiveTrainingIO,
-                                                            LastTrainingIO)
+
+from ..node import Node
+from . import training_syncronizer
+from .downloader import TrainingsDownloader
+from .executor import Executor
+
+if TYPE_CHECKING:
+    from .trainer_node import TrainerNode
+    from .training_io_helpers import ActiveTrainingIO
 
 
 def is_valid_uuid4(val):
@@ -44,7 +44,7 @@ class Trainer():
 
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
-        self.executor: Optional[Executor] = None
+        self._executor: Optional[Executor] = None
         self.start_time: Optional[float] = None
         self.training_task: Optional[asyncio.Task] = None
         self.train_task: Optional[Coroutine] = None
@@ -54,45 +54,35 @@ class Trainer():
 
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
-        self._node_uuid: Optional[str] = None
-        self._node_sio_client: Optional[socketio.AsyncClient] = None
-        self._last_training_io: Optional[LastTrainingIO] = None
+        self._node: Optional[TrainerNode] = None
+
+    @property
+    def executor(self) -> Executor:
+        assert self._executor is not None, 'executor must be set, call `run_training` first'
+        return self._executor
 
     @property
     def training(self) -> Training:
-        assert self._training is not None, 'training must be set, call init first'
+        assert self._training is not None, 'training must be set, call `init` first'
         return self._training
 
     @property
-    def active_training_io(self) -> ActiveTrainingIO:
-        assert self._active_training_io is not None, 'active_training_io must be set, call init first'
+    def active_training_io(self) -> 'ActiveTrainingIO':
+        assert self._active_training_io is not None, 'active_training_io must be set, call `init` first'
         return self._active_training_io
 
     @property
-    def node_uuid(self) -> str:
-        assert self._node_uuid is not None, 'node_uuid must be set, call init first'
-        return self._node_uuid
-
-    @property
-    def last_training_io(self) -> LastTrainingIO:
-        assert self._last_training_io is not None, 'last_training_io must be set, call init first'
-        return self._last_training_io
-
-    @property
-    def node_sio_client(self) -> socketio.AsyncClient:
-        assert self._node_sio_client is not None, 'node_sio_client must be set, call init first'
-        return self._node_sio_client
+    def node(self) -> 'TrainerNode':
+        assert self._node is not None, 'node must be set, call `init` first'
+        return self._node
 
     def is_initialized(self) -> bool:
-        return self._training is not None and self._active_training_io is not None and self._node_uuid is not None and self._node_sio_client is not None
+        return self._training is not None and self._active_training_io is not None and self._node is not None
 
-    def init(self, context: Context, details: Dict, node_uuid: str, sio_client: socketio.AsyncClient,
-             last_training_io: LastTrainingIO) -> None:
+    def init(self, context: Context, details: Dict, node: 'TrainerNode') -> None:
         """Called on `begin_training` event from the Learning Loop."""
 
-        self._node_uuid = node_uuid
-        self._node_sio_client = sio_client
-        self._last_training_io = last_training_io
+        self._node = node
 
         try:
             self._training = Trainer.generate_training(context)
@@ -121,7 +111,7 @@ class Trainer():
 
                 logging.info('cancelled training task')
                 self.training.training_state = TrainingState.ReadyForCleanup
-                self.last_training_io.save(self.training)
+                self.node.last_training_io.save(self.training)
                 await self.clear_training()
 
         except Exception as e:
@@ -130,12 +120,12 @@ class Trainer():
             self.start_time = None
 
     def load_active_training(self) -> None:
-        self._training = self.last_training_io.load()
+        self._training = self.node.last_training_io.load()
 
     async def _train(self) -> None:
 
         if self._training is None:
-            if self.last_training_io.exists():
+            if self.node.last_training_io.exists():
                 logging.warning('found active training on hd')
                 self.load_active_training()
             else:
@@ -143,7 +133,7 @@ class Trainer():
                 return
 
         while True:
-            if not self._training or not self.last_training_io.exists():
+            if not self._training or not self.node.last_training_io.exists():
                 break
             await asyncio.sleep(0.6)  # Note: Needed for error reporting
             if self.training.training_state == TrainingState.Initialized:
@@ -180,10 +170,11 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.DataDownloaded
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        downloader = TrainingsDownloader(self.training.context)
+        self.node.data_exchanger.set_context(self.training.context)
+        downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         assert self.training.data is not None, 'training.data must be set'
         self.training.data.image_data = image_data
@@ -207,7 +198,7 @@ class Trainer():
             self.errors.reset(error_key)
             logging.info('download_model_task finished')
             self.training.training_state = TrainingState.TrainModelDownloaded
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def _download_model(self) -> None:
         model_id = self.training.base_model_id
@@ -215,7 +206,7 @@ class Trainer():
         if is_valid_uuid4(self.training.base_model_id):
             logging.debug('loading model from Learning Loop')
             logging.info(f'downloading model {model_id} as {self.model_format}')
-            await downloads.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
+            await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
             shutil.move(f'{self.training.training_folder}/model.json',
                         f'{self.training.training_folder}/base_model.json')
 
@@ -224,7 +215,7 @@ class Trainer():
         # NOTE normally we reset errors after the step was successful. We do not want to display an old error during the whole training.
         self.errors.reset(error_key)
         previous_state = self.training.training_state
-        self.executor = Executor(self.training.training_folder)
+        self._executor = Executor(self.training.training_folder)
         self.training.training_state = TrainingState.TrainingRunning
         self.train_task = None
         try:
@@ -242,7 +233,7 @@ class Trainer():
 
             last_sync_time = datetime.now()
             while True:
-                if not self.executor.is_process_running():
+                if not self._executor.is_process_running():
                     break
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
@@ -271,8 +262,8 @@ class Trainer():
             raise
         except TrainingError:
             logging.exception('Error in TrainingProcess')
-            if self.executor.is_process_running():
-                self.executor.stop()
+            if self._executor.is_process_running():
+                self._executor.stop()
             self.training.training_state = previous_state
         except Exception as e:
             self.errors.set(error_key, f'Could not start training {str(e)}')
@@ -280,7 +271,7 @@ class Trainer():
             logging.exception('Error in run_training')
         else:
             self.training.training_state = TrainingState.TrainingFinished
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def ensure_confusion_matrix_synced(self):
 
@@ -296,12 +287,12 @@ class Trainer():
             self.training.training_state = previous_state
         else:
             self.training.training_state = TrainingState.ConfusionMatrixSynced
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def sync_confusion_matrix(self):
         error_key = 'sync_confusion_matrix'
         try:
-            await training_syncronizer.try_sync_model(self, self.node_uuid, self.node_sio_client)
+            await training_syncronizer.try_sync_model(self, self.node.uuid, self.node.sio_client)
         except socketio.exceptions.BadNamespaceError as e:  # type: ignore
             logging.error('Error during confusion matrix syncronization. BadNamespaceError')
             self.errors.set(error_key, str(e))
@@ -332,7 +323,7 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def _upload_model(self, context: Context) -> Optional[Dict]:
         try:
@@ -358,7 +349,7 @@ class Trainer():
                     "It is not allowed to provide a 'model.json' file."
                 _files = files[file_format]
                 _files.append(model_json_path)
-                uploaded_model = await uploads.upload_model_for_training(context, _files, self.training.training_number, file_format)
+                uploaded_model = await self.node.data_exchanger.upload_model_for_training(context, _files, self.training.training_number, file_format)
                 already_uploaded_formats.append(file_format)
                 self.active_training_io.mup_save(already_uploaded_formats)
 
@@ -382,7 +373,7 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.Detected
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def _do_detections(self) -> Optional[List]:
         context = self.training.context
@@ -394,21 +385,21 @@ class Trainer():
         os.makedirs(tmp_folder)
         logging.info('downloading model for detecting')
 
-        await downloads.download_model(tmp_folder, context, model_id, self.model_format)
+        await self.node.data_exchanger.download_model(tmp_folder, context, model_id, self.model_format)
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
             model_information = ModelInformation.parse_obj(content)
 
         project_folder = Node.create_project_folder(context)
         image_folder = node_helper.create_image_folder(project_folder)
-        downloader = DataDownloader(context)
+        self.node.data_exchanger.set_context(context)
         image_ids = []
         for state in ['inbox', 'annotate', 'review', 'complete']:
             logging.info(f'fetching image ids of {state}')
-            new_ids = await downloader.fetch_image_ids(query_params=f'state={state}')
+            new_ids = await self.node.data_exchanger.fetch_image_ids(query_params=f'state={state}')
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
-            await downloader.download_images(new_ids, image_folder)
+            await self.node.data_exchanger.download_images(new_ids, image_folder)
         images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
         logging.info(f'running detections on {len(images)} images')
         batch_size = 200
@@ -449,7 +440,7 @@ class Trainer():
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.ReadyForCleanup
-            self.last_training_io.save(self.training)
+            self.node.last_training_io.save(self.training)
 
     async def _upload_detections(self, context: Context, detections: List[dict]):
         batch_size = 10
@@ -465,7 +456,8 @@ class Trainer():
     async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
         assert self._active_training_io is not None, 'active_training must be set'
 
-        response = await glc.post(f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
+        response = await self.node.loop_communicator.post(
+            f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
         if response.status_code != 200:
             msg = f'could not upload detections. {str(response)}'
             logging.error(msg)
@@ -487,13 +479,13 @@ class Trainer():
             logging.exception('clear_training_data not implemented')
         else:
             self._training = None
-            self.last_training_io.delete()
+            self.node.last_training_io.delete()
 
     def stop(self) -> None:
         if not self._training:
             return
-        if self.executor and self.executor.is_process_running():
-            self.executor.stop()
+        if self._executor and self._executor.is_process_running():
+            self._executor.stop()
         elif self.training_task:
             logging.error('cancelling training task')
             self.training_task.cancel()
@@ -504,8 +496,8 @@ class Trainer():
         self.stop()  # NOTE first stop may only stop training.
 
     def get_log(self) -> str:
-        assert self.executor is not None, 'executor must be set'
-        return self.executor.get_log()
+        assert self._executor is not None, 'executor must be set'
+        return self._executor.get_log()
 
     @abstractmethod
     async def start_training(self) -> None:

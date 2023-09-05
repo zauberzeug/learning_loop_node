@@ -1,16 +1,24 @@
 from abc import abstractmethod
+from typing import Dict, Optional
 
-from learning_loop_node.data_classes import ToolOutput, UserInput
+from ..data_classes import ToolOutput, UserInput
+from ..node import Node
 
 
 class AnnotatorLogic():
 
+    def __init__(self):
+        self._node: Optional[Node] = None
+
+    def init(self, node: Node):
+        self._node = node
+
     @abstractmethod
-    async def handle_user_input(self, user_input: UserInput, history: dict) -> ToolOutput:
+    async def handle_user_input(self, user_input: UserInput, history: Dict) -> ToolOutput:
         pass
 
     @abstractmethod
-    def create_empty_history(self) -> dict:
+    def create_empty_history(self) -> Dict:
         pass
 
     @abstractmethod

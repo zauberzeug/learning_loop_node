@@ -5,7 +5,7 @@ import os
 import socket
 from glob import glob
 from multiprocessing import Process, log_to_stderr
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import pytest
 import socketio
@@ -23,7 +23,7 @@ log_to_stderr(logging.INFO)
 
 
 def pytest_configure():
-    pytest.detector_port = 5000  # TODO rather use globals?
+    pytest.detector_port = 5000  # TODO rather use globals? P?
 
 
 def should_have_segmentations(request) -> bool:
@@ -42,9 +42,9 @@ async def test_detector_node(request):
 
     model_info = ModelInformation(
         id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1',
-        categories=[Category(identifier='some_id_1', name='some_category_name_1'),
-                    Category(identifier='some_id_2', name='some_category_name_2'),
-                    Category(identifier='some_id_3', name='some_category_name_3')])
+        categories=[Category(id='some_id_1', name='some_category_name_1'),
+                    Category(id='some_id_2', name='some_category_name_2'),
+                    Category(id='some_id_3', name='some_category_name_3')])
     segmentations = should_have_segmentations(request)
 
     det = TestingDetector(segmentation_detections=segmentations)
@@ -66,7 +66,7 @@ async def test_detector_node(request):
     yield node
 
     try:
-        await node._on_shutdown()
+        await node._on_shutdown()  # pylint: disable=protected-access
     except Exception:
         logging.exception('error while shutting down node')
 

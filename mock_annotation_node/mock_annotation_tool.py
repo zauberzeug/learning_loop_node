@@ -1,13 +1,11 @@
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 # pylint: disable=no-name-in-module
 from pydantic import BaseModel
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
-from learning_loop_node.data_classes import EventType, ToolOutput
-
-logging.basicConfig(level=logging.INFO)
+from learning_loop_node.data_classes import AnnotationEventType, ToolOutput
 
 
 # NOTE: This is a mock annotator tool. It is used for testing purposes only.
@@ -28,23 +26,23 @@ class MockAnnotatorNode(AnnotatorLogic):
         super().__init__()
         self.box: Optional[SvgBox] = None
 
-    async def _handle_user_input(self, user_input):
+    async def handle_user_input(self, user_input, history: Dict):
         out = ToolOutput(svg="", annotation=None)
         event_type = user_input.data.event_type
         assert isinstance(self.box, SvgBox)
         try:
-            if user_input.data.event_type == EventType.LeftMouseDown:
+            if user_input.data.event_type == AnnotationEventType.LeftMouseDown:
                 coordinate = user_input.data.coordinate
                 self.box = SvgBox(x=coordinate.x, y=coordinate.y, x2=coordinate.x, y2=coordinate.y)
                 out.svg = str(self.box)
                 return out
-            if event_type == EventType.MouseMove:
+            if event_type == AnnotationEventType.MouseMove:
                 coordinate = user_input.data.coordinate
                 self.box.x2 = coordinate.x
                 self.box.y2 = coordinate.y
                 out.svg = str(self.box)
                 return out
-            if event_type == EventType.LeftMouseUp:
+            if event_type == AnnotationEventType.LeftMouseUp:
                 self.box = None
                 return out
         except Exception as e:

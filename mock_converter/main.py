@@ -1,11 +1,11 @@
 import logging
 import os
 
-import backdoor_controls
 import uvicorn
 from mock_converter_model import MockConverterModel
 
 from learning_loop_node.converter.converter_node import ConverterNode
+from mock_converter import backdoor_controls
 
 logging.basicConfig(level=logging.DEBUG)
 
