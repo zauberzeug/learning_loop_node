@@ -1,18 +1,20 @@
 
+from dacite import from_dict
 import asyncio
 import time
 from typing import Dict, List, Optional, Union
 
-from learning_loop_node.data_classes import (BasicModel, ErrorConfiguration,
+from learning_loop_node.data_classes import (BasicModel, CategoryType,
+                                             ErrorConfiguration,
                                              ModelInformation, PretrainedModel)
 from learning_loop_node.data_classes.detections import (
-    BoxDetection, ClassificationDetection, Point, PointDetection,
+    BoxDetection, ClassificationDetection, Detections, Point, PointDetection,
     SegmentationDetection, Shape)
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 from mock_trainer import progress_simulator
 
 
-class MockTrainer(Trainer):
+class MockTrainer(TrainerLogic):
     latest_known_confusion_matrix: Dict = {}
     error_configuration: ErrorConfiguration = ErrorConfiguration()
     max_iterations = 100
@@ -54,7 +56,7 @@ class MockTrainer(Trainer):
             f.write('zweiundvierzig')
         return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
         detections = []
 
         await asyncio.sleep(1)
@@ -66,28 +68,31 @@ class MockTrainer(Trainer):
             point_detections = []
             segmentation_detections = []
             classification_detections = []
-            image_entry = {
+            det_entry = {
                 'image_id': image_id, 'box_detections': box_detections, 'point_detections': point_detections,
                 'segmentation_detections': segmentation_detections,
                 'classification_detections': classification_detections}
             for c in model_information.categories:
-                if c.type == 'box':
+                if c.type == CategoryType.Box:
                     d = BoxDetection(c.name, x=1, y=2, width=30, height=40,
                                      model_name=model_information.version, confidence=.99, category_id=c.id)
                     box_detections.append(d)
-                elif c.type == 'point':
+                elif c.type == CategoryType.Point:
                     d = PointDetection(c.name, x=100, y=200,
                                        model_name=model_information.version, confidence=.97, category_id=c.id)
                     point_detections.append(d)
-                elif c.type == 'segmentation':
+                elif c.type == CategoryType.Segmentation:
                     d = SegmentationDetection(c.name, shape=Shape(points=[Point(x=1, y=2), Point(
                         x=3, y=4)]), model_name=model_information.version, confidence=.96, category_id=c.id)
                     segmentation_detections.append(d)
-                elif c.type == 'classification':
+                elif c.type == CategoryType.Classification:
                     d = ClassificationDetection(c.name, model_name=model_information.version,
                                                 confidence=.95, category_id=c.id)
                     classification_detections.append(d)
-            detections.append(image_entry)
+            detections.append(from_dict(data_class=Detections, data=det_entry))
+            # det = Detections(box_detections=box_detections, point_detections=point_detections,
+            #                  segmentation_detections=segmentation_detections,
+            #                  classification_detections=classification_detections,
         return detections
 
     async def clear_training_data(self, training_folder: str):

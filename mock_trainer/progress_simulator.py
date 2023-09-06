@@ -2,10 +2,10 @@ import random
 from typing import Dict, Optional
 
 from learning_loop_node.data_classes import BasicModel
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
-def increment_time(trainer: Trainer, latest_known_confusion_matrix: Dict) -> Optional[BasicModel]:
+def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -> Optional[BasicModel]:
     if not trainer._training or not trainer._training.data:  # pylint: disable=protected-access
         return None
 

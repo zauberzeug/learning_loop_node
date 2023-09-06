@@ -1,5 +1,7 @@
+from dataclasses import asdict
 from typing import Dict, Optional
 
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
@@ -24,16 +26,16 @@ class AnnotatorNode(Node):
     def register_sio_events(self, sio_client: AsyncClient):
 
         @sio_client.event
-        async def handle_user_input(user_input):
-            return await self._handle_user_input(user_input)
+        async def handle_user_input(user_input_dict):
+            return await self._handle_user_input(user_input_dict)
 
         @sio_client.event
         async def user_logout(sid):
             self.reset_history(sid)
             return self.tool.logout_user(sid)
 
-    async def _handle_user_input(self, user_input) -> str:
-        user_input = UserInput.parse_obj(user_input)
+    async def _handle_user_input(self, user_input_dict: Dict) -> str:
+        user_input = from_dict(data_class=UserInput, data=user_input_dict)
 
         if user_input.data.key_up == 'Escape':
             self.reset_history(user_input.frontend_id)
@@ -52,7 +54,7 @@ class AnnotatorNode(Node):
                 raise Exception('Socket client waas not initialized')
             await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
                                                                           user_input.data.context.project,
-                                                                          jsonable_encoder(tool_result.annotation)), timeout=10)
+                                                                          jsonable_encoder(asdict(tool_result.annotation))), timeout=10)
         return tool_result.svg
 
     def reset_history(self, frontend_id: str) -> None:
@@ -75,9 +77,9 @@ class AnnotatorNode(Node):
         self.log.info(f'Sending status {status}')
         if self._sio_client is None:
             raise Exception('No socket client')
-        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(status), timeout=2)
+        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=2)
         assert isinstance(result, Dict)
-        response = SocketResponse.from_dict(result)
+        response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
             self.log.error(f'Error for updating: Response from loop was : {response.__dict__}')

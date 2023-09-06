@@ -1,6 +1,8 @@
 
+from dacite import from_dict
 import asyncio
 import logging
+from dataclasses import asdict
 from typing import Any
 
 import socketio
@@ -39,9 +41,9 @@ async def sync_model(trainer, trainer_node_uuid, sio_client, model):
     await asyncio.sleep(0.1)  # NOTE needed for tests.
 
     result = await sio_client.call('update_training', (current_training.context.organization, current_training.context.project, jsonable_encoder(new_training)))
-    response = SocketResponse.from_dict(result)
+    response = from_dict(data_class=SocketResponse, data=result)
 
     if response.success:
-        logging.info(f'successfully updated training {jsonable_encoder(new_training)}')
+        logging.info(f'successfully updated training {asdict(new_training)}')
         trainer.on_model_published(model)
     return response

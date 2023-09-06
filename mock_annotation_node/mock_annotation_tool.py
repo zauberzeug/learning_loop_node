@@ -1,15 +1,19 @@
 import logging
-from typing import Dict, Optional
-
+import sys
 # pylint: disable=no-name-in-module
-from pydantic import BaseModel
+from dataclasses import dataclass
+from typing import Dict, Optional
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
 from learning_loop_node.data_classes import AnnotationEventType, ToolOutput
 
-
 # NOTE: This is a mock annotator tool. It is used for testing purposes only.
-class SvgBox(BaseModel):
+
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
+
+
+@dataclass(**KWONLY_SLOTS)
+class SvgBox():
     x: int
     y: int
     x2: int

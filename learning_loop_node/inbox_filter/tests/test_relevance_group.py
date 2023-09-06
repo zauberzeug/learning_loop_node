@@ -1,6 +1,8 @@
 # group Tests incoming
 from datetime import datetime, timedelta
 
+from dacite import from_dict
+
 from learning_loop_node.data_classes.detections import (BoxDetection, Point,
                                                         PointDetection,
                                                         SegmentationDetection,
@@ -93,7 +95,7 @@ def test_active_group_extracts_from_json():
     groups = {camera_id: RelevanceGroup()}
 
     filter_cause = groups[camera_id].add_box_detections(
-        [BoxDetection.from_dict(_detection) for _detection in detections]
+        [from_dict(data_class=BoxDetection, data=_detection) for _detection in detections]
     )
 
     assert filter_cause == ['uncertain']
@@ -109,7 +111,7 @@ def test_segmentation_detections_are_extracted_from_json():
     groups = {camera_id: RelevanceGroup()}
 
     filter_cause = groups[camera_id].add_segmentation_detections(
-        [SegmentationDetection.from_dict(seg_detection)]
+        [from_dict(data_class=SegmentationDetection, data=seg_detection)]
     )
     assert filter_cause == ['segmentation_detection']
 
@@ -117,40 +119,39 @@ def test_segmentation_detections_are_extracted_from_json():
 def test_ignoring_similar_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
-        [PointDetection('point', 100, 100, 'xyz', 0.3)]
+        [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')]
     )
     assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
     filter_cause = group.add_point_detections(
-        [PointDetection('point', 104, 98, 'xyz', 0.3)])
-    assert len(group.recent_observations) == 1, f'detection should already be stored'
+        [PointDetection(category_name='point', x=104, y=98, model_name='xyz', confidence=0.3, category_id='some_id')])
+    assert len(group.recent_observations) == 1, 'detection should already be stored'
     assert not filter_cause
 
 
 def test_getting_low_confidence_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
-        [PointDetection('point', 100, 100, 'xyz', 0.3)],
+        [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')]
     )
     assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
-    filter_cause = group.add_point_detections([PointDetection('point', 104, 98, 'xyz', 0.3)])
+    filter_cause = group.add_point_detections(
+        [PointDetection(category_name='point', x=104, y=98, model_name='xyz', confidence=0.3, category_id='some_id')])
     assert len(group.recent_observations) == 1, 'detection should already be stored'
     assert not filter_cause
 
 
 def test_getting_segmentation_detections():
     group = RelevanceGroup()
-    filter_cause = group.add_segmentation_detections(
-        [SegmentationDetection('segmentation', Shape([Point(100, 200), Point(300, 400)]), 'xyz', 0.3)],
-    )
+    filter_cause = group.add_segmentation_detections([SegmentationDetection('segmentation', Shape(
+        points=[Point(x=100, y=200), Point(x=300, y=400)]), model_name='xyz', confidence=0.3, category_id='some_id')], )
     assert filter_cause == ['segmentation_detection'], 'all segmentation detections are collected'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
-    filter_cause = group.add_segmentation_detections(
-        [SegmentationDetection('segmentation', Shape([Point(105, 205), Point(305, 405)]), 'xyz', 0.3)],
-    )
+    filter_cause = group.add_segmentation_detections([SegmentationDetection('segmentation', Shape(
+        points=[Point(105, 205), Point(305, 405)]), model_name='xyz', confidence=0.3, category_id='some_id')], )
     assert len(group.recent_observations) == 2, 'segmentation detections are not filtered by similarity'
     assert filter_cause == ['segmentation_detection']

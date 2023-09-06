@@ -1,11 +1,14 @@
 import json
+import logging
 import os
-from dataclasses import dataclass, field
+import sys
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
-# pylint: disable=no-name-in-module
-from pydantic import BaseModel
+from dacite import from_dict
+
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
 
 class CategoryType(str, Enum):
@@ -15,7 +18,8 @@ class CategoryType(str, Enum):
     Classification = 'classification'
 
 
-class Category(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class Category():
     id: str  # TODO: rename to identifier or uuid  (cannot be changed because of database / loop communication)
     name: str
     description: Optional[str] = None
@@ -23,25 +27,19 @@ class Category(BaseModel):
     color: Optional[str] = None
     point_size: Optional[int] = None
     # TODO: rename to ctype (cannot be changed because of database / loop communication)
-    type: CategoryType = CategoryType.Box
+    type: Optional[Union[CategoryType, str]] = None
 
     @staticmethod
-    def from_list(values: List[Dict]) -> List['Category']:
-        categories: List[Category] = []
-        for value in values:
-            categories.append(Category.from_dict(value))
-        return categories
-
-    @staticmethod
-    def from_dict(value: Dict) -> 'Category':
-        return Category.parse_obj(value)
+    def from_list(values: List[dict]) -> List['Category']:
+        return [from_dict(data_class=Category, data=value) for value in values]
 
 
-def create_category(identifier: str, name: str, ctype: CategoryType):
+def create_category(identifier: str, name: str, ctype: Union[CategoryType, str]):
     return Category(id=identifier, name=name, description='', hotkey='', color='', type=ctype, point_size=None)
 
 
-class Context(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class Context():
     organization: str
     project: str
 
@@ -49,7 +47,8 @@ class Context(BaseModel):
 # pylint: disable=no-name-in-module
 
 
-class ModelInformation(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class ModelInformation():
     id: str
     host: Optional[str]
     organization: str
@@ -64,17 +63,18 @@ class ModelInformation(BaseModel):
         return Context(organization=self.organization, project=self.project)
 
     @staticmethod
-    def load_from_disk(model_root_path: str):
+    def load_from_disk(model_root_path: str) -> Optional['ModelInformation']:
         model_info_file_path = f'{model_root_path}/model.json'
         if not os.path.exists(model_info_file_path):
-            raise FileExistsError(f"File '{model_info_file_path}' does not exist.")
+            logging.warning(f"could not find model information file '{model_info_file_path}'")
+            return None
         with open(model_info_file_path, 'r') as f:
             try:
                 content = json.load(f)
             except Exception as exc:
                 raise Exception(f"could not read model information from file '{model_info_file_path}'") from exc
             try:
-                model_information = ModelInformation.parse_obj(content)
+                model_information = from_dict(data_class=ModelInformation, data=content)
                 model_information.model_root_path = model_root_path
             except Exception as exc:
                 raise Exception(
@@ -86,10 +86,13 @@ class ModelInformation(BaseModel):
         if not self.model_root_path:
             raise Exception("model_root_path is not set")
         with open(self.model_root_path + '/model.json', 'w') as f:
-            f.write(self.json(exclude={'model_root_path'}))
+            self_as_dict = asdict(self)
+            del self_as_dict['model_root_path']
+            f.write(json.dumps(self_as_dict))
 
 
-class ErrorConfiguration(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class ErrorConfiguration():
     begin_training: Optional[bool] = False
     save_model: Optional[bool] = False
     get_new_model: Optional[bool] = False
@@ -110,13 +113,14 @@ class NodeState(str, Enum):
     Uploading = 'uploading'
 
 
-class NodeStatus(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class NodeStatus():
     node_uuid: str
     name: str
     state: Optional[NodeState] = NodeState.Offline
     uptime: Optional[int] = 0
-    errors: Dict = {}
-    capabilities: List[str] = []
+    errors: Dict = field(default_factory=dict)
+    capabilities: List[str] = field(default_factory=list)
 
     def set_error(self, key: str, value: str):
         self.errors[key] = value
@@ -134,11 +138,13 @@ class NodeStatus(BaseModel):
             self.reset_error(key)
 
 
+@dataclass(**KWONLY_SLOTS)
 class AnnotationNodeStatus(NodeStatus):
     capabilities: List[str]
 
 
-class DetectionStatus(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class DetectionStatus():
     id: str
     name: str
     state: Optional[NodeState]

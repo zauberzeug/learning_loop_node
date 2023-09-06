@@ -2,9 +2,9 @@
 from uuid import uuid4
 
 from learning_loop_node.data_classes import Context, Training, TrainingState
+from learning_loop_node.trainer.io_helpers import LastTrainingIO
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
 from learning_loop_node.trainer.trainer_node import TrainerNode
-from learning_loop_node.trainer.training_io_helpers import LastTrainingIO
 
 
 def create_training() -> Training:

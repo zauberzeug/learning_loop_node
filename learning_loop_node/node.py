@@ -30,7 +30,7 @@ class Node(FastAPI):
         Afterward, the uuid is recovered based on the name of the node."""
 
         super().__init__()
-        log_conf.init()
+        # log_conf.init()
         self.log = logging.getLogger()
         self.loop_communicator = LoopCommunicator()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
@@ -66,7 +66,7 @@ class Node(FastAPI):
             await self.on_shutdown()
 
         @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=True)
+        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         async def ensure_connected() -> None:
             await self._on_repeat()
             await self.on_repeat()
@@ -149,7 +149,7 @@ class Node(FastAPI):
 
     def get_sio_headers(self) -> Dict:
         headers = {}
-        headers['organization'] = self.loop_communicator.organization  # P? warum hat glc organization und project?
+        headers['organization'] = self.loop_communicator.organization
         headers['project'] = self.loop_communicator.project
         headers['nodeType'] = self.get_node_type()
         return headers

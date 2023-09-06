@@ -2,11 +2,12 @@ import logging
 
 from learning_loop_node.data_classes import Training
 from learning_loop_node.tests.test_helper import condition, update_attributes
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
-def create_active_training_file(trainer, **kwargs) -> None:
+def create_active_training_file(trainer: TrainerLogic, **kwargs) -> None:
     update_attributes(trainer._training, **kwargs)  # pylint: disable=protected-access
-    trainer.last_training_io.save(training=trainer.training)
+    trainer.node.last_training_io.save(training=trainer.training)
 
 
 async def assert_training_state(training: Training, state: str, timeout: float, interval: float) -> None:

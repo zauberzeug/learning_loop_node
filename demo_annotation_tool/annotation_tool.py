@@ -1,4 +1,7 @@
 import logging
+import sys
+# pylint: disable=no-name-in-module
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import List, Optional
 from uuid import uuid4
@@ -6,16 +9,17 @@ from uuid import uuid4
 import cv2
 import numpy as np
 from fastapi.encoders import jsonable_encoder
-# pylint: disable=no-name-in-module
-from pydantic import BaseModel
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
 from learning_loop_node.data_classes import (AnnotationEventType, Point,
                                              SegmentationAnnotation, Shape,
                                              ToolOutput, UserInput)
 
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
-class Box(BaseModel):
+
+@dataclass(**KWONLY_SLOTS)
+class Box():
     x: int
     y: int
     w: int
@@ -32,7 +36,8 @@ class AnnotationState(str, Enum):
     EDITING = "EDITING"
 
 
-class History(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class History():
     bbox: Optional[Box] = None
     bg_pixel: List[Point] = []
     fg_pixel: List[Point] = []
@@ -62,7 +67,6 @@ class SegmentationTool(AnnotatorLogic):
     async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)
-        # logging.debug(jsonable_encoder(user_input))
 
         if history.state == AnnotationState.NONE and user_input.data.event_type == AnnotationEventType.LeftMouseDown:
             # start creating bbox
@@ -144,7 +148,7 @@ class SegmentationTool(AnnotatorLogic):
             history.state = AnnotationState.NONE
         else:
             logging.error(
-                f"Invalid state transition: Current state: '{history.state}', user input : {jsonable_encoder(user_input)} ")
+                f"Invalid state transition: Current state: '{history.state}', user input : {asdict(user_input)} ")
 
         return ToolOutput(svg="", annotation=None)
 

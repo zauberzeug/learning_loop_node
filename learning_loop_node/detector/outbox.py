@@ -3,9 +3,11 @@ import logging
 import os
 import shutil
 import time
+from dataclasses import asdict
 from datetime import datetime
 from glob import glob
-from multiprocessing import Event, Process
+from multiprocessing import Event
+from threading import Thread
 from typing import List, Optional
 
 import requests
@@ -23,12 +25,13 @@ class Outbox():
         self.path = f'{GLOBALS.data_folder}/outbox'
         os.makedirs(self.path, exist_ok=True)
 
-        host = os.environ.get('HOST', 'learning-loop.ai')
-        base_url = f'http{"s" if "learning-loop.ai" in host else ""}://{host}/api'
-        base: str = base_url
+        host = environment_reader.host()
         o = environment_reader.organization()
         p = environment_reader.project()
+
         assert o and p, 'Outbox needs an organization and a project '
+        base_url = f'http{"s" if "learning-loop.ai" in host else ""}://{host}/api'
+        base: str = base_url
         self.target_uri = f'{base}/{o}/projects/{p}/images'
         self.log.info(f'Outbox initialized with target_uri: {self.target_uri}')
 
@@ -44,7 +47,7 @@ class Outbox():
         detections.date = identifier
         os.makedirs(tmp, exist_ok=True)
         with open(tmp + '/image.json', 'w') as f:
-            json.dump(jsonable_encoder(detections), f)
+            json.dump(jsonable_encoder(asdict(detections)), f)
 
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
@@ -55,7 +58,7 @@ class Outbox():
 
     def start_continuous_upload(self):
         self.shutdown_event = Event()
-        self.upload_process = Process(target=self._continuous_upload)
+        self.upload_process = Thread(target=self._continuous_upload)
         self.upload_process.start()
 
     def _continuous_upload(self):
@@ -103,5 +106,4 @@ class Outbox():
             logging.exception('error while shutting down upload thread')
 
         if proc.is_alive():
-            proc.terminate()
-            self.log.info('terminated process')
+            self.log.error('upload thread did not terminate')

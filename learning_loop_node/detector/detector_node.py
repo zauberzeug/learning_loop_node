@@ -3,13 +3,16 @@ import contextlib
 import os
 import shutil
 import subprocess
+from dataclasses import asdict
 from datetime import datetime
 from threading import Thread
 from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
-from socketio import AsyncClient, AsyncServer
+from fastapi_socketio import SocketManager
+from socketio import AsyncClient
 
 from .. import environment_reader
 from ..data_classes import (Category, Context, Detections, DetectionStatus,
@@ -65,9 +68,8 @@ class DetectorNode(Node):
     async def on_shutdown(self):
         try:
             self.outbox.stop_continuous_upload()
-            if self.sio_server is not None:
-                for sid in self.connected_clients:
-                    await self.sio_server.disconnect(sid)
+            for sid in self.connected_clients:
+                await self.sio.disconnect(sid)  # type:ignore pylint: disable=no-member
         except Exception:
             self.log.exception("error during 'shutdown'")
 
@@ -78,12 +80,12 @@ class DetectorNode(Node):
             self.log.exception("error during '_check_for_update'")
 
     def setup_sio_server(self):
-        self.sio_server = AsyncServer()
+        """The DetectorNode acts as a SocketIO server. This method sets up the server and defines the event handlers."""
 
         # pylint: disable=unused-argument
 
-        @self.sio_server.event
-        async def detect(sid, data) -> Dict:
+        async def _detect(sid, data) -> Dict:
+            self.log.info('running detect via socketio')
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
                 det = await self.get_detections(
@@ -94,6 +96,7 @@ class DetectorNode(Node):
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
+                self.log.info('detect via socketio finished')
                 return det
             except Exception as e:
                 self.log.exception('could not detect via socketio')
@@ -101,14 +104,12 @@ class DetectorNode(Node):
                     f.write(data['image'])
                 return {'error': str(e)}
 
-        @self.sio_server.event
-        async def info(sid) -> Union[str, Dict]:
-            if self.detector.model_info:
+        async def _info(sid) -> Union[str, Dict]:
+            if self.detector.is_initialized:
                 return self.detector.model_info.__dict__
             return 'No model loaded'
 
-        @self.sio_server.event
-        async def upload(sid, data) -> Optional[Dict]:
+        async def _upload(sid, data) -> Optional[Dict]:
             loop = asyncio.get_event_loop()
             try:
                 await loop.run_in_executor(None, self.outbox.save, data['image'], Detections(), ['picked_by_system'])
@@ -116,9 +117,14 @@ class DetectorNode(Node):
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
 
-        @self.sio_server.event
-        def connect(sid, environ, auth):
+        def _connect(sid, environ, auth):
             self.connected_clients.append(sid)
+
+        self.sio_server = SocketManager(app=self)
+        self.sio_server.on('detect', _detect)
+        self.sio_server.on('info', _info)
+        self.sio_server.on('upload', _upload)
+        self.sio_server.on('connect', _connect)
 
     async def _check_for_update(self):
         if self.operation_mode == OperationMode.Startup:
@@ -129,7 +135,7 @@ class DetectorNode(Node):
             if not update_to_model_id:
                 self.log.info('could not check for updates')
                 return
-            if self.detector.model_info is not None:
+            if self.detector.is_initialized:
                 self.log.info(
                     f'Current model: {self.detector.model_info.version} with id {self.detector.model_info.id}')
             else:
@@ -142,10 +148,11 @@ class DetectorNode(Node):
             if self.target_model is None:
                 self.log.info('not checking for updates; no target model selected')
                 return
+
             self.log.info('going to check for new updates')
-            if not self.detector.model_info or self.target_model != self.detector.model_info.version:
+            if not self.detector.is_initialized or self.target_model != self.detector.model_info.version:
                 self.log.info(
-                    f'Current model "{self.detector.model_info.version if self.detector.model_info else "-"}" needs to be updated to {self.target_model}')
+                    f'Current model "{self.detector.model_info.version if self.detector.is_initialized else "-"}" needs to be updated to {self.target_model}')
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
@@ -167,7 +174,8 @@ class DetectorNode(Node):
                     self.log.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
 
                     await self.send_status()
-                    self.reload(reason='new model installed')
+                    # self.reload(reason='new model installed')
+                    self.detector.load_model()
             else:
                 self.log.info('Versions are identic. Nothing to do.')
         except Exception as e:
@@ -181,6 +189,7 @@ class DetectorNode(Node):
         if not self._sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return False
+
         status = DetectionStatus(
             id=self.uuid,
             name=self.name,
@@ -188,22 +197,22 @@ class DetectorNode(Node):
             errors=self.status.errors,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
             operation_mode=self.operation_mode,
-            current_model=self.detector.model_info.version if self.detector.model_info else None,
+            current_model=self.detector.model_info.version if self.detector.is_initialized else None,
             target_model=self.target_model,
             model_format=self.detector.model_format,
         )
 
-        self.log.debug(f'sending status {status}')
+        self.log.info(f'sending status {status}')
         assert self._sio_client is not None
-        response = await self._sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(status)))
+        response = await self._sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         assert response is not None
-        socket_response = SocketResponse.from_dict(response)
+        socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
             self.log.error(f'Statusupdate failed: {response}')
             return False
         assert socket_response.payload is not None
         self.target_model = socket_response.payload['target_model_version']
-        self.log.debug(f'After sending status. Target_model is {self.target_model}')
+        self.log.info(f'After sending status. Target_model is {self.target_model}')
         return socket_response.payload['target_model_id']
 
     async def get_state(self):
@@ -221,26 +230,29 @@ class DetectorNode(Node):
             subprocess.call(['touch', '/app/restart/restart.py'])
         elif os.path.isfile('/app/main.py'):
             subprocess.call(['touch', '/app/main.py'])
+        elif os.path.isfile('/main.py'):
+            subprocess.call(['touch', '/main.py'])
         else:
             self.log.error('could not reload app')
 
-    async def get_detections(self, raw_image, camera_id: str, tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-        if self.detector.model_info is None:
-            self.log.error('no model loaded')
+    async def get_detections(self, raw_image, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
+        if not self.detector.is_initialized:
+            self.log.warning('Cannot infer detections. No model loaded.')
             return None
+
         loop = asyncio.get_event_loop()
         detections: Detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
-        detections = self.add_category_id_to_detections(self.detector.model_info, detections)
-        for seg_detection in detections.seg_detections:
+
+        for seg_detection in detections.segmentation_detections:
             if isinstance(seg_detection.shape, Shape):
-                shapes = ','.join([str(value) for p in seg_detection.shape.points for _, value in p.__dict__.items()])
+                shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
+                                   value in asdict(p).items()])
                 seg_detection.shape = shapes  # TODO This seems to be a quick fix..
 
-        # info = "\n    ".join([str(d) for d in detections.box_detections +
-        #                      detections.point_detections + detections.seg_detections])
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections),
-        n_po, n_se = len(detections.point_detections), len(detections.seg_detections)
-        self.log.debug(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
+        n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
+        self.log.info(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
+
         if camera_id is not None:
             tags.append(camera_id)
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
@@ -250,8 +262,8 @@ class DetectorNode(Node):
         elif autoupload == 'disabled':
             pass
         else:
-            self.log.warning(f'unknown autoupload value {autoupload}')
-        return jsonable_encoder(detections)
+            self.log.error(f'unknown autoupload value {autoupload}')
+        return jsonable_encoder(asdict(detections))
 
     async def upload_images(self, images: List[bytes]):
         loop = asyncio.get_event_loop()
@@ -271,7 +283,7 @@ class DetectorNode(Node):
             category_name = point_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             point_detection.category_id = category_id
-        for segmentation_detection in detections.seg_detections:
+        for segmentation_detection in detections.segmentation_detections:
             category_name = segmentation_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             segmentation_detection.category_id = category_id

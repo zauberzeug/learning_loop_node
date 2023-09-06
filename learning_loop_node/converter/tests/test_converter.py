@@ -10,7 +10,8 @@ from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.tests import test_helper
 
 
-class MockedConverter(ConverterLogic):
+class TestConverter(ConverterLogic):
+    __test__ = False
 
     def __init__(self, source_format: str, target_format: str,  models: List[ModelInformation]):
         super().__init__(source_format, target_format)
@@ -20,7 +21,7 @@ class MockedConverter(ConverterLogic):
         self.models.append(model_information)
 
     def get_converted_files(self, model_id) -> List[str]:
-        return []
+        return []  # test: test_meta_information fails because model cannot be uploaded
 
 
 @pytest.mark.asyncio
@@ -42,7 +43,7 @@ async def test_meta_information(setup_converter_test_project):
     logging.info('test started')
     model_id = await test_helper.get_latest_model_id()
 
-    converter = MockedConverter(source_format='mocked', target_format='test', models=[])
+    converter = TestConverter(source_format='mocked', target_format='test', models=[])
     node = ConverterNode(name='test', converter=converter)
     logging.info('>>>> node created')
     await node.convert_models()

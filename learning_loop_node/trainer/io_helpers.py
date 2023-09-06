@@ -1,12 +1,14 @@
 
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
 from typing import List
 
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from learning_loop_node.data_classes import Training
+from learning_loop_node.data_classes import Detections, Training
 from learning_loop_node.globals import GLOBALS
 
 
@@ -22,11 +24,11 @@ class LastTrainingIO:
 
     def save(self, training: Training) -> None:
         with open(f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json', 'w') as f:
-            json.dump(jsonable_encoder(training), f)
+            json.dump(asdict(training), f)
 
     def load(self) -> Training:
         with open(f'{GLOBALS.data_folder}/last_training__{self.node_uuid}.json', 'r') as f:
-            return Training(**json.load(f))
+            return from_dict(data_class=Training, data=json.load(f))
 
     def delete(self) -> None:
         if self.exists():
@@ -69,20 +71,21 @@ class ActiveTrainingIO:
 
     # detections
 
-    def det_get_file_names(self) -> List:
+    def det_get_file_names(self) -> List[Path]:
         files = [f for f in Path(self.training_folder).iterdir()
                  if f.is_file() and f.name.startswith('detections_')]
         if not files:
             return []
         return files
 
-    def det_save(self, detections: List, index: int = 0) -> None:
+    def det_save(self, detections: List[Detections], index: int = 0) -> None:
         with open(self.det_path.format(index), 'w') as f:
-            json.dump(jsonable_encoder(detections), f)
+            json.dump(jsonable_encoder([asdict(d) for d in detections]), f)
 
-    def det_load(self, index: int = 0) -> List:
+    def det_load(self, index: int = 0) -> List[Detections]:
         with open(self.det_path.format(index), 'r') as f:
-            return json.load(f)
+            dict_list = json.load(f)
+            return [from_dict(data_class=Detections, data=d) for d in dict_list]
 
     def det_delete(self) -> None:
         for file in self.det_get_file_names():

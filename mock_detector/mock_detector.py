@@ -10,7 +10,7 @@ class MockDetector(DetectorLogic):
         super().__init__('mocked')
 
     def init(self,  model_info: ModelInformation):
-        self.model_info = model_info
+        self._model_info = model_info
 
     def evaluate(self, image: Any) -> Detections:
         return Detections()

@@ -1,24 +1,24 @@
 import asyncio
 
 import pytest
-from fastapi.encoders import jsonable_encoder
+from dacite import from_dict
 
-from learning_loop_node.data_classes import Context
+from learning_loop_node.data_classes import Context, Detections
 from learning_loop_node.data_classes.detections import BoxDetection
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'upload_detections'
 
 
-def trainer_has_error(trainer: Trainer):
+def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def create_valid_detection_file(trainer: Trainer, number_of_entries: int = 1, file_index: int = 0):
+async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: int = 1, file_index: int = 0):
     loop_communicator = LoopCommunicator()
     response = await loop_communicator.get('/zauberzeug/projects/demo/data')
     await loop_communicator.shutdown()
@@ -33,20 +33,22 @@ async def create_valid_detection_file(trainer: Trainer, number_of_entries: int =
                                  model_name=model_version, confidence=.99, category_id=category['id'])
     box_detections = [box_detection]
 
-    image_entry = {'image_id': image_id, 'box_detections': box_detections,
-                   'point_detections': [], 'segmentation_detections': []}
-    image_entries = [image_entry] * number_of_entries
+    detection_entry = from_dict(data_class=Detections, data={'image_id': image_id, 'box_detections': box_detections,
+                                                             'point_detections': [], 'segmentation_detections': []})
+    detections = [detection_entry] * number_of_entries
 
     assert trainer.active_training_io is not None  # pylint: disable=protected-access
-    trainer.active_training_io.det_save(jsonable_encoder(image_entries), file_index)
+    trainer.active_training_io.det_save(detections, file_index)
 
 
 @pytest.mark.asyncio
 async def test_upload_successful(test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
-
+    print('-----------------------------', trainer.training.context, type(trainer.training.context))
     create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
+
+    print('-----------------------------', trainer.training.context, type(trainer.training.context))
 
     await create_valid_detection_file(trainer)
     await trainer.upload_detections()

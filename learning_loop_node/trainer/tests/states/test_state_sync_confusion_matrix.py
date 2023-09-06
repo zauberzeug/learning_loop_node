@@ -5,13 +5,13 @@ from pytest_mock import MockerFixture  # pip install pytest-mock
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 error_key = 'sync_confusion_matrix'
 
 
-def trainer_has_error(trainer: Trainer):
+def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 

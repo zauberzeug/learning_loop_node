@@ -1,23 +1,26 @@
+
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
-# pylint: disable=no-name-in-module
-from pydantic import BaseModel
 
 # pylint: disable=too-many-instance-attributes
 
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
-class BoxDetection(BaseModel):
+
+@dataclass(**KWONLY_SLOTS)
+class BoxDetection():
     category_name: str
-    x: int
+    x: int  # TODO add definition of x,y,w,h
     y: int
     width: int
     height: int
     model_name: str
     confidence: float
-    category_id: str = ''
+    category_id: str
 
     def intersection_over_union(self, other_detection: 'BoxDetection') -> float:
         # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
@@ -38,30 +41,18 @@ class BoxDetection(BaseModel):
     def _get_area(self) -> int:
         return self.width * self.height
 
-    @staticmethod
-    def from_dict(detection: Dict):
-        return BoxDetection(
-            category_name=detection['category_name'],
-            x=detection['x'],
-            y=detection['y'],
-            width=detection['width'],
-            height=detection['height'],
-            model_name=detection['model_name'],
-            confidence=detection['confidence'],
-            category_id=detection['category_id']
-        )
-
     def __str__(self):
         return f'x:{int(self.x)} y: {int(self.y)}, w: {int(self.width)} h: {int(self.height)} c: {self.confidence:.2f} -> {self.category_name}'
 
 
-class PointDetection(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class PointDetection():
     category_name: str
     x: int
     y: int
     model_name: str
     confidence: float
-    category_id: str = ''
+    category_id: str
 
     def distance(self, other: 'PointDetection') -> float:
         return np.sqrt((other.x - self.x)**2 + (other.y - self.y)**2)
@@ -70,73 +61,77 @@ class PointDetection(BaseModel):
         return f'x:{int(self.x)} y: {int(self.y)}, c: {self.confidence:.2f} -> {self.category_name}'
 
 
-@dataclass
-class ClassificationDetection:
+@dataclass(**KWONLY_SLOTS)
+class ClassificationDetection():
     category_name: str
     model_name: str
     confidence: float
-    category_id: str = ''
-
-    @staticmethod
-    def from_dict(detection: Dict):
-        category_id = detection['category_id'] if 'category_id' in detection else ''
-        return ClassificationDetection(
-            detection['category_name'],
-            detection['model_name'],
-            detection['confidence'],
-            category_id)
+    category_id: str
 
     def __str__(self):
         return f'c: {self.confidence:.2f} -> {self.category_name}'
 
 
-@dataclass
-class Point:
+@dataclass(**KWONLY_SLOTS)
+class Point():
     x: int
     y: int
 
     def __str__(self):
-        return f'x:{int(self.x)} y: {int(self.y)}'
+        return f'x:{self.x} y: {self.y}'
 
 
-@dataclass
-class Shape:
+@dataclass(**KWONLY_SLOTS)
+class Shape():
     points: List[Point]
 
     def __str__(self):
         return ', '. join([str(s) for s in self.points])
 
 
-@dataclass
-class SegmentationDetection:
+@dataclass(**KWONLY_SLOTS)
+class SegmentationDetection():
     category_name: str
     shape: Union[Shape, str]
     model_name: str
     confidence: float
-    category_id: str = ''
-
-    @staticmethod
-    def from_dict(detection: dict):
-        category_id = detection['category_id'] if 'category_id' in detection else ''
-        return SegmentationDetection(
-            detection['category_name'],
-            detection['shape'],
-            detection['model_name'],
-            detection['confidence'],
-            category_id)
+    category_id: str
 
     def __str__(self):
         return f'shape:{str(self.shape)}, c: {self.confidence:.2f} -> {self.category_name}'
 
 
-@dataclass
-class Detections:
+def current_datetime():
+    return datetime.now().isoformat(sep='_', timespec='milliseconds')
+
+
+@dataclass(**KWONLY_SLOTS)
+class Detections():
     box_detections: List[BoxDetection] = field(default_factory=list)
     point_detections: List[PointDetection] = field(default_factory=list)
-    seg_detections: List[SegmentationDetection] = field(default_factory=list)
+    segmentation_detections: List[SegmentationDetection] = field(default_factory=list)
     classification_detections: List[ClassificationDetection] = field(default_factory=list)
     tags: Optional[List[str]] = field(default_factory=list)
-    date: Optional[str] = datetime.now().isoformat(sep='_', timespec='milliseconds')
+    date: Optional[str] = field(default_factory=current_datetime)
+    image_id: Optional[str] = None  # used for detection of trainers
 
     def __len__(self):
-        return len(self.box_detections) + len(self.point_detections) + len(self.seg_detections) + len(self.classification_detections)
+        return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
+
+    @staticmethod
+    def dummy():
+        return Detections(
+            box_detections=[
+                BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
+                             model_name='some_model', confidence=.42, category_id='some_id')],
+            point_detections=[
+                PointDetection(category_name='some_category_name_2', x=10, y=12,
+                               model_name='some_model', confidence=.42, category_id='some_id_2')],
+            segmentation_detections=[
+                SegmentationDetection(category_name='some_category_name_3',
+                                      shape=Shape(points=[Point(x=1, y=1)]),
+                                      model_name='some_model', confidence=.42,
+                                      category_id='some_id_3')],
+            classification_detections=[
+                ClassificationDetection(category_name='some_category_name_4', model_name='some_model',
+                                        confidence=.42, category_id='some_id_4')])

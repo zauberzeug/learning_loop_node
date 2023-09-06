@@ -7,7 +7,7 @@ from learning_loop_node.data_classes import Context
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.tests import test_helper
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 from mock_trainer.mock_trainer import MockTrainer
 
 
@@ -39,7 +39,7 @@ async def test_all(setup_test_project, glc: LoopCommunicator):  # pylint: disabl
 
     # TODO: maybe init call is missing
 
-    training = Trainer.generate_training(context)
+    training = TrainerLogic.generate_training(context)
     training.model_id_for_detecting = latest_model_id
     trainer._training = training  # pylint: disable=protected-access
     await trainer._do_detections()  # pylint: disable=protected-access
@@ -50,7 +50,7 @@ async def test_all(setup_test_project, glc: LoopCommunicator):  # pylint: disabl
     for img in detections:
         assert len(img['box_detections']) == 1
         assert len(img['point_detections']) == 1
-        assert len(img['segmentation_detections']) == 1
+        assert len(img['seg_detections']) == 1
 
 
 def assert_image_count(value: int):

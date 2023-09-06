@@ -1,33 +1,27 @@
 
+import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Union
 
 # pylint: disable=no-name-in-module
-from pydantic import BaseModel
-
 from learning_loop_node.data_classes import Category, Context
 
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
-@dataclass
+
+@dataclass(**KWONLY_SLOTS)
 class Hyperparameter():
     resolution: int
     flip_rl: bool
     flip_ud: bool
 
-    @staticmethod
-    def from_dict(value: dict) -> 'Hyperparameter':
-        return Hyperparameter(
-            resolution=value['resolution'],
-            flip_rl=value['flip_rl'],
-            flip_ud=value['flip_ud']
-        )
 
-
-class TrainingData(BaseModel):
-    image_data: List[Dict] = []
+@dataclass(**KWONLY_SLOTS)
+class TrainingData():
+    image_data: List[Dict] = field(default_factory=list)
     skipped_image_count: Optional[int] = 0
-    categories: List[Category] = []
+    categories: List[Category] = field(default_factory=list)
     hyperparameter: Optional[Hyperparameter] = None
 
     def image_ids(self):
@@ -40,7 +34,7 @@ class TrainingData(BaseModel):
         return len([image for image in self.image_data if image['set'] == 'test'])
 
 
-@dataclass
+@dataclass(**KWONLY_SLOTS)
 class PretrainedModel():
     name: str
     label: str
@@ -66,7 +60,7 @@ class TrainingState(str, Enum):
     ReadyForCleanup = 'ready_for_cleanup'
 
 
-@dataclass
+@dataclass(**KWONLY_SLOTS)
 class TrainingStatus():
     uuid: str
     name: str
@@ -83,8 +77,8 @@ class TrainingStatus():
     architecture: Optional[str] = None
 
 
-class Training(BaseModel):
-    base_model_id: Optional[str] = None
+@dataclass(**KWONLY_SLOTS)
+class Training():
     uuid: str
     context: Context
 
@@ -92,14 +86,16 @@ class Training(BaseModel):
     images_folder: str
     training_folder: str
 
+    base_model_id: Optional[str] = None
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
-    training_state: Optional[TrainingState] = None
+    training_state: Optional[Union[TrainingState, str]] = None
     model_id_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
 
 
-class TrainingOut(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class TrainingOut():
     confusion_matrix: Optional[Dict] = None
     train_image_count: Optional[int] = None
     test_image_count: Optional[int] = None
@@ -107,12 +103,14 @@ class TrainingOut(BaseModel):
     hyperparameters: Optional[Dict] = None
 
 
-class BasicModel(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class BasicModel():
     confusion_matrix: Optional[Dict] = None
     meta_information: Optional[Dict] = None
 
 
-class Model(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class Model():
     uuid: str
     confusion_matrix: Optional[Dict] = None
     parent_id: Optional[str] = None

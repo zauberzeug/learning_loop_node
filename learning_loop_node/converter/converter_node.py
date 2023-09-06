@@ -1,13 +1,15 @@
 import logging
 import traceback
+from dataclasses import asdict
 from http import HTTPStatus
 from typing import Optional
 
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
-from ..data_classes import ModelInformation, NodeState
+from ..data_classes import Category, ModelInformation, NodeState
 from ..node import Node
 from .converter_logic import ConverterLogic
 
@@ -38,7 +40,7 @@ class ConverterNode(Node):
             return
         try:
             logging.info(
-                f'converting model {jsonable_encoder(model_information)}')
+                f'converting model {jsonable_encoder(asdict(model_information))}')
             await self.converter.convert(model_information)
             logging.info('uploading model ')
             await self.converter.upload_model(model_information.context, model_information.id)
@@ -77,7 +79,8 @@ class ConverterNode(Node):
                     logging.error(
                         f'got bad response for {response.url}: {response.status_code}, {response.content}')
                     continue
-                project_categories = response.json()['categories']
+
+                project_categories = [from_dict(data_class=Category, data=c) for c in response.json()['categories']]
 
                 path = f'{project["resource"]}/models'
                 models_response = await self.loop_communicator.get(path)
@@ -87,8 +90,8 @@ class ConverterNode(Node):
 
                 for model in models:
                     if (model['version']
-                        and self.converter.source_format in model['formats']
-                        and self.converter.target_format not in model['formats']
+                            and self.converter.source_format in model['formats']
+                            and self.converter.target_format not in model['formats']
                         ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(

@@ -1,3 +1,6 @@
+from dataclasses import asdict
+
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.data_classes import (AnnotationData,
@@ -15,4 +18,4 @@ def test_basemodel_functionality():
         key_down='test',
     )
 
-    assert AnnotationData.parse_obj(jsonable_encoder(obj)) == obj
+    assert from_dict(data_class=AnnotationData, data=jsonable_encoder(asdict(obj))) == obj

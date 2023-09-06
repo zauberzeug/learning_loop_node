@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import os
 from typing import Dict
 
@@ -45,6 +46,6 @@ async def test_image_download(setup_test_project):  # pylint: disable=unused-arg
 
     node = AnnotatorNode(name="", uuid="", annotator_logic=MockedAnnotatatorLogic())
     user_input = default_user_input()
-    _ = await node._handle_user_input(jsonable_encoder(user_input))  # pylint: disable=protected-access
+    _ = await node._handle_user_input(jsonable_encoder(asdict(user_input)))  # pylint: disable=protected-access
 
     assert os.path.exists(image_path) is True

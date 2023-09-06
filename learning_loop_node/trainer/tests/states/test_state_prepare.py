@@ -4,12 +4,12 @@ from learning_loop_node.data_classes import Context
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'prepare'
 
 
-def trainer_has_error(trainer: Trainer):
+def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
@@ -53,4 +53,4 @@ async def test_request_error(test_initialized_trainer: TestingTrainer):
     assert trainer_has_error(trainer)
     assert trainer._training is not None  # pylint: disable=protected-access
     assert trainer.training.training_state == 'initialized'
-    assert trainer.last_training_io.load() == trainer.training
+    assert trainer.node.last_training_io.load() == trainer.training

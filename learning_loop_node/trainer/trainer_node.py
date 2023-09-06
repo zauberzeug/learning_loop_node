@@ -1,21 +1,23 @@
 import asyncio
 import time
+from dataclasses import asdict
 from typing import Dict, Optional, Union
 
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
 from ..data_classes import Context, NodeState, TrainingState, TrainingStatus
 from ..node import Node
 from ..socket_response import SocketResponse
-from ..trainer.trainer import Trainer
+from .io_helpers import LastTrainingIO
 from .rest import controls
-from .training_io_helpers import LastTrainingIO
+from .trainer_logic import TrainerLogic
 
 
 class TrainerNode(Node):
 
-    def __init__(self, name: str, trainer: Trainer, uuid: Optional[str] = None):
+    def __init__(self, name: str, trainer: TrainerLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.trainer = trainer
         self.train_loop_busy = False
@@ -66,12 +68,12 @@ class TrainerNode(Node):
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return
 
-        if not self.trainer.is_initialized() and self.last_training_io.exists():
+        if not self.trainer.is_initialized and self.last_training_io.exists():
             self.log.warning('Found active training, starting now.')
             self.start_training_task()
             return
 
-        if not self.trainer.is_initialized():
+        if not self.trainer.is_initialized:
             state_for_learning_loop = 'unknown state'
         else:
             assert self.trainer.training.training_state is not None
@@ -89,7 +91,7 @@ class TrainerNode(Node):
         status.pretrained_models = self.trainer.provided_pretrained_models
         status.architecture = self.trainer.model_architecture
 
-        if self.trainer.is_initialized() and self.trainer.training.data:
+        if self.trainer.is_initialized and self.trainer.training.data:
             status.train_image_count = self.trainer.training.data.train_image_count()
             status.test_image_count = self.trainer.training.data.test_image_count()
             status.skipped_image_count = self.trainer.training.data.skipped_image_count
@@ -97,9 +99,9 @@ class TrainerNode(Node):
             status.errors = self.trainer.errors.errors
 
         self.log.info(f'sending status {status}')
-        result = await self._sio_client.call('update_trainer', jsonable_encoder(status), timeout=1)
+        result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=1)
         assert isinstance(result, Dict)
-        response = SocketResponse.from_dict(result)
+        response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
             self.log.error(f'Error for updating: Response from loop was : {response.__dict__}')

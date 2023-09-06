@@ -1,14 +1,15 @@
 import asyncio
 
+from learning_loop_node.data_classes import Detections
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'detecting'
 
 
-def trainer_has_error(trainer: Trainer):
+def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
@@ -66,7 +67,7 @@ def test_save_load_detections(test_initialized_trainer: TestingTrainer):
     create_active_training_file(trainer)
     trainer.load_active_training()
 
-    detections = [{'some_key': 'some_value'}]
+    detections = [Detections.dummy(), Detections.dummy()]
 
     trainer.active_training_io.det_save(detections)
     assert trainer.active_training_io.det_exists()

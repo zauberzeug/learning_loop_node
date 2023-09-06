@@ -1,14 +1,16 @@
 import asyncio
 import functools
 import logging
+import sys
 import traceback
+from dataclasses import dataclass
 from typing import Any, Optional
 
-# pylint: disable=no-name-in-module
-from pydantic import BaseModel
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
 
-class SocketResponse(BaseModel):
+@dataclass(**KWONLY_SLOTS)
+class SocketResponse():
     success: bool
     error_msg: Optional[str] = None
     payload: Optional[Any] = None
@@ -24,14 +26,6 @@ class SocketResponse(BaseModel):
     @staticmethod
     def from_bool(value: bool):
         return SocketResponse(success=value)
-
-    @staticmethod
-    def from_dict(value: dict):
-        try:
-            return SocketResponse.parse_obj(value)
-        except:
-            logging.exception(f'Error parsing SocketResponse: value : {value}')
-            raise
 
 
 def ensure_socket_response(func):

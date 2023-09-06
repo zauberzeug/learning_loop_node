@@ -1,15 +1,14 @@
+from learning_loop_node.data_classes import Detections
 import asyncio
 import time
 from typing import Dict, List, Optional, Union
 
-import socketio
-
 from learning_loop_node.data_classes import (BasicModel, Context,
                                              ModelInformation, PretrainedModel)
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
-class TestingTrainer(Trainer):
+class TestingTrainer(TrainerLogic):
     __test__ = False
 
     def __init__(self, can_resume: bool = False) -> None:
@@ -84,7 +83,7 @@ class TestingTrainer(Trainer):
     async def resume(self) -> None:
         return await self.start_training()
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
         detections = []
         return detections
 

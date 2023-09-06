@@ -8,10 +8,9 @@ from typing import Callable
 
 from learning_loop_node import node_helper
 from learning_loop_node.data_classes import Context
+from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.node import Node
-from learning_loop_node.trainer.trainer import Trainer
-
-from ..loop_communication import LoopCommunicator
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
 def get_files_in_folder(folder: str):
@@ -27,7 +26,6 @@ async def get_latest_model_id() -> str:
 
     assert response.status_code == 200
     trainings = response.json()
-    # print(trainings) P? es gibt hier keine charts
     return trainings['charts'][0]['data'][0]['model_id']
 
 
@@ -65,12 +63,10 @@ def _update_attribute_dict(obj: dict, **kwargs) -> None:
     for key, value in kwargs.items():
         obj[key] = value
 
-# TODO p?
 
-
-def create_needed_folders(base_folder: str, training_uuid: str = 'some_uuid'):  # pylint: disable=unused-argument
+def create_needed_folders(training_uuid: str = 'some_uuid'):  # pylint: disable=unused-argument
     project_folder = Node.create_project_folder(
         Context(organization='zauberzeug', project='pytest'))
     image_folder = node_helper.create_image_folder(project_folder)
-    training_folder = Trainer.create_training_folder(project_folder, training_uuid)
+    training_folder = TrainerLogic.create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder

@@ -24,11 +24,11 @@ class RelevanceGroup:
         return self.add_detections(Detections(point_detections=point_detections))
 
     def add_segmentation_detections(self, seg_detections: List[SegmentationDetection]) -> List[str]:
-        return self.add_detections(Detections(seg_detections=seg_detections))
+        return self.add_detections(Detections(segmentation_detections=seg_detections))
 
     def add_detections(self, detections: Detections) -> List[str]:
         causes = set()
-        for detection in detections.box_detections + detections.point_detections + detections.seg_detections:
+        for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections:
             if isinstance(detection, SegmentationDetection):
                 self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')

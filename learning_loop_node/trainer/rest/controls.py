@@ -3,7 +3,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from learning_loop_node.trainer.trainer import Trainer
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 router = APIRouter()
 
@@ -21,6 +21,6 @@ async def operation_mode(organization: str, project: str, version: str, request:
     models = response.json()['models']
     model_id = next(m for m in models if m['version'] == version)['id']
     logging.info(model_id)
-    trainer: Trainer = request.app.trainer
+    trainer: TrainerLogic = request.app.trainer
     await trainer.do_detections()
     return "OK"

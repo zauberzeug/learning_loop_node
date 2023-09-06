@@ -5,6 +5,7 @@ import os
 import shutil
 import time
 from abc import abstractmethod
+from dataclasses import asdict
 from datetime import datetime
 from glob import glob
 from time import perf_counter
@@ -12,24 +13,24 @@ from typing import TYPE_CHECKING, Coroutine, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
 import socketio
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
 from learning_loop_node import node_helper
-from learning_loop_node.data_classes import (BasicModel, Category, Context,
-                                             Errors, Hyperparameter,
-                                             ModelInformation, PretrainedModel,
-                                             Training, TrainingData,
-                                             TrainingError, TrainingState)
 
+from ..data_classes import (BasicModel, Category, Context, Detections, Errors,
+                            Hyperparameter, ModelInformation, PretrainedModel,
+                            Training, TrainingData, TrainingError,
+                            TrainingState)
 from ..node import Node
 from . import training_syncronizer
 from .downloader import TrainingsDownloader
 from .executor import Executor
+from .io_helpers import ActiveTrainingIO
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
-    from .training_io_helpers import ActiveTrainingIO
 
 
 def is_valid_uuid4(val):
@@ -40,7 +41,7 @@ def is_valid_uuid4(val):
         return False
 
 
-class Trainer():
+class TrainerLogic():
 
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
@@ -67,7 +68,7 @@ class Trainer():
         return self._training
 
     @property
-    def active_training_io(self) -> 'ActiveTrainingIO':
+    def active_training_io(self) -> ActiveTrainingIO:
         assert self._active_training_io is not None, 'active_training_io must be set, call `init` first'
         return self._active_training_io
 
@@ -76,6 +77,7 @@ class Trainer():
         assert self._node is not None, 'node must be set, call `init` first'
         return self._node
 
+    @property
     def is_initialized(self) -> bool:
         return self._training is not None and self._active_training_io is not None and self._node is not None
 
@@ -85,9 +87,9 @@ class Trainer():
         self._node = node
 
         try:
-            self._training = Trainer.generate_training(context)
+            self._training = TrainerLogic.generate_training(context)
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
-            self._training.data.hyperparameter = Hyperparameter.from_dict(details)
+            self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
             self._training.base_model_id = details['id']
             self._training.training_state = TrainingState.Initialized
@@ -388,7 +390,7 @@ class Trainer():
         await self.node.data_exchanger.download_model(tmp_folder, context, model_id, self.model_format)
         with open(f'{tmp_folder}/model.json', 'r') as f:
             content = json.load(f)
-            model_information = ModelInformation.parse_obj(content)
+            model_information = from_dict(data_class=ModelInformation, data=content)
 
         project_folder = Node.create_project_folder(context)
         image_folder = node_helper.create_image_folder(project_folder)
@@ -400,7 +402,7 @@ class Trainer():
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
             await self.node.data_exchanger.download_images(new_ids, image_folder)
-        images = await asyncio.get_event_loop().run_in_executor(None, Trainer.images_for_ids, image_ids, image_folder)
+        images = await asyncio.get_event_loop().run_in_executor(None, TrainerLogic.images_for_ids, image_ids, image_folder)
         logging.info(f'running detections on {len(images)} images')
         batch_size = 200
         idx = 0
@@ -442,22 +444,25 @@ class Trainer():
             self.training.training_state = TrainingState.ReadyForCleanup
             self.node.last_training_io.save(self.training)
 
-    async def _upload_detections(self, context: Context, detections: List[dict]):
+    async def _upload_detections(self, context: Context, detections: List[Detections]):
         batch_size = 10
 
         skip_detections = self.active_training_io.dup_load()
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
             progress = i+batch_size
             batch_detections = detections[i:progress]
-            logging.info(f'uploading detections. File size : {len(json.dumps(batch_detections))}')
+            dict_detections = [jsonable_encoder(asdict(detection)) for detection in batch_detections]
+            logging.info(f'uploading detections. File size : {len(json.dumps(dict_detections))}')
             await self._upload_to_learning_loop(context, batch_detections, progress)
             skip_detections = progress
 
-    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[dict], progress: int):
+    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[Detections], progress: int):
         assert self._active_training_io is not None, 'active_training must be set'
 
+        detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
+
         response = await self.node.loop_communicator.post(
-            f'/{context.organization}/projects/{context.project}/detections', json=batch_detections)
+            f'/{context.organization}/projects/{context.project}/detections', json=detections_json)
         if response.status_code != 200:
             msg = f'could not upload detections. {str(response)}'
             logging.error(msg)
@@ -553,7 +558,7 @@ class Trainer():
         '''
 
     @abstractmethod
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List:
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
         pass
 
     @abstractmethod
@@ -586,7 +591,7 @@ class Trainer():
             context=context,
             project_folder=project_folder,
             images_folder=node_helper.create_image_folder(project_folder),
-            training_folder=Trainer.create_training_folder(project_folder, training_uuid)
+            training_folder=TrainerLogic.create_training_folder(project_folder, training_uuid)
         )
 
     @staticmethod
@@ -612,7 +617,7 @@ class Trainer():
     def create_model_json_content(self) -> Optional[Dict]:
         if self._training and self._training.data and self._training.data.hyperparameter:
             content = {
-                'categories': [c.dict() for c in self._training.data.categories],
+                'categories': [asdict(c) for c in self._training.data.categories],
                 'resolution': self._training.data.hyperparameter.resolution
             }
             return content
