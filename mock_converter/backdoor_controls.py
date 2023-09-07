@@ -33,7 +33,7 @@ async def put_check_state(request: Request):
     value = str(await request.body(), 'utf-8')
     if value == 'off':
         request.app.skip_check_state = True
-        for i in range(5):
+        for _ in range(5):
             if request.app.status.state != NodeState.Idle:
                 await asyncio.sleep(0.5)
             else:

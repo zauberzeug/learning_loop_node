@@ -15,12 +15,15 @@ class AnnotatorLogic():
 
     @abstractmethod
     async def handle_user_input(self, user_input: UserInput, history: Dict) -> ToolOutput:
-        pass
+        """ This method is called when a user input is received from the client.
+            The function should return a ToolOutput object."""
 
     @abstractmethod
     def create_empty_history(self) -> Dict:
-        pass
+        """ This method is called when a new annotation session is started.
+            The function should return an empty history object."""
 
     @abstractmethod
-    def logout_user(self, sid: str):
-        pass
+    def logout_user(self, sid: str) -> bool:
+        """ This method is called when a user disconnects from the server.
+            The function should return True if the user was logged out successfully."""

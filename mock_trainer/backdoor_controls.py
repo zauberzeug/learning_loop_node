@@ -4,9 +4,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from learning_loop_node.data_classes import NodeState
-from learning_loop_node.trainer import active_training_module
-from learning_loop_node.trainer.error_configuration import ErrorConfiguration
+from learning_loop_node.data_classes import ErrorConfiguration, NodeState
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 router = APIRouter()
@@ -27,7 +25,7 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
     if state == 'off':
         if trainer_node.status.state != NodeState.Offline:
             logging.debug('turning socketio off')
-            await trainer_node._sio_client.disconnect()
+            await trainer_node._sio_client.disconnect()  # pylint: disable=protected-access
     if state == 'on':
         if trainer_node.status.state == NodeState.Offline:
             logging.debug('turning socketio on')
@@ -56,7 +54,8 @@ async def reset(request: Request):
     await trainer_node.trainer.stop()
     # NOTE first stop may only kill running training process
 
-    active_training_module.delete()
+    trainer_node.last_training_io.delete()
+
     trainer_node.status.reset_all_errors()
     logging.error('training should be killed, sending new state to LearningLoop')
     await trainer_node.send_status()
@@ -76,7 +75,7 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
 async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
 
-    if not trainer_node.trainer._executor or not trainer_node.trainer._executor.is_process_running():
+    if not trainer_node.trainer._executor or not trainer_node.trainer._executor.is_process_running():  # pylint: disable=protected-access
         logging.error(
             f'cannot add steps when training is not running, state:  { trainer_node.trainer._training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")

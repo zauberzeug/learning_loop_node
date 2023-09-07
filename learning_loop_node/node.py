@@ -157,6 +157,7 @@ class Node(FastAPI):
     def read_or_create_uuid(self, identifier: str) -> str:
         identifier = identifier.lower().replace(' ', '_')
         uuids = {}
+        os.makedirs(GLOBALS.data_folder, exist_ok=True)
         file_path = f'{GLOBALS.data_folder}/uuids.json'
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:

@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.put("/socketio")
-async def switch_socketio(request: Request):
+async def _socketio(request: Request):
     '''
     Example Usage
 
@@ -24,7 +24,7 @@ async def switch_socketio(request: Request):
 async def _switch_socketio(state: str, detector_node: DetectorNode):
     if state == 'off':
         logging.debug('turning socketio off')
-        await detector_node._sio_client.disconnect()
+        await detector_node.sio_client.disconnect()
     if state == 'on':
 
         logging.debug('turning socketio on')
@@ -32,6 +32,6 @@ async def _switch_socketio(state: str, detector_node: DetectorNode):
 
 
 @router.post("/reset")
-async def switch_socketio(request: Request):
+async def _reset(request: Request):
     shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
     request.app.reload(because='------- reset was called from backdoor controls')

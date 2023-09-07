@@ -2,12 +2,13 @@
 import os
 
 import uvicorn
-from mock_annotation_tool import MockAnnotatorNode
 
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
-from mock_annotation_node import backdoor_controls
 
-tool = MockAnnotatorNode()
+from . import backdoor_controls
+from .mock_annotator import MockAnnotatorLogic
+
+tool = MockAnnotatorLogic()
 node = AnnotatorNode(uuid='00000000-1111-2222-3333-444444444444',
                      name=f'Annotation Node {os.uname()[1]}', annotator_logic=tool)
 

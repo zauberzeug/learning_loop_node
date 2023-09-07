@@ -6,7 +6,7 @@ from learning_loop_node.converter.converter_logic import ConverterLogic
 from learning_loop_node.data_classes import ModelInformation
 
 
-class MockConverterModel(ConverterLogic):
+class MockConverterLogic(ConverterLogic):
 
     async def _convert(self, model_information: ModelInformation) -> None:
         await asyncio.sleep(1)

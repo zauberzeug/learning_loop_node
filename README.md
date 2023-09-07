@@ -17,21 +17,18 @@ To start a node you have to implement the logic by inheriting from the correspon
 
 You can configure connection to our Learning Loop by specifying the following environment variables before starting:
 
-**Required by all Nodes:**
-
-- LOOP_HOST=learning-loop.ai
-- LOOP_USERNAME=<your username>
-- LOOP_PASSWORD=<your password>
-
-**Required by Detector Nodes:**
-
-- LOOP_ORGANIZATION=<your organization>
-- LOOP_PROJECT=<your project>
+| Name              | Alias        | Purpose                                      | Required by |
+| ----------------- | ------------ | -------------------------------------------- | ----------- |
+| LOOP_HOST         | HOST         | Learning Loop adress (e.g. learning-loop.ai) | all         |
+| LOOP_USERNAME     | USERNAME     | Learning Loop user name                      | all         |
+| LOOP_PASSWORD     | PASSWORD     | Learning Loop password                       | all         |
+| LOOP_ORGANIZATION | ORGANIZATION | Organization name                            | Detector    |
+| LOOP_PROJECT      | PROJECT      | Project name                                 | Detector    |
 
 #### Testing
 
 We use github actions for CI. Tests can also be executed locally by running
-`USERNAME=admin LOOP_HOST=XXXXXXXX LOOP_USERNAME=XXXXXXXX LOOP_PASSWORD=XXXXXXXX python -m pytest -v`  
+`LOOP_HOST=XXXXXXXX LOOP_USERNAME=XXXXXXXX LOOP_PASSWORD=XXXXXXXX python -m pytest -v`  
 from learning_loop_node/learning_loop_node
 
 ## Detector Node

@@ -25,15 +25,14 @@ class SvgBox():
         return f'<rect x="{min(self.x, self.x2)}" y="{min(self.y, self.y2)}" width="{width or 1}" height="{height or 1}" fill="blue">'
 
 
-class MockAnnotatorNode(AnnotatorLogic):
+class MockAnnotatorLogic(AnnotatorLogic):
     def __init__(self):  # pylint: disable=super-init-not-called
         super().__init__()
         self.box: Optional[SvgBox] = None
 
-    async def handle_user_input(self, user_input, history: Dict):
+    async def handle_user_input(self, user_input, history: Dict) -> ToolOutput:
         out = ToolOutput(svg="", annotation=None)
         event_type = user_input.data.event_type
-        assert isinstance(self.box, SvgBox)
         try:
             if user_input.data.event_type == AnnotationEventType.LeftMouseDown:
                 coordinate = user_input.data.coordinate
@@ -41,6 +40,8 @@ class MockAnnotatorNode(AnnotatorLogic):
                 out.svg = str(self.box)
                 return out
             if event_type == AnnotationEventType.MouseMove:
+                if self.box is None:
+                    return out
                 coordinate = user_input.data.coordinate
                 self.box.x2 = coordinate.x
                 self.box.y2 = coordinate.y
@@ -55,9 +56,9 @@ class MockAnnotatorNode(AnnotatorLogic):
         out.svg = "some_svg_response_from_node"
         return out
 
-    def create_empty_history(self):
+    def create_empty_history(self) -> Dict:
         return {}
 
-    def logout_user(self, sid):
-        logging.info(sid)
+    def logout_user(self, sid) -> bool:
+        logging.info(f"User {sid} logged out successfully.")
         return True

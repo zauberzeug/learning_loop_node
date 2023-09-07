@@ -2,37 +2,45 @@ import asyncio
 import logging
 import multiprocessing
 import os
+import shutil
 import socket
-from glob import glob
-from multiprocessing import Process, log_to_stderr
+from multiprocessing import Process
 from typing import AsyncGenerator
 
 import pytest
 import socketio
 import uvicorn
 
-from learning_loop_node import DetectorNode
-from learning_loop_node.data_classes.general import Category, ModelInformation
-from learning_loop_node.detector.outbox import Outbox
+from learning_loop_node.data_classes import Category, ModelInformation
+from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
 
-from .testing_detector import TestingDetector
+from ..mock_detector import MockDetector
 
 logging.basicConfig(level=logging.INFO)
-
-# show ouptut from uvicorn server https://stackoverflow.com/a/66132186/364388
-log_to_stderr(logging.INFO)
 
 detector_port = GLOBALS.detector_port
 
 
-def should_have_segmentations(request) -> bool:
-    should_have_seg = False
-    try:
-        should_have_seg = request.param
-    except Exception:
-        pass
-    return should_have_seg
+@pytest.fixture()
+async def sio() -> AsyncGenerator:
+    sio_async_client = socketio.AsyncClient()
+    try_connect = True
+    count = 0
+    while try_connect:
+        count += 1
+        try:
+            await sio_async_client.connect(f"ws://localhost:{detector_port}", socketio_path="/ws/socket.io", wait_timeout=1)
+            try_connect = False
+        except Exception:
+            logging.warning('trying again')
+            await asyncio.sleep(1)
+        if count == 5:
+            raise Exception('Could not connect to sio')
+
+    assert sio_async_client.transport() == 'websocket'
+    yield sio_async_client
+    await sio_async_client.disconnect()
 
 
 @pytest.fixture()
@@ -40,8 +48,15 @@ async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
-    detector = TestingDetector()
+    model_info = ModelInformation(
+        id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1',
+        categories=[Category(id='some_id_1', name='some_category_name_1'),
+                    Category(id='some_id_2', name='some_category_name_2'),
+                    Category(id='some_id_3', name='some_category_name_3')])
+
+    detector = MockDetector(model_format='mocked')
     node = DetectorNode(name='test', detector=detector)
+    detector._model_info = model_info  # pylint: disable=protected-access
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)
@@ -67,8 +82,6 @@ async def test_detector_node():
         proc.terminate()
     proc.join()
 
-# from https://stackoverflow.com/a/52872579/364388
-
 
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -85,27 +98,9 @@ async def port_is(free: bool):
     raise Exception(f'port {detector_port} is {"not" if free else ""} free')
 
 
-@pytest.fixture()
-async def sio_client() -> AsyncGenerator[socketio.AsyncClient, None]:
-    sio = socketio.AsyncClient()
-    try_connect = True
-    retry_count = 0
-    while try_connect:
-        try:
-            await sio.connect(f"ws://localhost:{detector_port}", socketio_path="/ws/socket.io")
-            try_connect = False
-        except Exception as e:
-            logging.warning(f"Connection failed with error: {str(e)}")
-            logging.warning('trying again')
-            await asyncio.sleep(5)
-        retry_count += 1
-        if retry_count > 10:
-            raise Exception('Max Retry')
-
-    yield sio
-    await sio.disconnect()
-
-
-def get_outbox_files(outbox: Outbox):
-    files = glob(f'{outbox.path}/**/*', recursive=True)
-    return [file for file in files if os.path.isfile(file)]
+@pytest.fixture(autouse=True, scope='function')
+def data_folder():
+    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+    yield
+    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)

@@ -51,7 +51,6 @@ class TrainerLogic():
         self.train_task: Optional[Coroutine] = None
         self.errors = Errors()
         self.shutdown_event: asyncio.Event = asyncio.Event()
-        self.progress: float = 0.0
 
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
@@ -82,7 +81,8 @@ class TrainerLogic():
         return self._training is not None and self._active_training_io is not None and self._node is not None
 
     def init(self, context: Context, details: Dict, node: 'TrainerNode') -> None:
-        """Called on `begin_training` event from the Learning Loop."""
+        """Called on `begin_training` event from the Learning Loop.
+        Note that details neads the entry 'categories'"""
 
         self._node = node
 
@@ -413,7 +413,7 @@ class TrainerLogic():
         for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
-            self.active_training_io.det_save(jsonable_encoder(batch_detections), idx)
+            self.active_training_io.det_save(batch_detections, idx)
             idx += 1
 
     async def upload_detections(self):
@@ -451,14 +451,14 @@ class TrainerLogic():
 
         skip_detections = self.active_training_io.dup_load()
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
-            progress = i+batch_size
-            batch_detections = detections[i:progress]
+            up_progress = i+batch_size
+            batch_detections = detections[i:up_progress]
             dict_detections = [jsonable_encoder(asdict(detection)) for detection in batch_detections]
             logging.info(f'uploading detections. File size : {len(json.dumps(dict_detections))}')
-            await self._upload_to_learning_loop(context, batch_detections, progress)
-            skip_detections = progress
+            await self._upload_to_learning_loop(context, batch_detections, up_progress)
+            skip_detections = up_progress
 
-    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[Detections], progress: int):
+    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[Detections], up_progress: int):
         assert self._active_training_io is not None, 'active_training must be set'
 
         detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
@@ -471,10 +471,10 @@ class TrainerLogic():
             raise Exception(msg)
         else:
             logging.info('successfully uploaded detections')
-            if progress > len(batch_detections):
+            if up_progress > len(batch_detections):
                 self._active_training_io.dup_save(0)
             else:
-                self._active_training_io.dup_save(progress)
+                self._active_training_io.dup_save(up_progress)
 
     async def clear_training(self):
         self.active_training_io.det_delete()
@@ -631,3 +631,8 @@ class TrainerLogic():
             }
             return content
         return None
+
+    @property
+    @abstractmethod
+    def progress(self) -> float:  # P? passt das als property (YOLO checken)
+        pass
