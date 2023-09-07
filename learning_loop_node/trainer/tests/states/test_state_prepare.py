@@ -33,7 +33,7 @@ async def test_abort_preparing(test_initialized_trainer: TestingTrainer):
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'data_downloading', timeout=1, interval=0.001)
 
-    trainer.stop()
+    await trainer.stop()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access

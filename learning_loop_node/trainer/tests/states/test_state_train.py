@@ -39,7 +39,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainer):
     assert trainer.train_task is not None
     assert trainer.train_task.__name__ == 'start_training'
 
-    trainer.stop()
+    await trainer.stop()
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
 
     assert trainer.training.training_state == 'training_finished'

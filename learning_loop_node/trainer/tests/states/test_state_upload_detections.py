@@ -4,7 +4,8 @@ import pytest
 from dacite import from_dict
 
 from learning_loop_node.data_classes import Context, Detections
-from learning_loop_node.data_classes.detections import BoxDetection
+from learning_loop_node.data_classes.detections import (BoxDetection,
+                                                        get_dummy_detections)
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
@@ -121,7 +122,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     create_active_training_file(trainer, training_state='detected', context=Context(
         organization='zauberzeug', project='some_bad_project'))
     trainer.load_active_training()
-    trainer.active_training_io.det_save([{'some_bad_data': 'some_bad_data'}])
+    trainer.active_training_io.det_save([get_dummy_detections()])
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
@@ -159,7 +160,7 @@ async def test_abort_uploading(test_initialized_trainer: TestingTrainer):
 
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
 
-    trainer.stop()
+    await trainer.stop()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access

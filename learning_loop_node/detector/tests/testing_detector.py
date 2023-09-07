@@ -1,10 +1,8 @@
 import logging
 
 from learning_loop_node import DetectorLogic
-from learning_loop_node.data_classes import (BoxDetection,
-                                             ClassificationDetection,
-                                             Detections, Point, PointDetection,
-                                             SegmentationDetection, Shape)
+from learning_loop_node.data_classes import Detections
+from learning_loop_node.data_classes.detections import get_dummy_detections
 
 
 class TestingDetector(DetectorLogic):
@@ -12,6 +10,7 @@ class TestingDetector(DetectorLogic):
 
     def __init__(self) -> None:
         super().__init__('mocked')
+        self.det_to_return = get_dummy_detections()
 
     def init(self):
         pass
@@ -21,9 +20,8 @@ class TestingDetector(DetectorLogic):
 
     def evaluate(self, image: bytes) -> Detections:
         logging.info('evaluating')
-        det = Detections.dummy()
-        print(det)
-        return det
+        print(self.det_to_return)
+        return self.det_to_return
 
         # return Detections(
         #     box_detections=[BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,

@@ -36,7 +36,7 @@ class TrainerNode(Node):
 
     async def on_shutdown(self):
         self.log.info('shutdown detected, stopping training')
-        self.trainer.shutdown()
+        await self.trainer.shutdown()
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -52,7 +52,7 @@ class TrainerNode(Node):
         async def stop_training():
             self.log.info(f'### on stop_training received. Current state : {self.status.state}')
             try:
-                self.trainer.stop()
+                await self.trainer.stop()
             except Exception:
                 self.log.exception('error in stop_training')
             return True
@@ -121,7 +121,7 @@ class TrainerNode(Node):
         return time.time() - self.trainer.start_time if self.trainer.start_time else None
 
     @staticmethod
-    def state_for_learning_loop(trainer_state: TrainingState) -> str:
+    def state_for_learning_loop(trainer_state: Union[TrainingState, str]) -> str:
         if trainer_state == TrainingState.Initialized:
             return 'Training is initialized'
         if trainer_state == TrainingState.DataDownloading:

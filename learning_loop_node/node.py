@@ -58,18 +58,15 @@ class Node(FastAPI):
         @self.on_event("startup")
         async def startup():
             await self._on_startup()
-            await self.on_startup()
 
         @self.on_event("shutdown")  # NOTE may only used for developent ?!
         async def shutdown():
             await self._on_shutdown()
-            await self.on_shutdown()
 
         @self.on_event("startup")
         @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
         async def ensure_connected() -> None:
             await self._on_repeat()
-            await self.on_repeat()
 
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
@@ -77,6 +74,7 @@ class Node(FastAPI):
         await self.loop_communicator.backend_ready()
         await self.loop_communicator.get_asyncclient()
         await self.create_sio_client()
+        await self.on_startup()
 
     async def _on_shutdown(self):
         self.log.info('received "shutdown" lifecycle-event')
@@ -84,6 +82,7 @@ class Node(FastAPI):
         if self._sio_client is not None:
             await self._sio_client.disconnect()
         self.log.info('successfully disconnected from loop.')
+        await self.on_shutdown()
 
     async def _on_repeat(self):
         self.log.debug('received "repeat" event')
@@ -94,6 +93,7 @@ class Node(FastAPI):
             self.log.info('###732 Reconnecting to loop via sio')
             await self.connect()
         self.log.info(f'###732 current connection state: {self._sio_client.connected}')
+        await self.on_repeat()
 
     async def create_sio_client(self):
         cookies = await self.loop_communicator.get_cookies()

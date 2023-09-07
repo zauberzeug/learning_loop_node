@@ -43,7 +43,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainer):
 
     await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
 
-    trainer.stop()
+    await trainer.stop()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access
@@ -71,7 +71,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 async def test_mock_loop_response_example(mocker: MockerFixture, test_initialized_trainer: TestingTrainer):
     trainer = test_initialized_trainer
 
-    mock_upload_model_for_training(mocker, 'some_data')
+    mock_upload_model_for_training(mocker, {'some_key': 'some_data'})
 
     create_active_training_file(trainer)
     trainer.load_active_training()
@@ -79,8 +79,8 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     # pylint: disable=protected-access
     result = await trainer._upload_model(Context(organization='zauberzeug', project='demo'))
 
-    assert result == 'some_data'
+    assert result['some_key'] == 'some_data'
 
 
 def mock_upload_model_for_training(mocker, return_value):
-    mocker.patch('learning_loop_node.rest.uploads.upload_model_for_training', return_value=return_value)
+    mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_for_training', return_value=return_value)

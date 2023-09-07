@@ -10,12 +10,13 @@ from typing import AsyncGenerator
 import pytest
 import socketio
 import uvicorn
-from testing_detector import TestingDetector
 
 from learning_loop_node import DetectorNode
 from learning_loop_node.data_classes.general import Category, ModelInformation
 from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.globals import GLOBALS
+
+from .testing_detector import TestingDetector
 
 logging.basicConfig(level=logging.INFO)
 

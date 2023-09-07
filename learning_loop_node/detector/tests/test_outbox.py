@@ -60,7 +60,6 @@ def test_saving_binary(test_outbox: Outbox):
 
 @pytest.mark.asyncio
 async def test_files_are_automatically_uploaded(test_detector_node: DetectorNode):
-    test_detector_node = await test_detector_node
     test_detector_node.outbox.save(Image.new('RGB', (60, 30), color=(73, 109, 137)).tobytes(), Detections())
     assert len(test_detector_node.outbox.get_data_files()) == 1
 

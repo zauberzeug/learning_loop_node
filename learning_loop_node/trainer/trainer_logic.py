@@ -107,10 +107,9 @@ class TrainerLogic():
             self.training_task = asyncio.get_running_loop().create_task(self._train())
             await self.training_task  # Object is used to potentially cancel the task
 
-        except asyncio.CancelledError as e:
+        except asyncio.CancelledError:
+            print('------------------- CancelledError -------------------', flush=True)
             if not self.shutdown_event.is_set():
-                logging.error(str(e))
-
                 logging.info('cancelled training task')
                 self.training.training_state = TrainingState.ReadyForCleanup
                 self.node.last_training_io.save(self.training)
@@ -125,6 +124,7 @@ class TrainerLogic():
         self._training = self.node.last_training_io.load()
 
     async def _train(self) -> None:
+        """asyncio.CancelledError is catched in train"""
 
         if self._training is None:
             if self.node.last_training_io.exists():
@@ -163,7 +163,7 @@ class TrainerLogic():
         try:
             await self._prepare()
         except asyncio.CancelledError:
-            logging.exception('CancelledError in prepare')
+            logging.warning('CancelledError in prepare')
             raise
         except Exception as e:
             logging.exception("Unknown error in 'prepare'")
@@ -190,7 +190,7 @@ class TrainerLogic():
         try:
             await self._download_model()
         except asyncio.CancelledError:
-            logging.exception('download_model_task cancelled')
+            logging.warning('CancelledError in download_model')
             raise
         except Exception as e:
             logging.exception('download_model failed')
@@ -246,7 +246,7 @@ class TrainerLogic():
                     try:
                         await self.sync_confusion_matrix()
                     except asyncio.CancelledError:
-                        logging.exception('CancelledError in run_training')
+                        logging.warning('CancelledError in run_training')
                         raise
                     except Exception:
                         pass
@@ -260,7 +260,7 @@ class TrainerLogic():
             self.errors.reset(error_key)
 
         except asyncio.CancelledError:
-            logging.exception('CancelledError in run_training')
+            logging.warning('CancelledError in run_training')
             raise
         except TrainingError:
             logging.exception('Error in TrainingProcess')
@@ -282,7 +282,7 @@ class TrainerLogic():
         try:
             await self.sync_confusion_matrix()
         except asyncio.CancelledError:
-            logging.exception('CancelledError in run_training')
+            logging.warning('CancelledError in run_training')
             raise
         except Exception:
             logging.exception('Error in ensure_confusion_matrix_synced')
@@ -316,7 +316,7 @@ class TrainerLogic():
             assert uploaded_model is not None, 'uploaded_model must be set'
             self.training.model_id_for_detecting = uploaded_model['id']
         except asyncio.CancelledError:
-            logging.exception('CancelledError in upload_model')
+            logging.warning('CancelledError in upload_model')
             raise
         except Exception as e:
             logging.exception('Error in upload_model')
@@ -338,8 +338,9 @@ class TrainerLogic():
         with open(model_json_path, 'w') as f:
             json.dump(model_json_content, f)
 
-        if isinstance(files, list):
+        if isinstance(files, List):
             files = {self.model_format: files}
+
         uploaded_model = None
         already_uploaded_formats = self.active_training_io.mup_load()
         if isinstance(files, Dict):
@@ -351,6 +352,7 @@ class TrainerLogic():
                     "It is not allowed to provide a 'model.json' file."
                 _files = files[file_format]
                 _files.append(model_json_path)
+                # TODO P? uploaded_model wird überschrieben ?!
                 uploaded_model = await self.node.data_exchanger.upload_model_for_training(context, _files, self.training.training_number, file_format)
                 already_uploaded_formats.append(file_format)
                 self.active_training_io.mup_save(already_uploaded_formats)
@@ -366,11 +368,11 @@ class TrainerLogic():
             self.training.training_state = TrainingState.Detecting
             await self._do_detections()
         except asyncio.CancelledError:
-            logging.exception('CancelledError in do_detections')
+            logging.warning('CancelledError in do_detections')
             raise
         except Exception as e:
             self.errors.set(error_key, str(e))
-            logging.exception('Error in do_detections')
+            logging.exception('Error in do_detections - Exception:')
             self.training.training_state = previous_state
         else:
             self.errors.reset(error_key)
@@ -433,7 +435,7 @@ class TrainerLogic():
                 await self._upload_detections(context, detections)
                 self.active_training_io.dufi_save(i+1)
         except asyncio.CancelledError:
-            logging.exception('CancelledError in upload_detections')
+            logging.warning('CancelledError in upload_detections')
             raise
         except Exception as e:
             self.errors.set(error_key, str(e))
@@ -481,24 +483,31 @@ class TrainerLogic():
         try:
             await self.clear_training_data(self.training.training_folder)
         except NotImplementedError:
-            logging.exception('clear_training_data not implemented')
+            logging.warning('clear_training_data not implemented')
         else:
             self._training = None
             self.node.last_training_io.delete()
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
+        print('------------------- stop -------------------', flush=True)
         if not self._training:
             return
         if self._executor and self._executor.is_process_running():
             self._executor.stop()
         elif self.training_task:
-            logging.error('cancelling training task')
-            self.training_task.cancel()
+            logging.info('cancelling training task')
+            if self.training_task.cancel():
+                try:
+                    await self.training_task
+                except asyncio.CancelledError:
+                    pass
+                logging.info('cancelled training task')
 
-    def shutdown(self) -> None:
+    async def shutdown(self) -> None:
+        print('------------------- shutdown -------------------', flush=True)
         self.shutdown_event.set()
-        self.stop()
-        self.stop()  # NOTE first stop may only stop training.
+        await self.stop()
+        await self.stop()  # NOTE first stop may only stop training.
 
     def get_log(self) -> str:
         assert self._executor is not None, 'executor must be set'

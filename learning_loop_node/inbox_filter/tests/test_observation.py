@@ -1,8 +1,7 @@
 import time
 from datetime import datetime, timedelta
 
-from learning_loop_node.data_classes.detections import BoxDetection
-from learning_loop_node.inbox_filter.observation import Observation
+from learning_loop_node.data_classes import BoxDetection, Observation
 
 
 def test_aging():
@@ -14,11 +13,11 @@ def test_aging():
 
 
 def test_calculate_iou():
-    one = BoxDetection(category_name='dirt', x=10, y=0, height=30, width=100,
+    one = BoxDetection(category_name='dirt', x=10, y=0, width=30, height=100,
                        model_name='model', confidence=0.30, category_id='some-id')
-    two = BoxDetection(category_name='dirt', x=20, y=0, height=30, width=100,
+    two = BoxDetection(category_name='dirt', x=20, y=0, width=30, height=100,
                        model_name='model', confidence=0.61, category_id='some-id')
-    three = BoxDetection(category_name='dirt', x=0, y=30, height=10, width=10,
+    three = BoxDetection(category_name='dirt', x=0, y=30, width=10, height=10,
                          model_name='model', confidence=0.61, category_id='some-id')
 
     assert one.intersection_over_union(two) == 0.5

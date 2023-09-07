@@ -23,7 +23,15 @@ async def test_initialized_trainer_node():
     os.environ['PROJECT'] = 'demo'
 
     trainer = TestingTrainer()
-    node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
+    node = TrainerNode(name='test', trainer=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
+
+    trainer.init(context=Context(organization='zauberzeug', project='demo'), node=node,
+                 details={'categories': [],
+                          'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
+                          'training_number': 0,
+                          'resolution': 800,
+                          'flip_rl': False,
+                          'flip_ud': False})
 
     # pylint: disable=protected-access
     await node._on_startup()
@@ -35,7 +43,7 @@ async def test_initialized_trainer_node():
 async def test_initialized_trainer():
 
     trainer = TestingTrainer()
-    node = TrainerNode(name='test', trainer=trainer, uuid='00000000-0000-0000-0000-000000000000')
+    node = TrainerNode(name='test', trainer=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
     # pylint: disable=protected-access
     await node._on_startup()
 
@@ -48,11 +56,11 @@ async def test_initialized_trainer():
                           'flip_ud': False})
 
     yield trainer
-    await node._on_shutdown()
-    # try:
-    #     await trainer.
-    # except:
-    #     logging.exception('error while shutting down node')
+    # await node._on_shutdown()
+    try:
+        await node._on_shutdown()
+    except Exception:
+        logging.exception('error while shutting down node')
 
 
 def is_port_in_use(port):

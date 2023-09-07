@@ -256,7 +256,7 @@ class DetectorNode(Node):
         if camera_id is not None:
             tags.append(camera_id)
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
-            Thread(target=self.relevance_filter.learn, args=(detections, camera_id, tags, raw_image)).start()
+            Thread(target=self.relevance_filter.learn, args=(detections, camera_id, raw_image, tags)).start()
         elif autoupload == 'all':
             Thread(target=self.outbox.save, args=(raw_image, detections, tags)).start()
         elif autoupload == 'disabled':

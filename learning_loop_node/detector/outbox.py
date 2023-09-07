@@ -46,12 +46,18 @@ class Outbox():
         detections.tags = tags
         detections.date = identifier
         os.makedirs(tmp, exist_ok=True)
+
         with open(tmp + '/image.json', 'w') as f:
             json.dump(jsonable_encoder(asdict(detections)), f)
 
+        # TODO sometimes No such file or directory: '/tmp/learning_loop_lib_data/tmp/2023-09-07_13:27:38.399/image.jpg'
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
-        os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
+
+        if os.path.exists(tmp):
+            os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
+        else:
+            self.log.error(f'Could not rename {tmp} to {self.path}/{identifier}')
 
     def get_data_files(self):
         return glob(f'{self.path}/*')

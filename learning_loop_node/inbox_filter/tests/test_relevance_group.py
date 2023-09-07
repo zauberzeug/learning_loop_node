@@ -1,4 +1,5 @@
 # group Tests incoming
+from dataclasses import asdict
 from datetime import datetime, timedelta
 
 from dacite import from_dict
@@ -75,6 +76,7 @@ def test_active_group_extracts_from_json():
          "width": 37,
          "height": 24,
          "model_name": "some_weightfile",
+         "category_id": "some_id",
          "confidence": .3},
         {"category_name": "obstacle",
          "x": 0,
@@ -82,6 +84,7 @@ def test_active_group_extracts_from_json():
          "width": 37,
          "height": 24,
          "model_name": "some_weightfile",
+         "category_id": "some_id",
          "confidence": .35},
         {"category_name": "dirt",
          "x": 1479,
@@ -89,6 +92,7 @@ def test_active_group_extracts_from_json():
          "width": 14,
          "height": 11,
          "model_name": "some_weightfile",
+         "category_id": "some_id",
          "confidence": .2}]
 
     camera_id = '0000'
@@ -103,7 +107,8 @@ def test_active_group_extracts_from_json():
 
 def test_segmentation_detections_are_extracted_from_json():
     seg_detection = {"category_name": "seg",
-                     "shape": [Point(x=193, y=876), Point(x=602, y=193), Point(x=121, y=8)],
+                     "category_id": "some_id",
+                     "shape": asdict(Shape(points=[Point(x=193, y=876), Point(x=602, y=193), Point(x=121, y=8)])),
                      "model_name": "some_weightfile",
                      "confidence": .3}
 
@@ -121,6 +126,7 @@ def test_ignoring_similar_points():
     filter_cause = group.add_point_detections(
         [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')]
     )
+    # TODO: P? ne, alles ausser box detections werden ignoriert ?!?!
     assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
@@ -146,12 +152,12 @@ def test_getting_low_confidence_points():
 
 def test_getting_segmentation_detections():
     group = RelevanceGroup()
-    filter_cause = group.add_segmentation_detections([SegmentationDetection('segmentation', Shape(
+    filter_cause = group.add_segmentation_detections([SegmentationDetection(category_name='segmentation', shape=Shape(
         points=[Point(x=100, y=200), Point(x=300, y=400)]), model_name='xyz', confidence=0.3, category_id='some_id')], )
     assert filter_cause == ['segmentation_detection'], 'all segmentation detections are collected'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 
-    filter_cause = group.add_segmentation_detections([SegmentationDetection('segmentation', Shape(
-        points=[Point(105, 205), Point(305, 405)]), model_name='xyz', confidence=0.3, category_id='some_id')], )
+    filter_cause = group.add_segmentation_detections([SegmentationDetection(category_name='segmentation', shape=Shape(
+        points=[Point(x=105, y=205), Point(x=305, y=405)]), model_name='xyz', confidence=0.3, category_id='some_id')], )
     assert len(group.recent_observations) == 2, 'segmentation detections are not filtered by similarity'
     assert filter_cause == ['segmentation_detection']

@@ -1,7 +1,7 @@
 
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Union
 
 import numpy as np
@@ -118,20 +118,33 @@ class Detections():
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
 
-    @staticmethod
-    def dummy():
-        return Detections(
-            box_detections=[
-                BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
-                             model_name='some_model', confidence=.42, category_id='some_id')],
-            point_detections=[
-                PointDetection(category_name='some_category_name_2', x=10, y=12,
-                               model_name='some_model', confidence=.42, category_id='some_id_2')],
-            segmentation_detections=[
-                SegmentationDetection(category_name='some_category_name_3',
-                                      shape=Shape(points=[Point(x=1, y=1)]),
-                                      model_name='some_model', confidence=.42,
-                                      category_id='some_id_3')],
-            classification_detections=[
-                ClassificationDetection(category_name='some_category_name_4', model_name='some_model',
-                                        confidence=.42, category_id='some_id_4')])
+
+def get_dummy_detections():
+    return Detections(
+        box_detections=[
+            BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
+                         model_name='some_model', confidence=.42, category_id='some_id')],
+        point_detections=[
+            PointDetection(category_name='some_category_name_2', x=10, y=12,
+                           model_name='some_model', confidence=.42, category_id='some_id_2')],
+        segmentation_detections=[
+            SegmentationDetection(category_name='some_category_name_3',
+                                  shape=Shape(points=[Point(x=1, y=1)]),
+                                  model_name='some_model', confidence=.42,
+                                  category_id='some_id_3')],
+        classification_detections=[
+            ClassificationDetection(category_name='some_category_name_4', model_name='some_model',
+                                    confidence=.42, category_id='some_id_4')])
+
+
+class Observation():
+
+    def __init__(self, detection: Union[BoxDetection, PointDetection, SegmentationDetection]):
+        self.detection = detection
+        self.last_seen = datetime.now()
+
+    def update_last_seen(self):
+        self.last_seen = datetime.now()
+
+    def is_older_than(self, forget_time_in_seconds):
+        return self.last_seen < datetime.now() - timedelta(seconds=forget_time_in_seconds)

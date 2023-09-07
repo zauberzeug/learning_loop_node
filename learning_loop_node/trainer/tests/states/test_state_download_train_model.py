@@ -35,10 +35,10 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainer):
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
 
-    trainer.stop()
+    await trainer.stop()
     await asyncio.sleep(0.1)
 
-    assert trainer.training is None
+    assert trainer._training is None
     assert trainer.node.last_training_io.exists() is False
 
 

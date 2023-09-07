@@ -52,8 +52,8 @@ async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
     await _switch_socketio('on', trainer_node)
 
-    trainer_node.trainer.stop()
-    trainer_node.trainer.stop()
+    await trainer_node.trainer.stop()
+    await trainer_node.trainer.stop()
     # NOTE first stop may only kill running training process
 
     active_training_module.delete()

@@ -1,3 +1,4 @@
+import os
 from typing import List
 
 import pytest
@@ -19,15 +20,20 @@ low_conf_point_detection = PointDetection(category_name='point', x=100, y=100,
 @pytest.mark.parametrize(
     "detections,reason",
     [(Detections(box_detections=[high_conf_box_detection] * 40, point_detections=[high_conf_point_detection] * 40),
-      ['unexpectedObservationsCount']),
+      ['unexpected_observations_count']),
      (Detections(box_detections=[high_conf_box_detection],
                  point_detections=[high_conf_point_detection]),
       []),
      (Detections(box_detections=[high_conf_box_detection] * 40, point_detections=[low_conf_point_detection] * 40),
-      ['uncertain', 'unexpectedObservationsCount']),
+      ['uncertain', 'unexpected_observations_count']),
      (Detections(box_detections=[high_conf_box_detection],
                  point_detections=[low_conf_point_detection]),
       ['uncertain'])])
 def test_unexpected_observations_count(detections: Detections, reason: List[str]):
-    filter = RelevanceFilter(Outbox())
-    assert filter.learn(detections, raw_image=b'', camera_id='0:0:0:0', tags=[]) == reason
+
+    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
+    os.environ['LOOP_PROJECT'] = 'demo'
+    outbox = Outbox()
+
+    r_filter = RelevanceFilter(outbox)
+    assert r_filter.learn(detections, raw_image=b'', camera_id='0:0:0:0', tags=[]) == reason
