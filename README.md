@@ -1,6 +1,13 @@
 # Learning Loop Node
 
-This Python library helps you to write your own Detection Nodes, Training Nodes and Converter Nodes for the Zauberzeug Learning Loop.
+This Python library helps to write Nodes that interact with the Zauberzeug Learning Loop. There are 4 types of Nodes:
+
+| Type      | Purpose                                              |
+| --------- | ---------------------------------------------------- |
+| Trainer   | Runs training using the latest training data         |
+| Detector  | Loads latest models from Loop and performs inference |
+| Annotator | Used for custom annotation inside the Loop           |
+| Converter | Converts between different model formats             |
 
 ## General Usage
 
@@ -10,18 +17,24 @@ You can configure connection to our Learning Loop by specifying the following en
 - LOOP_USERNAME=<your username>
 - LOOP_PASSWORD=<your password>
 
-## Detector Node
-
-Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop to make model deployments very easy. They also provide REST and Socket.io APIs to run inferences. By default the images will automatically used for active learning: high uncertain predictions will be submitted to the Learning Loop inbox.
-
 #### Additinal environment variables
 
 - LOOP_ORGANIZATION=<your organization>
 - LOOP_PROJECT=<your project>
 
+#### Testing
+
+We use github actions for CI. Tests can also be executed locally by running
+`USERNAME=admin LOOP_HOST=XXXXXXXX LOOP_USERNAME=XXXXXXXX LOOP_PASSWORD=XXXXXXXX python -m pytest -v`  
+from learning_loop_node/learning_loop_node
+
+## Detector Node
+
+Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop. They provide REST and Socket.io APIs to run inference on images. The processed images can automatically be used for active learning: e.g. uncertain predictions will be send to the Learning Loop.
+
 ## Trainer Node
 
-Trainers fetch the images and anntoations from the Learning Loop to generate new and improved models.
+Trainers fetch the images and anntoations from the Learning Loop to train new models.
 
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
@@ -29,7 +42,11 @@ Trainers fetch the images and anntoations from the Learning Loop to generate new
 
 A Conveter Node converts models from one format into another.
 
-### How to test the operability?
+## Annotation Node
+
+...
+
+#### Test operability
 
 Assumend there is a Converter Node which converts models of format 'format_a' into 'format_b'.
 Upload a model with
