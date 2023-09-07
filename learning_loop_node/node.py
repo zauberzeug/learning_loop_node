@@ -30,7 +30,7 @@ class Node(FastAPI):
         Afterward, the uuid is recovered based on the name of the node."""
 
         super().__init__()
-        # log_conf.init()
+        log_conf.init()
         self.log = logging.getLogger()
         self.loop_communicator = LoopCommunicator()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
