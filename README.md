@@ -11,13 +11,19 @@ This Python library helps to write Nodes that interact with the Zauberzeug Learn
 
 ## General Usage
 
+To start a node you have to implement the logic by inheriting from the corresponding base logic class. We provide samples in the 'mock' folders and recommend to follow that scheme. A complete trainer and detector example can be found [here](https://github.com/zauberzeug/yolov5_node).
+
+#### Environment variables
+
 You can configure connection to our Learning Loop by specifying the following environment variables before starting:
+
+**Required by all Nodes:**
 
 - LOOP_HOST=learning-loop.ai
 - LOOP_USERNAME=<your username>
 - LOOP_PASSWORD=<your password>
 
-#### Additinal environment variables
+**Required by Detector Nodes:**
 
 - LOOP_ORGANIZATION=<your organization>
 - LOOP_PROJECT=<your project>
@@ -42,7 +48,7 @@ Trainers fetch the images and anntoations from the Learning Loop to train new mo
 
 A Conveter Node converts models from one format into another.
 
-## Annotation Node
+## Annotator Node
 
 ...
 
