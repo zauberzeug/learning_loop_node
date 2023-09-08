@@ -8,8 +8,8 @@ from typing import List
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from learning_loop_node.data_classes import Detections, Training
-from learning_loop_node.globals import GLOBALS
+from ..data_classes import Detections, Training
+from ..globals import GLOBALS
 
 
 class LastTrainingIO:

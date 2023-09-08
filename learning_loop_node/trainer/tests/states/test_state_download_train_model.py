@@ -4,10 +4,11 @@ import os
 
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 
 
-async def test_downloading_is_successful(test_initialized_trainer: TestingTrainer):
+async def test_downloading_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='data_downloaded')
 
@@ -27,7 +28,7 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
     assert os.path.exists(f'{trainer.training.training_folder}/file_2.txt')
 
 
-async def test_abort_download_model(test_initialized_trainer: TestingTrainer):
+async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='data_downloaded')
     trainer.load_active_training()
@@ -42,7 +43,7 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainer):
     assert trainer.node.last_training_io.exists() is False
 
 
-async def test_downloading_failed(test_initialized_trainer: TestingTrainer):
+async def test_downloading_failed(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='data_downloaded',
                                 base_model_id='00000000-0000-0000-0000-000000000000')  # bad model id)

@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import cv2
 import numpy as np
-from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
 from learning_loop_node.data_classes import (AnnotationEventType, Point,
@@ -118,7 +117,7 @@ class SegmentationTool(AnnotatorLogic):
                 history.bg_pixel.append(user_input.data.coordinate)
 
             history.path_pixels.append(user_input.data.coordinate)
-            # TODO use LIST of path.
+
             output.svg = history.to_svg_path(user_input.data.is_shift_key_pressed or False)
             return output
 

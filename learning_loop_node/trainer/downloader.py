@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Dict, List, Optional, Tuple
 
-from learning_loop_node.data_exchanger import DataExchanger
+from ..data_exchanger import DataExchanger
 
 
 class TrainingsDownloader():

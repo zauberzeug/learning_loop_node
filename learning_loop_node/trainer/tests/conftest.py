@@ -7,7 +7,8 @@ import icecream
 import pytest
 
 from learning_loop_node.data_classes import Context
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +23,7 @@ async def test_initialized_trainer_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
-    trainer = TestingTrainer()
+    trainer = TestingTrainerLogic()
     node = TrainerNode(name='test', trainer=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
 
     trainer.init(context=Context(organization='zauberzeug', project='demo'), node=node,
@@ -42,7 +43,7 @@ async def test_initialized_trainer_node():
 @pytest.fixture()
 async def test_initialized_trainer():
 
-    trainer = TestingTrainer()
+    trainer = TestingTrainerLogic()
     node = TrainerNode(name='test', trainer=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
     # pylint: disable=protected-access
     await node._on_startup()

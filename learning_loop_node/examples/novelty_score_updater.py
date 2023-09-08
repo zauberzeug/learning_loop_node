@@ -1,6 +1,10 @@
+import asyncio
+
 from tqdm import tqdm
 
-from learning_loop_node import global_loop_communication as glc
+from learning_loop_node.loop_communication import LoopCommunicator
+
+glc = LoopCommunicator()
 
 glc.organization = 'zauberzeug'
 glc.project = 'demo'
@@ -28,3 +32,6 @@ for image_data in images_data:
 
 
 glc.put_json('/images/novelty_scores', json=novelty_scores)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(glc.shutdown())

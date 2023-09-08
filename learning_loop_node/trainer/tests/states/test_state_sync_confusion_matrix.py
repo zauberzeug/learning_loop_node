@@ -6,7 +6,7 @@ from learning_loop_node.trainer.trainer_logic import TrainerLogic
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 from ..state_helper import assert_training_state, create_active_training_file
-from ..testing_trainer import TestingTrainer
+from ..testing_trainer_logic import TestingTrainerLogic
 
 error_key = 'sync_confusion_matrix'
 
@@ -15,7 +15,7 @@ def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_nothing_to_sync(test_initialized_trainer: TestingTrainer):
+async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     # TODO this requires trainer to have _training
@@ -33,7 +33,7 @@ async def test_nothing_to_sync(test_initialized_trainer: TestingTrainer):
 
 async def test_unsynced_model_available__sync_successful(test_initialized_trainer_node: TrainerNode, mocker: MockerFixture):
     trainer = test_initialized_trainer_node.trainer
-    assert isinstance(trainer, TestingTrainer)
+    assert isinstance(trainer, TestingTrainerLogic)
 
     await mock_socket_io_call(mocker, test_initialized_trainer_node, {'success': True})
     create_active_training_file(trainer, training_state='training_finished')
@@ -51,7 +51,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
 
 async def test_unsynced_model_available__sio_not_connected(test_initialized_trainer_node: TrainerNode):
     trainer = test_initialized_trainer_node.trainer
-    assert isinstance(trainer, TestingTrainer)
+    assert isinstance(trainer, TestingTrainerLogic)
 
     create_active_training_file(trainer, training_state='training_finished')
 
@@ -70,7 +70,7 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
 
 async def test_unsynced_model_available__request_is_not_successful(test_initialized_trainer_node: TrainerNode, mocker: MockerFixture):
     trainer = test_initialized_trainer_node.trainer
-    assert isinstance(trainer, TestingTrainer)
+    assert isinstance(trainer, TestingTrainerLogic)
 
     await mock_socket_io_call(mocker, test_initialized_trainer_node, {'success': False})
 

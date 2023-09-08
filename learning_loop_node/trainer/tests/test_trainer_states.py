@@ -3,7 +3,8 @@ from uuid import uuid4
 
 from learning_loop_node.data_classes import Context, Training, TrainingState
 from learning_loop_node.trainer.io_helpers import LastTrainingIO
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 
@@ -20,7 +21,7 @@ def create_training() -> Training:
 
 def test_fixture_trainer_node(test_initialized_trainer_node):
     assert isinstance(test_initialized_trainer_node, TrainerNode)
-    assert isinstance(test_initialized_trainer_node.trainer, TestingTrainer)
+    assert isinstance(test_initialized_trainer_node.trainer, TestingTrainerLogic)
 
 
 def test_save_load_training():

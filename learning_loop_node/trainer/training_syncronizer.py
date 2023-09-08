@@ -1,15 +1,15 @@
 
-from dacite import from_dict
 import asyncio
 import logging
 from dataclasses import asdict
 from typing import Any
 
 import socketio
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from learning_loop_node.data_classes import TrainingOut
-from learning_loop_node.socket_response import SocketResponse
+from ..data_classes import TrainingOut
+from ..socket_response import SocketResponse
 
 
 async def try_sync_model(trainer: Any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):

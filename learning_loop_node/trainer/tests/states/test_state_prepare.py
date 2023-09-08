@@ -3,7 +3,8 @@ import asyncio
 from learning_loop_node.data_classes import Context
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'prepare'
@@ -13,7 +14,7 @@ def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_preparing_is_successful(test_initialized_trainer: TestingTrainer):
+async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
     trainer.load_active_training()
@@ -25,7 +26,7 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainer)
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_abort_preparing(test_initialized_trainer: TestingTrainer):
+async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
     trainer.load_active_training()
@@ -40,7 +41,7 @@ async def test_abort_preparing(test_initialized_trainer: TestingTrainer):
     assert trainer.node.last_training_io.exists() is False
 
 
-async def test_request_error(test_initialized_trainer: TestingTrainer):
+async def test_request_error(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, context=Context(
         organization='zauberzeug', project='some_bad_project'))

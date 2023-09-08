@@ -1,10 +1,11 @@
 import asyncio
 
-from learning_loop_node.data_classes import Detections, TrainingState
+from learning_loop_node.data_classes import TrainingState
 from learning_loop_node.data_classes.detections import get_dummy_detections
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'detecting'
@@ -14,7 +15,7 @@ def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successful_detecting(test_initialized_trainer: TestingTrainer):  # TODO Flaky test
+async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):  # TODO Flaky test
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
                                 model_id_for_detecting='917d5c7f-403d-7e92-f95f-577f79c2273a')
@@ -30,7 +31,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainer):  
     assert trainer.active_training_io.det_exists()
 
 
-async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer):
+async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainingState.TrainModelUploaded)
     trainer.load_active_training()
@@ -47,7 +48,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
     assert trainer.node.last_training_io.exists() is False
 
 
-async def test_model_not_downloadable_error(test_initialized_trainer: TestingTrainer):
+async def test_model_not_downloadable_error(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
                                 model_id_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
@@ -64,7 +65,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-def test_save_load_detections(test_initialized_trainer: TestingTrainer):
+def test_save_load_detections(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
     trainer.load_active_training()

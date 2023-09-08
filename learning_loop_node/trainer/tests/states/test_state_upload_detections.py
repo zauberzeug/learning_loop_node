@@ -9,7 +9,8 @@ from learning_loop_node.data_classes.detections import (BoxDetection,
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'upload_detections'
@@ -43,7 +44,7 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
 
 
 @pytest.mark.asyncio
-async def test_upload_successful(test_initialized_trainer: TestingTrainer):
+async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     print('-----------------------------', trainer.training.context, type(trainer.training.context))
     create_active_training_file(trainer, training_state='detected')
@@ -59,7 +60,7 @@ async def test_upload_successful(test_initialized_trainer: TestingTrainer):
 
 
 @pytest.mark.asyncio
-async def test_detection_upload_progress_is_stored(test_initialized_trainer: TestingTrainer):
+async def test_detection_upload_progress_is_stored(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected')
@@ -74,7 +75,7 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
 
 
 @pytest.mark.asyncio
-async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: TestingTrainer):
+async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected')
@@ -116,7 +117,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
 
 
 @pytest.mark.asyncio
-async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTrainer):
+async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected', context=Context(
@@ -133,7 +134,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_other_errors(test_initialized_trainer: TestingTrainer):
+async def test_other_errors(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     # e.g. missing detection file
@@ -149,7 +150,7 @@ async def test_other_errors(test_initialized_trainer: TestingTrainer):
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_abort_uploading(test_initialized_trainer: TestingTrainer):
+async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected')

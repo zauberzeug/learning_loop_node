@@ -2,8 +2,8 @@ import logging
 from abc import abstractmethod
 from typing import Any, Optional
 
-from learning_loop_node.data_classes import Detections, ModelInformation
-from learning_loop_node.globals import GLOBALS
+from ..data_classes import Detections, ModelInformation
+from ..globals import GLOBALS
 
 
 class DetectorLogic():

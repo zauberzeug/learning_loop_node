@@ -249,7 +249,7 @@ class DetectorNode(Node):
                                    value in asdict(p).items()])
                 seg_detection.shape = shapes  # TODO This seems to be a quick fix..
 
-        n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections),
+        n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
         self.log.info(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
 

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Union
 
-from learning_loop_node.data_classes.detections import Point, Shape
-from learning_loop_node.data_classes.general import Category, Context
+from .detections import Point, Shape
+from .general import Category, Context
 
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 

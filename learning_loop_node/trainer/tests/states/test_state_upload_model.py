@@ -5,7 +5,8 @@ from pytest_mock import MockerFixture
 from learning_loop_node.data_classes import Context
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'upload_model'
@@ -15,7 +16,7 @@ def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer: TestingTrainer):
+async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     mock_upload_model_for_training(mocker, {'id': 'some_id'})
 
@@ -33,7 +34,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_abort_upload_model(test_initialized_trainer: TestingTrainer):
+async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='confusion_matrix_synced')
@@ -50,7 +51,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainer):
     assert trainer.node.last_training_io.exists() is False
 
 
-async def test_bad_server_response_content(test_initialized_trainer: TestingTrainer):
+async def test_bad_server_response_content(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     # without a running training the loop will not allow uploading.
@@ -68,7 +69,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_mock_loop_response_example(mocker: MockerFixture, test_initialized_trainer: TestingTrainer):
+async def test_mock_loop_response_example(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     mock_upload_model_for_training(mocker, {'some_key': 'some_data'})

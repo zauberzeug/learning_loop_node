@@ -1,9 +1,10 @@
 from learning_loop_node.trainer.tests.state_helper import \
     create_active_training_file
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 
 
-async def test_cleanup_successfull(test_initialized_trainer: TestingTrainer):
+async def test_cleanup_successfull(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='ready_for_cleanup')
     trainer.load_active_training()

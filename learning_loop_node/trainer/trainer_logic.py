@@ -17,8 +17,7 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
-from learning_loop_node import node_helper
-
+from .. import node_helper
 from ..data_classes import (BasicModel, Category, Context, Detections, Errors,
                             Hyperparameter, ModelInformation, PretrainedModel,
                             Training, TrainingData, TrainingError,

@@ -1,14 +1,13 @@
-from learning_loop_node.data_classes import Detections
 import asyncio
 import time
 from typing import Dict, List, Optional, Union
 
-from learning_loop_node.data_classes import (BasicModel, Context,
+from learning_loop_node.data_classes import (BasicModel, Context, Detections,
                                              ModelInformation, PretrainedModel)
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
-class TestingTrainer(TrainerLogic):
+class TestingTrainerLogic(TrainerLogic):
     __test__ = False
 
     def __init__(self, can_resume: bool = False) -> None:
@@ -16,6 +15,10 @@ class TestingTrainer(TrainerLogic):
         self._can_resume: bool = can_resume
         self.has_new_model: bool = False
         self.error_msg: Optional[str] = None
+
+    @property
+    def progress(self) -> float:
+        return 1.0
 
     @property
     def provided_pretrained_models(self) -> List[PretrainedModel]:

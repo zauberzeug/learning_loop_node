@@ -3,10 +3,11 @@ import asyncio
 from learning_loop_node.tests.test_helper import condition
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer import TestingTrainer
+from learning_loop_node.trainer.tests.testing_trainer_logic import \
+    TestingTrainerLogic
 
 
-async def test_successful_training(test_initialized_trainer: TestingTrainer):
+async def test_successful_training(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='train_model_downloaded')
@@ -18,6 +19,7 @@ async def test_successful_training(test_initialized_trainer: TestingTrainer):
     assert trainer.train_task is not None
     assert trainer.train_task.__name__ == 'start_training'
 
+    # pylint: disable=protected-access
     assert trainer._executor is not None
     trainer._executor.stop()  # NOTE normally a training terminates itself
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
@@ -26,7 +28,7 @@ async def test_successful_training(test_initialized_trainer: TestingTrainer):
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_stop_running_training(test_initialized_trainer: TestingTrainer):
+async def test_stop_running_training(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='train_model_downloaded')
@@ -46,7 +48,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainer):
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrainer):
+async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     # NOTE e.g. when a node-computer is restarted

@@ -32,11 +32,11 @@ class RelevanceGroup:
                 self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')
                 continue
-            if not (isinstance(detection, (BoxDetection, PointDetection))):  # P? passt die änderung?
+            if not isinstance(detection, (BoxDetection, PointDetection)):  # P? passt die änderung?
                 continue
 
             similar = self.find_similar_observations(detection)
-            if (any(similar)):
+            if any(similar):
                 for s in similar:
                     s.update_last_seen()
                 continue

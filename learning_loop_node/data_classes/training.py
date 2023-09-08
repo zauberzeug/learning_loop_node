@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Union
 
 # pylint: disable=no-name-in-module
-from learning_loop_node.data_classes import Category, Context
+from .general import Category, Context
 
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
