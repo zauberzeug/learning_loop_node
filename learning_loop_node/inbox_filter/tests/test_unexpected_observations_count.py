@@ -36,4 +36,4 @@ def test_unexpected_observations_count(detections: Detections, reason: List[str]
     outbox = Outbox()
 
     r_filter = RelevanceFilter(outbox)
-    assert r_filter.learn(detections, raw_image=b'', camera_id='0:0:0:0', tags=[]) == reason
+    assert r_filter.may_upload_detections(detections, raw_image=b'', cam_id='0:0:0:0', tags=[]) == reason

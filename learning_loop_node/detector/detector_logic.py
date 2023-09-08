@@ -44,4 +44,5 @@ class DetectorLogic():
 
     @abstractmethod
     def evaluate(self, image: Any) -> Detections:
-        """Evaluate the image and return the detections"""
+        """Evaluate the image and return the detections.
+        The object should return empty detections if it is not initialized"""

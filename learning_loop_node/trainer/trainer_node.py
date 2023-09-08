@@ -61,8 +61,7 @@ class TrainerNode(Node):
         loop = asyncio.get_event_loop()
         loop.create_task(self.trainer_logic.train())
 
-    async def send_status(self):
-        # NOTE: the send status is used to potentially start an existing training P?
+    async def send_status(self):  # TODO rename?
 
         if self._sio_client is None or not self._sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')

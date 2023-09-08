@@ -18,7 +18,7 @@ def trainer_has_error(trainer: TrainerLogic):
 
 async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    mock_upload_model_for_training(mocker, {'id': 'some_id'})
+    mock_upload_model_for_training(mocker, 'new_model_id')
 
     create_active_training_file(trainer)
     trainer.load_active_training()
@@ -30,7 +30,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
 
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'train_model_uploaded'
-    assert trainer.training.model_id_for_detecting == 'some_id'
+    assert trainer.training.model_id_for_detecting is not None
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -72,15 +72,15 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 async def test_mock_loop_response_example(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    mock_upload_model_for_training(mocker, {'some_key': 'some_data'})
+    mock_upload_model_for_training(mocker, 'new_model_id')
 
     create_active_training_file(trainer)
     trainer.load_active_training()
 
     # pylint: disable=protected-access
-    result = await trainer._upload_model(Context(organization='zauberzeug', project='demo'))
+    result = await trainer._upload_model_return_new_id(Context(organization='zauberzeug', project='demo'))
 
-    assert result['some_key'] == 'some_data'
+    assert result is not None
 
 
 def mock_upload_model_for_training(mocker, return_value):

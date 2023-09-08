@@ -16,7 +16,7 @@ from learning_loop_node.data_classes.general import Category, ModelInformation
 from learning_loop_node.detector.outbox import Outbox
 from learning_loop_node.globals import GLOBALS
 
-from .testing_detector import TestingDetector
+from .testing_detector import TestingDetectorLogic
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,7 +40,7 @@ async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
-    detector = TestingDetector()
+    detector = TestingDetectorLogic()
     node = DetectorNode(name='test', detector=detector)
     await port_is(free=True)
 

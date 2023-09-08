@@ -124,9 +124,7 @@ def test_segmentation_detections_are_extracted_from_json():
 def test_ignoring_similar_points():
     group = RelevanceGroup()
     filter_cause = group.add_point_detections(
-        [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')]
-    )
-    # TODO: P? ne, alles ausser box detections werden ignoriert ?!?!
+        [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')])
     assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
     assert len(group.recent_observations) == 1, 'detection should be stored'
 

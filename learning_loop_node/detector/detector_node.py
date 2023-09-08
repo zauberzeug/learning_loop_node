@@ -185,8 +185,7 @@ class DetectorNode(Node):
             await self.send_status()
 
     async def send_status(self) -> Union[str, Literal[False]]:
-        assert self._sio_client is not None
-        if not self._sio_client.connected:
+        if not self.sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return False
 
@@ -203,13 +202,13 @@ class DetectorNode(Node):
         )
 
         self.log.info(f'sending status {status}')
-        assert self._sio_client is not None
-        response = await self._sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
             self.log.error(f'Statusupdate failed: {response}')
             return False
+
         assert socket_response.payload is not None
         self.target_model = socket_response.payload['target_model_version']
         self.log.info(f'After sending status. Target_model is {self.target_model}')
@@ -236,9 +235,6 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self, raw_image, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-        if not self.detector_logic.is_initialized:
-            self.log.warning('Cannot infer detections. No model loaded.')
-            return None
 
         loop = asyncio.get_event_loop()
         detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
@@ -247,7 +243,7 @@ class DetectorNode(Node):
             if isinstance(seg_detection.shape, Shape):
                 shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
                                    value in asdict(p).items()])
-                seg_detection.shape = shapes  # TODO This seems to be a quick fix..
+                seg_detection.shape = shapes  # TODO This seems to be a quick fix.. check how loop upload detections deals with this
 
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
@@ -256,7 +252,8 @@ class DetectorNode(Node):
         if camera_id is not None:
             tags.append(camera_id)
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
-            Thread(target=self.relevance_filter.learn, args=(detections, camera_id, raw_image, tags)).start()
+            Thread(target=self.relevance_filter.may_upload_detections,
+                   args=(detections, camera_id, raw_image, tags)).start()
         elif autoupload == 'all':
             Thread(target=self.outbox.save, args=(raw_image, detections, tags)).start()
         elif autoupload == 'disabled':

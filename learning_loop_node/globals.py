@@ -1,9 +1,9 @@
 
 class Globals():
     def __init__(self):
-        self.data_folder: str = '/data'  # p? in env schreiben?
-        self.detector_port: int = 5003
-        self.mock_trainer_node_port = 5001
+        self.data_folder: str = '/data'
+        self.detector_port: int = 5004
+        self.mock_trainer_node_port = 5001  # TODO unused?
 
 
 GLOBALS = Globals()

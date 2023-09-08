@@ -8,7 +8,7 @@ from learning_loop_node.data_classes import (BoxDetection, Detections,
                                              PointDetection)
 
 from .conftest import get_outbox_files
-from .testing_detector import TestingDetector
+from .testing_detector import TestingDetectorLogic
 
 
 @pytest.mark.parametrize('autoupload, expected_file_count', [(None, 2), ('all', 4)])
@@ -16,8 +16,7 @@ async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autouplo
     """Test if filtering is used by the node. In particular, when upload is filtered, the identical detections should not be uploaded twice.
     Note thatt we have to mock the dummy detections to only return a point and a box detection."""
 
-    assert isinstance(test_detector_node.detector_logic, TestingDetector)
-    test_detector_node.detector_logic.mock_is_initialized = True
+    assert isinstance(test_detector_node.detector_logic, TestingDetectorLogic)
     test_detector_node.detector_logic.det_to_return = Detections(
         box_detections=[
             BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,

@@ -137,9 +137,10 @@ def get_dummy_detections():
                                     confidence=.42, category_id='some_id_4')])
 
 
+# TODO make dataclass
 class Observation():
 
-    def __init__(self, detection: Union[BoxDetection, PointDetection, SegmentationDetection]):
+    def __init__(self, detection: Union[BoxDetection, PointDetection, SegmentationDetection, ClassificationDetection]):
         self.detection = detection
         self.last_seen = datetime.now()
 

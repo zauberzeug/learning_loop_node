@@ -186,7 +186,8 @@ class Node(FastAPI):
 
     @abstractmethod
     async def send_status(self):
-        """Send the current status to the learning loop."""
+        """Send the current status to the learning loop.
+        Note the curently this method is also used to reract to the response of the learning loop."""
 
     @abstractmethod
     async def get_state(self) -> NodeState:

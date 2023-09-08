@@ -54,6 +54,7 @@ class ActiveTrainingIO:
         self.dup_path = f'{training_folder}/detection_uploading_progress.txt'
 
     # model upload progress
+    # NOTE: progress file is deleted implicitly after training
 
     def mup_save(self, formats: List[str]) -> None:
         with open(self.mup_path, 'w') as f:
@@ -64,10 +65,6 @@ class ActiveTrainingIO:
             return []
         with open(self.mup_path, 'r') as f:
             return f.read().split(',')
-
-    def mup_delete(self) -> None:
-        if os.path.exists(self.mup_path):
-            os.remove(self.mup_path)
 
     # detections
 

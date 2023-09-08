@@ -7,6 +7,8 @@ from learning_loop_node import DetectorNode
 from learning_loop_node.detector.tests.conftest import get_outbox_files
 from learning_loop_node.globals import GLOBALS
 
+from .testing_detector import TestingDetectorLogic
+
 
 @pytest.mark.asyncio
 async def test_detector_path(test_detector_node: DetectorNode):
@@ -15,7 +17,6 @@ async def test_detector_path(test_detector_node: DetectorNode):
 # pylint: disable=unused-argument
 
 
-# @pytest.mark.parametrize('test_detector_node', [True], indirect=True)
 async def test_sio_detect(test_detector_node, sio_client):
     with open('detector/tests/test.jpg', 'rb') as f:
         image_bytes = f.read()
@@ -40,10 +41,14 @@ async def test_sio_detect(test_detector_node, sio_client):
 
 
 @pytest.mark.parametrize('grouping_key', ['mac', 'camera_id'])
-@pytest.mark.parametrize('test_detector_node', [True], indirect=True)
 def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     image = {('file', open('detector/tests/test.jpg', 'rb'))}
     headers = {grouping_key: '0:0:0:0', 'tags':  'some_tag'}
+
+    assert isinstance(test_detector_node.detector_logic, TestingDetectorLogic)
+    # test_detector_node.detector_logic.mock_is_initialized = True
+    # print(test_detector_node.detector_logic.mock_is_initialized)
+    # print(test_detector_node.detector_logic.is_initialized)
     response = requests.post(f'http://localhost:{GLOBALS.detector_port}/detect',
                              files=image, headers=headers, timeout=30)
     assert response.status_code == 200

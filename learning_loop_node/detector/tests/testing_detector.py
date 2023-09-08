@@ -5,25 +5,15 @@ from learning_loop_node.data_classes import Detections
 from learning_loop_node.data_classes.detections import get_dummy_detections
 
 
-class TestingDetector(DetectorLogic):
+class TestingDetectorLogic(DetectorLogic):
     __test__ = False
 
     def __init__(self) -> None:
         super().__init__('mocked')
         self.det_to_return = get_dummy_detections()
-        self.mock_is_initialized = False
 
     def init(self):
         pass
-
-    # def load_model(self):
-    #     if self.mock_is_initialized:
-
-    @property
-    def is_initialized(self) -> bool:
-        if self.mock_is_initialized:
-            return True
-        return super().is_initialized
 
     def evaluate(self, image: bytes) -> Detections:
         logging.info('evaluating')

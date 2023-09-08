@@ -1,7 +1,9 @@
 from typing import List, Union
 
-from learning_loop_node.data_classes import (BoxDetection, Detections,
-                                             Observation, PointDetection,
+from learning_loop_node.data_classes import (BoxDetection,
+                                             ClassificationDetection,
+                                             Detections, Observation,
+                                             PointDetection,
                                              SegmentationDetection)
 
 
@@ -27,22 +29,28 @@ class RelevanceGroup:
 
     def add_detections(self, detections: Detections) -> List[str]:
         causes = set()
-        for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections:  # P? warum nicht für classification?
+        for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections + detections.classification_detections:
             if isinstance(detection, SegmentationDetection):
                 self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')
                 continue
-            if not isinstance(detection, (BoxDetection, PointDetection)):  # P? passt die änderung?
+            if isinstance(detection, ClassificationDetection):
+                self.recent_observations.append(Observation(detection))
+                causes.add('classification_detection')
                 continue
+
+            assert isinstance(detection, (BoxDetection, PointDetection)), f"Unknown detection type: {type(detection)}"
 
             similar = self.find_similar_observations(detection)
             if any(similar):
                 for s in similar:
                     s.update_last_seen()
                 continue
+
             self.recent_observations.append(Observation(detection))
-            if 0.3 <= detection.confidence <= 0.6:  # TODO: P? warum nicht für segmentation/classification?
+            if 0.3 <= detection.confidence <= 0.6:
                 causes.add('uncertain')
+
         return list(causes)
 
     def find_similar_observations(self, new_detection: Union[BoxDetection, PointDetection]) -> List[Observation]:

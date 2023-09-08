@@ -181,7 +181,6 @@ class TrainerLogic():
         self.training.data.skipped_image_count = skipped_image_count
 
     async def download_model(self) -> None:
-
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelDownloading
         error_key = 'download_model'
@@ -310,9 +309,9 @@ class TrainerLogic():
         self.training.training_state = TrainingState.TrainModelUploading
 
         try:
-            uploaded_model = await self._upload_model(self.training.context)
-            assert uploaded_model is not None, 'uploaded_model must be set'
-            self.training.model_id_for_detecting = uploaded_model['id']
+            new_model_id = await self._upload_model_return_new_id(self.training.context)
+            assert new_model_id is not None, 'uploaded_model must be set'
+            self.training.model_id_for_detecting = new_model_id
         except asyncio.CancelledError:
             logging.warning('CancelledError in upload_model')
             raise
@@ -325,39 +324,41 @@ class TrainerLogic():
             self.training.training_state = TrainingState.TrainModelUploaded
             self.node.last_training_io.save(self.training)
 
-    async def _upload_model(self, context: Context) -> Optional[Dict]:
+    async def _upload_model_return_new_id(self, context: Context) -> Optional[str]:
+        """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
+        Note that with the latest trainers the conversion to (.wts) is done by the trainer.
+        The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
+        Note that trainer may train with different classes, which is why we send an initial model.json file.
+        """
+
         try:
             files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
         except FileNotFoundError as exc:
             raise Exception('Could not find any model files to upload.') from exc
 
-        model_json_content = self.create_model_json_content()
-        model_json_path = '/tmp/model.json'
-        with open(model_json_path, 'w') as f:
-            json.dump(model_json_content, f)
-
         if isinstance(files, List):
             files = {self.model_format: files}
+        assert isinstance(files, Dict), f'can only save model as list or dict, but was {files}'
 
-        uploaded_model = None
+        model_json_path = self.create_model_json_with_categories()
         already_uploaded_formats = self.active_training_io.mup_load()
-        if isinstance(files, Dict):
-            for file_format in files:
-                if file_format in already_uploaded_formats:
-                    continue
-                # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
-                assert len([file for file in files[file_format] if 'model.json' in file]) == 0, \
-                    "It is not allowed to provide a 'model.json' file."
-                _files = files[file_format]
-                _files.append(model_json_path)
-                # TODO P? uploaded_model wird überschrieben ?!
-                uploaded_model = await self.node.data_exchanger.upload_model_for_training(context, _files, self.training.training_number, file_format)
-                already_uploaded_formats.append(file_format)
-                self.active_training_io.mup_save(already_uploaded_formats)
 
-        else:
-            raise TypeError(f'can only save model as list or dict, but was {files}')
-        return uploaded_model
+        new_id = None
+        for file_format in files:
+            if file_format in already_uploaded_formats:
+                continue
+            _files = files[file_format]
+            # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
+            assert not any(f for f in _files if 'model.json' in f), "Upload 'model.json' not allowed (added automatically)."
+            _files.append(model_json_path)
+            new_id = await self.node.data_exchanger.upload_model_for_training(context, _files, self.training.training_number, file_format)
+            if new_id is None:
+                return None
+
+            already_uploaded_formats.append(file_format)
+            self.active_training_io.mup_save(already_uploaded_formats)
+
+        return new_id
 
     async def do_detections(self):
         error_key = 'detecting'
@@ -619,16 +620,22 @@ class TrainerLogic():
     def model_architecture(self) -> Optional[str]:
         return None
 
-    def create_model_json_content(self) -> Optional[Dict]:
-        if self._training and self._training.data and self._training.data.hyperparameter:
+    def create_model_json_with_categories(self) -> str:
+        """Remaining fields are filled by the Learning Loop"""
+        if self._training and self._training.data:
             content = {
                 'categories': [asdict(c) for c in self._training.data.categories],
-                'resolution': self._training.data.hyperparameter.resolution
             }
-            return content
-        return None
+        else:
+            content = None
+
+        model_json_path = '/tmp/model.json'
+        with open(model_json_path, 'w') as f:
+            json.dump(content, f)
+
+        return model_json_path
 
     @property
     @abstractmethod
-    def progress(self) -> float:  # P? passt das als property (YOLO checken)
+    def progress(self) -> float:
         pass

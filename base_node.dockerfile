@@ -12,7 +12,7 @@ WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
 
-# We use Poetry for dependency management P? warum nicht über pip?
+# We use Poetry for dependency management (recommended way to install it)
 RUN curl -sSL https://install.python-poetry.org | python3 - && \
     cd /usr/local/bin && \
     ln -s ~/.local/bin/poetry && \
