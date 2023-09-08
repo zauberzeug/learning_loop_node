@@ -4,7 +4,14 @@ import pytest
 from learning_loop_node.loop_communication import LoopCommunicator
 
 
-@pytest.fixture(autouse=True, scope='module')
+@pytest.fixture()
+async def glc():
+    loop_communicator = LoopCommunicator()
+    yield loop_communicator
+    await loop_communicator.shutdown()
+
+
+@pytest.fixture(autouse=True, scope='function')
 async def setup_test_project(glc: LoopCommunicator):
     await glc.delete("/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {

@@ -12,7 +12,7 @@ WORKDIR /app/
 
 RUN python3 -m pip install --upgrade pip
 
-# We use Poetry for dependency management
+# We use Poetry for dependency management P? warum nicht über pip?
 RUN curl -sSL https://install.python-poetry.org | python3 - && \
     cd /usr/local/bin && \
     ln -s ~/.local/bin/poetry && \
@@ -20,9 +20,12 @@ RUN curl -sSL https://install.python-poetry.org | python3 - && \
 
 COPY pyproject.toml ./
 
-# Allow installing dev dependencies to run tests
+# Allow installing dev dependencies to run tests, can be disbaled by setting --build-arg INSTALL_DEV=false
 ARG INSTALL_DEV=true
-RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install -vvv --no-root ; else poetry install -vvv --no-root --no-dev ; fi"
+RUN echo "INSTALL_DEV is set to $INSTALL_DEV"
+#RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install -vvv --no-root ; else poetry install -vvv --no-root --no-dev ; fi"
+RUN if [ "$INSTALL_DEV" = 'true' ]; then poetry install -vvv --no-root; else poetry install -vvv --no-root --no-dev; fi
+
 
 # while development this will be mounted but in deployment we need the latest code baked into the image
 ADD ./learning_loop_node /usr/local/lib/python3.11/site-packages/learning_loop_node

@@ -26,3 +26,5 @@ def default_user_input() -> UserInput:
         is_shift_key_pressed=None
     )
     return UserInput(frontend_id='some_id', data=annotation_data)
+
+# TODO: test missing
