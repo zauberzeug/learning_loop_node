@@ -24,6 +24,7 @@ class DetectorLogic():
         return self._model_info is not None
 
     def load_model(self):
+        logging.info(f'Loading model from {GLOBALS.data_folder}/model')
         model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
         if model_info is None:
             logging.warning('No model found')

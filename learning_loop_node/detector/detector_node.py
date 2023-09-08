@@ -35,7 +35,7 @@ class DetectorNode(Node):
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
-        self.detector = detector
+        self.detector_logic = detector
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization and self.project, 'Detector node needs an organization and an project'
@@ -60,7 +60,7 @@ class DetectorNode(Node):
     async def on_startup(self):
         try:
             self.outbox.start_continuous_upload()
-            self.detector.load_model()
+            self.detector_logic.load_model()
         except Exception:
             self.log.exception("error during 'startup'")
         self.operation_mode = OperationMode.Idle
@@ -105,8 +105,8 @@ class DetectorNode(Node):
                 return {'error': str(e)}
 
         async def _info(sid) -> Union[str, Dict]:
-            if self.detector.is_initialized:
-                return self.detector.model_info.__dict__
+            if self.detector_logic.is_initialized:
+                return self.detector_logic.model_info.__dict__
             return 'No model loaded'
 
         async def _upload(sid, data) -> Optional[Dict]:
@@ -135,9 +135,9 @@ class DetectorNode(Node):
             if not update_to_model_id:
                 self.log.info('could not check for updates')
                 return
-            if self.detector.is_initialized:
+            if self.detector_logic.is_initialized:
                 self.log.info(
-                    f'Current model: {self.detector.model_info.version} with id {self.detector.model_info.id}')
+                    f'Current model: {self.detector_logic.model_info.version} with id {self.detector_logic.model_info.id}')
             else:
                 self.log.info('no model loaded')
             if self.operation_mode != OperationMode.Idle:
@@ -150,9 +150,9 @@ class DetectorNode(Node):
                 return
 
             self.log.info('going to check for new updates')
-            if not self.detector.is_initialized or self.target_model != self.detector.model_info.version:
-                self.log.info(
-                    f'Current model "{self.detector.model_info.version if self.detector.is_initialized else "-"}" needs to be updated to {self.target_model}')
+            if not self.detector_logic.is_initialized or self.target_model != self.detector_logic.model_info.version:
+                cur_model = self.detector_logic.model_info.version if self.detector_logic.is_initialized else "-"
+                self.log.info(f'Current model "{cur_model}" needs to be updated to {self.target_model}')
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
@@ -163,7 +163,7 @@ class DetectorNode(Node):
                         target_model_folder,
                         Context(organization=self.organization, project=self.project),
                         update_to_model_id,
-                        self.detector.model_format
+                        self.detector_logic.model_format
                     )
                     try:
                         os.unlink(model_symlink)
@@ -173,9 +173,9 @@ class DetectorNode(Node):
                     os.symlink(target_model_folder, model_symlink)
                     self.log.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
 
+                    self.detector_logic.load_model()
                     await self.send_status()
                     # self.reload(reason='new model installed')
-                    self.detector.load_model()
             else:
                 self.log.info('Versions are identic. Nothing to do.')
         except Exception as e:
@@ -197,9 +197,9 @@ class DetectorNode(Node):
             errors=self.status.errors,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
             operation_mode=self.operation_mode,
-            current_model=self.detector.model_info.version if self.detector.is_initialized else None,
+            current_model=self.detector_logic.model_info.version if self.detector_logic.is_initialized else None,
             target_model=self.target_model,
-            model_format=self.detector.model_format,
+            model_format=self.detector_logic.model_format,
         )
 
         self.log.info(f'sending status {status}')
@@ -236,12 +236,12 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self, raw_image, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-        if not self.detector.is_initialized:
+        if not self.detector_logic.is_initialized:
             self.log.warning('Cannot infer detections. No model loaded.')
             return None
 
         loop = asyncio.get_event_loop()
-        detections: Detections = await loop.run_in_executor(None, self.detector.evaluate, raw_image)
+        detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
 
         for seg_detection in detections.segmentation_detections:
             if isinstance(seg_detection.shape, Shape):
