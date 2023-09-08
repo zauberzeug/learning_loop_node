@@ -10,7 +10,8 @@ from mock_trainer.mock_trainer_logic import MockTrainerLogic
 
 
 mock_trainer = MockTrainerLogic(model_format='mocked')
-trainer_node = TrainerNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2', name='mocked trainer', trainer=mock_trainer)
+trainer_node = TrainerNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2',
+                           name='mocked trainer', trainer_logic=mock_trainer)
 
 
 # setting up backdoor_controls

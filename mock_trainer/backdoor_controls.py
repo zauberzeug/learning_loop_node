@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from learning_loop_node.data_classes import ErrorConfiguration, NodeState
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
+from .mock_trainer_logic import MockTrainerLogic
+
 router = APIRouter()
 
 
@@ -37,10 +39,10 @@ async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
     trainer_node = trainer_node_from_request(request)
     if value == 'off':
-        trainer_node.trainer.provide_new_model = False
+        trainer_node.trainer_logic.provide_new_model = False
         trainer_node.status.reset_all_errors()
     if value == 'on':
-        trainer_node.trainer.provide_new_model = True
+        trainer_node.trainer_logic.provide_new_model = True
 
     logging.debug(f'turning automatically provide_new_model {value}')
 
@@ -50,8 +52,8 @@ async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
     await _switch_socketio('on', trainer_node)
 
-    await trainer_node.trainer.stop()
-    await trainer_node.trainer.stop()
+    await trainer_node.trainer_logic.stop()
+    await trainer_node.trainer_logic.stop()
     # NOTE first stop may only kill running training process
 
     trainer_node.last_training_io.delete()
@@ -68,38 +70,41 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
         curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json"
     '''
     print(f'setting error configuration to: {error_configuration.json()}')
-    trainer_node_from_request(request).trainer.error_configuration = error_configuration
+    trainer_node_from_request(request).trainer_logic.error_configuration = error_configuration
 
 
 @router.post("/steps")
 async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
 
-    if not trainer_node.trainer._executor or not trainer_node.trainer._executor.is_process_running():  # pylint: disable=protected-access
+    assert isinstance(trainer_node.trainer_logic, MockTrainerLogic)
+
+    if not trainer_node.trainer_logic._executor or not trainer_node.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
         logging.error(
-            f'cannot add steps when training is not running, state:  { trainer_node.trainer._training.training_state}')
+            f'cannot add steps when training is not running, state:  { trainer_node.trainer_logic._training.training_state}')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
-    previous_state = trainer_node.trainer.provide_new_model
-    trainer_node.trainer.provide_new_model = True
+    previous_state = trainer_node.trainer_logic.provide_new_model
+    trainer_node.trainer_logic.provide_new_model = True
     print(f'simulating newly completed models by moving {steps} forward', flush=True)
     for i in range(0, steps):
         try:
-            await trainer_node.trainer.sync_confusion_matrix(trainer_node.uuid, trainer_node._sio_client)
+            await trainer_node.trainer_logic.sync_confusion_matrix(trainer_node.uuid, trainer_node._sio_client)
         except Exception:
             # Tests can force synchroniation to fail, error state is reported to backend
             pass
-    trainer_node.trainer.provide_new_model = previous_state
+    trainer_node.trainer_logic.provide_new_model = previous_state
     await trainer_node.send_status()
 
 
 @router.post("/kill_training_process")
 async def kill_process(request: Request):
+    # pylint: disable=protected-access
     trainer_node = trainer_node_from_request(request)
-    if not trainer_node.trainer._executor or not trainer_node.trainer._executor.is_process_running():
+    if not trainer_node.trainer_logic._executor or not trainer_node.trainer_logic._executor.is_process_running():
         raise HTTPException(status_code=409, detail="trainer is not running")
-    trainer_node.trainer._executor.stop()
+    trainer_node.trainer_logic._executor.stop()
 
 
 @router.post("/force_status_update")

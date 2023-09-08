@@ -46,11 +46,8 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
 @pytest.mark.asyncio
 async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    print('-----------------------------', trainer.training.context, type(trainer.training.context))
     create_active_training_file(trainer, training_state='detected')
     trainer.load_active_training()
-
-    print('-----------------------------', trainer.training.context, type(trainer.training.context))
 
     await create_valid_detection_file(trainer)
     await trainer.upload_detections()

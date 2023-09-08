@@ -107,7 +107,6 @@ class TrainerLogic():
             await self.training_task  # Object is used to potentially cancel the task
 
         except asyncio.CancelledError:
-            print('------------------- CancelledError -------------------', flush=True)
             if not self.shutdown_event.is_set():
                 logging.info('cancelled training task')
                 self.training.training_state = TrainingState.ReadyForCleanup
@@ -488,7 +487,6 @@ class TrainerLogic():
             self.node.last_training_io.delete()
 
     async def stop(self) -> None:
-        print('------------------- stop -------------------', flush=True)
         if not self._training:
             return
         if self._executor and self._executor.is_process_running():
@@ -503,7 +501,6 @@ class TrainerLogic():
                 logging.info('cancelled training task')
 
     async def shutdown(self) -> None:
-        print('------------------- shutdown -------------------', flush=True)
         self.shutdown_event.set()
         await self.stop()
         await self.stop()  # NOTE first stop may only stop training.

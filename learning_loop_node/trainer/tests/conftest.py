@@ -24,7 +24,7 @@ async def test_initialized_trainer_node():
     os.environ['PROJECT'] = 'demo'
 
     trainer = TestingTrainerLogic()
-    node = TrainerNode(name='test', trainer=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
+    node = TrainerNode(name='test', trainer_logic=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
 
     trainer.init(context=Context(organization='zauberzeug', project='demo'), node=node,
                  details={'categories': [],
@@ -44,7 +44,7 @@ async def test_initialized_trainer_node():
 async def test_initialized_trainer():
 
     trainer = TestingTrainerLogic()
-    node = TrainerNode(name='test', trainer=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
+    node = TrainerNode(name='test', trainer_logic=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
     # pylint: disable=protected-access
     await node._on_startup()
 

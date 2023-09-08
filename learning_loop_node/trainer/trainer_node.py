@@ -17,9 +17,9 @@ from .trainer_logic import TrainerLogic
 
 class TrainerNode(Node):
 
-    def __init__(self, name: str, trainer: TrainerLogic, uuid: Optional[str] = None):
+    def __init__(self, name: str, trainer_logic: TrainerLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
-        self.trainer = trainer
+        self.trainer_logic = trainer_logic
         self.train_loop_busy = False
         self.model_published: bool = False
         self.last_training_io = LastTrainingIO(self.uuid)
@@ -36,7 +36,7 @@ class TrainerNode(Node):
 
     async def on_shutdown(self):
         self.log.info('shutdown detected, stopping training')
-        await self.trainer.shutdown()
+        await self.trainer_logic.shutdown()
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -44,7 +44,7 @@ class TrainerNode(Node):
         async def begin_training(organization: str, project: str, details: Dict):
             assert self._sio_client is not None
             self.log.info('received begin_training from server')
-            self.trainer.init(Context(organization=organization, project=project), details, self)
+            self.trainer_logic.init(Context(organization=organization, project=project), details, self)
             self.start_training_task()
             return True
 
@@ -52,14 +52,14 @@ class TrainerNode(Node):
         async def stop_training():
             self.log.info(f'### on stop_training received. Current state : {self.status.state}')
             try:
-                await self.trainer.stop()
+                await self.trainer_logic.stop()
             except Exception:
                 self.log.exception('error in stop_training')
             return True
 
     def start_training_task(self):
         loop = asyncio.get_event_loop()
-        loop.create_task(self.trainer.train())
+        loop.create_task(self.trainer_logic.train())
 
     async def send_status(self):
         # NOTE: the send status is used to potentially start an existing training P?
@@ -68,16 +68,16 @@ class TrainerNode(Node):
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return
 
-        if not self.trainer.is_initialized and self.last_training_io.exists():
+        if not self.trainer_logic.is_initialized and self.last_training_io.exists():
             self.log.warning('Found active training, starting now.')
             self.start_training_task()
             return
 
-        if not self.trainer.is_initialized:
+        if not self.trainer_logic.is_initialized:
             state_for_learning_loop = 'unknown state'
         else:
-            assert self.trainer.training.training_state is not None
-            state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer.training.training_state)
+            assert self.trainer_logic.training.training_state is not None
+            state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer_logic.training.training_state)
 
         status = TrainingStatus(
             uuid=self.uuid,
@@ -88,15 +88,15 @@ class TrainerNode(Node):
             progress=self.progress
         )
 
-        status.pretrained_models = self.trainer.provided_pretrained_models
-        status.architecture = self.trainer.model_architecture
+        status.pretrained_models = self.trainer_logic.provided_pretrained_models
+        status.architecture = self.trainer_logic.model_architecture
 
-        if self.trainer.is_initialized and self.trainer.training.data:
-            status.train_image_count = self.trainer.training.data.train_image_count()
-            status.test_image_count = self.trainer.training.data.test_image_count()
-            status.skipped_image_count = self.trainer.training.data.skipped_image_count
-            status.hyperparameters = self.trainer.hyperparameters
-            status.errors = self.trainer.errors.errors
+        if self.trainer_logic.is_initialized and self.trainer_logic.training.data:
+            status.train_image_count = self.trainer_logic.training.data.train_image_count()
+            status.test_image_count = self.trainer_logic.training.data.test_image_count()
+            status.skipped_image_count = self.trainer_logic.training.data.skipped_image_count
+            status.hyperparameters = self.trainer_logic.hyperparameters
+            status.errors = self.trainer_logic.errors.errors
 
         self.log.info(f'sending status {status}')
         result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=1)
@@ -108,17 +108,18 @@ class TrainerNode(Node):
             self.log.exception('update trainer failed')
 
     async def get_state(self):
-        if self.trainer._executor is not None and self.trainer._executor.is_process_running():  # pylint: disable=protected-access
+        if self.trainer_logic._executor is not None and self.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
             return NodeState.Running
         return NodeState.Idle
 
     @property
     def progress(self) -> Union[float, None]:
-        return self.trainer.progress if (self.trainer is not None and hasattr(self.trainer, 'progress')) else None
+        return self.trainer_logic.progress if (self.trainer_logic is not None and
+                                               hasattr(self.trainer_logic, 'progress')) else None
 
     @property
     def training_uptime(self) -> Union[float, None]:
-        return time.time() - self.trainer.start_time if self.trainer.start_time else None
+        return time.time() - self.trainer_logic.start_time if self.trainer_logic.start_time else None
 
     @staticmethod
     def state_for_learning_loop(trainer_state: Union[TrainingState, str]) -> str:

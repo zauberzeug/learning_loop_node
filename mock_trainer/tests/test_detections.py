@@ -21,7 +21,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
     latest_model_id = await test_helper.get_latest_model_id()
 
     trainer = MockTrainerLogic(model_format='mocked')
-    node = TrainerNode(name='test', trainer=trainer)
+    node = TrainerNode(name='test', trainer_logic=trainer)
     context = Context(organization='zauberzeug', project='pytest')
     details = {'categories': [jsonable_encoder(asdict(Category(id='some_id', name='some_category_name')))],
                'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project

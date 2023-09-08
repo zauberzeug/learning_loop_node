@@ -8,7 +8,7 @@ from glob import glob
 from http import HTTPStatus
 from io import BytesIO
 from time import perf_counter
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import aiofiles
 from tqdm.asyncio import tqdm

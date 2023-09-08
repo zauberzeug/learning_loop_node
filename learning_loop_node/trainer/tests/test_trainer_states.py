@@ -21,7 +21,7 @@ def create_training() -> Training:
 
 def test_fixture_trainer_node(test_initialized_trainer_node):
     assert isinstance(test_initialized_trainer_node, TrainerNode)
-    assert isinstance(test_initialized_trainer_node.trainer, TestingTrainerLogic)
+    assert isinstance(test_initialized_trainer_node.trainer_logic, TestingTrainerLogic)
 
 
 def test_save_load_training():

@@ -16,5 +16,4 @@ class MockDetector(DetectorLogic):
         pass
 
     def evaluate(self, image: Any) -> Detections:
-        print('------------------ evaluate')
         return Detections()

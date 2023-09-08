@@ -104,9 +104,7 @@ class ConverterNode(Node):
                         )
                         await self.convert_model(model_information)
         except Exception as e:
-
-            logging.error(str(e))
-            print(traceback.format_exc())
+            logging.exception('could not convert models')
 
     async def send_status(self):
         pass

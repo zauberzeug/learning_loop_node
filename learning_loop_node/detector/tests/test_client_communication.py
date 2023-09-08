@@ -20,12 +20,8 @@ async def test_sio_detect(test_detector_node, sio_client):
     with open('detector/tests/test.jpg', 'rb') as f:
         image_bytes = f.read()
 
-    print('------------------- waiting for model to load', flush=True)
     await asyncio.sleep(5)
-    print('------------------- continuing test', flush=True)
     result = await sio_client.call('detect', {'image': image_bytes})
-    print('------------------- retrieved result', flush=True)
-    print(result, flush=True)
     assert len(result['box_detections']) == 1
     assert result['box_detections'][0]['category_name'] == 'some_category_name'
     assert result['box_detections'][0]['category_id'] == 'some_id'

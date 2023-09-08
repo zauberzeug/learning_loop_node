@@ -1,6 +1,7 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -17,20 +18,21 @@ async def put_socketio(request: Request):
         curl -X PUT -d "on" http://localhost:8005/socketio
     '''
     state = str(await request.body(), 'utf-8')
-    print(request.app.status, flush=True)
     if state == 'off':
         if request.app.status.state != NodeState.Offline:
-            print('turning socketio off', flush=True)
+            logging.info('turning socketio off')
             asyncio.create_task(request.app.sio.disconnect())
     if state == 'on':
         if request.app.status.state == NodeState.Offline:
-            print('turning socketio on', flush=True)
+            logging.info('turning socketio on')
             asyncio.create_task(request.app.connect())
 
 
 @router.put("/check_state")
 async def put_check_state(request: Request):
     value = str(await request.body(), 'utf-8')
+    print(f'turning automatically check_state {value}', flush=True)
+
     if value == 'off':
         request.app.skip_check_state = True
         for _ in range(5):
@@ -41,10 +43,8 @@ async def put_check_state(request: Request):
         if request.app.status.state != NodeState.Idle:
             raise HTTPException(status_code=409, detail="Could not skip auto checking. State is still not idle")
 
-        print(f'turning automatically check_state {value}', flush=True)
     if value == 'on':
         request.app.skip_check_state = False
-        print(f'turning automatically check_state {value}', flush=True)
 
 
 @router.post("/step")
