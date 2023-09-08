@@ -11,7 +11,7 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 def create_training() -> Training:
     context = Context(organization='zauberzeug', project='demo')
     training = Training(
-        uuid=str(uuid4()),
+        id=str(uuid4()),
         context=context,
         project_folder='',
         images_folder='',

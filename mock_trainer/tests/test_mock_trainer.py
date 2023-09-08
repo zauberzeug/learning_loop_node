@@ -33,7 +33,7 @@ async def test_get_new_model(setup_test_project2):
     model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
     mock_trainer._training = Training(  # pylint: disable=protected-access
-        uuid=str(uuid4()),
+        id=str(uuid4()),
         context=context,
         project_folder="",
         images_folder="",

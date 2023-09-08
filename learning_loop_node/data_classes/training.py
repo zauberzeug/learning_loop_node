@@ -79,7 +79,7 @@ class TrainingStatus():
 
 @dataclass(**KWONLY_SLOTS)
 class Training():
-    uuid: str
+    id: str
     context: Context
 
     project_folder: str

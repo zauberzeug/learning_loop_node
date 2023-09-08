@@ -5,6 +5,8 @@ import functools
 import logging
 from typing import Any, Coroutine, Optional, Tuple, TypeVar
 
+import pynvml
+
 T = TypeVar('T')
 
 
@@ -44,3 +46,12 @@ def _handle_task_result(
     # is properly logged. There is no point re-raising the exception in this callback.
     except Exception:  # pylint: disable=broad-except
         logger.exception(message, *message_args)
+
+
+def get_free_memory_mb():
+    pynvml.nvmlInit()
+    h = pynvml.nvmlDeviceGetHandleByIndex(0)
+    info = pynvml.nvmlDeviceGetMemoryInfo(h)
+    free = float(info.free) / 1024 / 1024
+    print(f'free     : {free} MB')
+    return free

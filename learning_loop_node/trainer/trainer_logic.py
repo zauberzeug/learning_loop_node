@@ -593,7 +593,7 @@ class TrainerLogic():
         training_uuid = str(uuid4())
         project_folder = Node.create_project_folder(context)
         return Training(
-            uuid=training_uuid,
+            id=training_uuid,
             context=context,
             project_folder=project_folder,
             images_folder=node_helper.create_image_folder(project_folder),
