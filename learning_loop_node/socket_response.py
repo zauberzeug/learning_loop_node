@@ -6,6 +6,8 @@ import traceback
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from data_classes import asdict
+
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
 
@@ -38,9 +40,9 @@ def ensure_socket_response(func):
                 value = func(*args, **kwargs)
 
             if isinstance(value, str):
-                return SocketResponse.for_success(value).__dict__
+                return asdict(SocketResponse.for_success(value))
             elif isinstance(value, bool):
-                return SocketResponse.from_bool(value).__dict__
+                return asdict(SocketResponse.from_bool(value))
             elif isinstance(value, SocketResponse):
                 return value
             elif (args[0] in ['connect', 'disconnect', 'connect_error']):
@@ -61,6 +63,6 @@ def ensure_socket_response(func):
                 \n {str(e)} \n'
             )
 
-            return SocketResponse.for_failure(str(e)).__dict__
+            return asdict(SocketResponse.for_failure(str(e)))
 
     return wrapper_ensure_socket_response

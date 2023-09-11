@@ -24,7 +24,7 @@ async def try_sync_model(trainer: Any, trainer_node_uuid: str, sio_client: socke
         response = await sync_model(trainer, trainer_node_uuid, sio_client, model)
 
         if not response.success:
-            error_msg = f'Error for update_training: Response from loop was : {response.__dict__}'
+            error_msg = f'Error for update_training: Response from loop was : {asdict(response)}'
             logging.error(error_msg)
             raise Exception(error_msg)
 

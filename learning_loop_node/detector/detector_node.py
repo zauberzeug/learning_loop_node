@@ -106,7 +106,7 @@ class DetectorNode(Node):
 
         async def _info(sid) -> Union[str, Dict]:
             if self.detector_logic.is_initialized:
-                return self.detector_logic.model_info.__dict__
+                return asdict(self.detector_logic.model_info)
             return 'No model loaded'
 
         async def _upload(sid, data) -> Optional[Dict]:
