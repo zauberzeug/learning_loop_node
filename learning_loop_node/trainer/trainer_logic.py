@@ -91,6 +91,7 @@ class TrainerLogic():
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
             self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
+            # P? details['id'] ist in den tests model.pt aber beim start eines trainings kommt hier s-cls an wird mehrfach auf valid_uuid geprüft
             self._training.base_model_id = details['id']
             self._training.training_state = TrainingState.Initialized
             self._active_training_io = ActiveTrainingIO(self._training.training_folder)
@@ -228,10 +229,10 @@ class TrainerLogic():
             if self.can_resume():
                 self.train_task = self.resume()
             else:
-                model_id = self.training.base_model_id
-                if not is_valid_uuid4(model_id):
-                    assert isinstance(model_id, str)
-                    self.train_task = self.start_training_from_scratch(model_id)
+                base_model_id = self.training.base_model_id
+                if not is_valid_uuid4(base_model_id):
+                    assert isinstance(base_model_id, str)
+                    self.train_task = self.start_training_from_scratch(base_model_id)
                 else:
                     self.train_task = self.start_training()
 
@@ -524,7 +525,7 @@ class TrainerLogic():
         '''Should be used to start a training.'''
 
     @abstractmethod
-    async def start_training_from_scratch(self, identifier: str) -> None:
+    async def start_training_from_scratch(self, base_model_id: str) -> None:
         '''Should be used to start a training from scratch.'''
 
     @abstractmethod
