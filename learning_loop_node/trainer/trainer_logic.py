@@ -277,7 +277,7 @@ class TrainerLogic():
             self.node.last_training_io.save(self.training)
 
     async def ensure_confusion_matrix_synced(self):
-
+        logging.info('Syncing confusion matrix')
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
         try:
@@ -308,6 +308,7 @@ class TrainerLogic():
         self.errors.reset(error_key)
 
     async def upload_model(self) -> None:
+        logging.info('Uploading model')
         error_key = 'upload_model'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelUploading
