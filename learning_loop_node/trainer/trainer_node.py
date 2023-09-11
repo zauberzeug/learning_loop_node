@@ -96,6 +96,7 @@ class TrainerNode(Node):
             status.skipped_image_count = self.trainer_logic.training.data.skipped_image_count
             status.hyperparameters = self.trainer_logic.hyperparameters
             status.errors = self.trainer_logic.errors.errors
+            status.context = self.trainer_logic.training.context
 
         self.log.info(f'sending status {status}')
         result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)

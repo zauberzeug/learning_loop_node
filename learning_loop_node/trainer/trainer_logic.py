@@ -323,7 +323,7 @@ class TrainerLogic():
         except Exception as e:
             logging.exception('Error in upload_model')
             self.errors.set(error_key, str(e))
-            self.training.training_state = previous_state
+            # self.training.training_state = previous_state # TODO... going back is pointless here as it ends in a deadlock ?!
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded

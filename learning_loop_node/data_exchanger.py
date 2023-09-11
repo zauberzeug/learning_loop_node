@@ -171,6 +171,8 @@ class DataExchanger():
         with zipfile.ZipFile(BytesIO(content), 'r') as zip_:
             zip_.extractall(tmp_path)
 
+        logging.info(f'---- downloaded model {model_id} to {tmp_path}.')
+
         created_files = []
         files = glob(f'{tmp_path}/**/*', recursive=True)
         for file in files:
