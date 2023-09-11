@@ -103,7 +103,7 @@ class TrainerNode(Node):
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
-            self.log.error(f'Error for updating: Response from loop was : {response.__dict__}')
+            self.log.error(f'Error for updating: Response from loop was:\n {asdict(response)}')
             self.log.exception('update trainer failed')
 
     async def get_state(self):
