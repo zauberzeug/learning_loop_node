@@ -84,6 +84,7 @@ class TrainerLogic():
         Note that details neads the entry 'categories'"""
 
         self._node = node
+        logging.warning(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>> MODEL ID {details["id"]}')
 
         try:
             self._training = TrainerLogic.generate_training(context)
@@ -206,11 +207,13 @@ class TrainerLogic():
         model_id = self.training.base_model_id
         assert model_id is not None, 'model_id must be set'
         if is_valid_uuid4(self.training.base_model_id):
-            logging.debug('loading model from Learning Loop')
+            logging.info('loading model from Learning Loop')
             logging.info(f'downloading model {model_id} as {self.model_format}')
             await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
             shutil.move(f'{self.training.training_folder}/model.json',
                         f'{self.training.training_folder}/base_model.json')
+        else:
+            logging.warning(f'base_model_id {model_id} is not a valid uuid4, skipping download')
 
     async def run_training(self) -> None:
         logging.info('Running training')
