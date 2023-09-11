@@ -73,7 +73,7 @@ class TrainerNode(Node):
             return
 
         if not self.trainer_logic.is_initialized:
-            state_for_learning_loop = 'unknown state'
+            state_for_learning_loop = NodeState.Idle
         else:
             assert self.trainer_logic.training.training_state is not None
             state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer_logic.training.training_state)
