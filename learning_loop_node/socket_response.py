@@ -3,10 +3,8 @@ import functools
 import logging
 import sys
 import traceback
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, Optional
-
-from data_classes import asdict
 
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
