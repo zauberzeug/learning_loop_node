@@ -143,7 +143,7 @@ class DataExchanger():
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE)
         out, _ = await info.communicate()
-        return "[OK]" in out.decode()
+        return "OK" in out.decode()
 
     async def download_model(self, target_folder: str, context: Context, model_id: str, model_format: str) -> List[str]:
         path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
