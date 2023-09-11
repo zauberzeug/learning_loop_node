@@ -30,7 +30,7 @@ async def sio() -> AsyncGenerator:
     while try_connect:
         count += 1
         try:
-            await sio_async_client.connect(f"ws://localhost:{detector_port}", socketio_path="/ws/socket.io", wait_timeout=1)
+            await sio_async_client.connect(f"ws://localhost:{detector_port}", socketio_path="/ws/socket.io", wait_timeout=30)
             try_connect = False
         except Exception:
             logging.warning('trying again')

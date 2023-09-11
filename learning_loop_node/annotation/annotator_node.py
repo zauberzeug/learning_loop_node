@@ -54,7 +54,7 @@ class AnnotatorNode(Node):
                 raise Exception('Socket client waas not initialized')
             await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
                                                                           user_input.data.context.project,
-                                                                          jsonable_encoder(asdict(tool_result.annotation))), timeout=10)
+                                                                          jsonable_encoder(asdict(tool_result.annotation))), timeout=30)
         return tool_result.svg
 
     def reset_history(self, frontend_id: str) -> None:

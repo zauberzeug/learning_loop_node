@@ -98,7 +98,7 @@ class TrainerNode(Node):
             status.errors = self.trainer_logic.errors.errors
 
         self.log.info(f'sending status {status}')
-        result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=1)
+        result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         assert isinstance(result, Dict)
         response = from_dict(data_class=SocketResponse, data=result)
 
