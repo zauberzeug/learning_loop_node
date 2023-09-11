@@ -62,7 +62,7 @@ class TrainingState(str, Enum):
 
 @dataclass(**KWONLY_SLOTS)
 class TrainingStatus():
-    uuid: str
+    id: str  # TODO this must not be changed, but tests wont detect it -> update tests!
     name: str
     state: Union[Optional[TrainingState], str]
     errors: Optional[Dict]

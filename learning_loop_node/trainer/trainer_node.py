@@ -79,7 +79,7 @@ class TrainerNode(Node):
             state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer_logic.training.training_state)
 
         status = TrainingStatus(
-            uuid=self.uuid,
+            id=self.uuid,
             name=self.name,
             state=state_for_learning_loop,
             errors={},
