@@ -324,6 +324,7 @@ class TrainerLogic():
             logging.exception('Error in upload_model')
             self.errors.set(error_key, str(e))
             # self.training.training_state = previous_state # TODO... going back is pointless here as it ends in a deadlock ?!
+            self.training.training_state = TrainingState.TrainModelUploaded
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
