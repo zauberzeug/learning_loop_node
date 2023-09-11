@@ -75,6 +75,7 @@ class TrainingStatus():
     pretrained_models: List[PretrainedModel] = field(default_factory=list)
     hyperparameters: Optional[Dict] = None
     architecture: Optional[str] = None
+    context: Optional[Context] = None
 
 
 @dataclass(**KWONLY_SLOTS)
