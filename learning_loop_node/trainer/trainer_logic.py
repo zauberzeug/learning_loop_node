@@ -101,6 +101,7 @@ class TrainerLogic():
         """Called on `begin_training` event from the Learning Loop."""
 
         self.start_time = time.time()
+        logging.info(f'startes training at {self.start_time}')
         self.errors.reset_all()
         try:
             self.training_task = asyncio.get_running_loop().create_task(self._train())
@@ -133,7 +134,7 @@ class TrainerLogic():
                 return
 
         while True:
-            if not self._training or not self.node.last_training_io.exists():
+            if not self.is_initialized:
                 break
             await asyncio.sleep(0.6)  # Note: Needed for error reporting
             if self.training.training_state == TrainingState.Initialized:
@@ -154,6 +155,7 @@ class TrainerLogic():
                 await self.clear_training()
 
     async def prepare(self) -> None:
+        logging.info('Preparing training')
 
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DataDownloading
@@ -181,6 +183,7 @@ class TrainerLogic():
         self.training.data.skipped_image_count = skipped_image_count
 
     async def download_model(self) -> None:
+        logging.info('Downloading model')
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelDownloading
         error_key = 'download_model'
@@ -210,6 +213,7 @@ class TrainerLogic():
                         f'{self.training.training_folder}/base_model.json')
 
     async def run_training(self) -> None:
+        logging.info('Running training')
         error_key = 'run_training'
         # NOTE normally we reset errors after the step was successful. We do not want to display an old error during the whole training.
         self.errors.reset(error_key)
