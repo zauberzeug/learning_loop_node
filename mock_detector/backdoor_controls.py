@@ -28,7 +28,7 @@ async def _switch_socketio(state: str, detector_node: DetectorNode):
     if state == 'on':
 
         logging.debug('turning socketio on')
-        await detector_node.connect()
+        await detector_node.connect_sio()
 
 
 @router.post("/reset")

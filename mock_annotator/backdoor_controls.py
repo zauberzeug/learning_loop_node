@@ -24,4 +24,4 @@ async def _switch_socketio(state: str, annotator_node: AnnotatorNode):
     if state == 'on':
         if annotator_node.status.state == NodeState.Offline:
             logging.debug('turning socketio on')
-            await annotator_node.connect()
+            await annotator_node.connect_sio()

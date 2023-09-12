@@ -6,8 +6,8 @@ import zipfile
 from glob import glob
 from typing import Callable
 
-from learning_loop_node import node_helper
 from learning_loop_node.data_classes import Context
+from learning_loop_node.helper_functions import node_helper
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer_logic import TrainerLogic

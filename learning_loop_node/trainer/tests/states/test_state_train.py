@@ -11,7 +11,7 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='train_model_downloaded')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
@@ -32,7 +32,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainerLog
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='train_model_downloaded')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
@@ -53,7 +53,7 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
 
     # NOTE e.g. when a node-computer is restarted
     create_active_training_file(trainer, training_state='train_model_downloaded')
-    trainer.load_active_training()
+    trainer.load_last_training()
     trainer._can_resume = True  # pylint: disable=protected-access
 
     _ = asyncio.get_running_loop().create_task(trainer.train())

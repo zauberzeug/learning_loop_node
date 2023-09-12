@@ -14,11 +14,6 @@ from ..globals import GLOBALS
 
 class LastTrainingIO:
 
-    @staticmethod
-    def create_mocked_last_training_io() -> 'LastTrainingIO':
-        node_uuid = '00000000-0000-0000-0000-000000000000'
-        return LastTrainingIO(node_uuid)
-
     def __init__(self, node_uuid: str) -> None:
         self.node_uuid = node_uuid
 

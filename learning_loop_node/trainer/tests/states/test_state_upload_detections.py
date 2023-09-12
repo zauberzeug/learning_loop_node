@@ -47,7 +47,7 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
 async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='detected')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     await create_valid_detection_file(trainer)
     await trainer.upload_detections()
@@ -61,7 +61,7 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     await create_valid_detection_file(trainer)
 
@@ -76,7 +76,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     await create_valid_detection_file(trainer, 2, 0)
     await create_valid_detection_file(trainer, 2, 1)
@@ -90,7 +90,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
-        await trainer._upload_to_learning_loop(trainer.training.context, batch_detections, i + batch_size)
+        await trainer._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
         assert trainer.active_training_io.dup_load() == expected_value
@@ -106,7 +106,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
-        await trainer._upload_to_learning_loop(trainer.training.context, batch_detections, i + batch_size)
+        await trainer._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
         assert trainer.active_training_io.dup_load() == expected_value
@@ -119,7 +119,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
 
     create_active_training_file(trainer, training_state='detected', context=Context(
         organization='zauberzeug', project='some_bad_project'))
-    trainer.load_active_training()
+    trainer.load_last_training()
     trainer.active_training_io.det_save([get_dummy_detections()])
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
@@ -136,7 +136,7 @@ async def test_other_errors(test_initialized_trainer: TestingTrainerLogic):
 
     # e.g. missing detection file
     create_active_training_file(trainer, training_state='detected')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
@@ -151,7 +151,7 @@ async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='detected')
-    trainer.load_active_training()
+    trainer.load_last_training()
     await create_valid_detection_file(trainer)
 
     _ = asyncio.get_running_loop().create_task(trainer.train())

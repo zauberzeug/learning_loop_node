@@ -21,7 +21,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     mock_upload_model_for_training(mocker, 'new_model_id')
 
     create_active_training_file(trainer)
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     train_task = asyncio.get_running_loop().create_task(trainer.upload_model())
 
@@ -38,7 +38,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='confusion_matrix_synced')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
@@ -56,7 +56,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 
     # without a running training the loop will not allow uploading.
     create_active_training_file(trainer, training_state='confusion_matrix_synced')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
@@ -75,10 +75,10 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     mock_upload_model_for_training(mocker, 'new_model_id')
 
     create_active_training_file(trainer)
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     # pylint: disable=protected-access
-    result = await trainer._upload_model_return_new_id(Context(organization='zauberzeug', project='demo'))
+    result = await trainer._upload_model(Context(organization='zauberzeug', project='demo'))
 
     assert result is not None
 

@@ -5,7 +5,7 @@ from typing import List, Optional
 import httpx
 from httpx import Timeout
 
-from . import environment_reader
+from .helper_functions import environment_reader
 
 # set log level to info
 logging.basicConfig(level=logging.INFO)

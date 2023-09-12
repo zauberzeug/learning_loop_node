@@ -2,7 +2,7 @@ from typing import List
 
 import pytest
 
-from learning_loop_node import node_helper
+from learning_loop_node.helper_functions import node_helper
 
 
 @pytest.mark.parametrize("image_ids,expected_urls,expected_ids", [

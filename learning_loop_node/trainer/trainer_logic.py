@@ -17,11 +17,11 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
-from .. import node_helper
 from ..data_classes import (BasicModel, Category, Context, Detections, Errors,
                             Hyperparameter, ModelInformation, PretrainedModel,
                             Training, TrainingData, TrainingError,
                             TrainingState)
+from ..helper_functions import node_helper
 from ..node import Node
 from . import training_syncronizer
 from .downloader import TrainingsDownloader
@@ -81,11 +81,9 @@ class TrainerLogic():
 
     def init(self, context: Context, details: Dict, node: 'TrainerNode') -> None:
         """Called on `begin_training` event from the Learning Loop.
-        Note that details neads the entry 'categories'"""
+        Note that details needs the entries 'categories' and 'training_number'"""
 
         self._node = node
-        logging.warning(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>> MODEL ID {details["id"]}')
-
         try:
             self._training = TrainerLogic.generate_training(context)
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
@@ -103,15 +101,14 @@ class TrainerLogic():
         """Called on `begin_training` event from the Learning Loop."""
 
         self.start_time = time.time()
-        logging.info(f'startes training at {self.start_time}')
+        logging.info('reveiced start training request or found incomplete training')
         self.errors.reset_all()
         try:
             self.training_task = asyncio.get_running_loop().create_task(self._train())
             await self.training_task  # Object is used to potentially cancel the task
-
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
-                logging.info('cancelled training task')
+                logging.info('training task was cancelled but not by shutdown event')
                 self.training.training_state = TrainingState.ReadyForCleanup
                 self.node.last_training_io.save(self.training)
                 await self.clear_training()
@@ -121,8 +118,7 @@ class TrainerLogic():
         finally:
             self.start_time = None
 
-    def load_active_training(self) -> None:
-        self._training = self.node.last_training_io.load()
+    # ---------------------------------------- TRAINING STATES ----------------------------------------
 
     async def _train(self) -> None:
         """asyncio.CancelledError is catched in train"""
@@ -130,35 +126,40 @@ class TrainerLogic():
         if self._training is None:
             if self.node.last_training_io.exists():
                 logging.warning('found active training on hd')
-                self.load_active_training()
+                self.load_last_training()
             else:
-                logging.error('no training found')
+                logging.error('missing training information')
                 return
 
+        if not self.is_initialized:
+            logging.error('could not start training - trainer is not initialized')
+            return
+
         while True:
-            if not self.is_initialized:
-                break
-            await asyncio.sleep(0.6)  # Note: Needed for error reporting
-            if self.training.training_state == TrainingState.Initialized:
+            tstate = self.training.training_state
+            logging.info(f'STATE LOOP: {tstate}')
+            await asyncio.sleep(1.0)  # Note: Needed for error reporting
+            if tstate == TrainingState.Initialized:
                 await self.prepare()
-            if self.training.training_state == TrainingState.DataDownloaded:
+            elif tstate == TrainingState.DataDownloaded:
                 await self.download_model()
-            if self.training.training_state == TrainingState.TrainModelDownloaded:
+            elif tstate == TrainingState.TrainModelDownloaded:
                 await self.run_training()
-            if self.training.training_state == TrainingState.TrainingFinished:
+            elif tstate == TrainingState.TrainingFinished:
                 await self.ensure_confusion_matrix_synced()
-            if self.training.training_state == TrainingState.ConfusionMatrixSynced:
+            elif tstate == TrainingState.ConfusionMatrixSynced:
                 await self.upload_model()
-            if self.training.training_state == TrainingState.TrainModelUploaded:
+            elif tstate == TrainingState.TrainModelUploaded:
                 await self.do_detections()
-            if self.training.training_state == TrainingState.Detected:
+            elif tstate == TrainingState.Detected:
                 await self.upload_detections()
-            if self.training.training_state == TrainingState.ReadyForCleanup:
+            elif tstate == TrainingState.ReadyForCleanup:
                 await self.clear_training()
 
-    async def prepare(self) -> None:
-        logging.info('Preparing training')
+    def load_last_training(self) -> None:
+        self._training = self.node.last_training_io.load()
 
+    async def prepare(self) -> None:
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DataDownloading
         error_key = 'prepare'
@@ -168,7 +169,7 @@ class TrainerLogic():
             logging.warning('CancelledError in prepare')
             raise
         except Exception as e:
-            logging.exception("Unknown error in 'prepare'")
+            logging.exception("Unknown error in 'prepare'. Exception:")
             self.training.training_state = previous_state
             self.errors.set(error_key, str(e))
         else:
@@ -312,23 +313,21 @@ class TrainerLogic():
         self.errors.reset(error_key)
 
     async def upload_model(self) -> None:
-        logging.info('Uploading model')
         error_key = 'upload_model'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.TrainModelUploading
-
         try:
             new_model_id = await self._upload_model_return_new_id(self.training.context)
             assert new_model_id is not None, 'uploaded_model must be set'
+            logging.info(f'successfully uploaded model and received new model id: {new_model_id}')
             self.training.model_id_for_detecting = new_model_id
         except asyncio.CancelledError:
             logging.warning('CancelledError in upload_model')
             raise
         except Exception as e:
-            logging.exception('Error in upload_model')
+            logging.exception('Error in upload_model. Exception:')
             self.errors.set(error_key, str(e))
-            # self.training.training_state = previous_state # TODO... going back is pointless here as it ends in a deadlock ?!
-            self.training.training_state = TrainingState.TrainModelUploaded
+            self.training.training_state = previous_state  # TODO... going back is pointless here as it ends in a deadlock ?!
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
@@ -340,7 +339,6 @@ class TrainerLogic():
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
         """
-
         try:
             files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
         except FileNotFoundError as exc:
@@ -396,7 +394,7 @@ class TrainerLogic():
 
         shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
-        logging.info('downloading model for detecting')
+        logging.info(f'downloading detection model to {tmp_folder}')
 
         await self.node.data_exchanger.download_model(tmp_folder, context, model_id, self.model_format)
         with open(f'{tmp_folder}/model.json', 'r') as f:
@@ -429,10 +427,7 @@ class TrainerLogic():
         error_key = 'upload_detections'
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.DetectionUploading
-        context = self.training.context
-
         await asyncio.sleep(0.1)  # NOTE needed for tests
-
         try:
             json_files = self.active_training_io.det_get_file_names()
             if not json_files:
@@ -441,7 +436,7 @@ class TrainerLogic():
             for i in range(current_json_file_index, len(json_files)):
                 detections = self.active_training_io.det_load(i)
                 logging.info(f'uploading detections {i}/{len(json_files)}')
-                await self._upload_detections(context, detections)
+                await self._upload_detections_batched(self.training.context, detections)
                 self.active_training_io.dufi_save(i+1)
         except asyncio.CancelledError:
             logging.warning('CancelledError in upload_detections')
@@ -455,23 +450,21 @@ class TrainerLogic():
             self.training.training_state = TrainingState.ReadyForCleanup
             self.node.last_training_io.save(self.training)
 
-    async def _upload_detections(self, context: Context, detections: List[Detections]):
+    async def _upload_detections_batched(self, context: Context, detections: List[Detections]):
         batch_size = 10
-
         skip_detections = self.active_training_io.dup_load()
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
             up_progress = i+batch_size
             batch_detections = detections[i:up_progress]
             dict_detections = [jsonable_encoder(asdict(detection)) for detection in batch_detections]
             logging.info(f'uploading detections. File size : {len(json.dumps(dict_detections))}')
-            await self._upload_to_learning_loop(context, batch_detections, up_progress)
+            await self._upload_detections(context, batch_detections, up_progress)
             skip_detections = up_progress
 
-    async def _upload_to_learning_loop(self, context: Context, batch_detections: List[Detections], up_progress: int):
+    async def _upload_detections(self, context: Context, batch_detections: List[Detections], up_progress: int):
         assert self._active_training_io is not None, 'active_training must be set'
 
         detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
-
         response = await self.node.loop_communicator.post(
             f'/{context.organization}/projects/{context.project}/detections', json=detections_json)
         if response.status_code != 200:
@@ -520,13 +513,31 @@ class TrainerLogic():
         assert self._executor is not None, 'executor must be set'
         return self._executor.get_log()
 
+    # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
+
+    @property
+    @abstractmethod
+    def progress(self) -> float:
+        pass
+
+    @property
+    @abstractmethod
+    def provided_pretrained_models(self) -> List[PretrainedModel]:
+        pass
+
+    @property
+    @abstractmethod
+    def model_architecture(self) -> Optional[str]:
+        return None
+
     @abstractmethod
     async def start_training(self) -> None:
         '''Should be used to start a training.'''
 
     @abstractmethod
     async def start_training_from_scratch(self, base_model_id: str) -> None:
-        '''Should be used to start a training from scratch.'''
+        '''Should be used to start a training from scratch.
+        base_model_id is the id of a pretrained model provided by self.provided_pretrained_models.'''
 
     @abstractmethod
     def can_resume(self) -> bool:
@@ -535,8 +546,7 @@ class TrainerLogic():
     @abstractmethod
     async def resume(self) -> None:
         '''Is called when self.can_resume() returns True.
-           One may resume the training on a previously trained model stored by self.on_model_published(basic_model).
-        '''
+        One may resume the training on a previously trained model stored by self.on_model_published(basic_model).'''
 
     @abstractmethod
     def get_executor_error_from_log(self) -> Optional[str]:
@@ -570,23 +580,18 @@ class TrainerLogic():
         For example "model.pt" for pytorch or "model.weights" for darknet/yolo.
 
         If a trainer can also generate other formats (for example for an detector),
-        a dictionary mapping format -> list of files can be returned.
-        '''
+        a dictionary mapping format -> list of files can be returned.'''
 
     @abstractmethod
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
-        pass
+        '''Called to run detections on a list of images.'''
 
     @abstractmethod
     async def clear_training_data(self, training_folder: str) -> None:
-        '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. This can be old
-        weightfiles or any additional files.
-        '''
+        '''Called after a training has finished. Deletes all data that is not needed anymore after a training run. 
+        This can be old weightfiles or any additional files.'''
 
-    @property
-    @abstractmethod
-    def provided_pretrained_models(self) -> List[PretrainedModel]:
-        pass
+    # ---------------------------------------- HELPER METHODS ----------------------------------------
 
     @staticmethod
     def images_for_ids(image_ids, image_folder) -> List[str]:
@@ -626,10 +631,6 @@ class TrainerLogic():
             return information
         return None
 
-    @property
-    def model_architecture(self) -> Optional[str]:
-        return None
-
     def create_model_json_with_categories(self) -> str:
         """Remaining fields are filled by the Learning Loop"""
         if self._training and self._training.data:
@@ -644,8 +645,3 @@ class TrainerLogic():
             json.dump(content, f)
 
         return model_json_path
-
-    @property
-    @abstractmethod
-    def progress(self) -> float:
-        pass

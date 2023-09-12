@@ -21,7 +21,7 @@ async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
     # TODO this requires trainer to have _training
     # trainer.load_active_training()
     create_active_training_file(trainer, training_state='training_finished')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
@@ -38,7 +38,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     await mock_socket_io_call(mocker, test_initialized_trainer_node, {'success': True})
     create_active_training_file(trainer, training_state='training_finished')
 
-    trainer.load_active_training()
+    trainer.load_last_training()
     trainer.has_new_model = True
 
     _ = asyncio.get_running_loop().create_task(trainer.train())

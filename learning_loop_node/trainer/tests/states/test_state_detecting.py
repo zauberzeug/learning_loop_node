@@ -34,7 +34,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
 async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainingState.TrainModelUploaded)
-    trainer.load_active_training()
+    trainer.load_last_training()
     trainer.training.model_id_for_detecting = '12345678-bobo-7e92-f95f-424242424242'
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
@@ -52,7 +52,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
                                 model_id_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
@@ -68,7 +68,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
 def test_save_load_detections(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     detections = [get_dummy_detections(), get_dummy_detections()]
 

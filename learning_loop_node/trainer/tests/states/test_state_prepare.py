@@ -17,7 +17,7 @@ def trainer_has_error(trainer: TrainerLogic):
 async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     await trainer.prepare()
     assert trainer_has_error(trainer) is False
@@ -29,7 +29,7 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerL
 async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'data_downloading', timeout=1, interval=0.001)
@@ -45,7 +45,7 @@ async def test_request_error(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, context=Context(
         organization='zauberzeug', project='some_bad_project'))
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'data_downloading', timeout=3, interval=0.001)

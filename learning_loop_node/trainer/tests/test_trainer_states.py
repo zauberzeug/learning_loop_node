@@ -26,7 +26,7 @@ def test_fixture_trainer_node(test_initialized_trainer_node):
 
 def test_save_load_training():
     training = create_training()
-    last_training_io = LastTrainingIO.create_mocked_last_training_io()
+    last_training_io = LastTrainingIO('00000000-0000-0000-0000-000000000000')
     training.training_state = TrainingState.Preparing
     last_training_io.save(training)
 

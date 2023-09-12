@@ -2,7 +2,6 @@ import asyncio
 import functools
 import logging
 import sys
-import traceback
 from dataclasses import asdict, dataclass
 from typing import Any, Optional
 
@@ -29,6 +28,11 @@ class SocketResponse():
 
 
 def ensure_socket_response(func):
+    """Decorator to ensure that the return value of a socket.io event handler is a SocketResponse.
+
+    Args:
+        func (Callable): The socket.io event handler
+    """
     @functools.wraps(func)
     async def wrapper_ensure_socket_response(*args, **kwargs):
         try:
@@ -49,17 +53,9 @@ def ensure_socket_response(func):
                 return None
             else:
                 raise Exception(
-                    f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'"
-                )
+                    f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'")
         except Exception as e:
-            trace = ''.join(traceback.format_stack())
-            logging.error(
-                f'\nAn error occured for {args[0]}:  \
-                \nStacktrace: \
-                \n{trace} \
-                \nError: \
-                \n {str(e)} \n'
-            )
+            logging.exception(f'An error occured for {args[0]}')
 
             return asdict(SocketResponse.for_failure(str(e)))
 

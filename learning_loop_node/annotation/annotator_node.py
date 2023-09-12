@@ -5,9 +5,9 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from .. import node_helper
 from ..data_classes import AnnotationNodeStatus, Context, NodeState, UserInput
 from ..data_exchanger import DataExchanger
+from ..helper_functions import node_helper
 from ..node import Node
 from ..socket_response import SocketResponse
 from .annotator_logic import AnnotatorLogic

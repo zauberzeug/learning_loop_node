@@ -20,13 +20,28 @@ class TrainerNode(Node):
     def __init__(self, name: str, trainer_logic: TrainerLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.trainer_logic = trainer_logic
-        self.train_loop_busy = False
-        self.model_published: bool = False
         self.last_training_io = LastTrainingIO(self.uuid)
         self.include_router(controls.router, tags=["controls"])
 
+    # --------------------------------------------------- STATUS ---------------------------------------------------
+
+    @property
+    def progress(self) -> Union[float, None]:
+        return self.trainer_logic.progress if (self.trainer_logic is not None and
+                                               hasattr(self.trainer_logic, 'progress')) else None
+
+    @property
+    def training_uptime(self) -> Union[float, None]:
+        return time.time() - self.trainer_logic.start_time if self.trainer_logic.start_time else None
+
+    # ----------------------------------- LIVECYCLE: ABSTRACT NODE METHODS --------------------------
+
     async def on_startup(self):
         pass
+
+    async def on_shutdown(self):
+        self.log.info('shutdown detected, stopping training')
+        await self.trainer_logic.shutdown()
 
     async def on_repeat(self):
         try:
@@ -34,9 +49,7 @@ class TrainerNode(Node):
         except Exception as e:
             self.log.exception(f'could not send status state: {e}')
 
-    async def on_shutdown(self):
-        self.log.info('shutdown detected, stopping training')
-        await self.trainer_logic.shutdown()
+    # ---------------------------------------------- NODE ABSTRACT METHODS ---------------------------------------------------
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -50,25 +63,20 @@ class TrainerNode(Node):
 
         @sio_client.event
         async def stop_training():
-            self.log.info(f'### on stop_training received. Current state : {self.status.state}')
+            self.log.info(f'stop_training received. Current state : {self.status.state}')
             try:
                 await self.trainer_logic.stop()
             except Exception:
-                self.log.exception('error in stop_training')
+                self.log.exception('error in stop_training. Exception:')
             return True
 
-    def start_training_task(self):
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.trainer_logic.train())
-
     async def send_status(self):  # TODO rename?
-
         if self._sio_client is None or not self._sio_client.connected:
-            self.log.info('could not send status -- we are not connected to the Learning Loop')
+            self.log.warning('cannot send status - not connected to the Learning Loop')
             return
 
         if not self.trainer_logic.is_initialized and self.last_training_io.exists():
-            self.log.warning('Found active training, starting now.')
+            self.log.warning('found active training, starting now.')
             self.start_training_task()
             return
 
@@ -78,14 +86,12 @@ class TrainerNode(Node):
             assert self.trainer_logic.training.training_state is not None
             state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer_logic.training.training_state)
 
-        status = TrainingStatus(
-            id=self.uuid,
-            name=self.name,
-            state=state_for_learning_loop,
-            errors={},
-            uptime=self.training_uptime,
-            progress=self.progress
-        )
+        status = TrainingStatus(id=self.uuid,
+                                name=self.name,
+                                state=state_for_learning_loop,
+                                errors={},
+                                uptime=self.training_uptime,
+                                progress=self.progress)
 
         status.pretrained_models = self.trainer_logic.provided_pretrained_models
         status.architecture = self.trainer_logic.model_architecture
@@ -98,28 +104,29 @@ class TrainerNode(Node):
             status.errors = self.trainer_logic.errors.errors
             status.context = self.trainer_logic.training.context
 
-        self.log.info(f'sending status {status}')
+        self.log.info(f'sending status: {status.short_str()}')
         result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         assert isinstance(result, Dict)
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
-            self.log.error(f'Error for updating: Response from loop was:\n {asdict(response)}')
-            self.log.exception('update trainer failed')
+            self.log.error(f'Error when sending status update: Response from loop was:\n {asdict(response)}')
 
     async def get_state(self):
         if self.trainer_logic._executor is not None and self.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
             return NodeState.Running
         return NodeState.Idle
 
-    @property
-    def progress(self) -> Union[float, None]:
-        return self.trainer_logic.progress if (self.trainer_logic is not None and
-                                               hasattr(self.trainer_logic, 'progress')) else None
+    def get_node_type(self):
+        return 'trainer'
 
-    @property
-    def training_uptime(self) -> Union[float, None]:
-        return time.time() - self.trainer_logic.start_time if self.trainer_logic.start_time else None
+    # --------------------------------------------------- TRAINING ---------------------------------------------------
+
+    def start_training_task(self):
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.trainer_logic.train())
+
+    # --------------------------------------------------- HELPER ---------------------------------------------------
 
     @staticmethod
     def state_for_learning_loop(trainer_state: Union[TrainingState, str]) -> str:
@@ -156,6 +163,3 @@ class TrainerNode(Node):
         if trainer_state == TrainingState.ReadyForCleanup:
             return 'Cleaning training'
         return 'unknown state'
-
-    def get_node_type(self):
-        return 'trainer'

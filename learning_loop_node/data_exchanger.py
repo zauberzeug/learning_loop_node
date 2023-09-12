@@ -13,9 +13,9 @@ from typing import Dict, List, Optional
 import aiofiles
 from tqdm.asyncio import tqdm
 
-from . import node_helper
 from .data_classes import Context
-from .helpers import create_task
+from .helper_functions import node_helper
+from .helper_functions.helpers import create_task
 from .loop_communication import LoopCommunicator
 
 check_jpeg = shutil.which('jpeginfo') is not None

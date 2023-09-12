@@ -77,6 +77,14 @@ class TrainingStatus():
     architecture: Optional[str] = None
     context: Optional[Context] = None
 
+    def short_str(self):
+        prgr = f'{self.progress * 100:.0f}%' if self.progress else ''
+        trtesk = f'{self.train_image_count}/{self.test_image_count}/{self.skipped_image_count}' if self.train_image_count else 'n.a.'
+        cntxt = f'{self.context.organization}/{self.context.project}' if self.context else ''
+        hyps = f'({self.hyperparameters})' if self.hyperparameters else ''
+        arch = f'.{self.architecture} - ' if self.architecture else ''
+        return f'[{str(self.state)} {prgr}. {self.name}({self.id}). Tr/Ts/Tsk: {trtesk} {cntxt}{arch}{hyps}]'
+
 
 @dataclass(**KWONLY_SLOTS)
 class Training():

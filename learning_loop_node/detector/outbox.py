@@ -13,9 +13,9 @@ from typing import List, Optional
 import requests
 from fastapi.encoders import jsonable_encoder
 
-from .. import environment_reader
 from ..data_classes import Detections
 from ..globals import GLOBALS
+from ..helper_functions import environment_reader
 
 
 class Outbox():

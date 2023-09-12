@@ -14,11 +14,11 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_socketio import SocketManager
 from socketio import AsyncClient
 
-from .. import environment_reader
 from ..data_classes import (Category, Context, Detections, DetectionStatus,
                             ModelInformation, NodeState, Shape)
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
+from ..helper_functions import environment_reader
 from ..inbox_filter import RelevanceFilter
 from ..node import Node
 from ..socket_response import SocketResponse

@@ -13,7 +13,7 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
     create_active_training_file(trainer, training_state='data_downloaded')
 
     trainer.model_format = 'mocked'
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.download_model())
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
@@ -31,7 +31,7 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
 async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='data_downloaded')
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
@@ -47,7 +47,7 @@ async def test_downloading_failed(test_initialized_trainer: TestingTrainerLogic)
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='data_downloaded',
                                 base_model_id='00000000-0000-0000-0000-000000000000')  # bad model id)
-    trainer.load_active_training()
+    trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
     await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)

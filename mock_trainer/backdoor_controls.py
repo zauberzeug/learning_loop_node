@@ -31,7 +31,7 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
     if state == 'on':
         if trainer_node.status.state == NodeState.Offline:
             logging.debug('turning socketio on')
-            await trainer_node.connect()
+            await trainer_node.connect_sio()
 
 
 @router.put("/provide_new_model")

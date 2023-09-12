@@ -62,9 +62,9 @@ class TestingTrainerLogic(TrainerLogic):
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         return result
 
-    async def _upload_model_return_new_id(self, context: Context) -> Optional[str]:
+    async def _upload_model(self, context: Context) -> Optional[str]:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        result = await super()._upload_model_return_new_id(context)
+        result = await super()._upload_model(context)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         assert isinstance(result, str)
         return result
