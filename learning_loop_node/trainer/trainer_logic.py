@@ -248,7 +248,6 @@ class TrainerLogic():
                     if self.get_executor_error_from_log():
                         break
                     self.errors.reset(error_key)
-
                     try:
                         await self.sync_confusion_matrix()
                     except asyncio.CancelledError:

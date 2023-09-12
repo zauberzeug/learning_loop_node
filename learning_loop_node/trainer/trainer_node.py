@@ -19,6 +19,7 @@ class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
+        trainer_logic._node = self  # pylint: disable=protected-access
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
         self.include_router(controls.router, tags=["controls"])
