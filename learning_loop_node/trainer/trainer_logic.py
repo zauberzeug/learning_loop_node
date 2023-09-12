@@ -89,7 +89,6 @@ class TrainerLogic():
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
             self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
-            # P? details['id'] ist in den tests model.pt aber beim start eines trainings kommt hier s-cls an wird mehrfach auf valid_uuid geprüft
             self._training.base_model_id = details['id']
             self._training.training_state = TrainingState.Initialized
             self._active_training_io = ActiveTrainingIO(self._training.training_folder)
