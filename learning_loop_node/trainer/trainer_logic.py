@@ -158,6 +158,8 @@ class TrainerLogic():
 
     def load_last_training(self) -> None:
         self._training = self.node.last_training_io.load()
+        assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
+        self._active_training_io = ActiveTrainingIO(self._training.training_folder)
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
