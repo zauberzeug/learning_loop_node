@@ -483,13 +483,10 @@ class TrainerLogic():
         self.active_training_io.det_delete()
         self.active_training_io.dup_delete()
         self.active_training_io.dufi_delete()
-        try:
-            await self.clear_training_data(self.training.training_folder)
-        except NotImplementedError:
-            logging.warning('clear_training_data not implemented')
-        else:
-            self._training = None
-            self.node.last_training_io.delete()
+        await self.clear_training_data(self.training.training_folder)
+        self.node.last_training_io.delete()
+        self._training = None
+        self.training.training_state = TrainingState.TrainingFinished
 
     async def stop(self) -> None:
         if not self._training:
