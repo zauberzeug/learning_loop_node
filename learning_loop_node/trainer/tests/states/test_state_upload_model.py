@@ -52,15 +52,18 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
 
 
 async def test_bad_server_response_content(test_initialized_trainer: TestingTrainerLogic):
+    """Set the training state to confusion_matrix_synced and try to upload the model.
+    This should fail because the server response is not a valid model id.
+    The training should be aborted and the training state should be set to confusion_matrix_synced."""
     trainer = test_initialized_trainer
 
-    # without a running training the loop will not allow uploading.
     create_active_training_file(trainer, training_state='confusion_matrix_synced')
     trainer.load_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.train())
 
     await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
+    # TODO goes to finished because of the error
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=2, interval=0.001)
 
     assert trainer_has_error(trainer)

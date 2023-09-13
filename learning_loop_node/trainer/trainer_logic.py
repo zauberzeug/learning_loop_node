@@ -329,8 +329,8 @@ class TrainerLogic():
         except Exception as e:
             logging.exception('Error in upload_model. Exception:')
             self.errors.set(error_key, str(e))
-            # self.training.training_state = previous_state # TODO... going back is pointless here as it ends in a deadlock ?!
-            self.training.training_state = TrainingState.ReadyForCleanup
+            self.training.training_state = previous_state  # TODO... going back is pointless here as it ends in a deadlock ?!
+            # self.training.training_state = TrainingState.ReadyForCleanup
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
@@ -487,8 +487,8 @@ class TrainerLogic():
         self.active_training_io.dufi_delete()
         await self.clear_training_data(self.training.training_folder)
         self.node.last_training_io.delete()
-        self._training = None
         self.training.training_state = TrainingState.TrainingFinished
+        self._training = None
 
     async def stop(self) -> None:
         if not self._training:
