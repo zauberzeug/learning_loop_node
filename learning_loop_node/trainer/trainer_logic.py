@@ -318,6 +318,8 @@ class TrainerLogic():
         self.training.training_state = TrainingState.TrainModelUploading
         try:
             new_model_id = await self._upload_model_return_new_id(self.training.context)
+            if new_model_id is None:
+                raise Exception('could not upload model')
             assert new_model_id is not None, 'uploaded_model must be set'
             logging.info(f'successfully uploaded model and received new model id: {new_model_id}')
             self.training.model_id_for_detecting = new_model_id
@@ -327,7 +329,8 @@ class TrainerLogic():
         except Exception as e:
             logging.exception('Error in upload_model. Exception:')
             self.errors.set(error_key, str(e))
-            self.training.training_state = previous_state  # TODO... going back is pointless here as it ends in a deadlock ?!
+            # self.training.training_state = previous_state # TODO... going back is pointless here as it ends in a deadlock ?!
+            self.training.training_state = TrainingState.ReadyForCleanup
         else:
             self.errors.reset(error_key)
             self.training.training_state = TrainingState.TrainModelUploaded
@@ -339,10 +342,10 @@ class TrainerLogic():
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
         """
-        try:
-            files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
-        except FileNotFoundError as exc:
-            raise Exception('Could not find any model files to upload.') from exc
+        files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
+
+        if files is None:
+            return None
 
         if isinstance(files, List):
             files = {self.model_format: files}
@@ -568,7 +571,7 @@ class TrainerLogic():
         '''
 
     @abstractmethod
-    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+    def get_latest_model_files(self) -> Optional[Union[List[str], Dict[str, List[str]]]]:
         '''Called when the Learning Loop requests to backup the latest model for the training.
         Should return a list of file paths which describe the model.
         These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.)
