@@ -81,8 +81,7 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     trainer.load_last_training()
 
     # pylint: disable=protected-access
-    result = await trainer._upload_model(Context(organization='zauberzeug', project='demo'))
-
+    result = await trainer._upload_model_return_new_id(Context(organization='zauberzeug', project='demo'))
     assert result is not None
 
 

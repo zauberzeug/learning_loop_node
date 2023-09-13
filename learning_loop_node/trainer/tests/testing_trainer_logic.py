@@ -32,8 +32,8 @@ class TestingTrainerLogic(TrainerLogic):
         assert self._executor is not None
         self._executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self, identifier: str) -> None:
-        await self.start_training(model=f'model_{identifier}.pt')
+    async def start_training_from_scratch(self, base_model_id: str) -> None:
+        await self.start_training(model=f'model_{base_model_id}.pt')
 
     def get_new_model(self) -> Optional[BasicModel]:
         if self.has_new_model:
@@ -62,9 +62,9 @@ class TestingTrainerLogic(TrainerLogic):
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         return result
 
-    async def _upload_model(self, context: Context) -> Optional[str]:
+    async def _upload_model_return_new_id(self, context: Context) -> Optional[str]:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        result = await super()._upload_model(context)
+        result = await super()._upload_model_return_new_id(context)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         assert isinstance(result, str)
         return result
