@@ -137,7 +137,7 @@ class TrainerLogic():
         while True:
             tstate = self.training.training_state
             logging.info(f'STATE LOOP: {tstate}')
-            await asyncio.sleep(1.0)  # Note: Needed for error reporting
+            await asyncio.sleep(0.6)  # Note: Required for pytests!
             if tstate == TrainingState.Initialized:
                 await self.prepare()
             elif tstate == TrainingState.DataDownloaded:

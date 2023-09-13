@@ -11,7 +11,7 @@ from learning_loop_node.tests import test_helper
 
 
 class TestConverter(ConverterLogic):
-    __test__ = False
+    __test__ = False  # hint for pytest
 
     def __init__(self, source_format: str, target_format: str,  models: List[ModelInformation]):
         super().__init__(source_format, target_format)
@@ -40,14 +40,11 @@ async def setup_converter_test_project(glc: LoopCommunicator):
 # pylint: disable=redefined-outer-name, unused-argument
 @pytest.mark.asyncio
 async def test_meta_information(setup_converter_test_project):
-    logging.info('test started')
     model_id = await test_helper.get_latest_model_id()
 
     converter = TestConverter(source_format='mocked', target_format='test', models=[])
     node = ConverterNode(name='test', converter=converter)
-    logging.info('>>>> node created')
     await node.convert_models()
-    logging.info('>>>> converted models')
 
     pytest_project_model = [m for m in converter.models if m.id == model_id][0]
 
