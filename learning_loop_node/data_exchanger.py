@@ -121,7 +121,6 @@ class DataExchanger():
             logging.debug(f'[+] Performance (image files): {total_time} sec total. Per 100 : {per100:.1f}')
 
     async def download_one_image(self, path: str, image_id: str, image_folder: str) -> None:
-        logging.info(f'downloading image {image_id}')
         response = await self.loop_communicator.get(path)
         if response.status_code != HTTPStatus.OK:
             logging.error(f'bad status code {response.status_code} for {path}: {response.content}')
