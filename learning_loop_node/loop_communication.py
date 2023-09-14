@@ -36,7 +36,7 @@ class LoopCommunicator():
 
         if self._async_client is None or self._async_client.is_closed:
             logging.info(f'Creating new async client for {self.base_url}')
-            self._async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
+            self._async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(120.0))
 
         if requires_login and not self._async_client.cookies.keys():
             response = await self._async_client.post('/api/login', data={'username': self.username, 'password': self.password})
@@ -71,7 +71,7 @@ class LoopCommunicator():
                 logging.info(f'backend not ready: {e}')
             await asyncio.sleep(3)
 
-    async def get(self, path, requires_login=True, api_prefix='/api') -> httpx.Response:
+    async def get(self, path: str, requires_login: bool = True, api_prefix: str = '/api') -> httpx.Response:
         ac = await self.get_asyncclient(requires_login=requires_login)
         return await ac.get(api_prefix+path)
 

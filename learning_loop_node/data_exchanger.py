@@ -47,6 +47,7 @@ class DataExchanger():
         return (response.json())['image_ids']
 
     async def download_images_data(self, ids: List[str]) -> List[Dict]:
+        '''Download image annotations etc.'''
         if self.context is None:
             logging.warning('context was not set yet')
             return []
@@ -54,7 +55,7 @@ class DataExchanger():
         return await self._download_images_data(self.context.organization, self.context.project, ids)
 
     async def download_images(self, image_ids: List[str], image_folder: str) -> None:
-        '''Will skip existing images'''
+        '''Download images. Will skip existing images'''
         if self.context is None:
             logging.warning('context was not set yet')
             return
@@ -82,7 +83,7 @@ class DataExchanger():
             logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
 
     async def _download_images_data(self, organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[Dict]:
-        logging.info('fetching annotations and other image data')
+        logging.info('fetching annotations and other image data')  # TODO BUT ALL IMAGES ARE DOWNLOADED AGAIN!!!
         self.jepeg_check_info()
         images_data = []
         starttime = time.time()
