@@ -83,7 +83,7 @@ class DataExchanger():
             logging.error('Missing command line tool "jpeginfo". We can not check for validity of images.')
 
     async def _download_images_data(self, organization: str, project: str, image_ids: List[str], chunk_size: int = 100) -> List[Dict]:
-        logging.info('fetching annotations and other image data')  # TODO BUT ALL IMAGES ARE DOWNLOADED AGAIN!!!
+        logging.info('fetching annotations and other image data')
         self.jepeg_check_info()
         images_data = []
         starttime = time.time()
