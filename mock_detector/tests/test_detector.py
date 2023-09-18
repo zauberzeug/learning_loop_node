@@ -26,7 +26,7 @@ def test_assert_data_folder_for_tests():
 
 async def test_sio_detect(test_detector_node: DetectorNode, sio):
 
-    with open('pytests/test.jpg', 'rb') as f:
+    with open('stests/test.jpg', 'rb') as f:
         image_bytes = f.read()
 
     response = await sio.call('detect', {'image': image_bytes})
