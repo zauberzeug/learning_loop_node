@@ -30,9 +30,9 @@ class DownloadError(Exception):
 
 class DataExchanger():
 
-    def __init__(self, context: Optional[Context], lc: LoopCommunicator):
+    def __init__(self, context: Optional[Context], loop_communicator: LoopCommunicator):
         self.context = context
-        self.loop_communicator = lc
+        self.loop_communicator = loop_communicator
 
     def set_context(self, context: Context):
         self.context = context

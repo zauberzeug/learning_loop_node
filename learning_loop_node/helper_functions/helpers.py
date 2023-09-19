@@ -12,12 +12,10 @@ T = TypeVar('T')
 
 # This type annotation has to be quoted for Python < 3.9, see https://www.python.org/dev/peps/pep-0585/
 def create_task(coroutine: Coroutine, *, loop: Optional[asyncio.AbstractEventLoop] = None, ) -> 'asyncio.Task':
-    '''
-    This helper function wraps a ``loop.create_task(coroutine())`` call and ensures there is
+    '''This helper function wraps a ``loop.create_task(coroutine())`` call and ensures there is
     an exception handler added to the resulting task. If the task raises an exception it is logged
     using the provided ``logger``, with additional context provided by ``message`` and optionally
-    ``message_args``.
-    '''
+    ``message_args``.'''
 
     logger = logging.getLogger(__name__)
     message = 'Task raised an exception'
@@ -53,5 +51,4 @@ def get_free_memory_mb():
     h = pynvml.nvmlDeviceGetHandleByIndex(0)
     info = pynvml.nvmlDeviceGetMemoryInfo(h)
     free = float(info.free) / 1024 / 1024
-    print(f'free     : {free} MB')
     return free

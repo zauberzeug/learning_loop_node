@@ -88,7 +88,7 @@ class AnnotatorNode(Node):
         project_folder = Node.create_project_folder(context)
         images_folder = node_helper.create_image_folder(project_folder)
 
-        downloader = DataExchanger(context=context, lc=self.loop_communicator)
+        downloader = DataExchanger(context=context, loop_communicator=self.loop_communicator)
         await downloader.download_images([uuid], images_folder)
 
     async def get_state(self):
