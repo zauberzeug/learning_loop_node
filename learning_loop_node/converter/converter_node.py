@@ -1,5 +1,4 @@
 import logging
-import traceback
 from dataclasses import asdict
 from http import HTTPStatus
 from typing import Optional
@@ -70,7 +69,6 @@ class ConverterNode(Node):
             projects = content['projects']
 
             for project in projects:
-                logging.info(f'>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>{project}')
                 organization_id = project['organization_id']
                 project_id = project['project_id']
 
@@ -103,7 +101,7 @@ class ConverterNode(Node):
                             version=model['version'],
                         )
                         await self.convert_model(model_information)
-        except Exception as e:
+        except Exception:
             logging.exception('could not convert models')
 
     async def send_status(self):

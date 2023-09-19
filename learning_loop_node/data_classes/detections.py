@@ -119,24 +119,6 @@ class Detections():
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
 
 
-def get_dummy_detections():
-    return Detections(
-        box_detections=[
-            BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
-                         model_name='some_model', confidence=.42, category_id='some_id')],
-        point_detections=[
-            PointDetection(category_name='some_category_name_2', x=10, y=12,
-                           model_name='some_model', confidence=.42, category_id='some_id_2')],
-        segmentation_detections=[
-            SegmentationDetection(category_name='some_category_name_3',
-                                  shape=Shape(points=[Point(x=1, y=1)]),
-                                  model_name='some_model', confidence=.42,
-                                  category_id='some_id_3')],
-        classification_detections=[
-            ClassificationDetection(category_name='some_category_name_4', model_name='some_model',
-                                    confidence=.42, category_id='some_id_4')])
-
-
 # TODO make dataclass
 class Observation():
 

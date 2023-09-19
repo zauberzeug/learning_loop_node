@@ -14,8 +14,7 @@ import aiofiles
 from tqdm.asyncio import tqdm
 
 from .data_classes import Context
-from .helper_functions import node_helper
-from .helper_functions.helpers import create_task
+from .helpers.misc import create_resource_paths, create_task
 from .loop_communication import LoopCommunicator
 
 check_jpeg = shutil.which('jpeginfo') is not None
@@ -61,7 +60,7 @@ class DataExchanger():
             return
 
         new_image_ids = await asyncio.get_event_loop().run_in_executor(None, DataExchanger.filter_existing_images, image_ids, image_folder)
-        paths, ids = node_helper.create_resource_paths(self.context.organization, self.context.project, new_image_ids)
+        paths, ids = create_resource_paths(self.context.organization, self.context.project, new_image_ids)
         await self._download_images(paths, ids, image_folder)
 
     @staticmethod

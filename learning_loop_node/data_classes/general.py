@@ -140,18 +140,18 @@ class NodeStatus():
 
 @dataclass(**KWONLY_SLOTS)
 class AnnotationNodeStatus(NodeStatus):
-    capabilities: List[str]
+    capabilities: List[str] = field(default_factory=list)
 
 
 @dataclass(**KWONLY_SLOTS)
 class DetectionStatus():
     id: str
     name: str
-    state: Optional[NodeState]
-    errors: Optional[Dict]
-    uptime: Optional[int]
-
     model_format: str
-    current_model: Optional[str]
-    target_model: Optional[str]
-    operation_mode: Optional[str]
+
+    state: Optional[NodeState] = None
+    errors: Optional[Dict] = None
+    uptime: Optional[int] = None
+    current_model: Optional[str] = None
+    target_model: Optional[str] = None
+    operation_mode: Optional[str] = None

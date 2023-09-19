@@ -9,7 +9,7 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
 from ..data_classes import TrainingOut
-from ..socket_response import SocketResponse
+from ..data_classes.socket_response import SocketResponse
 
 
 async def try_sync_model(trainer: Any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):

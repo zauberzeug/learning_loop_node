@@ -39,7 +39,5 @@ def save_response_content(response, destination):
                 f.write(chunk)
 
 
-if __name__ == "__main__":
-    g_download(
-        file_id='1q8nT-CTHt1eZuNjPMbdaavyFnMtDRT-L',
-        destination='test.zip')
+# if __name__ == "__main__":
+#     g_download(file_id='1q8nT-CTHt1eZuNjPMbdaavyFnMtDRT-L', destination='test.zip')

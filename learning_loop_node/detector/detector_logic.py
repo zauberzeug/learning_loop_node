@@ -1,3 +1,4 @@
+import numpy as np
 import logging
 from abc import abstractmethod
 from typing import Any, Optional
@@ -43,6 +44,6 @@ class DetectorLogic():
         """Initialize the model. Note that `model_info` is available as `self.model_info`"""
 
     @abstractmethod
-    def evaluate(self, image: Any) -> Detections:
+    def evaluate(self, image: np.ndarray) -> Detections:
         """Evaluate the image and return the detections.
         The object should return empty detections if it is not initialized"""

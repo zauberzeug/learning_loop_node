@@ -1,25 +1,24 @@
 from typing import Dict, List
 
-from ..data_classes.detections import Detections
-from ..detector.outbox import Outbox
-from .relevance_group import RelevanceGroup
+from ...data_classes.detections import Detections
+from ..outbox import Outbox
+from .cam_observation_history import CamObservationHistory
 
 
 class RelevanceFilter():
 
     def __init__(self, outbox: Outbox) -> None:
-        self.groups: Dict[str, RelevanceGroup] = {}
+        self.cam_histories: Dict[str, CamObservationHistory] = {}
         self.outbox: Outbox = outbox
         self.learners = {}
 
     def may_upload_detections(self, dets: Detections, cam_id: str, raw_image: bytes, tags: List[str]) -> List[str]:
-
-        for group in self.groups.values():
+        for group in self.cam_histories.values():
             group.forget_old_detections()
 
-        if cam_id not in self.groups:
-            self.groups[cam_id] = RelevanceGroup()
-        causes = self.groups[cam_id].add_detections(dets)
+        if cam_id not in self.cam_histories:
+            self.cam_histories[cam_id] = CamObservationHistory()
+        causes = self.cam_histories[cam_id].get_causes_to_upload(dets)
         if len(dets) >= 80:
             causes.append('unexpected_observations_count')
         if len(causes) > 0:

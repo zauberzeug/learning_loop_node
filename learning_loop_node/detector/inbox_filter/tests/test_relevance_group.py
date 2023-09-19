@@ -8,7 +8,8 @@ from learning_loop_node.data_classes.detections import (BoxDetection, Point,
                                                         PointDetection,
                                                         SegmentationDetection,
                                                         Shape)
-from learning_loop_node.inbox_filter.relevance_group import RelevanceGroup
+from learning_loop_node.detector.inbox_filter.cam_observation_history import \
+    CamObservationHistory
 
 dirt_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100, height=100,
                               category_id='xyz', model_name='test_model', confidence=.3)
@@ -21,7 +22,7 @@ conf_too_low_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100,
 
 
 def test_group_confidence():
-    group = RelevanceGroup()
+    group = CamObservationHistory()
     assert len(group.recent_observations) == 0
 
     filter_cause = group.add_box_detections([dirt_detection])
@@ -42,7 +43,7 @@ def test_group_confidence():
 
 
 def test_add_second_detection_to_group():
-    group = RelevanceGroup()
+    group = CamObservationHistory()
     assert len(group.recent_observations) == 0
     group.add_box_detections([dirt_detection])
     assert len(group.recent_observations) == 1, 'Detection should be stored'
@@ -51,7 +52,7 @@ def test_add_second_detection_to_group():
 
 
 def test_forget_old_detections():
-    group = RelevanceGroup()
+    group = CamObservationHistory()
     assert len(group.recent_observations) == 0
 
     filter_cause = group.add_box_detections([dirt_detection])
@@ -96,7 +97,7 @@ def test_active_group_extracts_from_json():
          "confidence": .2}]
 
     camera_id = '0000'
-    groups = {camera_id: RelevanceGroup()}
+    groups = {camera_id: CamObservationHistory()}
 
     filter_cause = groups[camera_id].add_box_detections(
         [from_dict(data_class=BoxDetection, data=_detection) for _detection in detections]
@@ -113,7 +114,7 @@ def test_segmentation_detections_are_extracted_from_json():
                      "confidence": .3}
 
     camera_id = '0000'
-    groups = {camera_id: RelevanceGroup()}
+    groups = {camera_id: CamObservationHistory()}
 
     filter_cause = groups[camera_id].add_segmentation_detections(
         [from_dict(data_class=SegmentationDetection, data=seg_detection)]
@@ -122,7 +123,7 @@ def test_segmentation_detections_are_extracted_from_json():
 
 
 def test_ignoring_similar_points():
-    group = RelevanceGroup()
+    group = CamObservationHistory()
     filter_cause = group.add_point_detections(
         [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')])
     assert filter_cause == ['uncertain'], 'Active Learning should be done due to low confidence'
@@ -135,7 +136,7 @@ def test_ignoring_similar_points():
 
 
 def test_getting_low_confidence_points():
-    group = RelevanceGroup()
+    group = CamObservationHistory()
     filter_cause = group.add_point_detections(
         [PointDetection(category_name='point', x=100, y=100, model_name='xyz', confidence=0.3, category_id='some_id')]
     )
@@ -149,7 +150,7 @@ def test_getting_low_confidence_points():
 
 
 def test_getting_segmentation_detections():
-    group = RelevanceGroup()
+    group = CamObservationHistory()
     filter_cause = group.add_segmentation_detections([SegmentationDetection(category_name='segmentation', shape=Shape(
         points=[Point(x=100, y=200), Point(x=300, y=400)]), model_name='xyz', confidence=0.3, category_id='some_id')], )
     assert filter_cause == ['segmentation_detection'], 'all segmentation detections are collected'

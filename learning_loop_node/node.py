@@ -14,13 +14,12 @@ from fastapi import FastAPI
 from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
-from . import log_conf
 from .data_classes import Context, NodeState, NodeStatus
 from .data_exchanger import DataExchanger
 from .globals import GLOBALS
-from .helper_functions import environment_reader
+from .helpers import environment_reader, log_conf
+from .helpers.misc import ensure_socket_response
 from .loop_communication import LoopCommunicator
-from .socket_response import ensure_socket_response
 
 
 class Node(FastAPI):

@@ -7,7 +7,7 @@ from learning_loop_node.data_classes import (BoxDetection,
                                              SegmentationDetection)
 
 
-class RelevanceGroup:
+class CamObservationHistory:
     def __init__(self):
         self.reset_time = 3600
         self.recent_observations: List[Observation] = []
@@ -18,24 +18,25 @@ class RelevanceGroup:
                                     for detection in self.recent_observations
                                     if not detection.is_older_than(self.reset_time)]
 
+    # TODO move to tests
     def add_box_detections(self, box_detections: List[BoxDetection]) -> List[str]:
-        return self.add_detections(Detections(box_detections=box_detections))
+        return self.get_causes_to_upload(Detections(box_detections=box_detections))
 
     def add_point_detections(self, point_detections: List[PointDetection]) -> List[str]:
-        return self.add_detections(Detections(point_detections=point_detections))
+        return self.get_causes_to_upload(Detections(point_detections=point_detections))
 
     def add_segmentation_detections(self, seg_detections: List[SegmentationDetection]) -> List[str]:
-        return self.add_detections(Detections(segmentation_detections=seg_detections))
+        return self.get_causes_to_upload(Detections(segmentation_detections=seg_detections))
 
-    def add_detections(self, detections: Detections) -> List[str]:
+    def get_causes_to_upload(self, detections: Detections) -> List[str]:  # TODO split into multiple methods
         causes = set()
         for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections + detections.classification_detections:
             if isinstance(detection, SegmentationDetection):
-                self.recent_observations.append(Observation(detection))
+                # self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')
                 continue
             if isinstance(detection, ClassificationDetection):
-                self.recent_observations.append(Observation(detection))
+                # self.recent_observations.append(Observation(detection))
                 causes.add('classification_detection')
                 continue
 

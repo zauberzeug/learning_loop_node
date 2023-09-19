@@ -16,13 +16,13 @@ from socketio import AsyncClient
 
 from ..data_classes import (Category, Context, Detections, DetectionStatus,
                             ModelInformation, NodeState, Shape)
+from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
-from ..helper_functions import environment_reader
-from ..inbox_filter import RelevanceFilter
+from ..helpers import environment_reader
 from ..node import Node
-from ..socket_response import SocketResponse
 from .detector_logic import DetectorLogic
+from .inbox_filter.relevance_filter import RelevanceFilter
 from .outbox import Outbox
 from .rest import detect as rest_detect
 from .rest import operation_mode as rest_mode
@@ -31,7 +31,6 @@ from .rest.operation_mode import OperationMode
 
 
 class DetectorNode(Node):
-    update_frequency = 10
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
@@ -234,8 +233,7 @@ class DetectorNode(Node):
         else:
             self.log.error('could not reload app')
 
-    async def get_detections(self, raw_image, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-
+    async def get_detections(self, raw_image: np.ndarray, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
         loop = asyncio.get_event_loop()
         detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
 

@@ -3,9 +3,8 @@ import asyncio
 import pytest
 from dacite import from_dict
 
-from learning_loop_node.data_classes import Context, Detections
-from learning_loop_node.data_classes.detections import (BoxDetection,
-                                                        get_dummy_detections)
+from learning_loop_node.conftest import get_dummy_detections
+from learning_loop_node.data_classes import BoxDetection, Context, Detections
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)

@@ -1,7 +1,7 @@
 import asyncio
 
+from learning_loop_node.conftest import get_dummy_detections
 from learning_loop_node.data_classes import TrainingState
-from learning_loop_node.data_classes.detections import get_dummy_detections
 from learning_loop_node.trainer.tests.state_helper import (
     assert_training_state, create_active_training_file)
 from learning_loop_node.trainer.tests.testing_trainer_logic import \

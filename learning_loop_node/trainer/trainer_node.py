@@ -8,8 +8,8 @@ from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
 from ..data_classes import Context, NodeState, TrainingState, TrainingStatus
+from ..data_classes.socket_response import SocketResponse
 from ..node import Node
-from ..socket_response import SocketResponse
 from .io_helpers import LastTrainingIO
 from .rest import controls
 from .trainer_logic import TrainerLogic

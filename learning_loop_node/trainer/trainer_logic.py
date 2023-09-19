@@ -21,7 +21,7 @@ from ..data_classes import (BasicModel, Category, Context, Detections, Errors,
                             Hyperparameter, ModelInformation, PretrainedModel,
                             Training, TrainingData, TrainingError,
                             TrainingState)
-from ..helper_functions import node_helper
+from ..helpers.misc import create_image_folder
 from ..node import Node
 from . import training_syncronizer
 from .downloader import TrainingsDownloader
@@ -405,7 +405,7 @@ class TrainerLogic():
             model_information = from_dict(data_class=ModelInformation, data=content)
 
         project_folder = Node.create_project_folder(context)
-        image_folder = node_helper.create_image_folder(project_folder)
+        image_folder = create_image_folder(project_folder)
         self.node.data_exchanger.set_context(context)
         image_ids = []
         for state in ['inbox', 'annotate', 'review', 'complete']:
@@ -611,7 +611,7 @@ class TrainerLogic():
             id=training_uuid,
             context=context,
             project_folder=project_folder,
-            images_folder=node_helper.create_image_folder(project_folder),
+            images_folder=create_image_folder(project_folder),
             training_folder=TrainerLogic.create_training_folder(project_folder, training_uuid)
         )
 

@@ -2,7 +2,7 @@ from typing import List
 
 import pytest
 
-from learning_loop_node.helper_functions import node_helper
+from learning_loop_node.helpers.misc import create_resource_paths
 
 
 @pytest.mark.parametrize("image_ids,expected_urls,expected_ids", [
@@ -12,7 +12,7 @@ from learning_loop_node.helper_functions import node_helper
     ([], [], [])
 ])
 def test_resource_path_creation(image_ids: List[str], expected_urls: List[str], expected_ids: List['str']):
-    urls, ids = node_helper.create_resource_paths('zauberzeug', 'pytest', image_ids)
+    urls, ids = create_resource_paths('zauberzeug', 'pytest', image_ids)
 
     assert urls == expected_urls
     assert ids == expected_ids

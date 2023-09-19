@@ -1,8 +1,8 @@
 import logging
 
 from learning_loop_node import DetectorLogic
+from learning_loop_node.conftest import get_dummy_detections
 from learning_loop_node.data_classes import Detections
-from learning_loop_node.data_classes.detections import get_dummy_detections
 
 
 class TestingDetectorLogic(DetectorLogic):

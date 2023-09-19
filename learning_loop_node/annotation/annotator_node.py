@@ -6,10 +6,10 @@ from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
 from ..data_classes import AnnotationNodeStatus, Context, NodeState, UserInput
+from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger
-from ..helper_functions import node_helper
+from ..helpers.misc import create_image_folder
 from ..node import Node
-from ..socket_response import SocketResponse
 from .annotator_logic import AnnotatorLogic
 
 # TODO: The use case 'segmentation' is hardcoded here. This should be more flexible.
@@ -77,7 +77,7 @@ class AnnotatorNode(Node):
         self.log.info(f'Sending status {status}')
         if self._sio_client is None:
             raise Exception('No socket client')
-        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=2)
+        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
         assert isinstance(result, Dict)
         response = from_dict(data_class=SocketResponse, data=result)
 
@@ -86,7 +86,7 @@ class AnnotatorNode(Node):
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = Node.create_project_folder(context)
-        images_folder = node_helper.create_image_folder(project_folder)
+        images_folder = create_image_folder(project_folder)
 
         downloader = DataExchanger(context=context, loop_communicator=self.loop_communicator)
         await downloader.download_images([uuid], images_folder)
