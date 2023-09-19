@@ -31,7 +31,7 @@ class Node(FastAPI):
         Args:
             name (str): The name of the node. This name is used to generate a uuid.
             uuid (Optional[str]): The uuid of the node. If None, a uuid is generated based on the name 
-                and stored in f'{GLOBALS.data_folder}/uuids.json'. s
+                and stored in f'{GLOBALS.data_folder}/uuids.json'. 
                 From the second run, the uuid is recovered based on the name of the node. Defaults to None.
         """
 
@@ -135,7 +135,7 @@ class Node(FastAPI):
     async def create_sio_client(self):
         cookies = await self.loop_communicator.get_cookies()
         self._sio_client = AsyncClient(reconnection_delay=1,
-                                       request_timeout=0.5,
+                                       request_timeout=10,
                                        http_session=aiohttp.ClientSession(cookies=cookies))
 
         # pylint: disable=protected-access

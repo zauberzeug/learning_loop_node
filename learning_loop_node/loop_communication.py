@@ -20,8 +20,8 @@ class LoopCommunicator():
         host: str = environment_reader.host(default='learning-loop.ai')
         self.username: str = environment_reader.username()
         self.password: str = environment_reader.password()
-        self.organization: str = environment_reader.organization()
-        self.project: str = environment_reader.project()
+        self.organization: str = environment_reader.organization()  # TODO: remove?
+        self.project: str = environment_reader.project()  # TODO: remove?
         self.base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
         self._async_client: Optional[httpx.AsyncClient] = None
 
@@ -36,7 +36,7 @@ class LoopCommunicator():
 
         if self._async_client is None or self._async_client.is_closed:
             logging.info(f'Creating new async client for {self.base_url}')
-            self._async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(120.0))
+            self._async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
 
         if requires_login and not self._async_client.cookies.keys():
             response = await self._async_client.post('/api/login', data={'username': self.username, 'password': self.password})
@@ -88,7 +88,7 @@ class LoopCommunicator():
         ac = await self.get_asyncclient(requires_login=requires_login)
         return await ac.delete(api_prefix+path, **kwargs)
 
-    # --------------------------------- only used by example/novelty_score_updater ---------------------------------
+    # --------------------------------- only used by example/novelty_score_updater --------------------------------- #TODO check usage and move to novelty_score_updater
 
     def get_json(self, path):
         return asyncio.get_event_loop().run_until_complete(self._get_json_async(path))
@@ -111,7 +111,7 @@ class LoopCommunicator():
             raise LoopCommunicationException(f'bad response: {str(response)} \n {response.json()}')
         return response.json()
 
-    # --------------------------------- unused?! ---------------------------------
+    # --------------------------------- unused?! --------------------------------- #TODO remove?
 
     def get_data(self, path):
         return asyncio.get_event_loop().run_until_complete(self._get_data_async(path))
