@@ -1,7 +1,6 @@
 from dataclasses import asdict
 from glob import glob
 
-import pytest
 from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.data_classes import Category, Context

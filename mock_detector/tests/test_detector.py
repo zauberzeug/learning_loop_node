@@ -1,9 +1,7 @@
 import asyncio
-from typing import AsyncGenerator
 
 import pytest
 
-from learning_loop_node.data_classes import Category, ModelInformation
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
 
@@ -25,8 +23,7 @@ def test_assert_data_folder_for_tests():
 
 
 async def test_sio_detect(test_detector_node: DetectorNode, sio):
-
-    with open('stests/test.jpg', 'rb') as f:
+    with open('tests/test.jpg', 'rb') as f:
         image_bytes = f.read()
 
     response = await sio.call('detect', {'image': image_bytes})
