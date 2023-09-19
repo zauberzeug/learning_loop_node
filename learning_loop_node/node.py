@@ -49,7 +49,7 @@ class Node(FastAPI):
 
         self.sio_client = socketio.AsyncClient(
             reconnection_delay=0,
-            request_timeout=0.5,
+            request_timeout=10,
             http_session=aiohttp.ClientSession(cookies=global_loop_com.async_client.cookies),
             # logger=True, engineio_logger=True
         )
