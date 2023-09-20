@@ -23,7 +23,7 @@ async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
     create_active_training_file(trainer, training_state='training_finished')
     trainer.load_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
     assert trainer_has_error(trainer) is False
@@ -41,7 +41,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     trainer.load_last_training()
     trainer.has_new_model = True
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
     await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=1, interval=0.001)
 
     assert trainer_has_error(trainer) is False
@@ -58,7 +58,7 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
     assert test_initialized_trainer_node.sio_client.connected is False
     trainer.has_new_model = True
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
@@ -77,7 +77,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_initiali
     create_active_training_file(trainer, training_state='training_finished')
 
     trainer.has_new_model = True
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)

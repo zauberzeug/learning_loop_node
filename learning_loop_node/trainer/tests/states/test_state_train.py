@@ -13,11 +13,11 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
     create_active_training_file(trainer, training_state='train_model_downloaded')
     trainer.load_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
-    assert trainer.train_task is not None
-    assert trainer.train_task.__name__ == 'start_training'
+    assert trainer.start_training_task is not None
+    assert trainer.start_training_task.__name__ == 'start_training'
 
     # pylint: disable=protected-access
     assert trainer._executor is not None
@@ -34,12 +34,12 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainerLog
     create_active_training_file(trainer, training_state='train_model_downloaded')
     trainer.load_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await condition(lambda: trainer._executor and trainer._executor.is_process_running(), timeout=1, interval=0.01)  # pylint: disable=protected-access
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
-    assert trainer.train_task is not None
-    assert trainer.train_task.__name__ == 'start_training'
+    assert trainer.start_training_task is not None
+    assert trainer.start_training_task.__name__ == 'start_training'
 
     await trainer.stop()
     await assert_training_state(trainer.training, 'training_finished', timeout=1, interval=0.001)
@@ -56,12 +56,12 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
     trainer.load_last_training()
     trainer._can_resume = True  # pylint: disable=protected-access
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await condition(lambda: trainer._executor and trainer._executor.is_process_running(), timeout=1, interval=0.01)  # pylint: disable=protected-access
     await assert_training_state(trainer.training, 'training_running', timeout=1, interval=0.001)
-    assert trainer.train_task is not None
-    assert trainer.train_task.__name__ == 'resume'
+    assert trainer.start_training_task is not None
+    assert trainer.start_training_task.__name__ == 'resume'
 
     # pylint: disable=protected-access
     assert trainer._executor is not None

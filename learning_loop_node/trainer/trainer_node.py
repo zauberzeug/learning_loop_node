@@ -47,6 +47,7 @@ class TrainerNode(Node):
     async def on_repeat(self):
         try:
             await self.send_status()
+            await self.continue_run_if_incomplete()
         except Exception as e:
             self.log.exception(f'could not send status state: {e}')
 
@@ -59,7 +60,7 @@ class TrainerNode(Node):
             assert self._sio_client is not None
             self.log.info('received begin_training from server')
             self.trainer_logic.init(Context(organization=organization, project=project), details, self)
-            self.start_training_task()
+            asyncio.get_event_loop().create_task(self.trainer_logic.run())
             return True
 
         @sio_client.event
@@ -71,14 +72,9 @@ class TrainerNode(Node):
                 self.log.exception('error in stop_training. Exception:')
             return True
 
-    async def send_status(self):  # TODO rename?
+    async def send_status(self):
         if self._sio_client is None or not self._sio_client.connected:
             self.log.warning('cannot send status - not connected to the Learning Loop')
-            return
-
-        if not self.trainer_logic.is_initialized and self.last_training_io.exists():
-            self.log.warning('found active training, starting now.')
-            self.start_training_task()
             return
 
         if not self.trainer_logic.is_initialized:
@@ -113,6 +109,11 @@ class TrainerNode(Node):
         if not response.success:
             self.log.error(f'Error when sending status update: Response from loop was:\n {asdict(response)}')
 
+    async def continue_run_if_incomplete(self):
+        if not self.trainer_logic.is_initialized and self.last_training_io.exists():
+            self.log.info('found incomplete training, continuing now.')
+            asyncio.get_event_loop().create_task(self.trainer_logic.run())
+
     async def get_state(self):
         if self.trainer_logic._executor is not None and self.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
             return NodeState.Running
@@ -120,12 +121,6 @@ class TrainerNode(Node):
 
     def get_node_type(self):
         return 'trainer'
-
-    # --------------------------------------------------- TRAINING ---------------------------------------------------
-
-    def start_training_task(self):
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.trainer_logic.train())
 
     # --------------------------------------------------- HELPER ---------------------------------------------------
 

@@ -39,7 +39,7 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
     detections = [detection_entry] * number_of_entries
 
     assert trainer.active_training_io is not None  # pylint: disable=protected-access
-    trainer.active_training_io.det_save(detections, file_index)
+    trainer.active_training_io.save_detections(detections, file_index)
 
 
 @pytest.mark.asyncio
@@ -64,10 +64,10 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
 
     await create_valid_detection_file(trainer)
 
-    assert trainer.active_training_io.dufi_load() == 0
+    assert trainer.active_training_io.load_detections_upload_file_index() == 0
     await trainer.upload_detections()
-    assert trainer.active_training_io.dup_load() == 0  # Progress is reset for every file
-    assert trainer.active_training_io.dufi_load() == 1
+    assert trainer.active_training_io.load_detection_upload_progress() == 0  # Progress is reset for every file
+    assert trainer.active_training_io.load_detections_upload_file_index() == 1
 
 
 @pytest.mark.asyncio
@@ -80,36 +80,36 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     await create_valid_detection_file(trainer, 2, 0)
     await create_valid_detection_file(trainer, 2, 1)
 
-    assert trainer.active_training_io.dufi_load() == 0
-    detections = trainer.active_training_io.det_load(0)
+    assert trainer.active_training_io.load_detections_upload_file_index() == 0
+    detections = trainer.active_training_io.load_detections(0)
     assert len(detections) == 2
 
     batch_size = 1
-    skip_detections = trainer.active_training_io.dup_load()
+    skip_detections = trainer.active_training_io.load_detection_upload_progress()
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
         await trainer._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
-        assert trainer.active_training_io.dup_load() == expected_value
+        assert trainer.active_training_io.load_detection_upload_progress() == expected_value
 
-    assert trainer.active_training_io.dufi_load() == 0
-    trainer.active_training_io.dufi_save(1)
-    assert trainer.active_training_io.dufi_load() == 1
-    assert trainer.active_training_io.dup_load() == 0  # Progress is reset for every file
+    assert trainer.active_training_io.load_detections_upload_file_index() == 0
+    trainer.active_training_io.save_detections_upload_file_index(1)
+    assert trainer.active_training_io.load_detections_upload_file_index() == 1
+    assert trainer.active_training_io.load_detection_upload_progress() == 0  # Progress is reset for every file
 
-    detections = trainer.active_training_io.det_load(1)
+    detections = trainer.active_training_io.load_detections(1)
 
-    skip_detections = trainer.active_training_io.dup_load()
+    skip_detections = trainer.active_training_io.load_detection_upload_progress()
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
         await trainer._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
-        assert trainer.active_training_io.dup_load() == expected_value
-        assert trainer.active_training_io.dufi_load() == 1
+        assert trainer.active_training_io.load_detection_upload_progress() == expected_value
+        assert trainer.active_training_io.load_detections_upload_file_index() == 1
 
 
 @pytest.mark.asyncio
@@ -119,9 +119,9 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     create_active_training_file(trainer, training_state='detected', context=Context(
         organization='zauberzeug', project='some_bad_project'))
     trainer.load_last_training()
-    trainer.active_training_io.det_save([get_dummy_detections()])
+    trainer.active_training_io.save_detections([get_dummy_detections()])
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
@@ -137,7 +137,7 @@ async def test_other_errors(test_initialized_trainer: TestingTrainerLogic):
     create_active_training_file(trainer, training_state='detected')
     trainer.load_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
 
@@ -153,7 +153,7 @@ async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
     trainer.load_last_training()
     await create_valid_detection_file(trainer)
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
 

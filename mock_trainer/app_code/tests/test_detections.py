@@ -36,7 +36,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
     training.model_id_for_detecting = latest_model_id
     trainer._training = training  # pylint: disable=protected-access
     await trainer._do_detections()  # pylint: disable=protected-access
-    detections = trainer.active_training_io.det_load()
+    detections = trainer.active_training_io.load_detections()
 
     assert_image_count(10)
     assert len(detections) == 10  # detections run on 10 images

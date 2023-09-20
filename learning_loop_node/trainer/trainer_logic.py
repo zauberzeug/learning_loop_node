@@ -47,7 +47,7 @@ class TrainerLogic():
         self._executor: Optional[Executor] = None
         self.start_time: Optional[float] = None
         self.training_task: Optional[asyncio.Task] = None
-        self.train_task: Optional[Coroutine] = None
+        self.start_training_task: Optional[Coroutine] = None
         self.errors = Errors()
         self.shutdown_event: asyncio.Event = asyncio.Event()
 
@@ -96,14 +96,13 @@ class TrainerLogic():
         except Exception:
             logging.exception('Error in init')
 
-    async def train(self) -> None:
+    async def run(self) -> None:
         """Called on `begin_training` event from the Learning Loop."""
 
         self.start_time = time.time()
-        logging.info('reveiced start training request or found incomplete training')
         self.errors.reset_all()
         try:
-            self.training_task = asyncio.get_running_loop().create_task(self._train())
+            self.training_task = asyncio.get_running_loop().create_task(self._run())
             await self.training_task  # Object is used to potentially cancel the task
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
@@ -119,7 +118,7 @@ class TrainerLogic():
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
-    async def _train(self) -> None:
+    async def _run(self) -> None:
         """asyncio.CancelledError is catched in train"""
 
         if self._training is None:
@@ -143,7 +142,7 @@ class TrainerLogic():
             elif tstate == TrainingState.DataDownloaded:
                 await self.download_model()
             elif tstate == TrainingState.TrainModelDownloaded:
-                await self.run_training()
+                await self.train()
             elif tstate == TrainingState.TrainingFinished:
                 await self.ensure_confusion_matrix_synced()
             elif tstate == TrainingState.ConfusionMatrixSynced:
@@ -209,16 +208,17 @@ class TrainerLogic():
     async def _download_model(self) -> None:
         model_id = self.training.base_model_id
         assert model_id is not None, 'model_id must be set'
-        if is_valid_uuid4(self.training.base_model_id):
+        if is_valid_uuid4(
+                self.training.base_model_id):  # TODO this checks if we continue a training -> make more explicit
             logging.info('loading model from Learning Loop')
             logging.info(f'downloading model {model_id} as {self.model_format}')
             await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
             shutil.move(f'{self.training.training_folder}/model.json',
                         f'{self.training.training_folder}/base_model.json')
         else:
-            logging.warning(f'base_model_id {model_id} is not a valid uuid4, skipping download')
+            logging.info(f'base_model_id {model_id} is not a valid uuid4, skipping download')
 
-    async def run_training(self) -> None:
+    async def train(self) -> None:
         logging.info('Running training')
         error_key = 'run_training'
         # NOTE normally we reset errors after the step was successful. We do not want to display an old error during the whole training.
@@ -226,23 +226,12 @@ class TrainerLogic():
         previous_state = self.training.training_state
         self._executor = Executor(self.training.training_folder)
         self.training.training_state = TrainingState.TrainingRunning
-        self.train_task = None
         try:
-            if self.can_resume():
-                self.train_task = self.resume()
-            else:
-                base_model_id = self.training.base_model_id
-                if not is_valid_uuid4(base_model_id):
-                    assert isinstance(base_model_id, str)
-                    self.train_task = self.start_training_from_scratch(base_model_id)
-                else:
-                    self.train_task = self.start_training()
-
-            await self.train_task
+            await self._start_training()
 
             last_sync_time = datetime.now()
             while True:
-                if not self._executor.is_process_running():
+                if not self.executor.is_process_running():
                     break
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
@@ -263,15 +252,18 @@ class TrainerLogic():
             if error:
                 self.errors.set(error_key, error)
                 raise TrainingError(cause=error)
-            self.errors.reset(error_key)
+            # TODO check if this works:
+            # if self.executor.return_code != 0:
+            #     self.errors.set(error_key, f'Executor return code was {self.executor.return_code}')
+            #     raise TrainingError(cause=f'Executor return code was {self.executor.return_code}')
 
         except asyncio.CancelledError:
             logging.warning('CancelledError in run_training')
             raise
         except TrainingError:
             logging.exception('Error in TrainingProcess')
-            if self._executor.is_process_running():
-                self._executor.stop()
+            if self.executor.is_process_running():
+                self.executor.stop()
             self.training.training_state = previous_state
         except Exception as e:
             self.errors.set(error_key, f'Could not start training {str(e)}')
@@ -280,6 +272,20 @@ class TrainerLogic():
         else:
             self.training.training_state = TrainingState.TrainingFinished
             self.node.last_training_io.save(self.training)
+
+    async def _start_training(self):
+        self.start_training_task = None  # NOTE: this is used i.e. by tests
+        if self.can_resume():
+            self.start_training_task = self.resume()
+        else:
+            base_model_id = self.training.base_model_id
+            if not is_valid_uuid4(base_model_id):  # TODO this check was done earlier!
+                assert isinstance(base_model_id, str)
+                # TODO this could be removed here and accessed via self.training.base_model_id
+                self.start_training_task = self.start_training_from_scratch(base_model_id)
+            else:
+                self.start_training_task = self.start_training()
+        await self.start_training_task
 
     async def ensure_confusion_matrix_synced(self):
         logging.info('Syncing confusion matrix')
@@ -352,7 +358,7 @@ class TrainerLogic():
         assert isinstance(files, Dict), f'can only save model as list or dict, but was {files}'
 
         model_json_path = self.create_model_json_with_categories()
-        already_uploaded_formats = self.active_training_io.mup_load()
+        already_uploaded_formats = self.active_training_io.load_model_upload_progress()
 
         new_id = None
         for file_format in files:
@@ -367,7 +373,7 @@ class TrainerLogic():
                 return None
 
             already_uploaded_formats.append(file_format)
-            self.active_training_io.mup_save(already_uploaded_formats)
+            self.active_training_io.save_model_upload_progress(already_uploaded_formats)
 
         return new_id
 
@@ -419,11 +425,11 @@ class TrainerLogic():
         batch_size = 200
         idx = 0
         if not images:
-            self.active_training_io.det_save([], idx)
+            self.active_training_io.save_detections([], idx)
         for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
-            self.active_training_io.det_save(batch_detections, idx)
+            self.active_training_io.save_detections(batch_detections, idx)
             idx += 1
 
     async def upload_detections(self):
@@ -432,15 +438,15 @@ class TrainerLogic():
         self.training.training_state = TrainingState.DetectionUploading
         await asyncio.sleep(0.1)  # NOTE needed for tests
         try:
-            json_files = self.active_training_io.det_get_file_names()
+            json_files = self.active_training_io.get_detection_file_names()
             if not json_files:
                 raise Exception()
-            current_json_file_index = self.active_training_io.dufi_load()
+            current_json_file_index = self.active_training_io.load_detections_upload_file_index()
             for i in range(current_json_file_index, len(json_files)):
-                detections = self.active_training_io.det_load(i)
+                detections = self.active_training_io.load_detections(i)
                 logging.info(f'uploading detections {i}/{len(json_files)}')
                 await self._upload_detections_batched(self.training.context, detections)
-                self.active_training_io.dufi_save(i+1)
+                self.active_training_io.save_detections_upload_file_index(i+1)
         except asyncio.CancelledError:
             logging.warning('CancelledError in upload_detections')
             raise
@@ -455,7 +461,7 @@ class TrainerLogic():
 
     async def _upload_detections_batched(self, context: Context, detections: List[Detections]):
         batch_size = 10
-        skip_detections = self.active_training_io.dup_load()
+        skip_detections = self.active_training_io.load_detection_upload_progress()
         for i in tqdm(range(skip_detections, len(detections), batch_size), position=0, leave=True):
             up_progress = i+batch_size
             batch_detections = detections[i:up_progress]
@@ -477,14 +483,14 @@ class TrainerLogic():
         else:
             logging.info('successfully uploaded detections')
             if up_progress > len(batch_detections):
-                self._active_training_io.dup_save(0)
+                self._active_training_io.save_detection_upload_progress(0)
             else:
-                self._active_training_io.dup_save(up_progress)
+                self._active_training_io.save_detection_upload_progress(up_progress)
 
     async def clear_training(self):
-        self.active_training_io.det_delete()
-        self.active_training_io.dup_delete()
-        self.active_training_io.dufi_delete()
+        self.active_training_io.delete_detections()
+        self.active_training_io.delete_detection_upload_progress()
+        self.active_training_io.delete_detections_upload_file_index()
         await self.clear_training_data(self.training.training_folder)
         self.node.last_training_io.delete()
         self.training.training_state = TrainingState.TrainingFinished
@@ -494,7 +500,7 @@ class TrainerLogic():
         if not self._training:
             return
         if self._executor and self._executor.is_process_running():
-            self._executor.stop()
+            self.executor.stop()
         elif self.training_task:
             logging.info('cancelling training task')
             if self.training_task.cancel():
@@ -510,8 +516,7 @@ class TrainerLogic():
         await self.stop()  # NOTE first stop may only stop training.
 
     def get_log(self) -> str:
-        assert self._executor is not None, 'executor must be set'
-        return self._executor.get_log()
+        return self.executor.get_log()
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
@@ -549,7 +554,7 @@ class TrainerLogic():
         One may resume the training on a previously trained model stored by self.on_model_published(basic_model).'''
 
     @abstractmethod
-    def get_executor_error_from_log(self) -> Optional[str]:
+    def get_executor_error_from_log(self) -> Optional[str]:  # TODO we should allow other options to get the error
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
 
     @abstractmethod
@@ -583,7 +588,7 @@ class TrainerLogic():
         a dictionary mapping format -> list of files can be returned.'''
 
     @abstractmethod
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
+    async def _detect(self, model_information: ModelInformation, images: List[str], model_folder: str) -> List[Detections]:
         '''Called to run detections on a list of images.'''
 
     @abstractmethod

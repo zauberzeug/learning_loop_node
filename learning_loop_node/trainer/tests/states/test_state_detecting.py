@@ -28,7 +28,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == 'detected'
     assert trainer.node.last_training_io.load() == trainer.training
-    assert trainer.active_training_io.det_exists()
+    assert trainer.active_training_io.detections_exist()
 
 
 async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainerLogic):
@@ -37,14 +37,14 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
     trainer.load_last_training()
     trainer.training.model_id_for_detecting = '12345678-bobo-7e92-f95f-424242424242'
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'detecting', timeout=5, interval=0.001)
     await trainer.stop()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access
-    assert trainer.active_training_io.det_exists() is False
+    assert trainer.active_training_io.detections_exist() is False
     assert trainer.node.last_training_io.exists() is False
 
 
@@ -54,7 +54,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
                                 model_id_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
     trainer.load_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.train())
+    _ = asyncio.get_running_loop().create_task(trainer.run())
 
     await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'train_model_uploaded', timeout=1, interval=0.001)
@@ -72,11 +72,11 @@ def test_save_load_detections(test_initialized_trainer: TestingTrainerLogic):
 
     detections = [get_dummy_detections(), get_dummy_detections()]
 
-    trainer.active_training_io.det_save(detections)
-    assert trainer.active_training_io.det_exists()
+    trainer.active_training_io.save_detections(detections)
+    assert trainer.active_training_io.detections_exist()
 
-    stored_detections = trainer.active_training_io.det_load()
+    stored_detections = trainer.active_training_io.load_detections()
     assert stored_detections == detections
 
-    trainer.active_training_io.det_delete()
-    assert trainer.active_training_io.det_exists() is False
+    trainer.active_training_io.delete_detections()
+    assert trainer.active_training_io.detections_exist() is False

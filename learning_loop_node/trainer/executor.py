@@ -53,6 +53,8 @@ class Executor:
         try:
             psutil.Process(self.process.pid)
         except psutil.NoSuchProcess:
+            # self.process.terminate() # TODO does this make sense?
+            # self.process = None
             return False
 
         return True
@@ -64,7 +66,7 @@ class Executor:
         except Exception:
             return ''
 
-    def get_log_by_lines(self, since_last_start=False) -> List[str]:
+    def get_log_by_lines(self, since_last_start=False) -> List[str]:  # TODO do not read whole log again
         try:
             with open(f'{self.path}/last_training.log') as f:
                 lines = f.readlines()

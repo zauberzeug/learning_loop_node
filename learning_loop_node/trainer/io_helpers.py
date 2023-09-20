@@ -51,11 +51,11 @@ class ActiveTrainingIO:
     # model upload progress
     # NOTE: progress file is deleted implicitly after training
 
-    def mup_save(self, formats: List[str]) -> None:
+    def save_model_upload_progress(self, formats: List[str]) -> None:
         with open(self.mup_path, 'w') as f:
             f.write(','.join(formats))
 
-    def mup_load(self) -> List[str]:
+    def load_model_upload_progress(self) -> List[str]:
         if not os.path.exists(self.mup_path):
             return []
         with open(self.mup_path, 'r') as f:
@@ -63,63 +63,63 @@ class ActiveTrainingIO:
 
     # detections
 
-    def det_get_file_names(self) -> List[Path]:
+    def get_detection_file_names(self) -> List[Path]:
         files = [f for f in Path(self.training_folder).iterdir()
                  if f.is_file() and f.name.startswith('detections_')]
         if not files:
             return []
         return files
 
-    def det_save(self, detections: List[Detections], index: int = 0) -> None:
+    def save_detections(self, detections: List[Detections], index: int = 0) -> None:
         with open(self.det_path.format(index), 'w') as f:
             json.dump(jsonable_encoder([asdict(d) for d in detections]), f)
 
-    def det_load(self, index: int = 0) -> List[Detections]:
+    def load_detections(self, index: int = 0) -> List[Detections]:
         with open(self.det_path.format(index), 'r') as f:
             dict_list = json.load(f)
             return [from_dict(data_class=Detections, data=d) for d in dict_list]
 
-    def det_delete(self) -> None:
-        for file in self.det_get_file_names():
+    def delete_detections(self) -> None:
+        for file in self.get_detection_file_names():
             os.remove(Path(self.training_folder) / file)
 
-    def det_exists(self) -> bool:
-        return bool(self.det_get_file_names())
+    def detections_exist(self) -> bool:
+        return bool(self.get_detection_file_names())
 
     # detections upload file index
 
-    def dufi_save(self, index: int) -> None:
+    def save_detections_upload_file_index(self, index: int) -> None:
         with open(self.dufi_path, 'w') as f:
             f.write(str(index))
 
-    def dufi_load(self) -> int:
-        if not self.dufi_exists():
+    def load_detections_upload_file_index(self) -> int:
+        if not self.detections_upload_file_index_exists():
             return 0
         with open(self.dufi_path, 'r') as f:
             return int(f.read())
 
-    def dufi_delete(self) -> None:
-        if self.dufi_exists():
+    def delete_detections_upload_file_index(self) -> None:
+        if self.detections_upload_file_index_exists():
             os.remove(self.dufi_path)
 
-    def dufi_exists(self) -> bool:
+    def detections_upload_file_index_exists(self) -> bool:
         return os.path.exists(self.dufi_path)
 
     # detections upload progress
 
-    def dup_save(self, count: int) -> None:
+    def save_detection_upload_progress(self, count: int) -> None:
         with open(self.dup_path, 'w') as f:
             f.write(str(count))
 
-    def dup_load(self) -> int:
-        if not self.dup_exists():
+    def load_detection_upload_progress(self) -> int:
+        if not self.detection_upload_progress_exist():
             return 0
         with open(self.dup_path, 'r') as f:
             return int(f.read())
 
-    def dup_delete(self) -> None:
-        if self.dup_exists():
+    def delete_detection_upload_progress(self) -> None:
+        if self.detection_upload_progress_exist():
             os.remove(self.dup_path)
 
-    def dup_exists(self) -> bool:
+    def detection_upload_progress_exist(self) -> bool:
         return os.path.exists(self.dup_path)
