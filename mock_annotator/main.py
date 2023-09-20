@@ -2,11 +2,10 @@
 import os
 
 import uvicorn
+from app_code import backdoor_controls
+from app_code.mock_annotator import MockAnnotatorLogic
 
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
-
-from . import backdoor_controls
-from .mock_annotator import MockAnnotatorLogic
 
 tool = MockAnnotatorLogic()
 node = AnnotatorNode(uuid='00000000-1111-2222-3333-444444444444',

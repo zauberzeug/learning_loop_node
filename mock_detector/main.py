@@ -1,10 +1,10 @@
 import os
 
+from app_code import backdoor_controls
+from app_code.mock_detector import MockDetector
+
 from learning_loop_node import DetectorNode
 from learning_loop_node.data_classes import Category, ModelInformation
-
-from . import backdoor_controls
-from .mock_detector import MockDetector
 
 model_info = ModelInformation(
     id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1',

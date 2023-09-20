@@ -1,10 +1,10 @@
 import os
 
 import uvicorn
+from app_code import backdoor_controls
+from app_code.mock_trainer_logic import MockTrainerLogic
 
 from learning_loop_node.trainer.trainer_node import TrainerNode
-from mock_trainer import backdoor_controls
-from mock_trainer.mock_trainer_logic import MockTrainerLogic
 
 # from custom_formatter import CustomFormatter
 

@@ -1,6 +1,7 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 
 import logging
+from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -27,7 +28,7 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
     if state == 'off':
         if trainer_node.status.state != NodeState.Offline:
             logging.debug('turning socketio off')
-            await trainer_node._sio_client.disconnect()  # pylint: disable=protected-access
+            await trainer_node.sio_client.disconnect()  # pylint: disable=protected-access
     if state == 'on':
         if trainer_node.status.state == NodeState.Offline:
             logging.debug('turning socketio on')
@@ -38,6 +39,7 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
 async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
     trainer_node = trainer_node_from_request(request)
+    assert isinstance(trainer_node.trainer_logic, MockTrainerLogic)
     if value == 'off':
         trainer_node.trainer_logic.provide_new_model = False
         trainer_node.status.reset_all_errors()
@@ -69,8 +71,10 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
     Example Usage
         curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json"
     '''
-    print(f'setting error configuration to: {error_configuration.json()}')
-    trainer_node_from_request(request).trainer_logic.error_configuration = error_configuration
+    print(f'setting error configuration to: {asdict(error_configuration)}')
+    trainer_logic = trainer_node_from_request(request).trainer_logic
+    assert isinstance(trainer_logic, MockTrainerLogic)
+    trainer_logic.error_configuration = error_configuration
 
 
 @router.post("/steps")
