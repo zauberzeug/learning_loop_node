@@ -115,7 +115,7 @@ class NodeState(str, Enum):
 
 @dataclass(**KWONLY_SLOTS)
 class NodeStatus():
-    node_uuid: str
+    id: str
     name: str
     state: Optional[NodeState] = NodeState.Offline
     uptime: Optional[int] = 0

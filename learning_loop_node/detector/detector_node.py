@@ -188,6 +188,11 @@ class DetectorNode(Node):
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return False
 
+        try:
+            current_model = self.detector_logic.model_info.version
+        except Exception:
+            current_model = None
+
         status = DetectionStatus(
             id=self.uuid,
             name=self.name,
@@ -195,7 +200,7 @@ class DetectorNode(Node):
             errors=self.status.errors,
             uptime=int((datetime.now() - self.startup_time).total_seconds()),
             operation_mode=self.operation_mode,
-            current_model=self.detector_logic.model_info.version if self.detector_logic.is_initialized else None,
+            current_model=current_model,
             target_model=self.target_model,
             model_format=self.detector_logic.model_format,
         )

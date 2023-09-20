@@ -48,7 +48,7 @@ class Node(FastAPI):
         self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
         self._sio_client: Optional[AsyncClient] = None
-        self.status = NodeStatus(node_uuid=self.uuid, name=self.name)
+        self.status = NodeStatus(id=self.uuid, name=self.name)
         self._setup_sio_headers()
         self._register_lifecycle_events()
 
@@ -143,7 +143,7 @@ class Node(FastAPI):
         @self._sio_client.event
         async def connect():
             self.log.info('received "connect" via sio from loop.')
-            self.status = NodeStatus(node_uuid=self.uuid, name=self.name)
+            self.status = NodeStatus(id=self.uuid, name=self.name)
             state = await self.get_state()
             try:
                 await self._update_send_state(state)

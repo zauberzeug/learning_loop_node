@@ -39,6 +39,7 @@ async def put_operation_mode(request: Request):
     logging.info(f'target operation mode : {target_mode}')
 
     await node.set_operation_mode(target_mode)
+    logging.info(f'operation mode set to : {target_mode}')
     return "OK"
 
 

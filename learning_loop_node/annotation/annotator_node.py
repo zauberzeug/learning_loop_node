@@ -68,7 +68,7 @@ class AnnotatorNode(Node):
 
     async def send_status(self):
         status = AnnotationNodeStatus(
-            node_uuid=self.uuid,
+            id=self.uuid,
             name=self.name,
             state=NodeState.Online,
             capabilities=['segmentation']

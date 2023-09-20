@@ -1,7 +1,8 @@
-import numpy as np
 import logging
 from abc import abstractmethod
 from typing import Any, Optional
+
+import numpy as np
 
 from ..data_classes import Detections, ModelInformation
 from ..globals import GLOBALS
@@ -16,7 +17,7 @@ class DetectorLogic():
 
     @property
     def model_info(self) -> ModelInformation:
-        if not self._model_info:
+        if self._model_info is None:
             raise Exception('Model not loaded')
         return self._model_info
 
