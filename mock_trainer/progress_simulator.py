@@ -1,17 +1,20 @@
-from learning_loop_node.trainer.trainer import Trainer
-from learning_loop_node.trainer.model import BasicModel
 import random
+from typing import Dict, Optional
+
+from learning_loop_node.data_classes import BasicModel
+from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
-def increment_time(trainer: Trainer, latest_known_confusion_matrix: dict) -> BasicModel:
-    if not trainer.training or not trainer.training.data:
+def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -> Optional[BasicModel]:
+    if not trainer._training or not trainer._training.data:  # pylint: disable=protected-access
         return None
 
     confusion_matrix = {}
+    assert trainer.training.data is not None
     for category in trainer.training.data.categories:
         try:
             minimum = latest_known_confusion_matrix[category.id]['tp']
-        except:
+        except Exception:
             minimum = 0
         maximum = minimum + 1
         confusion_matrix[category.id] = {

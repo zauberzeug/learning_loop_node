@@ -1,23 +1,24 @@
-from learning_loop_node.trainer.executor import Executor
-from uuid import uuid4
 import os
-from time import sleep
-import pytest
-from icecream import ic
 import subprocess
+from time import sleep
+from uuid import uuid4
+
 import psutil
+import pytest
+
+from learning_loop_node.trainer.executor import Executor
 
 
 @pytest.fixture(autouse=True)
 def cleanup():
-    cleanup = subprocess.Popen(
+    cleanup_process = subprocess.Popen(
         "ps aux | grep some_executable.sh | awk '{print $2}'  | xargs kill",
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         executable='/bin/bash',
     )
-    cleanup.communicate()
+    cleanup_process.communicate()
 
 
 def test_executor_lifecycle():
@@ -39,7 +40,7 @@ def test_executor_lifecycle():
 
     executor.stop()
 
-    assert executor.is_process_running() == False
+    assert not executor.is_process_running()
     sleep(1)
     assert_process_is_running('some_executable.sh', False)
 

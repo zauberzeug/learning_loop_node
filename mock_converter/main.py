@@ -1,13 +1,16 @@
-import uvicorn
-from learning_loop_node.converter.converter_node import ConverterNode
-from mock_converter import MockConverter
-import backdoor_controls
-import os
 import logging
+import os
+
+import uvicorn
+
+from learning_loop_node.converter.converter_node import ConverterNode
+
+from . import backdoor_controls
+from .mock_converter_logic import MockConverterLogic
 
 logging.basicConfig(level=logging.DEBUG)
 
-mock_converter = MockConverter(source_format='mocked', target_format='mocked_converted')
+mock_converter = MockConverterLogic(source_format='mocked', target_format='mocked_converted')
 node = ConverterNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f3', name='mocked converter', converter=mock_converter)
 node.skip_check_state = True  # do not check states auotmatically for this mock
 

@@ -1,32 +1,30 @@
 
-from typing import List
-import psutil
-import os
-import subprocess
-import signal
-from icecream import ic
+import ctypes
 import logging
+import os
 import signal
+import subprocess
 from sys import platform
+from typing import List
+
+import psutil
 
 
 def create_signal_handler(sig=signal.SIGTERM):
     if platform == "linux" or platform == "linux2":
         # "The system will send a signal to the child once the parent exits for any reason (even sigkill)."
         # https://stackoverflow.com/a/19448096
-        import ctypes
         libc = ctypes.CDLL("libc.so.6")
 
-        def callable():
+        def callable_():
             os.setsid()
             return libc.prctl(1, sig)
 
-        return callable
+        return callable_
     return os.setsid
 
 
 class Executor:
-
     def __init__(self, base_path) -> None:
         self.path = base_path
         os.makedirs(self.path, exist_ok=True)
@@ -35,6 +33,7 @@ class Executor:
     def start(self, cmd: str):
         with open(f'{self.path}/last_training.log', 'a') as f:
             f.write(f'\nStarting executor with command: {cmd}\n')
+        # pylint: disable=subprocess-popen-preexec-fn
         self.process = subprocess.Popen(
             f'cd {self.path}; {cmd} >> last_training.log 2>&1',
             shell=True,
@@ -62,7 +61,7 @@ class Executor:
         try:
             with open(f'{self.path}/last_training.log') as f:
                 return f.read()
-        except:
+        except Exception:
             return ''
 
     def get_log_by_lines(self, since_last_start=False) -> List[str]:
@@ -76,9 +75,8 @@ class Executor:
                     if line.startswith('Starting executor with command:'):
                         break
                 return list(reversed(lines_since_last_start))
-            else:
-                return lines
-        except:
+            return lines
+        except Exception:
             return []
 
     def stop(self):
@@ -94,7 +92,7 @@ class Executor:
             pass
 
         self.process.terminate()
-        out, err = self.process.communicate(timeout=3)
+        _, _ = self.process.communicate(timeout=3)
 
     @property
     def return_code(self):

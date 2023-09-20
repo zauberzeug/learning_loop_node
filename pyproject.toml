@@ -30,6 +30,7 @@ pytest-mock = "3.6.1"
 pynvml = "^11.4.1"
 aiohttp = "^3.8.4"
 httpx = "^0.24.1"
+dacite = "^1.8.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest-flakefinder = "^1.1.0"

@@ -1,14 +1,17 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
-from learning_loop_node import DetectorNode
-from fastapi import APIRouter,  Request
 import logging
-from learning_loop_node.globals import GLOBALS
 import shutil
+
+from fastapi import APIRouter, Request
+
+from learning_loop_node import DetectorNode
+from learning_loop_node.globals import GLOBALS
+
 router = APIRouter()
 
 
 @router.put("/socketio")
-async def switch_socketio(request: Request):
+async def _socketio(request: Request):
     '''
     Example Usage
 
@@ -25,10 +28,10 @@ async def _switch_socketio(state: str, detector_node: DetectorNode):
     if state == 'on':
 
         logging.debug('turning socketio on')
-        await detector_node.connect()
+        await detector_node.connect_sio()
 
 
 @router.post("/reset")
-async def switch_socketio(request: Request):
+async def _reset(request: Request):
     shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
     request.app.reload(because='------- reset was called from backdoor controls')

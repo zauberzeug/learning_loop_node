@@ -1,27 +1,27 @@
 import logging
+from dataclasses import asdict
 from http import HTTPStatus
+from typing import Optional
 
+from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from fastapi_utils.tasks import repeat_every
+from socketio import AsyncClient
 
-from ..converter.converter import Converter
-from ..loop_communication import global_loop_com
-from ..model_information import ModelInformation
+from ..data_classes import Category, ModelInformation, NodeState
 from ..node import Node
-from ..status import State
+from .converter_logic import ConverterLogic
 
 
 class ConverterNode(Node):
-    converter: Converter
+    converter: ConverterLogic
     skip_check_state: bool = False
     bad_model_ids = []
 
-    def __init__(self, name: str, converter: Converter, uuid: str = None):
+    def __init__(self, name: str, converter: ConverterLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
         self.converter = converter
-
-    async def create_sio_client(self):
-        await super().create_sio_client()
+        converter.init(self)
 
         @self.on_event("startup")
         @repeat_every(seconds=60, raise_exceptions=True, wait_first=False)
@@ -29,7 +29,7 @@ class ConverterNode(Node):
             if not self.skip_check_state:
                 try:
                     await self.check_state()
-                except:
+                except Exception:
                     logging.error('could not check state. Is loop reachable?')
 
     async def convert_model(self, model_information: ModelInformation):
@@ -39,7 +39,7 @@ class ConverterNode(Node):
             return
         try:
             logging.info(
-                f'converting model {jsonable_encoder(model_information)}')
+                f'converting model {jsonable_encoder(asdict(model_information))}')
             await self.converter.convert(model_information)
             logging.info('uploading model ')
             await self.converter.upload_model(model_information.context, model_information.id)
@@ -51,20 +51,20 @@ class ConverterNode(Node):
     async def check_state(self):
         logging.info(f'checking state: {self.status.state}')
 
-        if self.status.state == State.Running:
+        if self.status.state == NodeState.Running:
             return
-        self.status.state = State.Running
+        self.status.state = NodeState.Running
         try:
             await self.convert_models()
-        except Exception as e:
-            logging.error(str(e))
+        except Exception as exc:
+            logging.error(str(exc))
 
-        self.status.state = State.Idle
+        self.status.state = NodeState.Idle
 
     async def convert_models(self) -> None:
         try:
-            response = await global_loop_com.get('/projects')
-            assert response.status_code == 200, f'Assert statuscode 200, but was {response.status}.'
+            response = await self.loop_communicator.get('/projects')
+            assert response.status_code == 200, f'Assert statuscode 200, but was {response.status_code}.'
             content = response.json()
             projects = content['projects']
 
@@ -72,15 +72,16 @@ class ConverterNode(Node):
                 organization_id = project['organization_id']
                 project_id = project['project_id']
 
-                response = await global_loop_com.get(f'{project["resource"]}')
+                response = await self.loop_communicator.get(f'{project["resource"]}')
                 if response.status_code != HTTPStatus.OK:
                     logging.error(
                         f'got bad response for {response.url}: {response.status_code}, {response.content}')
                     continue
-                project_categories = response.json()['categories']
+
+                project_categories = [from_dict(data_class=Category, data=c) for c in response.json()['categories']]
 
                 path = f'{project["resource"]}/models'
-                models_response = await global_loop_com.get(path)
+                models_response = await self.loop_communicator.get(path)
                 assert models_response.status_code == 200
                 content = models_response.json()
                 models = content['models']
@@ -92,7 +93,7 @@ class ConverterNode(Node):
                         ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
-                            host=global_loop_com.web.base_url,
+                            host=self.loop_communicator.base_url,
                             organization=organization_id,
                             project=project_id,
                             id=model['id'],
@@ -100,14 +101,26 @@ class ConverterNode(Node):
                             version=model['version'],
                         )
                         await self.convert_model(model_information)
-        except Exception as e:
-            import traceback
-            logging.error(str(e))
-            print(traceback.format_exc())
+        except Exception:
+            logging.exception('could not convert models')
 
     async def send_status(self):
-        # NOTE not yet implemented
         pass
 
-    def get_state(self):
-        return State.Idle
+    async def on_startup(self):
+        pass
+
+    async def on_shutdown(self):
+        pass
+
+    async def on_repeat(self):
+        pass
+
+    def register_sio_events(self, sio_client: AsyncClient):
+        pass
+
+    async def get_state(self):
+        return NodeState.Idle  # NOTE unused for this node type
+
+    def get_node_type(self):
+        return 'converter'

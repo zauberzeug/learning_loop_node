@@ -1,53 +1,47 @@
-import multiprocessing
-import pytest
-from learning_loop_node import DetectorNode, ModelInformation
-from learning_loop_node.detector import Outbox
-from learning_loop_node.data_classes import Category
-from testing_detector import TestingDetector
-import uvicorn
-from multiprocessing import Process, log_to_stderr
+import asyncio
 import logging
-import icecream
+import multiprocessing
 import os
 import socket
-import asyncio
-from typing import Generator
-import socketio
 from glob import glob
+from multiprocessing import Process, log_to_stderr
+from typing import AsyncGenerator
+
+import pytest
+import socketio
+import uvicorn
+
+from learning_loop_node import DetectorNode
+from learning_loop_node.data_classes.general import Category, ModelInformation
+from learning_loop_node.detector.outbox import Outbox
+from learning_loop_node.globals import GLOBALS
+
+from .testing_detector import TestingDetectorLogic
 
 logging.basicConfig(level=logging.INFO)
 
 # show ouptut from uvicorn server https://stackoverflow.com/a/66132186/364388
 log_to_stderr(logging.INFO)
 
-icecream.install()
-
-
-def pytest_configure():
-    pytest.detector_port = 5000
+detector_port = GLOBALS.detector_port
 
 
 def should_have_segmentations(request) -> bool:
-    should_have_segmentations = False
+    should_have_seg = False
     try:
-        should_have_segmentations = request.param
-    except:
+        should_have_seg = request.param
+    except Exception:
         pass
-    return should_have_segmentations
+    return should_have_seg
 
 
 @pytest.fixture()
-async def test_detector_node(request):
+async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
-    model_info = ModelInformation(id='some_uuid', host='some_host', organization='zauberzeug',
-                                  project='test', version='1', categories=[Category(id='some_id', name='some_category_name'), Category(id='some_id_2', name='some_category_name_2'),  Category(id='some_id_3', name='some_category_name_3')])
-    segmentations = should_have_segmentations(request)
-
-    det = TestingDetector(segmentation_detections=segmentations)
-    det.init(model_info=model_info, model_root_path='')
-    node = DetectorNode(name='test', detector=det)
+    detector = TestingDetectorLogic()
+    node = DetectorNode(name='test', detector=detector)
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)
@@ -56,21 +50,20 @@ async def test_detector_node(request):
                    args=(node,),
                    kwargs={
                        "host": "127.0.0.1",
-                       "port": pytest.detector_port,
-
+                       "port": detector_port,
                    }, daemon=True)
     proc.start()
     await port_is(free=False)
     yield node
 
     try:
-        await node.shutdown()
-    except:
+        await node._on_shutdown()  # pylint: disable=protected-access
+    except Exception:
         logging.exception('error while shutting down node')
 
     try:
         proc.kill()
-    except:  # for python 3.6
+    except Exception:  # for python 3.6
         proc.terminate()
     proc.join()
 
@@ -83,28 +76,28 @@ def is_port_in_use(port):
 
 
 async def port_is(free: bool):
-    for i in range(10):
-        if not free and is_port_in_use(pytest.detector_port):
+    for _ in range(10):
+        if not free and is_port_in_use(detector_port):
             return
-        if free and not is_port_in_use(pytest.detector_port):
+        if free and not is_port_in_use(detector_port):
             return
-        else:
-            await asyncio.sleep(0.5)
-    raise Exception(f'port {pytest.detector_port} is {"not" if free else ""} free')
+        await asyncio.sleep(0.5)
+    raise Exception(f'port {detector_port} is {"not" if free else ""} free')
 
 
 @pytest.fixture()
-async def sio_client() -> Generator:
+async def sio_client() -> AsyncGenerator[socketio.AsyncClient, None]:
     sio = socketio.AsyncClient()
     try_connect = True
     retry_count = 0
     while try_connect:
         try:
-            await sio.connect(f"ws://localhost:{pytest.detector_port}", socketio_path="/ws/socket.io")
+            await sio.connect(f"ws://localhost:{detector_port}", socketio_path="/ws/socket.io")
             try_connect = False
-        except:
+        except Exception as e:
+            logging.warning(f"Connection failed with error: {str(e)}")
             logging.warning('trying again')
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)
         retry_count += 1
         if retry_count > 10:
             raise Exception('Max Retry')
