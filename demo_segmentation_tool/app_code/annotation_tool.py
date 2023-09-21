@@ -1,7 +1,7 @@
 import logging
 import sys
 # pylint: disable=no-name-in-module
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import List, Optional
 from uuid import uuid4
@@ -38,9 +38,9 @@ class AnnotationState(str, Enum):
 @dataclass(**KWONLY_SLOTS)
 class History():
     bbox: Optional[Box] = None
-    bg_pixel: List[Point] = []
-    fg_pixel: List[Point] = []
-    path_pixels: List[Point] = []
+    bg_pixel: List[Point] = field(default_factory=list)
+    fg_pixel: List[Point] = field(default_factory=list)
+    path_pixels: List[Point] = field(default_factory=list)
     annotation: Optional[SegmentationAnnotation] = None
     state: AnnotationState = AnnotationState.NONE
 
