@@ -2,7 +2,9 @@
 
 import logging
 from dataclasses import asdict
+from typing import Dict
 
+from dacite import from_dict
 from fastapi import APIRouter, HTTPException, Request
 
 from learning_loop_node.data_classes import ErrorConfiguration, NodeState
@@ -66,11 +68,12 @@ async def reset(request: Request):
 
 
 @router.put("/error_configuration")
-def set_error_configuration(error_configuration: ErrorConfiguration, request: Request):
+def set_error_configuration(error_configuration_msg: Dict, request: Request):
     '''
     Example Usage
         curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json"
     '''
+    error_configuration = from_dict(data_class=ErrorConfiguration, data=error_configuration_msg)
     print(f'setting error configuration to: {asdict(error_configuration)}')
     trainer_logic = trainer_node_from_request(request).trainer_logic
     assert isinstance(trainer_logic, MockTrainerLogic)
@@ -79,6 +82,7 @@ def set_error_configuration(error_configuration: ErrorConfiguration, request: Re
 
 @router.post("/steps")
 async def add_steps(request: Request):
+    logging.warning('Steps was called')
     trainer_node = trainer_node_from_request(request)
 
     assert isinstance(trainer_node.trainer_logic, MockTrainerLogic)
@@ -91,14 +95,17 @@ async def add_steps(request: Request):
     steps = int(str(await request.body(), 'utf-8'))
     previous_state = trainer_node.trainer_logic.provide_new_model
     trainer_node.trainer_logic.provide_new_model = True
-    print(f'simulating newly completed models by moving {steps} forward', flush=True)
-    for i in range(0, steps):
+    logging.warning(f'simulating newly completed models by moving {steps} forward')
+
+    for _ in range(steps):
         try:
-            await trainer_node.trainer_logic.sync_confusion_matrix(trainer_node.uuid, trainer_node._sio_client)
+            logging.warning('calling sync_confusion_matrix')
+            await trainer_node.trainer_logic.sync_confusion_matrix()
         except Exception:
             # Tests can force synchroniation to fail, error state is reported to backend
             pass
     trainer_node.trainer_logic.provide_new_model = previous_state
+    logging.warning(f'progress increased to {trainer_node.trainer_logic.current_iteration}')
     await trainer_node.send_status()
 
 

@@ -1,9 +1,8 @@
 
+import logging
 import asyncio
 import time
 from typing import Dict, List, Optional, Union
-
-from dacite import from_dict
 
 from learning_loop_node.data_classes import (BasicModel, BoxDetection,
                                              CategoryType,
@@ -40,7 +39,7 @@ class MockTrainerLogic(TrainerLogic):
             raise Exception()
         self.executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self, identifier: str) -> None:
+    async def start_training_from_scratch(self, base_model_id: str) -> None:
         self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
@@ -113,9 +112,11 @@ class MockTrainerLogic(TrainerLogic):
 
     @property
     def progress(self) -> float:
+        print(f'progress: {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
         return self.current_iteration / self.max_iterations
 
     def get_new_model(self) -> Optional[BasicModel]:
+        logging.warning('get_new_model called')
         if self.error_configuration.get_new_model:
             raise Exception()
         if not self.provide_new_model:

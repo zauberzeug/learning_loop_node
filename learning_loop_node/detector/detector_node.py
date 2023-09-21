@@ -134,9 +134,12 @@ class DetectorNode(Node):
             if not update_to_model_id:
                 self.log.info('could not check for updates')
                 return
-            if self.detector_logic.is_initialized:
-                self.log.info(
-                    f'Current model: {self.detector_logic.model_info.version} with id {self.detector_logic.model_info.id}')
+            if self.detector_logic.is_initialized:  # TODO: solve race condition !!!
+                model_info = self.detector_logic._model_info
+                if model_info is not None:
+                    self.log.info(f'Current model: {model_info.version} with id {model_info.id}')
+                else:
+                    self.log.info('no model loaded')
             else:
                 self.log.info('no model loaded')
             if self.operation_mode != OperationMode.Idle:
@@ -148,9 +151,14 @@ class DetectorNode(Node):
                 self.log.info('not checking for updates; no target model selected')
                 return
 
-            self.log.info('going to check for new updates')
-            if not self.detector_logic.is_initialized or self.target_model != self.detector_logic.model_info.version:
-                cur_model = self.detector_logic.model_info.version if self.detector_logic.is_initialized else "-"
+            self.log.info('going to check for new updates')  # TODO: solve race condition !!!
+            model_info = self.detector_logic._model_info
+            if model_info is not None:
+                version = model_info.version
+            else:
+                version = None
+            if not self.detector_logic.is_initialized or self.target_model != version:
+                cur_model = version or "-"
                 self.log.info(f'Current model "{cur_model}" needs to be updated to {self.target_model}')
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'

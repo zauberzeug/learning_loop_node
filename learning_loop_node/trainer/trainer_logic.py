@@ -133,7 +133,7 @@ class TrainerLogic():
             logging.error('could not start training - trainer is not initialized')
             return
 
-        while True:
+        while self._training is not None:
             tstate = self.training.training_state
             logging.info(f'STATE LOOP: {tstate}')
             await asyncio.sleep(0.6)  # Note: Required for pytests!
@@ -288,7 +288,7 @@ class TrainerLogic():
         await self.start_training_task
 
     async def ensure_confusion_matrix_synced(self):
-        logging.info('Syncing confusion matrix')
+        logging.info('Ensure syncing confusion matrix')
         previous_state = self.training.training_state
         self.training.training_state = TrainingState.ConfusionMatrixSyncing
         try:
@@ -304,6 +304,7 @@ class TrainerLogic():
             self.node.last_training_io.save(self.training)
 
     async def sync_confusion_matrix(self):
+        logging.info('Syncing confusion matrix')
         error_key = 'sync_confusion_matrix'
         try:
             await training_syncronizer.try_sync_model(self, self.node.uuid, self.node.sio_client)
@@ -523,17 +524,17 @@ class TrainerLogic():
     @property
     @abstractmethod
     def progress(self) -> float:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def provided_pretrained_models(self) -> List[PretrainedModel]:
-        pass
+        raise NotImplementedError
 
     @property
     @abstractmethod
     def model_architecture(self) -> Optional[str]:
-        return None
+        raise NotImplementedError
 
     @abstractmethod
     async def start_training(self) -> None:
@@ -559,7 +560,7 @@ class TrainerLogic():
 
     @abstractmethod
     def get_new_model(self) -> Optional[BasicModel]:
-        '''Is called frequently to check if a new "best" model is availabe.
+        '''Is called frequently in `try_sync_model` to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
         `confusion_matrix` contains a dict of all classes:
             - The classes must be identified by their id, not their name.

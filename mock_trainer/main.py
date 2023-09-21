@@ -18,7 +18,7 @@ trainer_node = TrainerNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2',
 trainer_node.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
-    reload_dirs = ['./restart'] if os.environ.get('MANUAL_RESTART', None) \
-        else ['./', './learning-loop-node', '/usr/local/lib/python3.11/site-packages/learning_loop_node']
+    reload_dirs = ['./app_code/restart'] if os.environ.get('MANUAL_RESTART', None) \
+        else ['./app_code', './learning-loop-node', '/usr/local/lib/python3.11/site-packages/learning_loop_node']
     uvicorn.run("main:trainer_node", host="0.0.0.0", port=80, lifespan='on',
                 reload=True, use_colors=True, reload_dirs=reload_dirs)

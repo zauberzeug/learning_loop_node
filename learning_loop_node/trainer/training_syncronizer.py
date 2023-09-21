@@ -2,7 +2,7 @@
 import asyncio
 import logging
 from dataclasses import asdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import socketio
 from dacite import from_dict
@@ -11,8 +11,11 @@ from fastapi.encoders import jsonable_encoder
 from ..data_classes import TrainingOut
 from ..data_classes.socket_response import SocketResponse
 
+if TYPE_CHECKING:
+    from .trainer_logic import TrainerLogic
 
-async def try_sync_model(trainer: Any, trainer_node_uuid: str, sio_client: socketio.AsyncClient):
+
+async def try_sync_model(trainer: 'TrainerLogic', trainer_node_uuid: str, sio_client: socketio.AsyncClient):
     try:
         model = trainer.get_new_model()
     except Exception as exc:
