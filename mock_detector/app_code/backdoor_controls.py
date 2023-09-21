@@ -23,15 +23,21 @@ async def _socketio(request: Request):
 
 async def _switch_socketio(state: str, detector_node: DetectorNode):
     if state == 'off':
-        logging.debug('turning socketio off')
+        logging.info('BC: turning socketio off')
         await detector_node.sio_client.disconnect()
     if state == 'on':
 
-        logging.debug('turning socketio on')
+        logging.info('BC: turning socketio on')
         await detector_node.connect_sio()
 
 
 @router.post("/reset")
 async def _reset(request: Request):
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-    request.app.reload(because='------- reset was called from backdoor controls')
+    logging.info('BC: reset')
+    try:
+        shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+        request.app.reload(reason='------- reset was called from backdoor controls')
+    except Exception as e:
+        logging.error(f'BC: could not reset: {e}')
+        return False
+    return True
