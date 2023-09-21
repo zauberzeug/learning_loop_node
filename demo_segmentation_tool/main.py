@@ -2,8 +2,8 @@
 import os
 
 import uvicorn
+from app_code.annotation_tool import AnnotatorLogic
 
-from demo_segmentation_tool.annotation_tool import AnnotatorLogic
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
 
 tool = AnnotatorLogic()
