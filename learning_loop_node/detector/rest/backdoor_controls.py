@@ -4,8 +4,8 @@ import shutil
 
 from fastapi import APIRouter, Request
 
-from learning_loop_node import DetectorNode
-from learning_loop_node.globals import GLOBALS
+from ...globals import GLOBALS
+from ..detector_node import DetectorNode
 
 router = APIRouter()
 
