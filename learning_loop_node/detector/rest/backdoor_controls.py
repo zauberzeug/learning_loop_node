@@ -1,5 +1,6 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 import logging
+import os
 import shutil
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,7 @@ async def _reset(request: Request):
     logging.info('BC: reset')
     try:
         shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+        os.makedirs(GLOBALS.data_folder, exist_ok=True)
 
         # get file dir
         # restart_path = Path(os.path.realpath(__file__)) / 'restart' / 'restart.py'
