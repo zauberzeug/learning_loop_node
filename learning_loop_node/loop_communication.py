@@ -18,6 +18,7 @@ class LoopCommunicationException(Exception):
 class LoopCommunicator():
     def __init__(self) -> None:
         host: str = environment_reader.host(default='learning-loop.ai')
+        self.host: str = host
         self.username: str = environment_reader.username()
         self.password: str = environment_reader.password()
         self.organization: str = environment_reader.organization()  # TODO: remove?

@@ -1,3 +1,4 @@
+import logging
 import shutil
 
 import pytest
@@ -24,8 +25,9 @@ async def setup_test_project1(glc: LoopCommunicator):
         response = await glc.post("/zauberzeug/projects/generator", json=project_configuration)
         if response.status_code == 200:
             break
+        logging.error(f'Could not create project. Response: {response}')
     else:
-        raise Exception('Could not create project')
+        raise Exception('Could not create project.')
     yield
     await glc.delete("/zauberzeug/projects/pytest?keep_images=true")
 
@@ -45,7 +47,13 @@ async def setup_test_project2(glc: LoopCommunicator):
         'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'plain',
         'box_categories': 2, 'segmentation_categories': 2, 'point_categories': 2, 'thumbs': False, 'tags': 0,
         'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
-    r = await glc.post("/zauberzeug/projects/generator", json=project_configuration)
-    assert r.status_code == 200
+    for _ in range(10):  # NOTE this retry seems to fix huge flakyness in test runs on drone (local it's fine without)
+        await glc.get("/status")
+        response = await glc.post("/zauberzeug/projects/generator", json=project_configuration)
+        if response.status_code == 200:
+            break
+        logging.error(f'Could not create project. Response: {response}')
+    else:
+        raise Exception('Could not create project.')
     yield
     await glc.delete("/zauberzeug/projects/pytest?keep_images=true")
