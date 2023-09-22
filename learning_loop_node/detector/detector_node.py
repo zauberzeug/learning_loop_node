@@ -60,6 +60,20 @@ class DetectorNode(Node):
 
         self.setup_sio_server()
 
+    async def soft_reload(self):
+        self.organization = environment_reader.organization()
+        self.project = environment_reader.project()
+        self.operation_mode: OperationMode = OperationMode.Startup
+        self.connected_clients: List[str] = []
+        self.data_exchanger = DataExchanger(
+            Context(organization=self.organization, project=self.project),
+            self.loop_communicator)
+        self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
+        self.target_model = None
+
+        await self.detector_logic.soft_reload()
+        self.detector_logic.load_model()
+
     async def on_startup(self):
         try:
             self.outbox.start_continuous_upload()
