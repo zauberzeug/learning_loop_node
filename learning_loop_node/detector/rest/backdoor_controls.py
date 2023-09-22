@@ -1,11 +1,14 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 import logging
 import shutil
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 
 from ...globals import GLOBALS
-from ..detector_node import DetectorNode
+
+if TYPE_CHECKING:
+    from ..detector_node import DetectorNode
 
 router = APIRouter()
 
@@ -21,7 +24,7 @@ async def _socketio(request: Request):
     await _switch_socketio(state, request.app)
 
 
-async def _switch_socketio(state: str, detector_node: DetectorNode):
+async def _switch_socketio(state: str, detector_node: 'DetectorNode'):
     if state == 'off':
         logging.info('BC: turning socketio off')
         await detector_node.sio_client.disconnect()
@@ -40,7 +43,7 @@ async def _reset(request: Request):
         # restart_path = Path(os.path.realpath(__file__)) / 'restart' / 'restart.py'
         # restart_path = Path(os.getcwd()).absolute() / 'app_code' / 'restart' / 'restart.py'
         # restart_path.touch()
-        assert isinstance(request.app, DetectorNode)
+        # assert isinstance(request.app, 'DetectorNode')
         await request.app.soft_reload()
 
         # assert isinstance(request.app, DetectorNode)
