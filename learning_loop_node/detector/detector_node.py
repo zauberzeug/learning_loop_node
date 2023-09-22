@@ -73,6 +73,7 @@ class DetectorNode(Node):
 
         await self.detector_logic.soft_reload()
         self.detector_logic.load_model()
+        self.operation_mode = OperationMode.Idle
 
     async def on_startup(self):
         try:
