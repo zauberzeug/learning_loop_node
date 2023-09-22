@@ -24,6 +24,7 @@ from ..node import Node
 from .detector_logic import DetectorLogic
 from .inbox_filter.relevance_filter import RelevanceFilter
 from .outbox import Outbox
+from .rest import backdoor_controls
 from .rest import detect as rest_detect
 from .rest import operation_mode as rest_mode
 from .rest import upload as rest_upload
@@ -32,7 +33,8 @@ from .rest.operation_mode import OperationMode
 
 class DetectorNode(Node):
 
-    def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None):
+    def __init__(
+            self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
         super().__init__(name, uuid)
         self.detector_logic = detector
         self.organization = environment_reader.organization()
@@ -53,6 +55,8 @@ class DetectorNode(Node):
         self.include_router(rest_detect.router, tags=["detect"])
         self.include_router(rest_upload.router, prefix="")
         self.include_router(rest_mode.router, tags=["operation_mode"])
+        if use_backdoor_controls:
+            self.include_router(backdoor_controls.router)
 
         self.setup_sio_server()
 

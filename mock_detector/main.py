@@ -1,6 +1,5 @@
 import os
 
-from app_code import backdoor_controls
 from app_code.mock_detector import MockDetector
 
 from learning_loop_node import DetectorNode
@@ -14,10 +13,8 @@ node = DetectorNode(
     name='mocked detector',
     detector=det,
     uuid='85ef1a58-308d-4c80-8931-43d1f752f4f9',
+    use_backdoor_controls=True,
 )
-
-# setting up backdoor_controls
-node.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
     import uvicorn
