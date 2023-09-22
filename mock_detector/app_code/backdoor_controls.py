@@ -39,10 +39,12 @@ async def _reset(request: Request):
     try:
         shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
 
-        restart_path = Path(os.getcwd()).absolute() / 'app_code' / 'restart' / 'restart.py'
+        # get file dir
+        restart_path = Path(os.path.realpath(__file__)) / 'restart' / 'restart.py'
+        # restart_path = Path(os.getcwd()).absolute() / 'app_code' / 'restart' / 'restart.py'
         restart_path.touch()
 
-        request.app.reload(reason='------- reset was called from backdoor controls')
+        # request.app.reload(reason='------- reset was called from backdoor controls')
     except Exception as e:
         logging.error(f'BC: could not reset: {e}')
         return False
