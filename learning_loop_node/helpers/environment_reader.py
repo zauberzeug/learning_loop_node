@@ -18,9 +18,9 @@ def read_from_env(possible_names: List[str], ignore_errors: bool = True) -> Opti
     # Possible error: multiple values are not None and not equal
     if len(values) > 1 and len(set(values)) > 1:
         if ignore_errors:
-            logging.warning(f'different environment variables set for {possible_names}')
+            logging.warning(f'different environment variables set for {possible_names}: {values}')
             return None
-        raise ValueError(f'different environment variables set for {possible_names}')
+        raise ValueError(f'different environment variables set for {possible_names}: {values}')
 
     return values[0]
 

@@ -46,7 +46,9 @@ async def sio() -> AsyncGenerator:
 @pytest.fixture()
 async def test_detector_node():
     os.environ['ORGANIZATION'] = 'zauberzeug'
+    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = 'demo'
 
     model_info = ModelInformation(
         id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1',
