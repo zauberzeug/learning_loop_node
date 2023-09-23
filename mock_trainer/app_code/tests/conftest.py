@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import shutil
 
@@ -26,6 +27,7 @@ async def setup_test_project1(glc: LoopCommunicator):
         if response.status_code == 200:
             break
         logging.error(f'Could not create project. Response: {response}')
+        await asyncio.sleep(5)
     else:
         raise Exception('Could not create project.')
     yield
@@ -53,6 +55,7 @@ async def setup_test_project2(glc: LoopCommunicator):
         if response.status_code == 200:
             break
         logging.error(f'Could not create project. Response: {response}')
+        await asyncio.sleep(5)
     else:
         raise Exception('Could not create project.')
     yield
