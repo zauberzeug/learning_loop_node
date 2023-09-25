@@ -11,18 +11,20 @@ from ..data_classes import Context, NodeState, TrainingState, TrainingStatus
 from ..data_classes.socket_response import SocketResponse
 from ..node import Node
 from .io_helpers import LastTrainingIO
-from .rest import controls
+from .rest import backdoor_controls, controls
 from .trainer_logic import TrainerLogic
 
 
 class TrainerNode(Node):
 
-    def __init__(self, name: str, trainer_logic: TrainerLogic, uuid: Optional[str] = None):
+    def __init__(self, name: str, trainer_logic: TrainerLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
         super().__init__(name, uuid)
         trainer_logic._node = self  # pylint: disable=protected-access
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
         self.include_router(controls.router, tags=["controls"])
+        if use_backdoor_controls:
+            self.include_router(backdoor_controls.router, tags=["controls"])
 
     # --------------------------------------------------- STATUS ---------------------------------------------------
 
@@ -81,8 +83,8 @@ class TrainerNode(Node):
             state_for_learning_loop: str = NodeState.Idle.value
         else:
             assert self.trainer_logic.training.training_state is not None
-            state_for_learning_loop = NodeState(TrainerNode.state_for_learning_loop(
-                self.trainer_logic.training.training_state))
+            state_for_learning_loop = TrainerNode.state_for_learning_loop(
+                self.trainer_logic.training.training_state)
 
         status = TrainingStatus(id=self.uuid,
                                 name=self.name,

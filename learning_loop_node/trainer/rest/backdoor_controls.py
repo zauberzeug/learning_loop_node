@@ -1,16 +1,17 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
+from __future__ import annotations
 
 import logging
 from dataclasses import asdict
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from dacite import from_dict
 from fastapi import APIRouter, HTTPException, Request
 
-from learning_loop_node.data_classes import ErrorConfiguration, NodeState
-from learning_loop_node.trainer.trainer_node import TrainerNode
+from ...data_classes import ErrorConfiguration, NodeState
 
-from .mock_trainer_logic import MockTrainerLogic
+if TYPE_CHECKING:
+    from ..trainer_node import TrainerNode
 
 router = APIRouter()
 
@@ -41,7 +42,6 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
 async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
     trainer_node = trainer_node_from_request(request)
-    assert isinstance(trainer_node.trainer_logic, MockTrainerLogic)
     if value == 'off':
         trainer_node.trainer_logic.provide_new_model = False
         trainer_node.status.reset_all_errors()
@@ -76,7 +76,6 @@ def set_error_configuration(error_configuration_msg: Dict, request: Request):
     error_configuration = from_dict(data_class=ErrorConfiguration, data=error_configuration_msg)
     print(f'setting error configuration to: {asdict(error_configuration)}')
     trainer_logic = trainer_node_from_request(request).trainer_logic
-    assert isinstance(trainer_logic, MockTrainerLogic)
     trainer_logic.error_configuration = error_configuration
 
 
@@ -84,8 +83,6 @@ def set_error_configuration(error_configuration_msg: Dict, request: Request):
 async def add_steps(request: Request):
     logging.warning('Steps was called')
     trainer_node = trainer_node_from_request(request)
-
-    assert isinstance(trainer_node.trainer_logic, MockTrainerLogic)
 
     if not trainer_node.trainer_logic._executor or not trainer_node.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
         logging.error(

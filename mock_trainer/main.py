@@ -1,7 +1,6 @@
 import os
 
 import uvicorn
-from app_code import backdoor_controls
 from app_code.mock_trainer_logic import MockTrainerLogic
 
 from learning_loop_node.trainer.trainer_node import TrainerNode
@@ -11,11 +10,9 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 
 mock_trainer = MockTrainerLogic(model_format='mocked')
 trainer_node = TrainerNode(uuid='85ef1a58-308d-4c80-8931-43d1f752f4f2',
-                           name='mocked trainer', trainer_logic=mock_trainer)
+                           name='mocked trainer', trainer_logic=mock_trainer,
+                           use_backdoor_controls=True)
 
-
-# setting up backdoor_controls
-trainer_node.include_router(backdoor_controls.router, prefix="")
 
 if __name__ == "__main__":
     reload_dirs = ['./app_code/restart'] if os.environ.get('MANUAL_RESTART', None) \
