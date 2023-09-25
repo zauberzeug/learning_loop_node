@@ -61,6 +61,7 @@ class DetectorNode(Node):
         self.setup_sio_server()
 
     async def soft_reload(self) -> None:
+        # simulate init
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         self.operation_mode = OperationMode.Startup
@@ -70,7 +71,15 @@ class DetectorNode(Node):
             self.loop_communicator)
         self.relevance_filter = RelevanceFilter(self.outbox)
         self.target_model = None
+        self.setup_sio_server()
 
+        # simulate super().startup
+        await self.loop_communicator.backend_ready()
+        await self.loop_communicator.get_asyncclient()
+        await self.create_sio_client()
+        await self.on_startup()
+
+        # simulate startup
         await self.detector_logic.soft_reload()
         self.detector_logic.load_model()
         self.operation_mode = OperationMode.Idle

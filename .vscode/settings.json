@@ -25,3 +25,5 @@
   "python.testing.promptToConfigure": false,
   "git.requireGitUserConfig": false
 }
+
+//"--disable=C0103 --disable=C0111 --disable=C0114 --disable=C0301 --disable=W0718 --disable=W0719 --disable=W1203 --disable=W1514"

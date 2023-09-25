@@ -133,9 +133,7 @@ class Node(FastAPI):
 
     async def create_sio_client(self):
         cookies = await self.loop_communicator.get_cookies()
-        self._sio_client = AsyncClient(reconnection_delay=1,
-                                       request_timeout=10,
-                                       http_session=aiohttp.ClientSession(cookies=cookies))
+        self._sio_client = AsyncClient(request_timeout=60, http_session=aiohttp.ClientSession(cookies=cookies))
 
         # pylint: disable=protected-access
         self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
