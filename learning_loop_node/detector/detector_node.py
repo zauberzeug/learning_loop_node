@@ -71,7 +71,7 @@ class DetectorNode(Node):
             self.loop_communicator)
         self.relevance_filter = RelevanceFilter(self.outbox)
         self.target_model = None
-        self.setup_sio_server()
+        # self.setup_sio_server()
 
         # simulate super().startup
         await self.loop_communicator.backend_ready()

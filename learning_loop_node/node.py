@@ -97,7 +97,7 @@ class Node(FastAPI):
             await self._on_shutdown()
 
         @self.on_event("startup")
-        @repeat_every(seconds=10, raise_exceptions=False, wait_first=False)
+        @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
         async def ensure_connected() -> None:
             await self._on_repeat()
 
