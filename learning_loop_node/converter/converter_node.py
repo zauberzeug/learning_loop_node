@@ -1,7 +1,7 @@
 import logging
 from dataclasses import asdict
 from http import HTTPStatus
-from typing import Optional
+from typing import List, Optional
 
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
@@ -16,7 +16,7 @@ from .converter_logic import ConverterLogic
 class ConverterNode(Node):
     converter: ConverterLogic
     skip_check_state: bool = False
-    bad_model_ids = []
+    bad_model_ids: List[str] = []
 
     def __init__(self, name: str, converter: ConverterLogic, uuid: Optional[str] = None):
         super().__init__(name, uuid)
@@ -74,8 +74,7 @@ class ConverterNode(Node):
 
                 response = await self.loop_communicator.get(f'{project["resource"]}')
                 if response.status_code != HTTPStatus.OK:
-                    logging.error(
-                        f'got bad response for {response.url}: {response.status_code}, {response.content}')
+                    logging.error(f'got bad response for {response.url}: {str(response.status_code)}')
                     continue
 
                 project_categories = [from_dict(data_class=Category, data=c) for c in response.json()['categories']]
@@ -88,9 +87,9 @@ class ConverterNode(Node):
 
                 for model in models:
                     if (model['version']
-                            and self.converter.source_format in model['formats']
-                            and self.converter.target_format not in model['formats']
-                        ):
+                                and self.converter.source_format in model['formats']
+                                and self.converter.target_format not in model['formats']
+                            ):
                         # if self.converter.source_format in model['formats'] and project_id == 'drawingbot' and model['version'] == "6.0":
                         model_information = ModelInformation(
                             host=self.loop_communicator.base_url,

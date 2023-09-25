@@ -7,6 +7,7 @@ from dataclasses import asdict
 from datetime import datetime
 from glob import glob
 from multiprocessing import Event
+from multiprocessing.synchronize import Event as SyncEvent
 from threading import Thread
 from typing import List, Optional
 
@@ -35,8 +36,8 @@ class Outbox():
         self.target_uri = f'{base}/{o}/projects/{p}/images'
         self.log.info(f'Outbox initialized with target_uri: {self.target_uri}')
 
-        self.shutdown_event = None
-        self.upload_process = None
+        self.shutdown_event: Optional[SyncEvent] = None
+        self.upload_process: Optional[Thread] = None
 
     def save(self, image: bytes, detections: Detections = Detections(), tags: Optional[List[str]] = None) -> None:
         if not tags:
@@ -94,7 +95,7 @@ class Outbox():
                     self.log.error(f'Broken content in {item}: dropping this data')
                     shutil.rmtree(item)
                 else:
-                    self.log.error(f'Could not upload {item}: {response.status_code}, {response.content}')
+                    self.log.error(f'Could not upload {item}: {response.status_code}')
             except Exception:
                 self.log.exception('could not upload files')
 

@@ -34,7 +34,7 @@ from .rest.operation_mode import OperationMode
 class DetectorNode(Node):
 
     def __init__(
-            self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
+            self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
         super().__init__(name, uuid)
         self.detector_logic = detector
         self.organization = environment_reader.organization()
@@ -60,22 +60,22 @@ class DetectorNode(Node):
 
         self.setup_sio_server()
 
-    async def soft_reload(self):
+    async def soft_reload(self) -> None:
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
-        self.operation_mode: OperationMode = OperationMode.Startup
-        self.connected_clients: List[str] = []
+        self.operation_mode = OperationMode.Startup
+        self.connected_clients = []
         self.data_exchanger = DataExchanger(
             Context(organization=self.organization, project=self.project),
             self.loop_communicator)
-        self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
+        self.relevance_filter = RelevanceFilter(self.outbox)
         self.target_model = None
 
         await self.detector_logic.soft_reload()
         self.detector_logic.load_model()
         self.operation_mode = OperationMode.Idle
 
-    async def on_startup(self):
+    async def on_startup(self) -> None:
         try:
             self.outbox.start_continuous_upload()
             self.detector_logic.load_model()
@@ -83,21 +83,22 @@ class DetectorNode(Node):
             self.log.exception("error during 'startup'")
         self.operation_mode = OperationMode.Idle
 
-    async def on_shutdown(self):
+    async def on_shutdown(self) -> None:
         try:
             self.outbox.stop_continuous_upload()
             for sid in self.connected_clients:
-                await self.sio.disconnect(sid)  # type:ignore pylint: disable=no-member
+                # pylint: disable=no-member
+                await self.sio.disconnect(sid)  # type:ignore
         except Exception:
             self.log.exception("error during 'shutdown'")
 
-    async def on_repeat(self):
+    async def on_repeat(self) -> None:
         try:
             await self._check_for_update()
         except Exception:
             self.log.exception("error during '_check_for_update'")
 
-    def setup_sio_server(self):
+    def setup_sio_server(self) -> None:
         """The DetectorNode acts as a SocketIO server. This method sets up the server and defines the event handlers."""
 
         # pylint: disable=unused-argument
@@ -134,8 +135,9 @@ class DetectorNode(Node):
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
+            return None
 
-        def _connect(sid, environ, auth):
+        def _connect(sid, environ, auth) -> None:
             self.connected_clients.append(sid)
 
         self.sio_server = SocketManager(app=self)
@@ -144,7 +146,7 @@ class DetectorNode(Node):
         self.sio_server.on('upload', _upload)
         self.sio_server.on('connect', _connect)
 
-    async def _check_for_update(self):
+    async def _check_for_update(self) -> None:
         if self.operation_mode == OperationMode.Startup:
             return
         try:
@@ -154,7 +156,7 @@ class DetectorNode(Node):
                 self.log.info('could not check for updates')
                 return
             if self.detector_logic.is_initialized:  # TODO: solve race condition !!!
-                model_info = self.detector_logic._model_info
+                model_info = self.detector_logic._model_info  # pylint: disable=protected-access
                 if model_info is not None:
                     self.log.info(f'Current model: {model_info.version} with id {model_info.id}')
                 else:
@@ -171,7 +173,7 @@ class DetectorNode(Node):
                 return
 
             self.log.info('going to check for new updates')  # TODO: solve race condition !!!
-            model_info = self.detector_logic._model_info
+            model_info = self.detector_logic._model_info  # pylint: disable=protected-access
             if model_info is not None:
                 version = model_info.version
             else:
@@ -185,12 +187,11 @@ class DetectorNode(Node):
                     shutil.rmtree(target_model_folder, ignore_errors=True)
                     os.makedirs(target_model_folder)
 
-                    await self.data_exchanger.download_model(
-                        target_model_folder,
-                        Context(organization=self.organization, project=self.project),
-                        update_to_model_id,
-                        self.detector_logic.model_format
-                    )
+                    await self.data_exchanger.download_model(target_model_folder,
+                                                             Context(organization=self.organization,
+                                                                     project=self.project),
+                                                             update_to_model_id,
+                                                             self.detector_logic.model_format)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)

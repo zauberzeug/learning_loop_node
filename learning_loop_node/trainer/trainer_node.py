@@ -78,10 +78,11 @@ class TrainerNode(Node):
             return
 
         if not self.trainer_logic.is_initialized:
-            state_for_learning_loop = NodeState.Idle
+            state_for_learning_loop: str = NodeState.Idle.value
         else:
             assert self.trainer_logic.training.training_state is not None
-            state_for_learning_loop = TrainerNode.state_for_learning_loop(self.trainer_logic.training.training_state)
+            state_for_learning_loop = NodeState(TrainerNode.state_for_learning_loop(
+                self.trainer_logic.training.training_state))
 
         status = TrainingStatus(id=self.uuid,
                                 name=self.name,

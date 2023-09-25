@@ -396,7 +396,7 @@ class TrainerLogic():
             self.training.training_state = TrainingState.Detected
             self.node.last_training_io.save(self.training)
 
-    async def _do_detections(self) -> Optional[List]:
+    async def _do_detections(self) -> None:
         context = self.training.context
         model_id = self.training.model_id_for_detecting
         assert model_id, 'model_id must be set'
@@ -432,6 +432,8 @@ class TrainerLogic():
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)
             idx += 1
+
+        return None
 
     async def upload_detections(self):
         error_key = 'upload_detections'

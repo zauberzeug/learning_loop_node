@@ -32,11 +32,14 @@ async def put_operation_mode(request: Request):
         target_mode = OperationMode(content)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-
     node: DetectorNode = request.app
 
     logging.info(f'current node state : {node.status.state}')
+    logging.info(f'current operation mode : {node.operation_mode.value}')
     logging.info(f'target operation mode : {target_mode}')
+    if target_mode == node.operation_mode:
+        logging.info('operation mode already set')
+        return "OK"
 
     await node.set_operation_mode(target_mode)
     logging.info(f'operation mode set to : {target_mode}')

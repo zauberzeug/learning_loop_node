@@ -1,9 +1,8 @@
 {
+  "autopep8.args": ["--max-line-length=120"],
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "python.analysis.typeCheckingMode": "basic",
   "editor.formatOnSave": true,
   "editor.minimap.enabled": false,
-  "autopep8.args": ["--max-line-length=120", "--experimental"],
   "pylint.args": [
     "--disable=C0103", // Invalid name (e.g., variable/function/class naming conventions)
     "--disable=C0111", // Missing docstring (in function/class/method)

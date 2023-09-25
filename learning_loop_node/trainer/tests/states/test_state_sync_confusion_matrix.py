@@ -1,3 +1,4 @@
+
 import asyncio
 
 from pytest_mock import MockerFixture  # pip install pytest-mock
@@ -90,7 +91,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_initiali
 async def test_basic_mock(test_initialized_trainer_node: TrainerNode, mocker: MockerFixture):
     node = test_initialized_trainer_node
 
-    patched_call_return_value = asyncio.Future()
+    patched_call_return_value: asyncio.Future = asyncio.Future()
     patched_call_return_value.set_result({'success': True})
     mocker.patch.object(node.sio_client, 'call', return_value=patched_call_return_value)
     assert await (await node.sio_client.call()) == {'success': True}  # type: ignore

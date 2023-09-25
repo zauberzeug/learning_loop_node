@@ -10,7 +10,6 @@ class RelevanceFilter():
     def __init__(self, outbox: Outbox) -> None:
         self.cam_histories: Dict[str, CamObservationHistory] = {}
         self.outbox: Outbox = outbox
-        self.learners = {}
 
     def may_upload_detections(self, dets: Detections, cam_id: str, raw_image: bytes, tags: List[str]) -> List[str]:
         for group in self.cam_histories.values():
@@ -26,6 +25,3 @@ class RelevanceFilter():
             tags.extend(causes)
             self.outbox.save(raw_image, dets, tags)
         return causes
-
-    def reset(self) -> None:
-        self.learners = {}

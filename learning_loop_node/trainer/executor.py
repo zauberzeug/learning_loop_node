@@ -5,7 +5,7 @@ import os
 import signal
 import subprocess
 from sys import platform
-from typing import List
+from typing import List, Optional
 
 import psutil
 
@@ -25,10 +25,10 @@ def create_signal_handler(sig=signal.SIGTERM):
 
 
 class Executor:
-    def __init__(self, base_path) -> None:
+    def __init__(self, base_path: str) -> None:
         self.path = base_path
         os.makedirs(self.path, exist_ok=True)
-        self.process = None
+        self.process: Optional[subprocess.Popen[bytes]] = None
 
     def start(self, cmd: str):
         with open(f'{self.path}/last_training.log', 'a') as f:

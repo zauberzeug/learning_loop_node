@@ -21,6 +21,10 @@ class TestingTrainerLogic(TrainerLogic):
         return 1.0
 
     @property
+    def model_architecture(self) -> str:
+        return 'mocked'
+
+    @property
     def provided_pretrained_models(self) -> List[PretrainedModel]:
         return [
             PretrainedModel(name='small', label='Small', description='a small model'),
@@ -58,9 +62,8 @@ class TestingTrainerLogic(TrainerLogic):
 
     async def upload_model(self) -> None:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        result = await super().upload_model()
+        await super().upload_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        return result
 
     async def _upload_model_return_new_id(self, context: Context) -> Optional[str]:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
@@ -87,7 +90,7 @@ class TestingTrainerLogic(TrainerLogic):
         return await self.start_training()
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
-        detections = []
+        detections: List[Detections] = []
         return detections
 
     async def clear_training_data(self, training_folder: str) -> None:

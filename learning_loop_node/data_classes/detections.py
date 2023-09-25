@@ -111,7 +111,7 @@ class Detections():
     point_detections: List[PointDetection] = field(default_factory=list)
     segmentation_detections: List[SegmentationDetection] = field(default_factory=list)
     classification_detections: List[ClassificationDetection] = field(default_factory=list)
-    tags: Optional[List[str]] = field(default_factory=list)
+    tags: Optional[List[str]] = field(default_factory=list[str])
     date: Optional[str] = field(default_factory=current_datetime)
     image_id: Optional[str] = None  # used for detection of trainers
 

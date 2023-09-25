@@ -1,6 +1,6 @@
 
-import logging
 import asyncio
+import logging
 import time
 from typing import Dict, List, Optional, Union
 
@@ -129,5 +129,5 @@ class MockTrainerLogic(TrainerLogic):
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
 
     @property
-    def model_architecture(self) -> Union[str, None]:
+    def model_architecture(self) -> str:
         return "mocked"
