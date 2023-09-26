@@ -70,6 +70,7 @@ class ActiveTrainingIO:
             return []
         return files
 
+    # TODO: saving and uploading multiple files is not tested!
     def save_detections(self, detections: List[Detections], index: int = 0) -> None:
         with open(self.det_path.format(index), 'w') as f:
             json.dump(jsonable_encoder([asdict(d) for d in detections]), f)

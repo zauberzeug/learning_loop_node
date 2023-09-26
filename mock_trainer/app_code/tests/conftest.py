@@ -17,6 +17,7 @@ async def glc():
 
 @pytest.fixture()
 async def setup_test_project1(glc: LoopCommunicator):
+    await asyncio.sleep(5)
     await glc.delete("/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {
         'project_name': 'pytest', 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
@@ -44,6 +45,7 @@ def data_folder():
 
 @pytest.fixture()
 async def setup_test_project2(glc: LoopCommunicator):
+    await asyncio.sleep(5)
     await glc.delete("/zauberzeug/projects/pytest?keep_images=true")
     project_configuration = {
         'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'plain',
