@@ -54,6 +54,8 @@ class TrainerLogic():
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._node: Optional[TrainerNode] = None
+        self.inference_batch_size = int(os.environ.get('INFERENCE_BATCH_SIZE', '10'))
+        logging.info(f'INFERENCE_BATCH_SIZE: {self.inference_batch_size}')
 
     @property
     def executor(self) -> Executor:
