@@ -44,7 +44,7 @@ class ActiveTrainingIO:
         self.training_folder = training_folder
         self.mup_path = f'{training_folder}/model_uploading_progress.txt'
         # string with placeholder gor index
-        self.det_path = f'{training_folder}/detections_{0}.json'
+        self.det_path = f'{training_folder}' + '/detections_{0}.json'
         self.dufi_path = f'{training_folder}/detection_uploading_json_index.txt'
         self.dup_path = f'{training_folder}/detection_uploading_progress.txt'
 
