@@ -18,7 +18,7 @@ node = DetectorNode(
 
 if __name__ == "__main__":
     import uvicorn
-    reload_dirs = ['./restart'] if os.environ.get('MANUAL_RESTART', None) \
+    reload_dirs = ['./app_code/restart'] if os.environ.get('MANUAL_RESTART', None) \
         else ['./app_code', './learning-loop-node', '/usr/local/lib/python3.11/site-packages/learning_loop_node']
     uvicorn.run("main:node", host="0.0.0.0", port=80, lifespan='on',
                 reload=True, use_colors=True, reload_dirs=reload_dirs)

@@ -266,8 +266,8 @@ class DetectorNode(Node):
         '''provide a cause for the reload'''
 
         self.log.info(f'########## reloading app because {reason}')
-        if os.path.isfile('/app/restart/restart.py'):
-            subprocess.call(['touch', '/app/restart/restart.py'])
+        if os.path.isfile('/app/app_code/restart/restart.py'):
+            subprocess.call(['touch', '/app/app_code/restart/restart.py'])
         elif os.path.isfile('/app/main.py'):
             subprocess.call(['touch', '/app/main.py'])
         elif os.path.isfile('/main.py'):
