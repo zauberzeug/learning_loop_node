@@ -112,7 +112,7 @@ class MockTrainerLogic(TrainerLogic):
 
     @property
     def progress(self) -> float:
-        print(f'progress: {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
+        print(f'prog. is {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
         return self.current_iteration / self.max_iterations
 
     def get_new_model(self) -> Optional[BasicModel]:

@@ -63,18 +63,23 @@ async def reset(request: Request):
     trainer_node.last_training_io.delete()
 
     trainer_node.status.reset_all_errors()
-    logging.error('training should be killed, sending new state to LearningLoop')
+    logging.info('training should be killed, sending new state to LearningLoop')
     await trainer_node.send_status()
 
 
 @router.put("/error_configuration")
-def set_error_configuration(error_configuration_msg: Dict, request: Request):
+def set_error_configuration(msg: Dict, request: Request):
     '''
     Example Usage
         curl -X PUT http://localhost:8001/error_configuration -d '{"get_new_model": "True"}' -H  "Content-Type: application/json"
     '''
-    error_configuration = from_dict(data_class=ErrorConfiguration, data=error_configuration_msg)
-    print(f'setting error configuration to: {asdict(error_configuration)}')
+    logging.info(msg)
+    error_configuration = ErrorConfiguration(begin_training=msg.get('begin_training', None),
+                                             crash_training=msg.get('crash_training', None),
+                                             get_new_model=msg.get('get_new_model', None),
+                                             save_model=msg.get('save_model', None), )
+
+    logging.info(f'setting error configuration to: {asdict(error_configuration)}')
     trainer_logic = trainer_node_from_request(request).trainer_logic
     trainer_logic.error_configuration = error_configuration
 
