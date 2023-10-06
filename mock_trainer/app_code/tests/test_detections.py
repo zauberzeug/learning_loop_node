@@ -38,7 +38,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
     await trainer._do_detections()  # pylint: disable=protected-access
     detections = trainer.active_training_io.load_detections()
 
-    assert_image_count(10)
+    assert_image_count(10)  # TODO This assert fails frequently on Drone
     assert len(detections) == 10  # detections run on 10 images
     for img in detections:
         assert len(img.box_detections) == 1
