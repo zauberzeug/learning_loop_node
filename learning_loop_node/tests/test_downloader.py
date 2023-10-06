@@ -1,47 +1,23 @@
+from learning_loop_node.data_classes import Context
+from learning_loop_node.data_exchanger import DataExchanger
 from learning_loop_node.globals import GLOBALS
-import pytest
-from learning_loop_node.tests import test_helper
-from learning_loop_node.trainer.tests import trainer_test_helper
-from learning_loop_node.tests import test_helper
-from learning_loop_node.trainer.downloader import DataDownloader
-from learning_loop_node.context import Context
-from icecream import ic
-import learning_loop_node.rest.downloads as downloads
+
+from . import test_helper
 
 
-@pytest.fixture(autouse=True, scope='module')
-def create_project_for_module():
-    # TODO can we use the 'create_project' fixture here?
-    test_helper.LiveServerSession().delete(
-        f"/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
-                             'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
-    assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
-                                                json=project_configuration).status_code == 200
-    yield
-    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
+async def test_download_model(data_exchanger: DataExchanger):
 
-
-@pytest.fixture
-def data_downloader() -> DataDownloader:
-    context = Context(organization='zauberzeug', project='pytest')
-    return DataDownloader(context)
-
-
-async def test_download_model():
-    data_folder = GLOBALS.data_folder
-    _, _, trainings_folder = trainer_test_helper.create_needed_folders(
-        data_folder)
+    _, _, trainings_folder = test_helper.create_needed_folders()
     model_id = await test_helper.get_latest_model_id()
 
-    await downloads.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
+    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
 
-    files = test_helper.get_files_in_folder(data_folder)
+    files = test_helper.get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3, str(files)
 
-    file_1 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_1.txt'
-    file_2 = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/file_2.txt'
-    model_json = f'{data_folder}/zauberzeug/pytest/trainings/some_uuid/model.json'
+    file_1 = f'{GLOBALS.data_folder}/zauberzeug/pytest/trainings/some_uuid/file_1.txt'
+    file_2 = f'{GLOBALS.data_folder}/zauberzeug/pytest/trainings/some_uuid/file_2.txt'
+    model_json = f'{GLOBALS.data_folder}/zauberzeug/pytest/trainings/some_uuid/model.json'
 
     assert file_1 in files
     assert file_2 in files
@@ -52,21 +28,21 @@ async def test_download_model():
     assert '"format": "mocked"' in open(model_json, 'r').read(), 'should have base_model.json'
 
 
-async def test_fetching_image_ids(data_downloader: DataDownloader):
-    ids = await data_downloader.fetch_image_ids()
+# pylint: disable=redefined-outer-name
+async def test_fetching_image_ids(data_exchanger: DataExchanger):
+    ids = await data_exchanger.fetch_image_ids()
     assert len(ids) == 3
 
 
-async def test_download_images(data_downloader: DataDownloader):
-    _, image_folder, _ = trainer_test_helper.create_needed_folders(
-        GLOBALS.data_folder)
-    image_ids = await data_downloader.fetch_image_ids()
-    await data_downloader.download_images(image_ids, image_folder)
+async def test_download_images(data_exchanger: DataExchanger):
+    _, image_folder, _ = test_helper.create_needed_folders()
+    image_ids = await data_exchanger.fetch_image_ids()
+    await data_exchanger.download_images(image_ids, image_folder)
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3
 
 
-async def test_download_training_data(data_downloader: DataDownloader):
-    image_ids = await data_downloader.fetch_image_ids()
-    image_data = await data_downloader.download_images_data(image_ids)
+async def test_download_training_data(data_exchanger: DataExchanger):
+    image_ids = await data_exchanger.fetch_image_ids()
+    image_data = await data_exchanger.download_images_data(image_ids)
     assert len(image_data) == 3

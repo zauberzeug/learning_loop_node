@@ -1,44 +1,65 @@
+
 import logging
-from learning_loop_node.tests import test_helper
-from learning_loop_node.loop import loop
-import pytest
-import shutil
-import icecream
-from learning_loop_node.globals import GLOBALS
 import os
-icecream.install()
-logging.basicConfig(level=logging.DEBUG)
+import shutil
+
+import pytest
+
+from learning_loop_node.data_classes import (BoxDetection,
+                                             ClassificationDetection, Context,
+                                             Detections, Point, PointDetection,
+                                             SegmentationDetection, Shape)
+
+from .data_exchanger import DataExchanger
+from .globals import GLOBALS
+from .loop_communication import LoopCommunicator
 
 
 @pytest.fixture()
-def create_project():
-    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
-    project_configuration = {'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
-                             'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0, 'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
-    assert test_helper.LiveServerSession().post(f"/zauberzeug/projects/generator",
-                                                json=project_configuration).status_code == 200
+async def glc():
+    loop_communicator = LoopCommunicator()
+    yield loop_communicator
+    await loop_communicator.shutdown()
+
+
+@pytest.fixture()
+async def data_exchanger():
+    loop_communicator = LoopCommunicator()
+    context = Context(organization='zauberzeug', project='pytest')
+    dx = DataExchanger(context, loop_communicator)
+    yield dx
+    await loop_communicator.shutdown()
+
+
+@pytest.fixture()
+async def setup_test_project():  # pylint: disable=redefined-outer-name
+    loop_communicator = LoopCommunicator()
+    assert (await loop_communicator.delete(
+        "/zauberzeug/projects/pytest?keep_images=true")).status_code == 200
+    project_conf = {
+        'project_name': 'pytest', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
+        'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0,
+        'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
+    assert (await loop_communicator.post(
+        "/zauberzeug/projects/generator", json=project_conf)).status_code == 200
     yield
-    test_helper.LiveServerSession().delete(f"/zauberzeug/projects/pytest?keep_images=true")
+    await loop_communicator.delete("/zauberzeug/projects/pytest?keep_images=true")
+    await loop_communicator.shutdown()
 
 
 @pytest.fixture(autouse=True, scope='session')
-def clea_loggers():
-    yield
-    # see https://github.com/pytest-dev/pytest/issues/5502
+def clear_loggers():
     """Remove handlers from all loggers"""
-    import logging
+    # see https://github.com/pytest-dev/pytest/issues/5502
+    yield
+
     loggers = [logging.getLogger()] + list(logging.Logger.manager.loggerDict.values())
     for logger in loggers:
+        if not isinstance(logger, logging.Logger):
+            continue
         handlers = getattr(logger, 'handlers', [])
         for handler in handlers:
             logger.removeHandler(handler)
-
-
-@pytest.fixture(autouse=True, scope='function')
-def loop_session():
-    loop.async_client = None
-    yield
-    loop.async_client = None
 
 
 @pytest.fixture(autouse=True, scope='function')
@@ -48,3 +69,21 @@ def data_folder():
     os.makedirs(GLOBALS.data_folder, exist_ok=True)
     yield
     shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
+
+
+def get_dummy_detections():
+    return Detections(
+        box_detections=[
+            BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
+                         model_name='some_model', confidence=.42, category_id='some_id')],
+        point_detections=[
+            PointDetection(category_name='some_category_name_2', x=10, y=12,
+                           model_name='some_model', confidence=.42, category_id='some_id_2')],
+        segmentation_detections=[
+            SegmentationDetection(category_name='some_category_name_3',
+                                  shape=Shape(points=[Point(x=1, y=1)]),
+                                  model_name='some_model', confidence=.42,
+                                  category_id='some_id_3')],
+        classification_detections=[
+            ClassificationDetection(category_name='some_category_name_4', model_name='some_model',
+                                    confidence=.42, category_id='some_id_4')])

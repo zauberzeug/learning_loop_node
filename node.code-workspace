@@ -4,14 +4,27 @@
       "path": "."
     }
   ],
-  "settings": {},
+  "settings": {
+    "window.title": "### NODE LIBRARY ### ${activeEditorShort}${separator}${rootName} ### NODE LIBRARY ###",
+    "workbench.colorCustomizations": {
+      "titleBar.activeBackground": "#eee5ca",
+      "titleBar.activeForeground": "#FFFFFF",
+      "statusBar.background": "#eee5ca",
+      "activityBar.background": "#eee5ca",
+      "activityBar.foreground": "#FFFFFF"
+    }
+  },
   "extensions": {
     "recommendations": [
-      "ms-python.vscode-pylance",
-      "ms-python.python",
-      "himanoa.python-autopep8",
       "esbenp.prettier-vscode",
-      "littlefoxteam.vscode-python-test-adapter"
+      "littlefoxteam.vscode-python-test-adapter",
+      "mhutchie.git-graph",
+      "ms-python.autopep8",
+      "ms-python.isort",
+      "ms-python.mypy-type-checker",
+      "ms-python.pylint",
+      "ms-python.python",
+      "ms-python.vscode-pylance"
     ]
   }
 }

@@ -1,16 +1,30 @@
 {
-  "editor.formatOnSave": true,
+  "autopep8.args": ["--max-line-length=120"],
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "python.formatting.provider": "autopep8",
+  "editor.formatOnSave": true,
+  "editor.minimap.enabled": false,
+  "pylint.args": [
+    "--disable=C0103", // Invalid name (e.g., variable/function/class naming conventions)
+    "--disable=C0111", // Missing docstring (in function/class/method)
+    "--disable=C0114", // Missing module docstring
+    "--disable=C0301", // Line too long (exceeds character limit)
+    "--disable=W0718", // Catching too general exception
+    "--disable=W0719", // Raising too general exception
+    "--disable=W1203", // Use % formatting in logging functions and pass the % parameters as arguments
+    "--disable=W1514" // Using open without explicitly specifying an encoding
+  ],
   "[python]": {
-    "editor.defaultFormatter": "ms-python.python"
+    "editor.defaultFormatter": "ms-python.autopep8",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
   },
-  "python.formatting.autopep8Args": ["--max-line-length", "120"],
   "python.testing.pytestArgs": ["."],
   "python.testing.unittestEnabled": false,
-  "python.testing.nosetestsEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.testing.promptToConfigure": false,
-  "python.pythonPath": "/bin/python3.8",
-  "git.requireGitUserConfig": false
+  "git.requireGitUserConfig": false,
+  "python.analysis.typeCheckingMode": "basic"
 }
+
+//"--disable=C0103 --disable=C0111 --disable=C0114 --disable=C0301 --disable=W0718 --disable=W0719 --disable=W1203 --disable=W1514"

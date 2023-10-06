@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Request, File, UploadFile, Header
 from typing import Optional
+
 import numpy as np
+from fastapi import APIRouter, File, Header, Request, UploadFile
 from fastapi.responses import JSONResponse
-from icecream import ic
-from ...inbox_filter import relevance_filter
 
 router = APIRouter()
 
@@ -30,8 +29,8 @@ async def http_detect(
     """
     try:
         np_image = np.fromfile(file.file, np.uint8)
-    except:
-        raise Exception(f'Uploaded file {file.filename} is no image file.')
+    except Exception as exc:
+        raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
     detections = await request.app.get_detections(
         raw_image=np_image,
         camera_id=camera_id or mac or None,
