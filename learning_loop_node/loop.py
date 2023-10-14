@@ -33,19 +33,18 @@ class Loop():
         base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
         logging.info(f'using base_url: {base_url}')
         self.web = WebSession(base_url=base_url)
-        self.async_client: httpx.AsyncClient = None
+        self.async_client: httpx.AsyncClient = httpx.AsyncClient(base_url=base_url, timeout=Timeout(timeout=60.0))
 
     async def ensure_login(self):
-        # delayed login because the aiohttp client session needs to be created on the event loop
         if not self.web.cookies.keys():
+            logging.info('logging in web client')
             response = self.web.post('api/login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
                 self.web.cookies.clear()
                 raise Exception('bad response: ' + str(response.content))
             self.web.cookies.update(response.cookies)
         if self.async_client is None or self.async_client.is_closed:
-            self.async_client = httpx.AsyncClient(
-                base_url=self.web.base_url, timeout=Timeout(timeout=60.0))
+            logging.info('logging in async web client')
             for cookie in self.web.cookies:
                 self.async_client.cookies.update({cookie.name: cookie.value})
 
@@ -66,8 +65,9 @@ class Loop():
     def update_path(self, path: str) -> str:
         return f'/api{path}'
 
-    async def get(self, path) -> httpx.Response:
-        await self.ensure_login()
+    async def get(self, path, ensure_login: bool = True) -> httpx.Response:
+        if ensure_login:
+            await self.ensure_login()
         path = self.update_path(path)
         return await self.async_client.get(path)
 

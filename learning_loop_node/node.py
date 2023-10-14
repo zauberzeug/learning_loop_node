@@ -37,14 +37,17 @@ class Node(FastAPI):
         self.startup_time = datetime.now()
         self.register_lifecycle_events()
         self.sio_client = None
+        # NOTE this is can be set to False for Nodes which do not need to authenticate with the backend (like the DetectorNode)
+        self.needs_login = True
 
     async def startup(self):
         await loop.backend_ready()
-        await loop.ensure_login()
-        await self.create_sio_client()
+        if self.needs_login:
+            await loop.ensure_login()  # NOTE login is not in constructor because the aiohttp client session needs to be created on the event loop
+        await self.create_sio_client(needs_login=self.needs_login)
 
-    async def create_sio_client(self):
-        if loop.async_client is None:  # NOTE the cookie jar is not yet initialized
+    async def create_sio_client(self, needs_login: bool = True):
+        if needs_login:
             await loop.ensure_login()
 
         self.sio_client = socketio.AsyncClient(

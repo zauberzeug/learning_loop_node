@@ -101,7 +101,7 @@ class DownloadError(Exception):
 
 async def download_model(target_folder: str, context: Context, model_id: str, format: str) -> List[str]:
     path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{format}/file'
-    response = await loop.get(path)
+    response = await loop.get(path, ensure_login=False)
     if response.status_code != 200:
         content = response.json()
         logging.error(f'could not download {loop.web.base_url}/{path}: {response.status_code}, content: {content}')
