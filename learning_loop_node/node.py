@@ -43,7 +43,7 @@ class Node(FastAPI):
     async def startup(self):
         await loop.backend_ready()
         if self.needs_login:
-            await loop.ensure_login()  # NOTE login is not in constructor because the aiohttp client session needs to be created on the event loop
+            await loop.ensure_login()
         await self.create_sio_client(needs_login=self.needs_login)
 
     async def create_sio_client(self, needs_login: bool = True):
