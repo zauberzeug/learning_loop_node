@@ -39,6 +39,7 @@ class DetectorNode(Node):
     def __init__(self, name: str, detector: Detector, uuid: str = None):
         super().__init__(name, uuid)
         self.detector = detector
+        self.needs_login = False
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization, 'Detector node needs an organization'
