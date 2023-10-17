@@ -55,12 +55,12 @@ class LoopCommunicator():
         while True:
             try:
                 logging.info('Checking if backend is ready')
-                response = await self.get('/status')
+                response = await self.get('/status', requires_login=False)
                 if response.status_code == 200:
                     return True
             except Exception as e:
                 logging.info(f'backend not ready: {e}')
-            await asyncio.sleep(3)
+            await asyncio.sleep(10)
 
     async def get(self, path: str, requires_login: bool = True, api_prefix: str = '/api') -> httpx.Response:
         if requires_login:
