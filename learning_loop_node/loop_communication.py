@@ -3,11 +3,10 @@ import logging
 from typing import List, Optional
 
 import httpx
-from httpx import Timeout
+from httpx import Cookies, Timeout
 
 from .helpers import environment_reader
 
-# set log level to info
 logging.basicConfig(level=logging.INFO)
 
 
@@ -24,41 +23,32 @@ class LoopCommunicator():
         self.organization: str = environment_reader.organization()  # TODO: remove?
         self.project: str = environment_reader.project()  # TODO: remove?
         self.base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
-        self._async_client: Optional[httpx.AsyncClient] = None
+        self.async_client: httpx.AsyncClient = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
 
-        logging.info(f'Loop interface initialized with base_url: {self.base_url}')
+        logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
 
     @property
-    def project_path(self):
+    def project_path(self):  # TODO: remove?
         return f'/{self.organization}/projects/{self.project}'
 
-    async def get_asyncclient(self, requires_login=True) -> httpx.AsyncClient:
+    async def ensure_login(self) -> None:
         """aiohttp client session needs to be created on the event loop"""
 
-        if self._async_client is None or self._async_client.is_closed:
-            logging.info(f'Creating new async client for {self.base_url}')
-            self._async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
-
-        if requires_login and not self._async_client.cookies.keys():
-            response = await self._async_client.post('/api/login', data={'username': self.username, 'password': self.password})
+        assert not self.async_client.is_closed, 'async client must not be used after shutdown'
+        if not self.async_client.cookies.keys():
+            response = await self.async_client.post('/api/login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
-                self._async_client.cookies.clear()
+                self.async_client.cookies.clear()
                 logging.info(f'Login failed with response: {response}')
-                logging.info(f'username: {self.username}')
-                logging.info(f'password: {self.password}')
                 raise LoopCommunicationException('Login failed with response: ' + str(response))
-            self._async_client.cookies.update(response.cookies)
+            self.async_client.cookies.update(response.cookies)
 
-        return self._async_client
-
-    async def get_cookies(self):
-        ac = await self.get_asyncclient()
-        return ac.cookies
+    async def get_cookies(self) -> Cookies:
+        return self.async_client.cookies
 
     async def shutdown(self):
-        if self._async_client is not None and not self._async_client.is_closed:
-            await self._async_client.aclose()
-        self._async_client = None
+        if self.async_client is not None and not self.async_client.is_closed:
+            await self.async_client.aclose()
 
     async def backend_ready(self) -> bool:
         """Wait until the backend is ready"""
@@ -73,21 +63,25 @@ class LoopCommunicator():
             await asyncio.sleep(3)
 
     async def get(self, path: str, requires_login: bool = True, api_prefix: str = '/api') -> httpx.Response:
-        ac = await self.get_asyncclient(requires_login=requires_login)
-        return await ac.get(api_prefix+path)
+        if requires_login:
+            await self.ensure_login()
+        return await self.async_client.get(api_prefix+path)
 
     async def put(self, path, files: List[str], requires_login=True, api_prefix='/api') -> httpx.Response:
-        ac = await self.get_asyncclient(requires_login=requires_login)
+        if requires_login:
+            await self.ensure_login()
         file_list = [('files', open(f, 'rb')) for f in files]  # TODO: does this properly close the files after upload?
-        return await ac.put(api_prefix+path, files=file_list)
+        return await self.async_client.put(api_prefix+path, files=file_list)
 
     async def post(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
-        ac = await self.get_asyncclient(requires_login=requires_login)
-        return await ac.post(api_prefix+path, **kwargs)
+        if requires_login:
+            await self.ensure_login()
+        return await self.async_client.post(api_prefix+path, **kwargs)
 
     async def delete(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
-        ac = await self.get_asyncclient(requires_login=requires_login)
-        return await ac.delete(api_prefix+path, **kwargs)
+        if requires_login:
+            await self.ensure_login()
+        return await self.async_client.delete(api_prefix+path, **kwargs)
 
     # --------------------------------- unused?! --------------------------------- #TODO remove?
 

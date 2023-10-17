@@ -49,6 +49,8 @@ class Node(FastAPI):
         self.startup_time = datetime.now()
         self._sio_client: Optional[AsyncClient] = None
         self.status = NodeStatus(id=self.uuid, name=self.name)
+        # NOTE this is can be set to False for Nodes which do not need to authenticate with the backend (like the DetectorNode)
+        self.needs_login = True
         self._setup_sio_headers()
         self._register_lifecycle_events()
 
@@ -105,7 +107,8 @@ class Node(FastAPI):
         self.log.info('received "startup" lifecycle-event')
         Node._activate_asyncio_warnings()
         await self.loop_communicator.backend_ready()
-        await self.loop_communicator.get_asyncclient()
+        if self.needs_login:
+            await self.loop_communicator.ensure_login()
         await self.create_sio_client()
         await self.on_startup()
 

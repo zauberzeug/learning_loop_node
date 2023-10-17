@@ -42,11 +42,14 @@ async def _switch_socketio(state: str, trainer_node: TrainerNode):
 async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
     trainer_node = trainer_node_from_request(request)
+    # trainer_logic is MockTrainerLogic which has a property provide_new_model
+    assert hasattr(trainer_node.trainer_logic,
+                   'provide_new_model'), 'trainer_logic does not have property provide_new_model'
     if value == 'off':
-        trainer_node.trainer_logic.provide_new_model = False
+        trainer_node.trainer_logic.provide_new_model = False  # type: ignore
         trainer_node.status.reset_all_errors()
     if value == 'on':
-        trainer_node.trainer_logic.provide_new_model = True
+        trainer_node.trainer_logic.provide_new_model = True  # type: ignore
 
     logging.debug(f'turning automatically provide_new_model {value}')
 
@@ -56,9 +59,8 @@ async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
     await _switch_socketio('on', trainer_node)
 
+    await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
     await trainer_node.trainer_logic.stop()
-    await trainer_node.trainer_logic.stop()
-    # NOTE first stop may only kill running training process
 
     trainer_node.last_training_io.delete()
 
@@ -81,33 +83,37 @@ def set_error_configuration(msg: Dict, request: Request):
 
     logging.info(f'setting error configuration to: {asdict(error_configuration)}')
     trainer_logic = trainer_node_from_request(request).trainer_logic
-    trainer_logic.error_configuration = error_configuration
+
+    # NOTE: trainer_logic is MockTrainerLogic which has a property error_configuration
+    assert hasattr(trainer_logic, 'error_configuration'), 'trainer_logic does not have property error_configuration'
+    trainer_logic.error_configuration = error_configuration  # type: ignore
 
 
 @router.post("/steps")
 async def add_steps(request: Request):
     logging.warning('Steps was called')
     trainer_node = trainer_node_from_request(request)
+    trainer_logic = trainer_node.trainer_logic  # NOTE: is MockTrainerLogic which has 'provide_new_model' and 'current_iteration'
 
-    if not trainer_node.trainer_logic._executor or not trainer_node.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
-        logging.error(
-            f'cannot add steps when training is not running, state:  { trainer_node.trainer_logic._training.training_state}')
+    if not trainer_logic._executor or not trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
+        training = trainer_logic._training  # pylint: disable=protected-access
+        logging.error(f'cannot add steps when not running, state: {training.training_state if training else "None"}')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
-    previous_state = trainer_node.trainer_logic.provide_new_model
-    trainer_node.trainer_logic.provide_new_model = True
+
+    previous_state = trainer_logic.provide_new_model  # type: ignore
+    trainer_logic.provide_new_model = True  # type: ignore
     logging.warning(f'simulating newly completed models by moving {steps} forward')
 
     for _ in range(steps):
         try:
             logging.warning('calling sync_confusion_matrix')
-            await trainer_node.trainer_logic.sync_confusion_matrix()
+            await trainer_logic.sync_confusion_matrix()
         except Exception:
-            # Tests can force synchroniation to fail, error state is reported to backend
-            pass
-    trainer_node.trainer_logic.provide_new_model = previous_state
-    logging.warning(f'progress increased to {trainer_node.trainer_logic.current_iteration}')
+            pass  # Tests can force synchroniation to fail, error state is reported to backend
+    trainer_logic.provide_new_model = previous_state  # type: ignore
+    logging.warning(f'progress increased to {trainer_logic.current_iteration}')  # type: ignore
     await trainer_node.send_status()
 
 
