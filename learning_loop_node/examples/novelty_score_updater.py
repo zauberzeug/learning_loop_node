@@ -28,8 +28,7 @@ def get_json(path):
 
 
 async def put_json_async(path, json) -> Dict:
-    ac = await glc.get_asyncclient(requires_login=False)
-    response = await ac.put(path, json=json)
+    response = await glc.async_client.put(path, json=json)
     if response.status_code != 200:
         raise Exception(f'bad response: {str(response)} \n {response.json()}')
     return response.json()

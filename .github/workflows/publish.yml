@@ -1,8 +1,11 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - v**
+  # Allows you to run this workflow manually from the Actions a tab
+  workflow_dispatch:
 
 jobs:
   pypi:

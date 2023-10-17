@@ -37,6 +37,7 @@ class DetectorNode(Node):
             self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
         super().__init__(name, uuid)
         self.detector_logic = detector
+        self.needs_login = False
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization and self.project, 'Detector node needs an organization and an project'
@@ -75,7 +76,7 @@ class DetectorNode(Node):
 
         # simulate super().startup
         await self.loop_communicator.backend_ready()
-        await self.loop_communicator.get_asyncclient()
+        await self.loop_communicator.ensure_login()
         await self.create_sio_client()
         await self.on_startup()
 

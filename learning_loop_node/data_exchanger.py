@@ -146,7 +146,7 @@ class DataExchanger():
 
     async def download_model(self, target_folder: str, context: Context, model_id: str, model_format: str) -> List[str]:
         path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
-        response = await self.loop_communicator.get(path)
+        response = await self.loop_communicator.get(path, requires_login=False)
         if response.status_code != 200:
             content = response.json()
             logging.error(
