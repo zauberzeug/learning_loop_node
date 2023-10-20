@@ -20,16 +20,16 @@ class LoopCommunicator():
         self.host: str = host
         self.username: str = environment_reader.username()
         self.password: str = environment_reader.password()
-        self.organization: str = environment_reader.organization()  # TODO: remove?
-        self.project: str = environment_reader.project()  # TODO: remove?
+        self.organization: str = environment_reader.organization()  # used by mock_detector
+        self.project: str = environment_reader.project()  # used by mock_detector
         self.base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
         self.async_client: httpx.AsyncClient = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
 
         logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
 
-    @property
-    def project_path(self):  # TODO: remove?
-        return f'/{self.organization}/projects/{self.project}'
+    # @property
+    # def project_path(self):  # TODO: remove?
+    #     return f'/{self.organization}/projects/{self.project}'
 
     async def ensure_login(self) -> None:
         """aiohttp client session needs to be created on the event loop"""
