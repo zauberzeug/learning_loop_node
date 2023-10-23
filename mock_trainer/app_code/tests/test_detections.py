@@ -17,11 +17,11 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 
-    latest_model_id = await test_helper.get_latest_model_id()
+    latest_model_id = await test_helper.get_latest_model_id(project='pytest_p1')
 
     trainer = MockTrainerLogic(model_format='mocked')
     node = TrainerNode(name='test', trainer_logic=trainer)
-    context = Context(organization='zauberzeug', project='pytest')
+    context = Context(organization='zauberzeug', project='pytest_p1')
     details = {'categories': [jsonable_encoder(asdict(Category(id='some_id', name='some_category_name')))],
                'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
                'training_number': 0,
@@ -29,8 +29,6 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
                'flip_rl': False,
                'flip_ud': False}
     trainer.init(context=context, details=details, node=node)
-
-    # TODO: maybe init call is missing
 
     training = TrainerLogic.generate_training(context)
     training.model_id_for_detecting = latest_model_id
@@ -47,7 +45,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
 
 
 def assert_image_count(value: int):
-    images_folder = f'{GLOBALS.data_folder}/zauberzeug/pytest'
+    images_folder = f'{GLOBALS.data_folder}/zauberzeug/pytest_p1'
     files = glob(f'{images_folder}/**/*.*', recursive=True)
     files = [file for file in files if file.endswith('.jpg')]
     assert len(files) == value

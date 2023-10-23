@@ -19,9 +19,9 @@ def get_files_in_folder(folder: str):
     return files
 
 
-async def get_latest_model_id() -> str:
+async def get_latest_model_id(project: str) -> str:
     lc = LoopCommunicator()
-    response = await lc.get('/zauberzeug/projects/pytest/trainings')
+    response = await lc.get(f'/zauberzeug/projects/{project}/trainings')
     await lc.shutdown()
 
     assert response.status_code == 200
