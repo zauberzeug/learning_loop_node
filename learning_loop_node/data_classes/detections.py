@@ -20,7 +20,7 @@ class BoxDetection():
     height: int
     model_name: str
     confidence: float
-    category_id: str
+    category_id: Optional[str] = None
 
     def intersection_over_union(self, other_detection: 'BoxDetection') -> float:
         # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
@@ -52,7 +52,7 @@ class PointDetection():
     y: int
     model_name: str
     confidence: float
-    category_id: str
+    category_id: Optional[str] = None
 
     def distance(self, other: 'PointDetection') -> float:
         return np.sqrt((other.x - self.x)**2 + (other.y - self.y)**2)
@@ -66,7 +66,7 @@ class ClassificationDetection():
     category_name: str
     model_name: str
     confidence: float
-    category_id: str
+    category_id: Optional[str] = None
 
     def __str__(self):
         return f'c: {self.confidence:.2f} -> {self.category_name}'
@@ -95,7 +95,7 @@ class SegmentationDetection():
     shape: Union[Shape, str]
     model_name: str
     confidence: float
-    category_id: str
+    category_id: Optional[str] = None
 
     def __str__(self):
         return f'shape:{str(self.shape)}, c: {self.confidence:.2f} -> {self.category_name}'

@@ -27,9 +27,9 @@ class TestConverter(ConverterLogic):
 @pytest.mark.asyncio
 @pytest.fixture()
 async def setup_converter_test_project(glc: LoopCommunicator):
-    await glc.delete("/zauberzeug/projects/pytest?keep_images=true")
+    await glc.delete("/zauberzeug/projects/pytest_conv?keep_images=true")
     project_configuration = {
-        'project_name': 'pytest', 'box_categories': 1, 'point_categories': 1, 'inbox': 0, 'annotate': 0, 'review': 0,
+        'project_name': 'pytest_conv', 'box_categories': 1, 'point_categories': 1, 'inbox': 0, 'annotate': 0, 'review': 0,
         'complete': 0, 'image_style': 'plain', 'thumbs': False, 'trainings': 1}
     r = await glc.post("/zauberzeug/projects/generator", json=project_configuration)
     assert r.status_code == 200
@@ -40,7 +40,7 @@ async def setup_converter_test_project(glc: LoopCommunicator):
 # pylint: disable=redefined-outer-name, unused-argument
 @pytest.mark.asyncio
 async def test_meta_information(setup_converter_test_project):
-    model_id = await test_helper.get_latest_model_id()
+    model_id = await test_helper.get_latest_model_id(project='pytest_conv')
 
     converter = TestConverter(source_format='mocked', target_format='test', models=[])
     node = ConverterNode(name='test', converter=converter)

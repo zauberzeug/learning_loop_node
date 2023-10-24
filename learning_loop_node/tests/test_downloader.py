@@ -8,7 +8,7 @@ from . import test_helper
 async def test_download_model(data_exchanger: DataExchanger):
 
     _, _, trainings_folder = test_helper.create_needed_folders()
-    model_id = await test_helper.get_latest_model_id()
+    model_id = await test_helper.get_latest_model_id(project='pytest')
 
     await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
 

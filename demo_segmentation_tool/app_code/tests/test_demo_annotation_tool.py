@@ -14,7 +14,7 @@ class MockAsyncClient():  # pylint: disable=too-few-public-methods
 
 
 def default_user_input() -> UserInput:
-    context = Context(organization='zauberzeug', project='pytest')
+    context = Context(organization='zauberzeug', project='pytest_dst')
     category = Category(id='some_id', name='category_1', description='',
                         hotkey='', color='', type=CategoryType.Segmentation, point_size=None)
     annotation_data = AnnotationData(
