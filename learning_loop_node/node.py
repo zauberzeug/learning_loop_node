@@ -108,8 +108,11 @@ class Node(FastAPI):
         Node._activate_asyncio_warnings()
         await self.loop_communicator.backend_ready()
         if self.needs_login:
+            self.log.info('ensuring login')
             await self.loop_communicator.ensure_login()
+        self.log.info('create sio client')
         await self.create_sio_client()
+        self.log.info('done')
         await self.on_startup()
 
     async def _on_shutdown(self):
