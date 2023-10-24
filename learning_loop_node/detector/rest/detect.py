@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import numpy as np
@@ -30,11 +31,15 @@ async def http_detect(
     try:
         np_image = np.fromfile(file.file, np.uint8)
     except Exception as exc:
+        logging.exception(f'Error during reading of image {file.filename}.')
         raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
-    detections = await request.app.get_detections(
-        raw_image=np_image,
-        camera_id=camera_id or mac or None,
-        tags=tags.split(',') if tags else [],
-        autoupload=autoupload,
-    )
+
+    try:
+        detections = await request.app.get_detections(raw_image=np_image,
+                                                      camera_id=camera_id or mac or None,
+                                                      tags=tags.split(',') if tags else [],
+                                                      autoupload=autoupload,)
+    except Exception as exc:
+        logging.exception(f'Error during detection of image {file.filename}.')
+        raise Exception(f'Error during detection of image {file.filename}.') from exc
     return JSONResponse(detections)
