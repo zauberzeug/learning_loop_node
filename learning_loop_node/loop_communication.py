@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List
 
 import httpx
 from httpx import Cookies, Timeout
