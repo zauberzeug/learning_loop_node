@@ -39,7 +39,9 @@ class Outbox():
         self.shutdown_event: Optional[SyncEvent] = None
         self.upload_process: Optional[Thread] = None
 
-    def save(self, image: bytes, detections: Detections = Detections(), tags: Optional[List[str]] = None) -> None:
+    def save(self, image: bytes, detections: Optional[Detections] = None, tags: Optional[List[str]] = None) -> None:
+        if detections is None:
+            detections = Detections()
         if not tags:
             tags = []
         identifier = datetime.now().isoformat(sep='_', timespec='milliseconds')
