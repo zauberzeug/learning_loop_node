@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from typing import Dict
 
@@ -10,6 +11,7 @@ os.environ['LOOP_HOST'] = 'preview.learning-loop.ai'
 os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
 os.environ['LOOP_PROJECT'] = 'demo'
 
+logging.info('Starting novelty_score_updater')
 glc = LoopCommunicator()
 
 project_path = f'/{glc.organization}/projects/{glc.project}'
@@ -64,3 +66,5 @@ put_json('/images/novelty_scores', json=novelty_scores)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(glc.shutdown())
+
+logging.info('novelty_score_updater stopped')
