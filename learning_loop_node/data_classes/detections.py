@@ -48,8 +48,8 @@ class BoxDetection():
 @dataclass(**KWONLY_SLOTS)
 class PointDetection():
     category_name: str
-    x: int
-    y: int
+    x: float
+    y: float
     model_name: str
     confidence: float
     category_id: Optional[str] = None
