@@ -36,6 +36,19 @@ from learning_loop_node/learning_loop_node
 
 Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop. They provide REST and Socket.io APIs to run inference on images. The processed images can automatically be used for active learning: e.g. uncertain predictions will be send to the Learning Loop.
 
+Images can be send to the detector node via socketio or rest.
+The later approach can be used via curl,
+
+Example usage:
+
+`curl --request POST -F 'file=@test.jpg' localhost:8004/detect`
+
+Where 8804 is the specified port in this example.
+You can additionally provide the following camera parameters:
+
+- `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
+- `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
+
 ## Trainer Node
 
 Trainers fetch the images and anntoations from the Learning Loop to train new models.
@@ -58,20 +71,21 @@ Upload a model with
 The model should now be available for the format 'format_a'
 `curl "https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_a"`
 
-```
+````
+
 {
-  "models": [
-    {
-      "id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
-      "version": "4.0",
-      "formats": [
-        "format_a"
-      ],
-      "created": "2021-06-01T06:28:21.289092",
-      "comment": "uploaded at 2021-06-01 06:28:21.288442",
-      ...
-    }
-  ]
+"models": [
+{
+"id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
+"version": "4.0",
+"formats": [
+"format_a"
+],
+"created": "2021-06-01T06:28:21.289092",
+"comment": "uploaded at 2021-06-01 06:28:21.288442",
+...
+}
+]
 }
 
 ```
@@ -80,9 +94,11 @@ but not in the format_b
 `curl "https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_b"`
 
 ```
+
 {
-  "models": []
+"models": []
 }
+
 ```
 
 Connect the Node to the Learning Loop by simply starting the container.
@@ -90,21 +106,23 @@ After a short time the converted model should be available as well.
 `curl https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_b`
 
 ```
+
 {
-  "models": [
-    {
-      "id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
-      "version": "4.0",
-      "formats": [
-        "format_a",
-        "format_b",
-      ],
-      "created": "2021-06-01T06:28:21.289092",
-      "comment": "uploaded at 2021-06-01 06:28:21.288442",
-      ...
-    }
-  ]
+"models": [
+{
+"id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
+"version": "4.0",
+"formats": [
+"format_a",
+"format_b",
+],
+"created": "2021-06-01T06:28:21.289092",
+"comment": "uploaded at 2021-06-01 06:28:21.288442",
+...
 }
+]
+}
+
 ```
 
 ## About Models (the currency between Nodes)
@@ -123,3 +141,5 @@ After a short time the converted model should be available as well.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
   - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, ` resolution_x`` resolution_y ` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
+```
+````
