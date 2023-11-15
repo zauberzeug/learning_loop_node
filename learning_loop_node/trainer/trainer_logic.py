@@ -629,6 +629,8 @@ class TrainerLogic():
 
     @staticmethod
     def delete_all_training_folders(project_folder: str):
+        if not os.path.exists(f'{project_folder}/trainings'):
+            return
         for uuid in os.listdir(f'{project_folder}/trainings'):
             shutil.rmtree(f'{project_folder}/trainings/{uuid}', ignore_errors=True)
 
