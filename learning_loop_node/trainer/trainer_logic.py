@@ -87,7 +87,10 @@ class TrainerLogic():
 
         self._node = node
         try:
-            self._training = TrainerLogic.generate_training(context)
+            project_folder = Node.create_project_folder(context)
+            # NOTE: We delete all existing training folders because they are not needed anymore.
+            TrainerLogic.delete_all_training_folders(project_folder)
+            self._training = TrainerLogic.generate_training(project_folder, context)
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
             self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
@@ -614,9 +617,8 @@ class TrainerLogic():
         return images
 
     @staticmethod
-    def generate_training(context: Context) -> Training:
+    def generate_training(project_folder: str, context: Context) -> Training:
         training_uuid = str(uuid4())
-        project_folder = Node.create_project_folder(context)
         return Training(
             id=training_uuid,
             context=context,
@@ -624,6 +626,11 @@ class TrainerLogic():
             images_folder=create_image_folder(project_folder),
             training_folder=TrainerLogic.create_training_folder(project_folder, training_uuid)
         )
+
+    @staticmethod
+    def delete_all_training_folders(project_folder: str):
+        for uuid in os.listdir(f'{project_folder}/trainings'):
+            shutil.rmtree(f'{project_folder}/trainings/{uuid}', ignore_errors=True)
 
     @staticmethod
     def create_training_folder(project_folder: str, trainings_id: str) -> str:
