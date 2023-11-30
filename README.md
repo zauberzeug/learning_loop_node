@@ -17,14 +17,15 @@ To start a node you have to implement the logic by inheriting from the correspon
 
 You can configure connection to our Learning Loop by specifying the following environment variables before starting:
 
-| Name                 | Alias        | Purpose                                          | Required by          |
-| -------------------- | ------------ | ------------------------------------------------ | -------------------- |
-| LOOP_HOST            | HOST         | Learning Loop adress (e.g. learning-loop.ai)     | all                  |
-| LOOP_USERNAME        | USERNAME     | Learning Loop user name                          | all besides Detector |
-| LOOP_PASSWORD        | PASSWORD     | Learning Loop password                           | all besides Detector |
-| LOOP_ORGANIZATION    | ORGANIZATION | Organization name                                | Detector             |
-| LOOP_PROJECT         | PROJECT      | Project name                                     | Detector             |
-| INFERENCE_BATCH_SIZE | -            | Batch size of trainer when calulating detections | Trainer (opt.)       |
+| Name                   | Alias        | Purpose                                          | Required by          |
+| ---------------------- | ------------ | ------------------------------------------------ | -------------------- |
+| LOOP_HOST              | HOST         | Learning Loop adress (e.g. learning-loop.ai)     | all                  |
+| LOOP_USERNAME          | USERNAME     | Learning Loop user name                          | all besides Detector |
+| LOOP_PASSWORD          | PASSWORD     | Learning Loop password                           | all besides Detector |
+| LOOP_ORGANIZATION      | ORGANIZATION | Organization name                                | Detector             |
+| LOOP_PROJECT           | PROJECT      | Project name                                     | Detector             |
+| INFERENCE_BATCH_SIZE   | -            | Batch size of trainer when calulating detections | Trainer (opt.)       |
+| RESTART_AFTER_TRAINING | -            | Restart the trainer after training (set to 1)    | Trainer (opt.)       |
 
 #### Testing
 

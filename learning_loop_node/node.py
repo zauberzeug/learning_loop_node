@@ -160,6 +160,11 @@ class Node(FastAPI):
             self.log.info('received "disconnect" via sio from loop.')
             await self._update_send_state(NodeState.Offline)
 
+        @self._sio_client.event
+        async def restart():
+            self.log.info('received "restart" via sio from loop.')
+            self.restart()
+
         self.register_sio_events(self._sio_client)
 
     async def connect_sio(self):
@@ -216,6 +221,12 @@ class Node(FastAPI):
     @abstractmethod
     async def on_repeat(self):
         """This method is called every 10 seconds."""
+    # --------------------------------------------------- SHARED FUNCTIONS ---------------------------------------------------
+
+    def restart(self):
+        """Restart the node."""
+        self.log.info('restarting node')
+        sys.exit(0)
 
     # --------------------------------------------------- HELPER ---------------------------------------------------
 
