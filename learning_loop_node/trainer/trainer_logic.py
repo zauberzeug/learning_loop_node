@@ -54,6 +54,7 @@ class TrainerLogic():
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._node: Optional[TrainerNode] = None
+        self.restart_after_training = bool(int(os.environ.get('RESTART_AFTER_TRAINING', '0')))
         self.inference_batch_size = int(os.environ.get('INFERENCE_BATCH_SIZE', '10'))
         logging.info(f'INFERENCE_BATCH_SIZE: {self.inference_batch_size}')
 
@@ -158,6 +159,7 @@ class TrainerLogic():
                 await self.upload_detections()
             elif tstate == TrainingState.ReadyForCleanup:
                 await self.clear_training()
+                self.restart()
 
     def load_last_training(self) -> None:
         self._training = self.node.last_training_io.load()
@@ -501,10 +503,13 @@ class TrainerLogic():
         self.active_training_io.delete_detections_upload_file_index()
         await self.clear_training_data(self.training.training_folder)
         self.node.last_training_io.delete()
-        self.training.training_state = TrainingState.TrainingFinished
+        # self.training.training_state = TrainingState.TrainingFinished
+        assert self._node is not None
+        await self._node.send_status()  # make sure the status is updated before we stop the training
         self._training = None
 
     async def stop(self) -> None:
+        """If executor is running, stop it. Else cancel training task."""
         if not self._training:
             return
         if self._executor and self._executor.is_process_running():
@@ -517,6 +522,7 @@ class TrainerLogic():
                 except asyncio.CancelledError:
                     pass
                 logging.info('cancelled training task')
+                self.restart()
 
     async def shutdown(self) -> None:
         self.shutdown_event.set()
@@ -525,6 +531,12 @@ class TrainerLogic():
 
     def get_log(self) -> str:
         return self.executor.get_log()
+
+    def restart(self) -> None:
+        if self.restart_after_training:
+            logging.info('restarting')
+            assert self._node is not None
+            self._node.restart()
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
