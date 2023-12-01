@@ -106,8 +106,8 @@ class Node(FastAPI):
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
         Node._activate_asyncio_warnings()
-        await self.loop_communicator.backend_ready()
         if self.needs_login:
+            await self.loop_communicator.backend_ready()
             self.log.info('ensuring login')
             await self.loop_communicator.ensure_login()
         self.log.info('create sio client')
