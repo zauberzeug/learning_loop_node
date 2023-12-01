@@ -112,7 +112,7 @@ class DetectorNode(Node):
 
         # pylint: disable=unused-argument
 
-        async def _detect(sid, data) -> Dict:
+        async def _detect(sid, data: Dict) -> Dict:
             self.log.info('running detect via socketio')
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
@@ -137,10 +137,21 @@ class DetectorNode(Node):
                 return asdict(self.detector_logic.model_info)
             return 'No model loaded'
 
-        async def _upload(sid, data) -> Optional[Dict]:
+        async def _upload(sid, data: Dict) -> Optional[Dict]:
+            '''upload an image with detections'''
+
+            detection_data = data.get('detections', {})
+            if detection_data and self.detector_logic.is_initialized:
+                detections = from_dict(data_class=Detections, data=detection_data)
+                detections = self.add_category_id_to_detections(self.detector_logic.model_info, detections)
+            else:
+                detections = Detections()
+
+            tags = data.get('tags', ['picked_by_system'])
+
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], Detections(), ['picked_by_system'])
+                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
@@ -324,6 +335,10 @@ class DetectorNode(Node):
             category_name = segmentation_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             segmentation_detection.category_id = category_id
+        for classification_detection in detections.classification_detections:
+            category_name = classification_detection.category_name
+            category_id = find_category_id_by_name(model_info.categories, category_name)
+            classification_detection.category_id = category_id
         return detections
 
     def get_node_type(self):

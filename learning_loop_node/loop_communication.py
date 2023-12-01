@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import List
+from typing import List, Optional
 
 import httpx
 from httpx import Cookies, Timeout
@@ -43,6 +43,14 @@ class LoopCommunicator():
                 raise LoopCommunicationException('Login failed with response: ' + str(response))
             self.async_client.cookies.update(response.cookies)
 
+    async def logout(self) -> None:
+        """aiohttp client session needs to be created on the event loop"""
+
+        response = await self.async_client.post('/api/logout')
+        if response.status_code != 200:
+            logging.info(f'Logout failed with response: {response}')
+            raise LoopCommunicationException('Logout failed with response: ' + str(response))
+
     async def get_cookies(self) -> Cookies:
         return self.async_client.cookies
 
@@ -67,9 +75,12 @@ class LoopCommunicator():
             await self.ensure_login()
         return await self.async_client.get(api_prefix+path)
 
-    async def put(self, path, files: List[str], requires_login=True, api_prefix='/api') -> httpx.Response:
+    async def put(self, path, files: Optional[List[str]]=None, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
+        if files is None:
+            return await self.async_client.put(api_prefix+path, **kwargs)
+        
         file_list = [('files', open(f, 'rb')) for f in files]  # TODO: does this properly close the files after upload?
         return await self.async_client.put(api_prefix+path, files=file_list)
 

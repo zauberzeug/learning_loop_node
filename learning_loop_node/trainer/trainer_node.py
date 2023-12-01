@@ -51,7 +51,12 @@ class TrainerNode(Node):
             await self.send_status()
             await self.continue_run_if_incomplete()
         except Exception as e:
-            self.log.exception(f'could not send status state: {e}')
+            if isinstance(e, asyncio.TimeoutError):
+                self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
+                await self.sio_client.disconnect()
+                # NOTE: reconnect happens in node._on_repeat
+            else:
+                self.log.exception(f'could not send status state: {e}')
 
     # ---------------------------------------------- NODE ABSTRACT METHODS ---------------------------------------------------
 
@@ -80,7 +85,7 @@ class TrainerNode(Node):
             return
 
         if not self.trainer_logic.is_initialized:
-            state_for_learning_loop: str = NodeState.Idle.value
+            state_for_learning_loop = str(NodeState.Idle.value)
         else:
             assert self.trainer_logic.training.training_state is not None
             state_for_learning_loop = TrainerNode.state_for_learning_loop(

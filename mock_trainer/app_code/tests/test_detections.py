@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from learning_loop_node.data_classes import Category, Context
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.loop_communication import LoopCommunicator
+from learning_loop_node.node import Node
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 from learning_loop_node.trainer.trainer_node import TrainerNode
@@ -30,7 +31,8 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
                'flip_ud': False}
     trainer.init(context=context, details=details, node=node)
 
-    training = TrainerLogic.generate_training(context)
+    project_folder = Node.create_project_folder(context)
+    training = TrainerLogic.generate_training(project_folder, context)
     training.model_id_for_detecting = latest_model_id
     trainer._training = training  # pylint: disable=protected-access
     await trainer._do_detections()  # pylint: disable=protected-access

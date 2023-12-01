@@ -106,8 +106,8 @@ class Node(FastAPI):
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
         Node._activate_asyncio_warnings()
-        await self.loop_communicator.backend_ready()
         if self.needs_login:
+            await self.loop_communicator.backend_ready()
             self.log.info('ensuring login')
             await self.loop_communicator.ensure_login()
         self.log.info('create sio client')
@@ -159,6 +159,11 @@ class Node(FastAPI):
         async def disconnect():
             self.log.info('received "disconnect" via sio from loop.')
             await self._update_send_state(NodeState.Offline)
+
+        @self._sio_client.event
+        async def restart():
+            self.log.info('received "restart" via sio from loop.')
+            self.restart()
 
         self.register_sio_events(self._sio_client)
 
@@ -216,6 +221,12 @@ class Node(FastAPI):
     @abstractmethod
     async def on_repeat(self):
         """This method is called every 10 seconds."""
+    # --------------------------------------------------- SHARED FUNCTIONS ---------------------------------------------------
+
+    def restart(self):
+        """Restart the node."""
+        self.log.info('restarting node')
+        sys.exit(0)
 
     # --------------------------------------------------- HELPER ---------------------------------------------------
 

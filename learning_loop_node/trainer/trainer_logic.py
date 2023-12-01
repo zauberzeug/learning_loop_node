@@ -54,6 +54,8 @@ class TrainerLogic():
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._node: Optional[TrainerNode] = None
+        self.restart_after_training = bool(int(os.environ.get('RESTART_AFTER_TRAINING', '0')))
+        self.keep_old_trainings = bool(int(os.environ.get('KEEP_OLD_TRAININGS', '0')))
         self.inference_batch_size = int(os.environ.get('INFERENCE_BATCH_SIZE', '10'))
         logging.info(f'INFERENCE_BATCH_SIZE: {self.inference_batch_size}')
 
@@ -87,7 +89,11 @@ class TrainerLogic():
 
         self._node = node
         try:
-            self._training = TrainerLogic.generate_training(context)
+            project_folder = Node.create_project_folder(context)
+            if not self.keep_old_trainings:
+                # NOTE: We delete all existing training folders because they are not needed anymore.
+                TrainerLogic.delete_all_training_folders(project_folder)
+            self._training = TrainerLogic.generate_training(project_folder, context)
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
             self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
@@ -155,6 +161,7 @@ class TrainerLogic():
                 await self.upload_detections()
             elif tstate == TrainingState.ReadyForCleanup:
                 await self.clear_training()
+                self.may_restart()
 
     def load_last_training(self) -> None:
         self._training = self.node.last_training_io.load()
@@ -498,10 +505,13 @@ class TrainerLogic():
         self.active_training_io.delete_detections_upload_file_index()
         await self.clear_training_data(self.training.training_folder)
         self.node.last_training_io.delete()
-        self.training.training_state = TrainingState.TrainingFinished
+        # self.training.training_state = TrainingState.TrainingFinished
+        assert self._node is not None
+        await self._node.send_status()  # make sure the status is updated before we stop the training
         self._training = None
 
     async def stop(self) -> None:
+        """If executor is running, stop it. Else cancel training task."""
         if not self._training:
             return
         if self._executor and self._executor.is_process_running():
@@ -514,6 +524,7 @@ class TrainerLogic():
                 except asyncio.CancelledError:
                     pass
                 logging.info('cancelled training task')
+                self.may_restart()
 
     async def shutdown(self) -> None:
         self.shutdown_event.set()
@@ -522,6 +533,12 @@ class TrainerLogic():
 
     def get_log(self) -> str:
         return self.executor.get_log()
+
+    def may_restart(self) -> None:
+        if self.restart_after_training:
+            logging.info('restarting')
+            assert self._node is not None
+            self._node.restart()
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
@@ -614,9 +631,8 @@ class TrainerLogic():
         return images
 
     @staticmethod
-    def generate_training(context: Context) -> Training:
+    def generate_training(project_folder: str, context: Context) -> Training:
         training_uuid = str(uuid4())
-        project_folder = Node.create_project_folder(context)
         return Training(
             id=training_uuid,
             context=context,
@@ -624,6 +640,13 @@ class TrainerLogic():
             images_folder=create_image_folder(project_folder),
             training_folder=TrainerLogic.create_training_folder(project_folder, training_uuid)
         )
+
+    @staticmethod
+    def delete_all_training_folders(project_folder: str):
+        if not os.path.exists(f'{project_folder}/trainings'):
+            return
+        for uuid in os.listdir(f'{project_folder}/trainings'):
+            shutil.rmtree(f'{project_folder}/trainings/{uuid}', ignore_errors=True)
 
     @staticmethod
     def create_training_folder(project_folder: str, trainings_id: str) -> str:
