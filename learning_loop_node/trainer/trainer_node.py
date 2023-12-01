@@ -54,6 +54,7 @@ class TrainerNode(Node):
             if isinstance(e, asyncio.TimeoutError):
                 self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
                 await self.sio_client.disconnect()
+                # NOTE: reconnect happens in node._on_repeat
             else:
                 self.log.exception(f'could not send status state: {e}')
 

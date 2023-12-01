@@ -26,6 +26,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | LOOP_PROJECT           | PROJECT      | Project name                                     | Detector             |
 | INFERENCE_BATCH_SIZE   | -            | Batch size of trainer when calulating detections | Trainer (opt.)       |
 | RESTART_AFTER_TRAINING | -            | Restart the trainer after training (set to 1)    | Trainer (opt.)       |
+| KEEP_OLD_TRAININGS     | -            | Do not delete old trainings (set to 1)           | Trainer (opt.)       |
 
 #### Testing
 
@@ -49,6 +50,14 @@ You can additionally provide the following camera parameters:
 
 - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
 - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
+
+The detector also has a sio **upload endpoint** that can be used to upload images and detections to the learning loop. The function receives a json dictionary, with the following entries:
+
+- `image`: the image data in jpg format
+- `tags`: a list of strings. If not provided the tag is `picked_by_system`
+- `detections`: a dictionary representing the detections. UUIDs for the classes are automatically determined based on the category names. This field is optional. If not provided, no detections are uploaded.
+
+The endpoint returns None if the upload was successful and an error message otherwise.
 
 ## Trainer Node
 
