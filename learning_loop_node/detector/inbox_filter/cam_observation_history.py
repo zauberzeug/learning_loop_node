@@ -40,7 +40,7 @@ class CamObservationHistory:
                 continue
 
             self.recent_observations.append(Observation(detection))
-            if float(os.environ.get('MIN_UNCERTAIN_THRESHOLD', '0.3')) <= float(os.environ.get('MAX_UNCERTAIN_THRESHOLD', '0.6')):
+            if float(os.environ.get('MIN_UNCERTAIN_THRESHOLD', '0.3')) <= detection.confidence <= float(os.environ.get('MAX_UNCERTAIN_THRESHOLD', '0.6')):
                 causes.add('uncertain')
 
         return list(causes)
