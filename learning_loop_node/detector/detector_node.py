@@ -142,12 +142,20 @@ class DetectorNode(Node):
 
             detection_data = data.get('detections', {})
             if detection_data and self.detector_logic.is_initialized:
-                detections = from_dict(data_class=Detections, data=detection_data)
+                try:
+                    detections = from_dict(data_class=Detections, data=detection_data)
+                except Exception as e:
+                    self.log.exception('could not parse detections')
+                    return {'error': str(e)}
                 detections = self.add_category_id_to_detections(self.detector_logic.model_info, detections)
             else:
                 detections = Detections()
 
-            tags = data.get('tags', ['picked_by_system'])
+            tags = data.get('tags', [])
+            tags.append('picked_by_system')
+            camera_id = data.get('camera-id', None) or data.get('mac', None)
+            if camera_id is not None:
+                tags.append(camera_id)
 
             loop = asyncio.get_event_loop()
             try:
