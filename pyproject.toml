@@ -9,6 +9,10 @@ repository = "https://github.com/zauberzeug/learning_loop_node"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+fastapi = ">=0.93,<1.0.0"
+fastapi-socketio = "^0.0.10"
+uvicorn = {extras = ["standard"], version = "^0.22.0"}
+fastapi-utils = "^0.2.1"
 requests = "^2.25.1"
 python-socketio = "^5.7.2"
 simplejson = "^3.17.2"
