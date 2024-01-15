@@ -54,8 +54,8 @@ class TrainerLogic():
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._node: Optional[TrainerNode] = None
-        self.restart_after_training = bool(int(os.environ.get('RESTART_AFTER_TRAINING', '0')))
-        self.keep_old_trainings = bool(int(os.environ.get('KEEP_OLD_TRAININGS', '0')))
+        self.restart_after_training = os.environ.get('RESTART_AFTER_TRAINING', 'FALSE').lower() in ['true', '1']
+        self.keep_old_trainings = os.environ.get('KEEP_OLD_TRAININGS', 'FALSE').lower() in ['true', '1']
         self.inference_batch_size = int(os.environ.get('INFERENCE_BATCH_SIZE', '10'))
         logging.info(f'INFERENCE_BATCH_SIZE: {self.inference_batch_size}')
 
