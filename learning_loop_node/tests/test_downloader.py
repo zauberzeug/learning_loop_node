@@ -1,3 +1,6 @@
+import os
+import shutil
+
 from learning_loop_node.data_classes import Context
 from learning_loop_node.data_exchanger import DataExchanger
 from learning_loop_node.globals import GLOBALS
@@ -45,4 +48,27 @@ async def test_download_images(data_exchanger: DataExchanger):
 async def test_download_training_data(data_exchanger: DataExchanger):
     image_ids = await data_exchanger.fetch_image_ids()
     image_data = await data_exchanger.download_images_data(image_ids)
+    assert len(image_data) == 3
+
+
+async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
+    image_ids = await data_exchanger.fetch_image_ids()
+    image_data = await data_exchanger.download_images_data(image_ids)
+
+    shutil.rmtree('/tmp/img_folder', ignore_errors=True)
+    os.makedirs('/tmp/img_folder', exist_ok=True)
+
+    # Generate two corrupted images
+    with open('/tmp/img_folder/c0.jpg', 'w') as f:
+        f.write('')
+    # with open('/tmp/img_folder/c1.jpg', 'w') as f:
+    #     f.write('I am no image')
+
+    for i, _ in enumerate(image_data):
+        with open(f'/tmp/img_folder/{i}.jpg', 'w') as f:
+            f.write('some content')
+
+    data_exchanger.delete_empty_images('/tmp/img_folder')
+    shutil.rmtree('/tmp/img_folder', ignore_errors=True)
+
     assert len(image_data) == 3
