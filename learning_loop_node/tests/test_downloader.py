@@ -53,10 +53,11 @@ async def test_download_training_data(data_exchanger: DataExchanger):
 
 async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
     image_ids = await data_exchanger.fetch_image_ids()
-    image_data = await data_exchanger.download_images_data(image_ids)
 
     shutil.rmtree('/tmp/img_folder', ignore_errors=True)
     os.makedirs('/tmp/img_folder', exist_ok=True)
+    await data_exchanger.download_images(image_ids, '/tmp/img_folder')
+    num_images = len(os.listdir('/tmp/img_folder'))
 
     # Generate two corrupted images
     with open('/tmp/img_folder/c0.jpg', 'w') as f:
@@ -64,11 +65,7 @@ async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
     with open('/tmp/img_folder/c1.jpg', 'w') as f:
         f.write('I am no image')
 
-    for i, _ in enumerate(image_data):
-        with open(f'/tmp/img_folder/{i}.jpg', 'w') as f:
-            f.write('some content')
-
     await data_exchanger.delete_corrupt_images('/tmp/img_folder')
-    shutil.rmtree('/tmp/img_folder', ignore_errors=True)
 
-    assert len(image_data) == 3
+    assert len(os.listdir('/tmp/img_folder')) == num_images
+    shutil.rmtree('/tmp/img_folder', ignore_errors=True)
