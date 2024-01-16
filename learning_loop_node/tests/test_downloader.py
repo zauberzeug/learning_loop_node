@@ -61,14 +61,14 @@ async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
     # Generate two corrupted images
     with open('/tmp/img_folder/c0.jpg', 'w') as f:
         f.write('')
-    # with open('/tmp/img_folder/c1.jpg', 'w') as f:
-    #     f.write('I am no image')
+    with open('/tmp/img_folder/c1.jpg', 'w') as f:
+        f.write('I am no image')
 
     for i, _ in enumerate(image_data):
         with open(f'/tmp/img_folder/{i}.jpg', 'w') as f:
             f.write('some content')
 
-    data_exchanger.delete_empty_images('/tmp/img_folder')
+    await data_exchanger.delete_corrupt_images('/tmp/img_folder')
     shutil.rmtree('/tmp/img_folder', ignore_errors=True)
 
     assert len(image_data) == 3
