@@ -46,7 +46,7 @@ class DetectorLogic():
 
     @abstractmethod
     def init(self):
-        """Initialize the model. Note that `model_info` is available as `self.model_info`"""
+        """Called when a (new) model was loaded. Initialize the model. Model information available via `self.model_info`"""
 
     @abstractmethod
     def evaluate(self, image: np.ndarray) -> Detections:

@@ -59,9 +59,22 @@ class DataExchanger():
             logging.warning('context was not set yet')
             return
 
+        await self.delete_corrupt_images(image_folder)
         new_image_ids = await asyncio.get_event_loop().run_in_executor(None, DataExchanger.filter_existing_images, image_ids, image_folder)
         paths, ids = create_resource_paths(self.context.organization, self.context.project, new_image_ids)
         await self._download_images(paths, ids, image_folder)
+
+    @staticmethod
+    async def delete_corrupt_images(image_folder: str) -> None:
+        logging.info('deleting corrupt images')
+        n_deleted = 0
+        for image in glob(f'{image_folder}/*.jpg'):
+            if not await DataExchanger.is_valid_image(image):
+                logging.debug(f'  deleting image {image}')
+                os.remove(image)
+                n_deleted += 1
+
+        logging.info(f'deleted {n_deleted} images')
 
     @staticmethod
     def filter_existing_images(all_image_ids, image_folder) -> List[str]:
@@ -131,8 +144,9 @@ class DataExchanger():
         if not await self.is_valid_image(filename):
             os.remove(filename)
 
-    async def is_valid_image(self, filename: str) -> bool:
-        if not os.path.isfile(filename):
+    @staticmethod
+    async def is_valid_image(filename: str) -> bool:
+        if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
             return False
         if not check_jpeg:
             return True
