@@ -2,10 +2,8 @@ import asyncio
 
 from learning_loop_node.conftest import get_dummy_detections
 from learning_loop_node.data_classes import TrainingState
-from learning_loop_node.trainer.tests.state_helper import (
-    assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer_logic import \
-    TestingTrainerLogic
+from learning_loop_node.trainer.tests.state_helper import assert_training_state, create_active_training_file
+from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'detecting'
@@ -34,7 +32,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
 async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainingState.TrainModelUploaded)
-    trainer.load_last_training()
+    trainer.init_from_last_training()
     trainer.training.model_id_for_detecting = '12345678-bobo-7e92-f95f-424242424242'
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
@@ -52,7 +50,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
                                 model_id_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
-    trainer.load_last_training()
+    trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
@@ -68,7 +66,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
 def test_save_load_detections(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
-    trainer.load_last_training()
+    trainer.init_from_last_training()
 
     detections = [get_dummy_detections(), get_dummy_detections()]
 

@@ -3,10 +3,8 @@ import asyncio
 from pytest_mock import MockerFixture
 
 from learning_loop_node.data_classes import Context
-from learning_loop_node.trainer.tests.state_helper import (
-    assert_training_state, create_active_training_file)
-from learning_loop_node.trainer.tests.testing_trainer_logic import \
-    TestingTrainerLogic
+from learning_loop_node.trainer.tests.state_helper import assert_training_state, create_active_training_file
+from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 error_key = 'upload_model'
@@ -21,7 +19,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     mock_upload_model_for_training(mocker, 'new_model_id')
 
     create_active_training_file(trainer)
-    trainer.load_last_training()
+    trainer.init_from_last_training()
 
     train_task = asyncio.get_running_loop().create_task(trainer.upload_model())
 
@@ -38,7 +36,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='confusion_matrix_synced')
-    trainer.load_last_training()
+    trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
@@ -58,7 +56,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state='confusion_matrix_synced')
-    trainer.load_last_training()
+    trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
@@ -78,7 +76,7 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     mock_upload_model_for_training(mocker, 'new_model_id')
 
     create_active_training_file(trainer)
-    trainer.load_last_training()
+    trainer.init_from_last_training()
 
     # pylint: disable=protected-access
     result = await trainer._upload_model_return_new_id(Context(organization='zauberzeug', project='demo'))
