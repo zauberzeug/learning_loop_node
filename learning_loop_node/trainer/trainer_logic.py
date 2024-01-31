@@ -555,7 +555,7 @@ class TrainerLogic():
         if t_state == TrainingState.DataDownloading:
             return self.node.data_exchanger.progress
         if t_state == TrainingState.TrainingRunning:
-            return self.progress
+            return self.training_progress
         if t_state == TrainingState.Detecting:
             return self.detection_progress
 
@@ -564,7 +564,7 @@ class TrainerLogic():
 
     @property
     @abstractmethod
-    def progress(self) -> Optional[float]:
+    def training_progress(self) -> Optional[float]:
         """Represents the training progress."""
         raise NotImplementedError
 

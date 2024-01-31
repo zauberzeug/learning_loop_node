@@ -2,8 +2,7 @@ import asyncio
 import time
 from typing import Dict, List, Optional, Union
 
-from learning_loop_node.data_classes import (BasicModel, Context, Detections,
-                                             ModelInformation, PretrainedModel)
+from learning_loop_node.data_classes import BasicModel, Context, Detections, ModelInformation, PretrainedModel
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
@@ -17,7 +16,7 @@ class TestingTrainerLogic(TrainerLogic):
         self.error_msg: Optional[str] = None
 
     @property
-    def progress(self) -> float:
+    def training_progress(self) -> float:
         return 1.0
 
     @property
