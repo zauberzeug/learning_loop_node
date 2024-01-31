@@ -419,8 +419,6 @@ class TrainerLogic():
             content = json.load(f)
             model_information = from_dict(data_class=ModelInformation, data=content)
 
-        # TODO: Update self.detection_progress
-
         project_folder = Node.create_project_folder(context)
         image_folder = create_image_folder(project_folder)
         self.node.data_exchanger.set_context(context)
@@ -546,7 +544,6 @@ class TrainerLogic():
             self._node.restart()
         else:
             logging.info('not restarting')
-            self.training.training_state = TrainingState.TrainingFinished
 
     @property
     def general_progress(self) -> Optional[float]:
@@ -561,8 +558,6 @@ class TrainerLogic():
             return self.progress
         if t_state == TrainingState.Detecting:
             return self.detection_progress
-
-        # TODO implement downloading data, detecting and uploading
 
         return None
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
