@@ -17,10 +17,8 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
-from ..data_classes import (BasicModel, Category, Context, Detections, Errors,
-                            Hyperparameter, ModelInformation, PretrainedModel,
-                            Training, TrainingData, TrainingError,
-                            TrainingState)
+from ..data_classes import (BasicModel, Category, Context, Detections, Errors, Hyperparameter, ModelInformation,
+                            PretrainedModel, Training, TrainingData, TrainingError, TrainingState)
 from ..helpers.misc import create_image_folder
 from ..node import Node
 from . import training_syncronizer
@@ -50,6 +48,7 @@ class TrainerLogic():
         self.start_training_task: Optional[Coroutine] = None
         self.errors = Errors()
         self.shutdown_event: asyncio.Event = asyncio.Event()
+        self.detection_progress = 0.0
 
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
@@ -145,21 +144,21 @@ class TrainerLogic():
             tstate = self.training.training_state
             logging.info(f'STATE LOOP: {tstate}')
             await asyncio.sleep(0.6)  # Note: Required for pytests!
-            if tstate == TrainingState.Initialized:
+            if tstate == TrainingState.Initialized:  # -> DataDownloading -> DataDownloaded
                 await self.prepare()
-            elif tstate == TrainingState.DataDownloaded:
+            elif tstate == TrainingState.DataDownloaded:  # -> TrainModelDownloading -> TrainModelDownloaded
                 await self.download_model()
-            elif tstate == TrainingState.TrainModelDownloaded:
+            elif tstate == TrainingState.TrainModelDownloaded:  # -> TrainingRunning -> TrainingFinished
                 await self.train()
-            elif tstate == TrainingState.TrainingFinished:
+            elif tstate == TrainingState.TrainingFinished:  # -> ConfusionMatrixSyncing -> ConfusionMatrixSynced
                 await self.ensure_confusion_matrix_synced()
-            elif tstate == TrainingState.ConfusionMatrixSynced:
+            elif tstate == TrainingState.ConfusionMatrixSynced:  # -> TrainModelUploading -> TrainModelUploaded
                 await self.upload_model()
-            elif tstate == TrainingState.TrainModelUploaded:
+            elif tstate == TrainingState.TrainModelUploaded:  # -> Detecting -> Detected
                 await self.do_detections()
-            elif tstate == TrainingState.Detected:
+            elif tstate == TrainingState.Detected:  # -> DetectionUploading -> ReadyForCleanup
                 await self.upload_detections()
-            elif tstate == TrainingState.ReadyForCleanup:
+            elif tstate == TrainingState.ReadyForCleanup:  # -> RESTART or TrainingFinished
                 await self.clear_training()
                 self.may_restart()
 
@@ -420,23 +419,29 @@ class TrainerLogic():
             content = json.load(f)
             model_information = from_dict(data_class=ModelInformation, data=content)
 
+        # TODO: Update self.detection_progress
+
         project_folder = Node.create_project_folder(context)
         image_folder = create_image_folder(project_folder)
         self.node.data_exchanger.set_context(context)
         image_ids = []
-        for state in ['inbox', 'annotate', 'review', 'complete']:
+        for state, p in zip(['inbox', 'annotate', 'review', 'complete'], [0.1, 0.2, 0.3, 0.4]):
+            self.detection_progress = p
             logging.info(f'fetching image ids of {state}')
             new_ids = await self.node.data_exchanger.fetch_image_ids(query_params=f'state={state}')
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
             await self.node.data_exchanger.download_images(new_ids, image_folder)
+
         images = await asyncio.get_event_loop().run_in_executor(None, TrainerLogic.images_for_ids, image_ids, image_folder)
-        logging.info(f'running detections on {len(images)} images')
+        num_images = len(images)
+        logging.info(f'running detections on {num_images} images')
         batch_size = 200
         idx = 0
         if not images:
             self.active_training_io.save_detections([], idx)
-        for i in tqdm(range(0, len(images), batch_size), position=0, leave=True):
+        for i in tqdm(range(0, num_images, batch_size), position=0, leave=True):
+            self.detection_progress = 0.5 + (i/num_images)*0.5
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)
@@ -512,7 +517,7 @@ class TrainerLogic():
 
     async def stop(self) -> None:
         """If executor is running, stop it. Else cancel training task."""
-        if not self._training:
+        if not self.is_initialized:
             return
         if self._executor and self._executor.is_process_running():
             self.executor.stop()
@@ -539,12 +544,33 @@ class TrainerLogic():
             logging.info('restarting')
             assert self._node is not None
             self._node.restart()
+        else:
+            logging.info('not restarting')
+            self.training.training_state = TrainingState.TrainingFinished
 
+    @property
+    def general_progress(self) -> Optional[float]:
+        """Represents the progress for different states."""
+        if not self.is_initialized:
+            return None
+
+        t_state = self.training.training_state
+        if t_state == TrainingState.DataDownloading:
+            return self.node.data_exchanger.progress
+        if t_state == TrainingState.TrainingRunning:
+            return self.progress
+        if t_state == TrainingState.Detecting:
+            return self.detection_progress
+
+        # TODO implement downloading data, detecting and uploading
+
+        return None
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
     @property
     @abstractmethod
-    def progress(self) -> float:
+    def progress(self) -> Optional[float]:
+        """Represents the training progress."""
         raise NotImplementedError
 
     @property
