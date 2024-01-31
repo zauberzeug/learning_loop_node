@@ -32,7 +32,7 @@ class DataExchanger():
     def __init__(self, context: Optional[Context], loop_communicator: LoopCommunicator):
         self.context = context
         self.loop_communicator = loop_communicator
-        self.progress = 0.0  # _download_images_data: 0.0 - 0.5, _download_images: 0.5 - 1.0
+        self.progress = 0.0
 
     def set_context(self, context: Context):
         self.context = context
@@ -101,8 +101,9 @@ class DataExchanger():
         self.jepeg_check_info()
         images_data = []
         starttime = time.time()
+        progress_factor = 0.5 / num_image_ids  # 50% of progress is for downloading data
         for i in tqdm(range(0, num_image_ids, chunk_size), position=0, leave=True):
-            self.progress = i / num_image_ids / 2.0
+            self.progress = i * progress_factor
             chunk_ids = image_ids[i:i+chunk_size]
             response = await self.loop_communicator.get(f'/{organization}/projects/{project}/images?ids={",".join(chunk_ids)}')
             if response.status_code != 200:
@@ -126,8 +127,10 @@ class DataExchanger():
         logging.info('fetching image files')
         starttime = time.time()
         os.makedirs(image_folder, exist_ok=True)
+
+        progress_factor = 0.5 / num_image_ids  # second 50% of progress is for downloading images
         for i in tqdm(range(0, num_image_ids, chunk_size), position=0, leave=True):
-            self.progress = i / num_image_ids / 2.0 + 0.5
+            self.progress = 0.5 + i * progress_factor
             chunk_paths = paths[i:i+chunk_size]
             chunk_ids = image_ids[i:i+chunk_size]
             tasks = []
