@@ -79,7 +79,7 @@ class TrainerLogic():
 
     @property
     def is_initialized(self) -> bool:
-        """_training and _active_training_io are set in 'init' or 'load_last_training'"""
+        """_training and _active_training_io are set in 'init_new_training' or 'init_from_last_training'"""
         return self._training is not None and self._active_training_io is not None and self._node is not None
 
     def init_new_training(self, context: Context, details: Dict) -> None:
