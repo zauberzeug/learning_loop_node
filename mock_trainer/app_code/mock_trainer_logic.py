@@ -4,13 +4,9 @@ import logging
 import time
 from typing import Dict, List, Optional, Union
 
-from learning_loop_node.data_classes import (BasicModel, BoxDetection,
-                                             CategoryType,
-                                             ClassificationDetection,
-                                             Detections, ErrorConfiguration,
-                                             ModelInformation, Point,
-                                             PointDetection, PretrainedModel,
-                                             SegmentationDetection, Shape)
+from learning_loop_node.data_classes import (BasicModel, BoxDetection, CategoryType, ClassificationDetection,
+                                             Detections, ErrorConfiguration, ModelInformation, Point, PointDetection,
+                                             PretrainedModel, SegmentationDetection, Shape)
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 from . import progress_simulator
@@ -111,7 +107,7 @@ class MockTrainerLogic(TrainerLogic):
             PretrainedModel(name='large', label='Large', description='a large model')]
 
     @property
-    def progress(self) -> float:
+    def training_progress(self) -> float:
         print(f'prog. is {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
         return self.current_iteration / self.max_iterations
 

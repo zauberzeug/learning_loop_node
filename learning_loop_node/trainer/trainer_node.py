@@ -30,8 +30,8 @@ class TrainerNode(Node):
 
     @property
     def progress(self) -> Union[float, None]:
-        return self.trainer_logic.progress if (self.trainer_logic is not None and
-                                               hasattr(self.trainer_logic, 'progress')) else None
+        return self.trainer_logic.general_progress if (self.trainer_logic is not None and
+                                                       hasattr(self.trainer_logic, 'general_progress')) else None
 
     @property
     def training_uptime(self) -> Union[float, None]:
