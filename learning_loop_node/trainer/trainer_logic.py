@@ -334,7 +334,9 @@ class TrainerLogic():
         try:
             new_model_id = await self._upload_model_return_new_id(self.training.context)
             if new_model_id is None:
-                raise Exception('could not upload model - maybe training failed')
+                self.training.training_state = TrainingState.ReadyForCleanup
+                logging.error('could not upload model - maybe training failed.. cleaning up')
+                return
             assert new_model_id is not None, 'uploaded_model must be set'
             logging.info(f'successfully uploaded model and received new model id: {new_model_id}')
             self.training.model_id_for_detecting = new_model_id
