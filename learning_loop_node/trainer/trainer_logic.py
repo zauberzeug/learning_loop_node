@@ -75,7 +75,7 @@ class TrainerLogic():
 
     @property
     def node(self) -> 'TrainerNode':
-        assert self._node is not None, 'node should be set by TrainerNodes'
+        assert self._node is not None, 'node should be set by TrainerNodes before initialization'
         return self._node
 
     @property
