@@ -100,6 +100,9 @@ class DataExchanger():
         num_image_ids = len(image_ids)
         self.jepeg_check_info()
         images_data = []
+        if num_image_ids == 0:
+            logging.info('got empty list. No images were downloaded')
+            return images_data
         starttime = time.time()
         progress_factor = 0.5 / num_image_ids  # 50% of progress is for downloading data
         for i in tqdm(range(0, num_image_ids, chunk_size), position=0, leave=True):
