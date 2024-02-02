@@ -424,6 +424,8 @@ class TrainerLogic():
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
             await self.node.data_exchanger.download_images(new_ids, image_folder)
+        self.detection_progress = 0.42
+        await self.node.data_exchanger.delete_corrupt_images(image_folder)
 
         images = await asyncio.get_event_loop().run_in_executor(None, TrainerLogic.images_for_ids, image_ids, image_folder)
         num_images = len(images)

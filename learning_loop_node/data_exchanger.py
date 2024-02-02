@@ -60,7 +60,6 @@ class DataExchanger():
             logging.warning('context was not set yet')
             return
 
-        await self.delete_corrupt_images(image_folder)
         new_image_ids = await asyncio.get_event_loop().run_in_executor(None, DataExchanger.filter_existing_images, image_ids, image_folder)
         paths, ids = create_resource_paths(self.context.organization, self.context.project, new_image_ids)
         await self._download_images(paths, ids, image_folder)
