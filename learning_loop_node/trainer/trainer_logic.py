@@ -75,18 +75,18 @@ class TrainerLogic():
 
     @property
     def node(self) -> 'TrainerNode':
-        assert self._node is not None, 'node must be set, call `init` first'
+        assert self._node is not None, 'node should be set by TrainerNodes before initialization'
         return self._node
 
     @property
     def is_initialized(self) -> bool:
+        """_training and _active_training_io are set in 'init_new_training' or 'init_from_last_training'"""
         return self._training is not None and self._active_training_io is not None and self._node is not None
 
-    def init(self, context: Context, details: Dict, node: 'TrainerNode') -> None:
+    def init_new_training(self, context: Context, details: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
         Note that details needs the entries 'categories' and 'training_number'"""
 
-        self._node = node
         try:
             project_folder = Node.create_project_folder(context)
             if not self.keep_old_trainings:
@@ -102,6 +102,11 @@ class TrainerLogic():
             logging.info(f'init training: {self._training}')
         except Exception:
             logging.exception('Error in init')
+
+    def init_from_last_training(self) -> None:
+        self._training = self.node.last_training_io.load()
+        assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
+        self._active_training_io = ActiveTrainingIO(self._training.training_folder)
 
     async def run(self) -> None:
         """Called on `begin_training` event from the Learning Loop."""
@@ -128,14 +133,6 @@ class TrainerLogic():
     async def _run(self) -> None:
         """asyncio.CancelledError is catched in train"""
 
-        if self._training is None:
-            if self.node.last_training_io.exists():
-                logging.warning('found active training on hd')
-                self.load_last_training()
-            else:
-                logging.error('missing training information')
-                return
-
         if not self.is_initialized:
             logging.error('could not start training - trainer is not initialized')
             return
@@ -161,11 +158,6 @@ class TrainerLogic():
             elif tstate == TrainingState.ReadyForCleanup:  # -> RESTART or TrainingFinished
                 await self.clear_training()
                 self.may_restart()
-
-    def load_last_training(self) -> None:
-        self._training = self.node.last_training_io.load()
-        assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
-        self._active_training_io = ActiveTrainingIO(self._training.training_folder)
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state

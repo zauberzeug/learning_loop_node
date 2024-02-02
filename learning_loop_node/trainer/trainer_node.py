@@ -48,8 +48,9 @@ class TrainerNode(Node):
 
     async def on_repeat(self):
         try:
+            if await self.continue_run_if_incomplete():
+                return  # NOTE: we prevent sending idle status after starting a continuation
             await self.send_status()
-            await self.continue_run_if_incomplete()
         except Exception as e:
             if isinstance(e, asyncio.TimeoutError):
                 self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
@@ -66,7 +67,7 @@ class TrainerNode(Node):
         async def begin_training(organization: str, project: str, details: Dict):
             assert self._sio_client is not None
             self.log.info('received begin_training from server')
-            self.trainer_logic.init(Context(organization=organization, project=project), details, self)
+            self.trainer_logic.init_new_training(Context(organization=organization, project=project), details)
             asyncio.get_event_loop().create_task(self.trainer_logic.run())
             return True
 
@@ -117,10 +118,13 @@ class TrainerNode(Node):
         if not response.success:
             self.log.error(f'Error when sending status update: Response from loop was:\n {asdict(response)}')
 
-    async def continue_run_if_incomplete(self):
+    async def continue_run_if_incomplete(self) -> bool:
         if not self.trainer_logic.is_initialized and self.last_training_io.exists():
             self.log.info('found incomplete training, continuing now.')
+            self.trainer_logic.init_from_last_training()
             asyncio.get_event_loop().create_task(self.trainer_logic.run())
+            return True
+        return False
 
     async def get_state(self):
         if self.trainer_logic._executor is not None and self.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access

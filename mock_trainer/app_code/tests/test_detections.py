@@ -29,7 +29,8 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
                'resolution': 800,
                'flip_rl': False,
                'flip_ud': False}
-    trainer.init(context=context, details=details, node=node)
+    trainer._node = node  # pylint: disable=protected-access
+    trainer.init_new_training(context=context, details=details)
 
     project_folder = Node.create_project_folder(context)
     training = TrainerLogic.generate_training(project_folder, context)
