@@ -12,3 +12,4 @@ __pycache__/
 
 .env
 learning_loop_node/tmp
+learning_loop_node/.python-version
