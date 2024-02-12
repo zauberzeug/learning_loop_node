@@ -13,11 +13,9 @@ class DetectorLogic():
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
         self._model_info: Optional[ModelInformation] = None
-        self.target_model: Optional[str] = None
 
     async def soft_reload(self):
         self._model_info = None
-        self.target_model = None
 
     @property
     def model_info(self) -> ModelInformation:

@@ -50,7 +50,7 @@ class DetectorNode(Node):
             self.loop_communicator)
 
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
-        self.target_model = None
+        self.target_model: Optional[str] = None
 
         self.include_router(rest_detect.router, tags=["detect"])
         self.include_router(rest_upload.router, prefix="")
