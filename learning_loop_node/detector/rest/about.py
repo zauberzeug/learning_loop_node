@@ -1,7 +1,10 @@
 
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Request
 
-from ..detector_node import DetectorNode
+if TYPE_CHECKING:
+    from ..detector_node import DetectorNode
 
 router = APIRouter()
 
@@ -12,7 +15,7 @@ async def get_about(request: Request):
     Example Usage
         curl http://localhost/about
     '''
-    app: DetectorNode = request.app
+    app: 'DetectorNode' = request.app
     return {
         'operation_mode': app.operation_mode.value,
         'state': app.status.state,
