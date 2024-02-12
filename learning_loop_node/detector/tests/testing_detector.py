@@ -4,7 +4,7 @@ import numpy as np
 
 from learning_loop_node import DetectorLogic
 from learning_loop_node.conftest import get_dummy_detections
-from learning_loop_node.data_classes import Detections
+from learning_loop_node.data_classes import Category, Detections, ModelInformation
 
 
 class TestingDetectorLogic(DetectorLogic):
