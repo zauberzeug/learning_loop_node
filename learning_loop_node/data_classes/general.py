@@ -90,6 +90,10 @@ class ModelInformation():
             del self_as_dict['model_root_path']
             f.write(json.dumps(self_as_dict))
 
+    @staticmethod
+    def from_dict(data: Dict) -> 'ModelInformation':
+        return from_dict(ModelInformation, data=data)
+
 
 @dataclass(**KWONLY_SLOTS)
 class ErrorConfiguration():

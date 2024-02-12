@@ -14,8 +14,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_socketio import SocketManager
 from socketio import AsyncClient
 
-from ..data_classes import (Category, Context, Detections, DetectionStatus,
-                            ModelInformation, NodeState, Shape)
+from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, NodeState, Shape
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
@@ -24,6 +23,7 @@ from ..node import Node
 from .detector_logic import DetectorLogic
 from .inbox_filter.relevance_filter import RelevanceFilter
 from .outbox import Outbox
+from .rest import about as rest_about
 from .rest import backdoor_controls
 from .rest import detect as rest_detect
 from .rest import operation_mode as rest_mode
@@ -50,11 +50,13 @@ class DetectorNode(Node):
             self.loop_communicator)
 
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
-        self.target_model = None
+        self.target_model: Optional[str] = None
 
         self.include_router(rest_detect.router, tags=["detect"])
         self.include_router(rest_upload.router, prefix="")
         self.include_router(rest_mode.router, tags=["operation_mode"])
+        self.include_router(rest_about.router, tags=["about"])
+
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router)
 

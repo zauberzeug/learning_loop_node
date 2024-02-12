@@ -37,6 +37,8 @@ def should_have_segmentations(request) -> bool:
 
 @pytest.fixture()
 async def test_detector_node():
+    """Initializes and runs a detector testnode. Note that the running instance and the one the function returns are not the same instances!"""
+
     os.environ['ORGANIZATION'] = 'zauberzeug'
     os.environ['PROJECT'] = 'demo'
 
@@ -46,6 +48,8 @@ async def test_detector_node():
 
     multiprocessing.set_start_method('fork', force=True)
     assert multiprocessing.get_start_method() == 'fork'
+    # print('\n\n',multiprocessing.get_start_method())
+
     proc = Process(target=uvicorn.run,
                    args=(node,),
                    kwargs={

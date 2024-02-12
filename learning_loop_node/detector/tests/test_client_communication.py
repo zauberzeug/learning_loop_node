@@ -1,9 +1,11 @@
 import asyncio
+import json
 
 import pytest
 import requests
 
 from learning_loop_node import DetectorNode
+from learning_loop_node.data_classes import Category, ModelInformation
 from learning_loop_node.detector.tests.conftest import get_outbox_files
 from learning_loop_node.globals import GLOBALS
 
@@ -84,3 +86,17 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     result = await sio_client.call('upload', {'image': image_bytes})
     assert result is None
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
+
+
+async def test_about_endpoint(test_detector_node: DetectorNode):
+    await asyncio.sleep(1)
+    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/about', timeout=30)
+
+    assert response.status_code == 200
+    response_dict = json.loads(response.content)
+    model_information = ModelInformation.from_dict(response_dict['model_info'])
+
+    assert response_dict['operation_mode'] == 'idle'
+    assert response_dict['state'] == 'online'
+    assert response_dict['target_model'] == '1.1'
+    assert any([c.name == 'purple point' for c in model_information.categories])
