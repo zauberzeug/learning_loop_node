@@ -1,12 +1,11 @@
 import asyncio
-import json
 import logging
 import os
 import sys
 from abc import abstractmethod
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
-from uuid import uuid4
 
 import aiohttp
 import socketio
@@ -17,8 +16,8 @@ from socketio import AsyncClient
 from .data_classes import Context, NodeState, NodeStatus
 from .data_exchanger import DataExchanger
 from .globals import GLOBALS
-from .helpers import environment_reader, log_conf
-from .helpers.misc import ensure_socket_response
+from .helpers import log_conf
+from .helpers.misc import ensure_socket_response, read_or_create_uuid
 from .loop_communication import LoopCommunicator
 
 
@@ -35,28 +34,29 @@ class Node(FastAPI):
             needs_login (bool): If True, the node will try to login to the learning loop.
         """
 
-        super().__init__()
+        super().__init__(lifespan=self.lifespan)
         log_conf.init()
 
         self.name = name
-        self.uuid = uuid or self.read_or_create_uuid(self.name)
+        self.uuid = uuid or read_or_create_uuid(self.name)
         self.needs_login = needs_login
 
         self.log = logging.getLogger()
         self.loop_communicator = LoopCommunicator()
+        self.websocket_url = self.loop_communicator.websocket_url()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
-        loop_url = environment_reader.host(default='learning-loop.ai')
-        self.websocket_url = f'ws{"s" if "learning-loop.ai" in loop_url else ""}://' + loop_url
-
-        self.startup_time = datetime.now()
+        self.startup_datetime = datetime.now()
         self._sio_client: Optional[AsyncClient] = None
         self.status = NodeStatus(id=self.uuid, name=self.name)
 
         self.sio_headers = {'organization': self.loop_communicator.organization,
                             'project': self.loop_communicator.project,
                             'nodeType': self.get_node_type()}
-        self._register_lifecycle_events()
+
+        @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
+        async def ensure_connected() -> None:
+            await self._on_repeat()
 
     @property
     def sio_client(self) -> AsyncClient:
@@ -67,40 +67,27 @@ class Node(FastAPI):
     def sio_is_initialized(self) -> bool:
         return self._sio_client is not None
 
-    # --------------------------------------------------- INIT ---------------------------------------------------
-
-    def read_or_create_uuid(self, identifier: str) -> str:
-        identifier = identifier.lower().replace(' ', '_')
-        uuids = {}
-        os.makedirs(GLOBALS.data_folder, exist_ok=True)
-        file_path = f'{GLOBALS.data_folder}/uuids.json'
-        if os.path.exists(file_path):
-            with open(file_path, 'r') as f:
-                uuids = json.load(f)
-
-        uuid = uuids.get(identifier, None)
-        if not uuid:
-            uuid = str(uuid4())
-            uuids[identifier] = uuid
-            with open(file_path, 'w') as f:
-                json.dump(uuids, f)
-        return uuid
-
     # --------------------------------------------------- APPLICATION LIFECYCLE ---------------------------------------------------
 
-    def _register_lifecycle_events(self):
-        @self.on_event("startup")
-        async def startup():
-            await self._on_startup()
+    @asynccontextmanager
+    async def lifespan(self, app: FastAPI):
+        await self.on_startup()
+        yield
+        await self.on_shutdown()
 
-        @self.on_event("shutdown")  # NOTE only used for developent ?!
-        async def shutdown():
-            await self._on_shutdown()
+    # def _register_lifecycle_events(self):
+    #     @self.on_event("startup")
+    #     async def startup():
+    #         await self._on_startup()
 
-        @self.on_event("startup")
-        @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
-        async def ensure_connected() -> None:
-            await self._on_repeat()
+    #     @self.on_event("shutdown")  # NOTE only used for developent ?!
+    #     async def shutdown():
+    #         await self._on_shutdown()
+
+    #     @self.on_event("startup")
+    #     @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
+    #     async def ensure_connected() -> None:
+    #         await self._on_repeat()
 
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
@@ -122,6 +109,7 @@ class Node(FastAPI):
         self.log.info('successfully disconnected from loop.')
         await self.on_shutdown()
 
+    @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
     async def _on_repeat(self):
         while not self.sio_is_initialized():
             self.log.info('Waiting for sio client to be initialized')

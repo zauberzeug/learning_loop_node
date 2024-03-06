@@ -27,9 +27,8 @@ class LoopCommunicator():
 
         logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
 
-    # @property
-    # def project_path(self):  # TODO: remove?
-    #     return f'/{self.organization}/projects/{self.project}'
+    def websocket_url(self) -> str:
+        return f'ws{"s" if "learning-loop.ai" in self.host else ""}://' + self.host
 
     async def ensure_login(self) -> None:
         """aiohttp client session needs to be created on the event loop"""
@@ -75,12 +74,12 @@ class LoopCommunicator():
             await self.ensure_login()
         return await self.async_client.get(api_prefix+path)
 
-    async def put(self, path, files: Optional[List[str]]=None, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
+    async def put(self, path, files: Optional[List[str]] = None, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
-        
+
         file_list = [('files', open(f, 'rb')) for f in files]  # TODO: does this properly close the files after upload?
         return await self.async_client.put(api_prefix+path, files=file_list)
 

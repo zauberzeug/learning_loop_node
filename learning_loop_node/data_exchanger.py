@@ -8,7 +8,7 @@ from http import HTTPStatus
 from io import BytesIO
 from typing import Dict, List, Optional
 
-import aiofiles
+import aiofiles  # type: ignore
 
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image
@@ -25,6 +25,15 @@ class DownloadError(Exception):
 class DataExchanger():
 
     def __init__(self, context: Optional[Context], loop_communicator: LoopCommunicator):
+        """Exchanges data with the learning loop via the loop_communicator (rest api).
+
+        Args:
+            context (Optional[Context]): The context of the node. This is the organization and project name.
+            loop_communicator (LoopCommunicator): The loop_communicator to use for communication with the learning loop.
+
+        Note:
+            The context can be set later with the set_context method.
+        """
         self.set_context(context)
         self.progress = 0.0
         self.loop_communicator = loop_communicator
@@ -85,7 +94,7 @@ class DataExchanger():
         existing_uuids = {os.path.splitext(os.path.basename(image))[0] for image in glob(f'{image_folder}/*.jpg')}
         new_image_uuids = [id for id in image_uuids if id not in existing_uuids]
 
-        paths, ids = create_resource_paths(self.context.organization, self.context.project, new_image_uuids)
+        paths, _ = create_resource_paths(self.context.organization, self.context.project, new_image_uuids)
         num_image_ids = len(image_uuids)
         os.makedirs(image_folder, exist_ok=True)
 
@@ -128,7 +137,6 @@ class DataExchanger():
             logging.exception(f'Error during downloading model {path}:')
             raise
 
-        # unzip and place downloaded model
         tmp_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
         shutil.rmtree(tmp_path, ignore_errors=True)
         with zipfile.ZipFile(BytesIO(content), 'r') as zip_:

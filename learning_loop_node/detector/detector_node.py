@@ -256,7 +256,7 @@ class DetectorNode(Node):
             name=self.name,
             state=self.status.state,
             errors=self.status.errors,
-            uptime=int((datetime.now() - self.startup_time).total_seconds()),
+            uptime=int((datetime.now() - self.startup_datetime).total_seconds()),
             operation_mode=self.operation_mode,
             current_model=current_model,
             target_model=self.target_model,

@@ -1,4 +1,6 @@
 """original copied from https://quantlane.com/blog/ensure-asyncio-task-exceptions-get-logged/"""
+import json
+from uuid import uuid4
 import asyncio
 import functools
 import logging
@@ -11,6 +13,7 @@ from uuid import UUID
 import pynvml
 
 from ..data_classes import SocketResponse
+from ..globals import GLOBALS
 
 T = TypeVar('T')
 
@@ -100,6 +103,24 @@ def create_image_folder(project_folder: str) -> str:
     image_folder = f'{project_folder}/images'
     os.makedirs(image_folder, exist_ok=True)
     return image_folder
+
+
+def read_or_create_uuid(identifier: str) -> str:
+    identifier = identifier.lower().replace(' ', '_')
+    uuids = {}
+    os.makedirs(GLOBALS.data_folder, exist_ok=True)
+    file_path = f'{GLOBALS.data_folder}/uuids.json'
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            uuids = json.load(f)
+
+    uuid = uuids.get(identifier, None)
+    if not uuid:
+        uuid = str(uuid4())
+        uuids[identifier] = uuid
+        with open(file_path, 'w') as f:
+            json.dump(uuids, f)
+    return uuid
 
 
 def ensure_socket_response(func):
