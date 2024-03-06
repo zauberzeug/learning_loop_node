@@ -1,18 +1,20 @@
 """original copied from https://quantlane.com/blog/ensure-asyncio-task-exceptions-get-logged/"""
-import json
-from uuid import uuid4
 import asyncio
 import functools
+import json
 import logging
 import os
+import shutil
+import sys
 from dataclasses import asdict
 from glob import glob
+from time import perf_counter
 from typing import Any, Coroutine, List, Optional, Tuple, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pynvml
 
-from ..data_classes import SocketResponse
+from ..data_classes import Context, SocketResponse, Training
 from ..globals import GLOBALS
 
 T = TypeVar('T')
@@ -164,3 +166,62 @@ def is_valid_uuid4(val):
         return True
     except ValueError:
         return False
+
+
+def create_project_folder(context: Context) -> str:
+    project_folder = f'{GLOBALS.data_folder}/{context.organization}/{context.project}'
+    os.makedirs(project_folder, exist_ok=True)
+    return project_folder
+
+
+def activate_asyncio_warnings() -> None:
+    '''Produce warnings for coroutines which take too long on the main loop and hence clog the event loop'''
+    try:
+        if sys.version_info.major >= 3 and sys.version_info.minor >= 7:  # most
+            loop = asyncio.get_running_loop()
+        else:
+            loop = asyncio.get_event_loop()
+
+        loop.set_debug(True)
+        loop.slow_callback_duration = 0.2
+        logging.info('activated asyncio warnings')
+    except Exception:
+        logging.exception('could not activate asyncio warnings. Exception:')
+
+
+@staticmethod
+def images_for_ids(image_ids, image_folder) -> List[str]:
+    logging.info(f'### Going to get images for {len(image_ids)} images ids')
+    start = perf_counter()
+    images = [img for img in glob(f'{image_folder}/**/*.*', recursive=True)
+              if os.path.splitext(os.path.basename(img))[0] in image_ids]
+    end = perf_counter()
+    logging.info(f'found {len(images)} images for {len(image_ids)} image ids, which took {end-start:0.2f} seconds')
+    return images
+
+
+@staticmethod
+def generate_training(project_folder: str, context: Context) -> Training:
+    training_uuid = str(uuid4())
+    return Training(
+        id=training_uuid,
+        context=context,
+        project_folder=project_folder,
+        images_folder=create_image_folder(project_folder),
+        training_folder=create_training_folder(project_folder, training_uuid)
+    )
+
+
+@staticmethod
+def delete_all_training_folders(project_folder: str):
+    if not os.path.exists(f'{project_folder}/trainings'):
+        return
+    for uuid in os.listdir(f'{project_folder}/trainings'):
+        shutil.rmtree(f'{project_folder}/trainings/{uuid}', ignore_errors=True)
+
+
+@staticmethod
+def create_training_folder(project_folder: str, trainings_id: str) -> str:
+    training_folder = f'{project_folder}/trainings/{trainings_id}'
+    os.makedirs(training_folder, exist_ok=True)
+    return training_folder

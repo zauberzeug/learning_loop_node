@@ -50,7 +50,7 @@ class LoopCommunicator():
             logging.info(f'Logout failed with response: {response}')
             raise LoopCommunicationException('Logout failed with response: ' + str(response))
 
-    async def get_cookies(self) -> Cookies:
+    def get_cookies(self) -> Cookies:
         return self.async_client.cookies
 
     async def shutdown(self):

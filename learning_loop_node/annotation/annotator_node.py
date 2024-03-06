@@ -8,7 +8,7 @@ from socketio import AsyncClient
 from ..data_classes import AnnotationNodeStatus, Context, NodeState, UserInput
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger
-from ..helpers.misc import create_image_folder
+from ..helpers.misc import create_image_folder, create_project_folder
 from ..node import Node
 from .annotator_logic import AnnotatorLogic
 
@@ -50,8 +50,6 @@ class AnnotatorNode(Node):
             raise
 
         if tool_result.annotation:
-            if not self.sio_is_initialized():
-                raise Exception('Socket client waas not initialized')
             await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
                                                                           user_input.data.context.project,
                                                                           jsonable_encoder(asdict(tool_result.annotation))), timeout=30)
@@ -85,14 +83,11 @@ class AnnotatorNode(Node):
             self.log.error(f'Error for updating: Response from loop was : {asdict(response)}')
 
     async def download_image(self, context: Context, uuid: str):
-        project_folder = Node.create_project_folder(context)
+        project_folder = create_project_folder(context)
         images_folder = create_image_folder(project_folder)
 
         downloader = DataExchanger(context=context, loop_communicator=self.loop_communicator)
         await downloader.download_images([uuid], images_folder)
-
-    async def get_state(self):
-        return NodeState.Online
 
     def get_node_type(self):
         return 'annotation_node'

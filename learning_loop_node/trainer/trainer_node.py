@@ -126,11 +126,6 @@ class TrainerNode(Node):
             return True
         return False
 
-    async def get_state(self):
-        if self.trainer_logic._executor is not None and self.trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
-            return NodeState.Running
-        return NodeState.Idle
-
     def get_node_type(self):
         return 'trainer'
 

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import shutil
+import sys
 import time
 from abc import abstractmethod
 from dataclasses import asdict
@@ -10,7 +11,7 @@ from datetime import datetime
 from glob import glob
 from time import perf_counter
 from typing import TYPE_CHECKING, Coroutine, Dict, List, Optional, Union
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import socketio
 from dacite import from_dict
@@ -19,7 +20,7 @@ from tqdm import tqdm
 
 from ..data_classes import (BasicModel, Category, Context, Detections, Errors, Hyperparameter, ModelInformation,
                             PretrainedModel, Training, TrainingData, TrainingError, TrainingState)
-from ..helpers.misc import create_image_folder, delete_corrupt_images, is_valid_uuid4
+from ..helpers.misc import create_image_folder, create_project_folder, generate_training, is_valid_uuid4
 from ..node import Node
 from . import training_syncronizer
 from .downloader import TrainingsDownloader
@@ -80,11 +81,11 @@ class TrainerLogic():
         Note that details needs the entries 'categories' and 'training_number'"""
 
         try:
-            project_folder = Node.create_project_folder(context)
+            project_folder = create_project_folder(context)
             if not self.keep_old_trainings:
                 # NOTE: We delete all existing training folders because they are not needed anymore.
                 TrainerLogic.delete_all_training_folders(project_folder)
-            self._training = TrainerLogic.generate_training(project_folder, context)
+            self._training = generate_training(project_folder, context)
             self._training.data = TrainingData(categories=Category.from_list(details['categories']))
             self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
@@ -405,7 +406,7 @@ class TrainerLogic():
             content = json.load(f)
             model_information = from_dict(data_class=ModelInformation, data=content)
 
-        project_folder = Node.create_project_folder(context)
+        project_folder = create_project_folder(context)
         image_folder = create_image_folder(project_folder)
         self.node.data_exchanger.set_context(context)
         image_ids = []
@@ -528,8 +529,7 @@ class TrainerLogic():
     def may_restart(self) -> None:
         if self.restart_after_training:
             logging.info('restarting')
-            assert self._node is not None
-            self._node.restart()
+            sys.exit(0)
         else:
             logging.info('not restarting')
 

@@ -274,12 +274,10 @@ class DetectorNode(Node):
             return False
 
         assert socket_response.payload is not None
+        # TODO This is weird because target_model_version is stored in self and target_model_id is returned
         self.target_model = socket_response.payload['target_model_version']
         self.log.info(f'After sending status. Target_model is {self.target_model}')
         return socket_response.payload['target_model_id']
-
-    async def get_state(self):
-        return NodeState.Online  # NOTE At the moment only trainer-nodes use a meaningful state
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode

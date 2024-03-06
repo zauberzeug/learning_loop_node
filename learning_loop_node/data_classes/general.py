@@ -121,7 +121,7 @@ class NodeState(str, Enum):
 class NodeStatus():
     id: str
     name: str
-    state: Optional[NodeState] = NodeState.Offline
+    state: Optional[NodeState] = NodeState.Online
     uptime: Optional[int] = 0
     errors: Dict = field(default_factory=dict)
     capabilities: List[str] = field(default_factory=list)
