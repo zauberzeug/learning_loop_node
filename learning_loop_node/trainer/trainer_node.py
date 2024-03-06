@@ -7,7 +7,7 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import Context, NodeState, TrainingState, TrainingStatus
+from ..data_classes import Context, NodeState, TrainerState, TrainingStatus
 from ..data_classes.socket_response import SocketResponse
 from ..node import Node
 from .io_helpers import LastTrainingIO
@@ -18,7 +18,7 @@ from .trainer_logic import TrainerLogic
 class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
-        super().__init__(name, uuid)
+        super().__init__(name, uuid, 'trainer')
         trainer_logic._node = self  # pylint: disable=protected-access
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
@@ -65,7 +65,6 @@ class TrainerNode(Node):
 
         @sio_client.event
         async def begin_training(organization: str, project: str, details: Dict):
-            assert self._sio_client is not None
             self.log.info('received begin_training from server')
             self.trainer_logic.init_new_training(Context(organization=organization, project=project), details)
             asyncio.get_event_loop().create_task(self.trainer_logic.run())
@@ -81,20 +80,13 @@ class TrainerNode(Node):
             return True
 
     async def send_status(self):
-        if self._sio_client is None or not self._sio_client.connected:
+        if not self.sio_client.connected:
             self.log.warning('cannot send status - not connected to the Learning Loop')
             return
 
-        if not self.trainer_logic.is_initialized:
-            state_for_learning_loop = str(NodeState.Idle.value)
-        else:
-            assert self.trainer_logic.training.training_state is not None
-            state_for_learning_loop = TrainerNode.state_for_learning_loop(
-                self.trainer_logic.training.training_state)
-
         status = TrainingStatus(id=self.uuid,
                                 name=self.name,
-                                state=state_for_learning_loop,
+                                state=self.trainer_logic.state,
                                 errors={},
                                 uptime=self.training_uptime,
                                 progress=self.progress)
@@ -111,12 +103,10 @@ class TrainerNode(Node):
             status.context = self.trainer_logic.training.context
 
         self.log.info(f'sending status: {status.short_str()}')
-        result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
+        result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         assert isinstance(result, Dict)
-        response = from_dict(data_class=SocketResponse, data=result)
-
-        if not response.success:
-            self.log.error(f'Error when sending status update: Response from loop was:\n {asdict(response)}')
+        if not result['success']:
+            self.log.error(f'Error when sending status update: Response from loop was:\n {result}')
 
     async def continue_run_if_incomplete(self) -> bool:
         if not self.trainer_logic.is_initialized and self.last_training_io.exists():
@@ -126,43 +116,40 @@ class TrainerNode(Node):
             return True
         return False
 
-    def get_node_type(self):
-        return 'trainer'
-
     # --------------------------------------------------- HELPER ---------------------------------------------------
 
     @staticmethod
-    def state_for_learning_loop(trainer_state: Union[TrainingState, str]) -> str:
-        if trainer_state == TrainingState.Initialized:
+    def state_for_learning_loop(trainer_state: Union[TrainerState, str]) -> str:
+        if trainer_state == TrainerState.Initialized:
             return 'Training is initialized'
-        if trainer_state == TrainingState.DataDownloading:
+        if trainer_state == TrainerState.DataDownloading:
             return 'Downloading data'
-        if trainer_state == TrainingState.DataDownloaded:
+        if trainer_state == TrainerState.DataDownloaded:
             return 'Data downloaded'
-        if trainer_state == TrainingState.TrainModelDownloading:
+        if trainer_state == TrainerState.TrainModelDownloading:
             return 'Downloading model'
-        if trainer_state == TrainingState.TrainModelDownloaded:
+        if trainer_state == TrainerState.TrainModelDownloaded:
             return 'Model downloaded'
-        if trainer_state == TrainingState.TrainingRunning:
+        if trainer_state == TrainerState.TrainingRunning:
             return NodeState.Running
-        if trainer_state == TrainingState.TrainingFinished:
+        if trainer_state == TrainerState.TrainingFinished:
             return 'Training finished'
-        if trainer_state == TrainingState.Detecting:
+        if trainer_state == TrainerState.Detecting:
             return NodeState.Detecting
-        if trainer_state == TrainingState.ConfusionMatrixSyncing:
+        if trainer_state == TrainerState.ConfusionMatrixSyncing:
             return 'Syncing confusion matrix'
-        if trainer_state == TrainingState.ConfusionMatrixSynced:
+        if trainer_state == TrainerState.ConfusionMatrixSynced:
             return 'Confusion matrix synced'
-        if trainer_state == TrainingState.TrainModelUploading:
+        if trainer_state == TrainerState.TrainModelUploading:
             return 'Uploading trained model'
-        if trainer_state == TrainingState.TrainModelUploaded:
+        if trainer_state == TrainerState.TrainModelUploaded:
             return 'Trained model uploaded'
-        if trainer_state == TrainingState.Detecting:
+        if trainer_state == TrainerState.Detecting:
             return 'calculating detections'
-        if trainer_state == TrainingState.Detected:
+        if trainer_state == TrainerState.Detected:
             return 'Detections calculated'
-        if trainer_state == TrainingState.DetectionUploading:
+        if trainer_state == TrainerState.DetectionUploading:
             return 'Uploading detections'
-        if trainer_state == TrainingState.ReadyForCleanup:
+        if trainer_state == TrainerState.ReadyForCleanup:
             return 'Cleaning training'
         return 'unknown state'

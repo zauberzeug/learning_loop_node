@@ -20,8 +20,9 @@ from .loop_communication import LoopCommunicator
 
 class Node(FastAPI):
 
-    def __init__(self, name: str, uuid: Optional[str] = None, needs_login: bool = True):
+    def __init__(self, name: str, uuid: Optional[str] = None, node_type: str = 'node', needs_login: bool = True):
         """Base class for all nodes. A node is a process that communicates with the zauberzeug learning loop.
+        This class provides the basic functionality to connect to the learning loop via socket.io and to exchange data.
 
         Args:
             name (str): The name of the node. This name is used to generate a uuid.
@@ -49,7 +50,7 @@ class Node(FastAPI):
 
         self.sio_headers = {'organization': self.loop_communicator.organization,
                             'project': self.loop_communicator.project,
-                            'nodeType': self.get_node_type()}
+                            'nodeType': node_type}
 
         self.repeat_task: Any = None
 
@@ -158,10 +159,6 @@ class Node(FastAPI):
             self.log.exception(f'error while connecting to "{self.websocket_url}". Exception:')
 
     # --------------------------------------------------- ABSTRACT METHODS ---------------------------------------------------
-
-    @abstractmethod
-    def get_node_type(self):
-        """Return the type of the node. This is used to register the node at the learning loop."""
 
     @abstractmethod
     async def on_startup(self):

@@ -14,7 +14,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_socketio import SocketManager
 from socketio import AsyncClient
 
-from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, NodeState, Shape
+from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, Shape
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
@@ -34,9 +34,8 @@ from .rest.operation_mode import OperationMode
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
-        super().__init__(name, uuid)
+        super().__init__(name, uuid, 'detector', False)
         self.detector_logic = detector
-        self.needs_login = False
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization and self.project, 'Detector node needs an organization and an project'
@@ -352,9 +351,6 @@ class DetectorNode(Node):
             category_id = find_category_id_by_name(model_info.categories, category_name)
             classification_detection.category_id = category_id
         return detections
-
-    def get_node_type(self):
-        return 'detector'
 
     def register_sio_events(self, sio_client: AsyncClient):
         pass

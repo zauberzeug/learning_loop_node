@@ -19,9 +19,8 @@ from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
 from ..data_classes import (BasicModel, Category, Context, Detections, Errors, Hyperparameter, ModelInformation,
-                            PretrainedModel, Training, TrainingData, TrainingError, TrainingState)
+                            PretrainedModel, TrainerState, Training, TrainingData, TrainingError)
 from ..helpers.misc import create_image_folder, create_project_folder, generate_training, is_valid_uuid4
-from ..node import Node
 from . import training_syncronizer
 from .downloader import TrainingsDownloader
 from .executor import Executor
@@ -76,6 +75,14 @@ class TrainerLogic():
         """_training and _active_training_io are set in 'init_new_training' or 'init_from_last_training'"""
         return self._training is not None and self._active_training_io is not None and self._node is not None
 
+    @property
+    def state(self) -> str:
+        if (not self.is_initialized) or (self.training.training_state is None):
+            return TrainerState.Idle.value
+        else:
+            state = self.training.training_state
+            return state.value if isinstance(state, TrainerState) else state
+
     def init_new_training(self, context: Context, details: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
         Note that details needs the entries 'categories' and 'training_number'"""
@@ -90,7 +97,7 @@ class TrainerLogic():
             self._training.data.hyperparameter = from_dict(data_class=Hyperparameter, data=details)
             self._training.training_number = details['training_number']
             self._training.base_model_id = details['id']
-            self._training.training_state = TrainingState.Initialized
+            self._training.training_state = TrainerState.Initialized
             self._active_training_io = ActiveTrainingIO(self._training.training_folder)
             logging.info(f'init training: {self._training}')
         except Exception:
@@ -112,7 +119,7 @@ class TrainerLogic():
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
                 logging.info('training task was cancelled but not by shutdown event')
-                self.training.training_state = TrainingState.ReadyForCleanup
+                self.training.training_state = TrainerState.ReadyForCleanup
                 self.node.last_training_io.save(self.training)
                 await self.clear_training()
 
@@ -134,27 +141,27 @@ class TrainerLogic():
             tstate = self.training.training_state
             logging.info(f'STATE LOOP: {tstate}')
             await asyncio.sleep(0.6)  # Note: Required for pytests!
-            if tstate == TrainingState.Initialized:  # -> DataDownloading -> DataDownloaded
+            if tstate == TrainerState.Initialized:  # -> DataDownloading -> DataDownloaded
                 await self.prepare()
-            elif tstate == TrainingState.DataDownloaded:  # -> TrainModelDownloading -> TrainModelDownloaded
+            elif tstate == TrainerState.DataDownloaded:  # -> TrainModelDownloading -> TrainModelDownloaded
                 await self.download_model()
-            elif tstate == TrainingState.TrainModelDownloaded:  # -> TrainingRunning -> TrainingFinished
+            elif tstate == TrainerState.TrainModelDownloaded:  # -> TrainingRunning -> TrainingFinished
                 await self.train()
-            elif tstate == TrainingState.TrainingFinished:  # -> ConfusionMatrixSyncing -> ConfusionMatrixSynced
+            elif tstate == TrainerState.TrainingFinished:  # -> ConfusionMatrixSyncing -> ConfusionMatrixSynced
                 await self.ensure_confusion_matrix_synced()
-            elif tstate == TrainingState.ConfusionMatrixSynced:  # -> TrainModelUploading -> TrainModelUploaded
+            elif tstate == TrainerState.ConfusionMatrixSynced:  # -> TrainModelUploading -> TrainModelUploaded
                 await self.upload_model()
-            elif tstate == TrainingState.TrainModelUploaded:  # -> Detecting -> Detected
+            elif tstate == TrainerState.TrainModelUploaded:  # -> Detecting -> Detected
                 await self.do_detections()
-            elif tstate == TrainingState.Detected:  # -> DetectionUploading -> ReadyForCleanup
+            elif tstate == TrainerState.Detected:  # -> DetectionUploading -> ReadyForCleanup
                 await self.upload_detections()
-            elif tstate == TrainingState.ReadyForCleanup:  # -> RESTART or TrainingFinished
+            elif tstate == TrainerState.ReadyForCleanup:  # -> RESTART or TrainingFinished
                 await self.clear_training()
                 self.may_restart()
 
     async def prepare(self) -> None:
         previous_state = self.training.training_state
-        self.training.training_state = TrainingState.DataDownloading
+        self.training.training_state = TrainerState.DataDownloading
         error_key = 'prepare'
         try:
             await self._prepare()
@@ -167,7 +174,7 @@ class TrainerLogic():
             self.errors.set(error_key, str(e))
         else:
             self.errors.reset(error_key)
-            self.training.training_state = TrainingState.DataDownloaded
+            self.training.training_state = TrainerState.DataDownloaded
             self.node.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
@@ -181,7 +188,7 @@ class TrainerLogic():
     async def download_model(self) -> None:
         logging.info('Downloading model')
         previous_state = self.training.training_state
-        self.training.training_state = TrainingState.TrainModelDownloading
+        self.training.training_state = TrainerState.TrainModelDownloading
         error_key = 'download_model'
         try:
             await self._download_model()
@@ -195,7 +202,7 @@ class TrainerLogic():
         else:
             self.errors.reset(error_key)
             logging.info('download_model_task finished')
-            self.training.training_state = TrainingState.TrainModelDownloaded
+            self.training.training_state = TrainerState.TrainModelDownloaded
             self.node.last_training_io.save(self.training)
 
     async def _download_model(self) -> None:
@@ -218,7 +225,7 @@ class TrainerLogic():
         self.errors.reset(error_key)
         previous_state = self.training.training_state
         self._executor = Executor(self.training.training_folder)
-        self.training.training_state = TrainingState.TrainingRunning
+        self.training.training_state = TrainerState.TrainingRunning
         try:
             await self._start_training()
 
@@ -263,7 +270,7 @@ class TrainerLogic():
             self.training.training_state = previous_state
             logging.exception('Error in run_training')
         else:
-            self.training.training_state = TrainingState.TrainingFinished
+            self.training.training_state = TrainerState.TrainingFinished
             self.node.last_training_io.save(self.training)
 
     async def _start_training(self):
@@ -283,7 +290,7 @@ class TrainerLogic():
     async def ensure_confusion_matrix_synced(self):
         logging.info('Ensure syncing confusion matrix')
         previous_state = self.training.training_state
-        self.training.training_state = TrainingState.ConfusionMatrixSyncing
+        self.training.training_state = TrainerState.ConfusionMatrixSyncing
         try:
             await self.sync_confusion_matrix()
         except asyncio.CancelledError:
@@ -293,7 +300,7 @@ class TrainerLogic():
             logging.exception('Error in ensure_confusion_matrix_synced')
             self.training.training_state = previous_state
         else:
-            self.training.training_state = TrainingState.ConfusionMatrixSynced
+            self.training.training_state = TrainerState.ConfusionMatrixSynced
             self.node.last_training_io.save(self.training)
 
     async def sync_confusion_matrix(self):
@@ -315,11 +322,11 @@ class TrainerLogic():
     async def upload_model(self) -> None:
         error_key = 'upload_model'
         previous_state = self.training.training_state
-        self.training.training_state = TrainingState.TrainModelUploading
+        self.training.training_state = TrainerState.TrainModelUploading
         try:
             new_model_id = await self._upload_model_return_new_id(self.training.context)
             if new_model_id is None:
-                self.training.training_state = TrainingState.ReadyForCleanup
+                self.training.training_state = TrainerState.ReadyForCleanup
                 logging.error('could not upload model - maybe training failed.. cleaning up')
                 return
             assert new_model_id is not None, 'uploaded_model must be set'
@@ -335,7 +342,7 @@ class TrainerLogic():
             # self.training.training_state = TrainingState.ReadyForCleanup
         else:
             self.errors.reset(error_key)
-            self.training.training_state = TrainingState.TrainModelUploaded
+            self.training.training_state = TrainerState.TrainModelUploaded
             self.node.last_training_io.save(self.training)
 
     async def _upload_model_return_new_id(self, context: Context) -> Optional[str]:
@@ -377,7 +384,7 @@ class TrainerLogic():
         error_key = 'detecting'
         previous_state = self.training.training_state
         try:
-            self.training.training_state = TrainingState.Detecting
+            self.training.training_state = TrainerState.Detecting
             await self._do_detections()
         except asyncio.CancelledError:
             logging.warning('CancelledError in do_detections')
@@ -388,7 +395,7 @@ class TrainerLogic():
             self.training.training_state = previous_state
         else:
             self.errors.reset(error_key)
-            self.training.training_state = TrainingState.Detected
+            self.training.training_state = TrainerState.Detected
             self.node.last_training_io.save(self.training)
 
     async def _do_detections(self) -> None:
@@ -439,7 +446,7 @@ class TrainerLogic():
     async def upload_detections(self):
         error_key = 'upload_detections'
         previous_state = self.training.training_state
-        self.training.training_state = TrainingState.DetectionUploading
+        self.training.training_state = TrainerState.DetectionUploading
         await asyncio.sleep(0.1)  # NOTE needed for tests
         try:
             json_files = self.active_training_io.get_detection_file_names()
@@ -460,7 +467,7 @@ class TrainerLogic():
             self.training.training_state = previous_state
         else:
             self.errors.reset(error_key)
-            self.training.training_state = TrainingState.ReadyForCleanup
+            self.training.training_state = TrainerState.ReadyForCleanup
             self.node.last_training_io.save(self.training)
 
     async def _upload_detections_batched(self, context: Context, detections: List[Detections]):
@@ -540,11 +547,11 @@ class TrainerLogic():
             return None
 
         t_state = self.training.training_state
-        if t_state == TrainingState.DataDownloading:
+        if t_state == TrainerState.DataDownloading:
             return self.node.data_exchanger.progress
-        if t_state == TrainingState.TrainingRunning:
+        if t_state == TrainerState.TrainingRunning:
             return self.training_progress
-        if t_state == TrainingState.Detecting:
+        if t_state == TrainerState.Detecting:
             return self.detection_progress
 
         return None

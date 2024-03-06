@@ -41,7 +41,8 @@ class PretrainedModel():
     description: str
 
 
-class TrainingState(str, Enum):
+class TrainerState(str, Enum):
+    Idle = 'idle'
     Initialized = 'initialized'
     Preparing = 'preparing'
     DataDownloading = 'data_downloading'
@@ -64,7 +65,7 @@ class TrainingState(str, Enum):
 class TrainingStatus():
     id: str  # TODO this must not be changed, but tests wont detect it -> update tests!
     name: str
-    state: Union[Optional[TrainingState], str]
+    state: Union[Optional[TrainerState], str]
     errors: Optional[Dict]
     uptime: Optional[float]
     progress: Optional[float]
@@ -98,7 +99,7 @@ class Training():
     base_model_id: Optional[str] = None
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
-    training_state: Optional[Union[TrainingState, str]] = None
+    training_state: Optional[Union[TrainerState, str]] = None
     model_id_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
 

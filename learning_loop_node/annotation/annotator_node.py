@@ -18,7 +18,7 @@ from .annotator_logic import AnnotatorLogic
 class AnnotatorNode(Node):
 
     def __init__(self, name: str, annotator_logic: AnnotatorLogic, uuid: Optional[str] = None):
-        super().__init__(name, uuid)
+        super().__init__(name, uuid, 'annotation_node')
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)
@@ -88,9 +88,6 @@ class AnnotatorNode(Node):
 
         downloader = DataExchanger(context=context, loop_communicator=self.loop_communicator)
         await downloader.download_images([uuid], images_folder)
-
-    def get_node_type(self):
-        return 'annotation_node'
 
     async def on_startup(self):
         pass
