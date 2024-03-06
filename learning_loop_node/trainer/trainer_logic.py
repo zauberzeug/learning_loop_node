@@ -19,7 +19,7 @@ from tqdm import tqdm
 
 from ..data_classes import (BasicModel, Category, Context, Detections, Errors, Hyperparameter, ModelInformation,
                             PretrainedModel, Training, TrainingData, TrainingError, TrainingState)
-from ..helpers.misc import create_image_folder
+from ..helpers.misc import create_image_folder, delete_corrupt_images, is_valid_uuid4
 from ..node import Node
 from . import training_syncronizer
 from .downloader import TrainingsDownloader
@@ -28,14 +28,6 @@ from .io_helpers import ActiveTrainingIO
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
-
-
-def is_valid_uuid4(val):
-    try:
-        _ = UUID(str(val)).version
-        return True
-    except ValueError:
-        return False
 
 
 class TrainerLogic():
@@ -371,7 +363,7 @@ class TrainerLogic():
             # model.json was mandatory in previous versions. Now its forbidden to provide an own model.json file.
             assert not any(f for f in _files if 'model.json' in f), "Upload 'model.json' not allowed (added automatically)."
             _files.append(model_json_path)
-            new_id = await self.node.data_exchanger.upload_model_for_training(context, _files, self.training.training_number, file_format)
+            new_id = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
             if new_id is None:
                 return None
 
@@ -420,12 +412,12 @@ class TrainerLogic():
         for state, p in zip(['inbox', 'annotate', 'review', 'complete'], [0.1, 0.2, 0.3, 0.4]):
             self.detection_progress = p
             logging.info(f'fetching image ids of {state}')
-            new_ids = await self.node.data_exchanger.fetch_image_ids(query_params=f'state={state}')
+            new_ids = await self.node.data_exchanger.fetch_image_uuids(query_params=f'state={state}')
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
             await self.node.data_exchanger.download_images(new_ids, image_folder)
         self.detection_progress = 0.42
-        await self.node.data_exchanger.delete_corrupt_images(image_folder)
+        # await delete_corrupt_images(image_folder)
 
         images = await asyncio.get_event_loop().run_in_executor(None, TrainerLogic.images_for_ids, image_ids, image_folder)
         num_images = len(images)

@@ -4,7 +4,9 @@ import functools
 import logging
 import os
 from dataclasses import asdict
+from glob import glob
 from typing import Any, Coroutine, List, Optional, Tuple, TypeVar
+from uuid import UUID
 
 import pynvml
 
@@ -54,6 +56,32 @@ def get_free_memory_mb() -> float:  # TODO check if this is used
     info = pynvml.nvmlDeviceGetMemoryInfo(h)
     free = float(info.free) / 1024 / 1024
     return free
+
+
+async def is_valid_image(filename: str, check_jpeg: bool) -> bool:
+    if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
+        return False
+    if not check_jpeg:
+        return True
+
+    info = await asyncio.create_subprocess_shell(f'jpeginfo -c {filename}',
+                                                 stdout=asyncio.subprocess.PIPE,
+                                                 stderr=asyncio.subprocess.PIPE)
+    out, _ = await info.communicate()
+    return "OK" in out.decode()
+
+
+@staticmethod
+async def delete_corrupt_images(image_folder: str, check_jpeg: bool = False) -> None:
+    logging.info('deleting corrupt images')
+    n_deleted = 0
+    for image in glob(f'{image_folder}/*.jpg'):
+        if not await is_valid_image(image, check_jpeg):
+            logging.debug(f'  deleting image {image}')
+            os.remove(image)
+            n_deleted += 1
+
+    logging.info(f'deleted {n_deleted} images')
 
 
 def create_resource_paths(organization_name: str, project_name: str, image_ids: List[str]) -> Tuple[List[str], List[str]]:
@@ -107,3 +135,11 @@ def ensure_socket_response(func):
             return asdict(SocketResponse.for_failure(str(e)))
 
     return wrapper_ensure_socket_response
+
+
+def is_valid_uuid4(val):
+    try:
+        _ = UUID(str(val)).version
+        return True
+    except ValueError:
+        return False

@@ -12,7 +12,7 @@ class TrainingsDownloader():
         self.data_exchanger = data_exchanger
 
     async def download_training_data(self, image_folder: str) -> Tuple[List[Dict], int]:
-        image_ids = await self.data_exchanger.fetch_image_ids(query_params=self.data_query_params)
+        image_ids = await self.data_exchanger.fetch_image_uuids(query_params=self.data_query_params)
         image_data, skipped_image_count = await self.download_images_and_annotations(image_ids, image_folder)
         return (image_data, skipped_image_count)
 

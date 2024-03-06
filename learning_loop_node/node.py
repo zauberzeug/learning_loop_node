@@ -24,34 +24,38 @@ from .loop_communication import LoopCommunicator
 
 class Node(FastAPI):
 
-    def __init__(self, name: str, uuid: Optional[str] = None):
+    def __init__(self, name: str, uuid: Optional[str] = None, needs_login: bool = True):
         """Base class for all nodes. A node is a process that communicates with the zauberzeug learning loop.
 
         Args:
             name (str): The name of the node. This name is used to generate a uuid.
             uuid (Optional[str]): The uuid of the node. If None, a uuid is generated based on the name 
                 and stored in f'{GLOBALS.data_folder}/uuids.json'. 
-                From the second run, the uuid is recovered based on the name of the node. Defaults to None.
+                From the second run, the uuid is recovered based on the name of the node.
+            needs_login (bool): If True, the node will try to login to the learning loop.
         """
 
         super().__init__()
         log_conf.init()
 
+        self.name = name
+        self.uuid = uuid or self.read_or_create_uuid(self.name)
+        self.needs_login = needs_login
+
         self.log = logging.getLogger()
         self.loop_communicator = LoopCommunicator()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
-        host = environment_reader.host(default='learning-loop.ai')
-        self.ws_url = f'ws{"s" if "learning-loop.ai" in host else ""}://' + host
+        loop_url = environment_reader.host(default='learning-loop.ai')
+        self.websocket_url = f'ws{"s" if "learning-loop.ai" in loop_url else ""}://' + loop_url
 
-        self.name = name
-        self.uuid = self.read_or_create_uuid(self.name) if uuid is None else uuid
         self.startup_time = datetime.now()
         self._sio_client: Optional[AsyncClient] = None
         self.status = NodeStatus(id=self.uuid, name=self.name)
-        # NOTE this is can be set to False for Nodes which do not need to authenticate with the backend (like the DetectorNode)
-        self.needs_login = True
-        self._setup_sio_headers()
+
+        self.sio_headers = {'organization': self.loop_communicator.organization,
+                            'project': self.loop_communicator.project,
+                            'nodeType': self.get_node_type()}
         self._register_lifecycle_events()
 
     @property
@@ -81,11 +85,6 @@ class Node(FastAPI):
             with open(file_path, 'w') as f:
                 json.dump(uuids, f)
         return uuid
-
-    def _setup_sio_headers(self) -> None:
-        self.sio_headers = {'organization': self.loop_communicator.organization,
-                            'project': self.loop_communicator.project,
-                            'nodeType': self.get_node_type()}
 
     # --------------------------------------------------- APPLICATION LIFECYCLE ---------------------------------------------------
 
@@ -176,14 +175,14 @@ class Node(FastAPI):
         except Exception:
             pass
 
-        self.log.info(f'(re)connecting to Learning Loop at {self.ws_url}')
+        self.log.info(f'(re)connecting to Learning Loop at {self.websocket_url}')
         try:
-            await self.sio_client.connect(f"{self.ws_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
+            await self.sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
             self.log.info('connected to Learning Loop')
         except socketio.exceptions.ConnectionError:  # type: ignore
             self.log.warning('connection error')
         except Exception:
-            self.log.exception(f'error while connecting to "{self.ws_url}". Exception:')
+            self.log.exception(f'error while connecting to "{self.websocket_url}". Exception:')
 
     async def _update_send_state(self, state: NodeState):
         self.status.state = state
