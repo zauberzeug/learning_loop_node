@@ -170,6 +170,8 @@ class DetectorNode(Node):
         def _connect(sid, environ, auth) -> None:
             self.connected_clients.append(sid)
 
+        print('>>>>>>>>>>>>>>>>>>>>>>> setting up sio server', flush=True)
+
         self.sio_server = SocketManager(app=self)
         self.sio_server.on('detect', _detect)
         self.sio_server.on('info', _info)

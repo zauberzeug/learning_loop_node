@@ -5,12 +5,11 @@ import sys
 from abc import abstractmethod
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import aiohttp
 import socketio
 from fastapi import FastAPI
-from fastapi_utils.tasks import repeat_every
 from socketio import AsyncClient
 
 from .data_classes import Context, NodeState, NodeStatus
@@ -54,9 +53,7 @@ class Node(FastAPI):
                             'project': self.loop_communicator.project,
                             'nodeType': self.get_node_type()}
 
-        @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
-        async def ensure_connected() -> None:
-            await self._on_repeat()
+        self.repeat_task: Any = None
 
     @property
     def sio_client(self) -> AsyncClient:
@@ -68,26 +65,21 @@ class Node(FastAPI):
         return self._sio_client is not None
 
     # --------------------------------------------------- APPLICATION LIFECYCLE ---------------------------------------------------
-
     @asynccontextmanager
     async def lifespan(self, app: FastAPI):
-        await self.on_startup()
-        yield
-        await self.on_shutdown()
 
-    # def _register_lifecycle_events(self):
-    #     @self.on_event("startup")
-    #     async def startup():
-    #         await self._on_startup()
-
-    #     @self.on_event("shutdown")  # NOTE only used for developent ?!
-    #     async def shutdown():
-    #         await self._on_shutdown()
-
-    #     @self.on_event("startup")
-    #     @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
-    #     async def ensure_connected() -> None:
-    #         await self._on_repeat()
+        try:
+            self.repeat_task = asyncio.create_task(self.repeat_loop())
+            await self._on_startup()
+            yield
+        finally:
+            await self._on_shutdown()
+            if self.repeat_task is not None:
+                self.repeat_task.cancel()
+                try:
+                    await self.repeat_task
+                except asyncio.CancelledError:
+                    pass
 
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
@@ -109,8 +101,19 @@ class Node(FastAPI):
         self.log.info('successfully disconnected from loop.')
         await self.on_shutdown()
 
-    @repeat_every(seconds=5, raise_exceptions=False, wait_first=False)
+    async def repeat_loop(self) -> None:
+        while True:
+            try:
+                await self._on_repeat()
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                self.log.exception(f'error in repeat loop: {e}')
+            await asyncio.sleep(5)
+
     async def _on_repeat(self):
+        print('received "repeat" lifecycle-event', flush=True)
+        logging.info('received "repeat" lifecycle-event')
         while not self.sio_is_initialized():
             self.log.info('Waiting for sio client to be initialized')
             await asyncio.sleep(1)

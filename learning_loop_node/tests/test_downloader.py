@@ -1,11 +1,11 @@
-from ..helpers.misc import delete_corrupt_images
 import os
 import shutil
 
 from learning_loop_node.data_classes import Context
-from learning_loop_node.data_exchanger import DataExchanger, check_jpeg
+from learning_loop_node.data_exchanger import DataExchanger
 from learning_loop_node.globals import GLOBALS
 
+from ..helpers.misc import delete_corrupt_images
 from . import test_helper
 
 
@@ -68,5 +68,5 @@ async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
 
     await delete_corrupt_images('/tmp/img_folder', True)
 
-    assert len(os.listdir('/tmp/img_folder')) == num_images if check_jpeg else num_images - 1
+    assert len(os.listdir('/tmp/img_folder')) == num_images if data_exchanger.check_jpeg else num_images - 1
     shutil.rmtree('/tmp/img_folder', ignore_errors=True)

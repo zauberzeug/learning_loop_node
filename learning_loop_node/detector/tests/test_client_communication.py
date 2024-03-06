@@ -5,7 +5,7 @@ import pytest
 import requests
 
 from learning_loop_node import DetectorNode
-from learning_loop_node.data_classes import Category, ModelInformation
+from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.detector.tests.conftest import get_outbox_files
 from learning_loop_node.globals import GLOBALS
 
@@ -94,6 +94,7 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
 
     assert response.status_code == 200
     response_dict = json.loads(response.content)
+    assert response_dict['model_info']
     model_information = ModelInformation.from_dict(response_dict['model_info'])
 
     assert response_dict['operation_mode'] == 'idle'
