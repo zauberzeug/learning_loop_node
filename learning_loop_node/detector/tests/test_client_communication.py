@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import pytest
-import requests
+import requests  # type: ignore
 
 from learning_loop_node import DetectorNode
 from learning_loop_node.data_classes import ModelInformation
@@ -88,6 +88,7 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
 
+# NOTE: This test seems to be flaky.
 async def test_about_endpoint(test_detector_node: DetectorNode):
     await asyncio.sleep(1)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/about', timeout=30)

@@ -16,9 +16,11 @@ class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogicAbstraction, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
         super().__init__(name, uuid, 'trainer')
-        trainer_logic._node = self  # pylint: disable=protected-access
+        trainer_logic._node = self
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
+        self.trainer_logic._last_training_io = self.last_training_io
+
         self.include_router(controls.router, tags=["controls"])
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router, tags=["controls"])
@@ -34,7 +36,7 @@ class TrainerNode(Node):
 
     async def on_repeat(self):
         try:
-            if await self.trainer_logic.continue_run_if_incomplete():
+            if await self.trainer_logic.try_continue_run_if_incomplete():
                 return  # NOTE: we prevent sending idle status after starting a continuation
             await self.send_status()
         except Exception as e:
@@ -70,7 +72,7 @@ class TrainerNode(Node):
 
         status = TrainingStatus(id=self.uuid,
                                 name=self.name,
-                                state=self.trainer_logic.state,
+                                state=self.trainer_logic.state.value,
                                 errors={},
                                 uptime=self.trainer_logic.training_uptime,
                                 progress=self.trainer_logic.general_progress)

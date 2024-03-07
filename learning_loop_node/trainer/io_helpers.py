@@ -1,5 +1,6 @@
 
 import json
+import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
@@ -8,8 +9,9 @@ from typing import List
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import Detections, Training
+from ..data_classes import Context, Detections, Training
 from ..globals import GLOBALS
+from ..loop_communication import LoopCommunicator
 
 
 class LastTrainingIO:
@@ -35,13 +37,16 @@ class LastTrainingIO:
 
 class ActiveTrainingIO:
 
-    @staticmethod
-    def create_mocked_training_io() -> 'ActiveTrainingIO':
-        training_folder = ''
-        return ActiveTrainingIO(training_folder)
+    # @staticmethod
+    # def create_mocked_training_io() -> 'ActiveTrainingIO':
+    #     training_folder = ''
+    #     return ActiveTrainingIO(training_folder)
 
-    def __init__(self, training_folder: str):
+    def __init__(self, training_folder: str, loop_communicator: LoopCommunicator, context: Context) -> None:
         self.training_folder = training_folder
+        self.loop_communicator = loop_communicator
+        self.context = context
+
         self.mup_path = f'{training_folder}/model_uploading_progress.txt'
         # string with placeholder gor index
         self.det_path = f'{training_folder}' + '/detections_{0}.json'
@@ -63,12 +68,15 @@ class ActiveTrainingIO:
 
     # detections
 
-    def get_detection_file_names(self) -> List[Path]:
+    def _get_detection_file_names(self) -> List[Path]:
         files = [f for f in Path(self.training_folder).iterdir()
                  if f.is_file() and f.name.startswith('detections_')]
         if not files:
             return []
         return files
+
+    def get_number_of_detection_files(self) -> int:
+        return len(self._get_detection_file_names())
 
     # TODO: saving and uploading multiple files is not tested!
     def save_detections(self, detections: List[Detections], index: int = 0) -> None:
@@ -81,11 +89,11 @@ class ActiveTrainingIO:
             return [from_dict(data_class=Detections, data=d) for d in dict_list]
 
     def delete_detections(self) -> None:
-        for file in self.get_detection_file_names():
+        for file in self._get_detection_file_names():
             os.remove(Path(self.training_folder) / file)
 
     def detections_exist(self) -> bool:
-        return bool(self.get_detection_file_names())
+        return bool(self._get_detection_file_names())
 
     # detections upload file index
 
@@ -124,3 +132,41 @@ class ActiveTrainingIO:
 
     def detection_upload_progress_exist(self) -> bool:
         return os.path.exists(self.dup_path)
+
+    async def upload_detetions(self):
+        num_files = self.get_number_of_detection_files()
+        print(f'num_files: {num_files}', flush=True)
+        if not num_files:
+            raise Exception('no detection files found')
+        current_json_file_index = self.load_detections_upload_file_index()
+        for i in range(current_json_file_index, num_files):
+            detections = self.load_detections(i)
+            logging.info(f'uploading detections {i}/{num_files}')
+            await self._upload_detections_batched(self.context, detections)
+            self.save_detections_upload_file_index(i+1)
+
+    async def _upload_detections_batched(self, context: Context, detections: List[Detections]):
+        batch_size = 10
+        skip_detections = self.load_detection_upload_progress()
+        for i in range(skip_detections, len(detections), batch_size):
+            up_progress = i+batch_size
+            batch_detections = detections[i:up_progress]
+            dict_detections = [jsonable_encoder(asdict(detection)) for detection in batch_detections]
+            logging.info(f'uploading detections. File size : {len(json.dumps(dict_detections))}')
+            await self._upload_detections(context, batch_detections, up_progress)
+            skip_detections = up_progress
+
+    async def _upload_detections(self, context: Context, batch_detections: List[Detections], up_progress: int):
+        detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
+        response = await self.loop_communicator.post(
+            f'/{context.organization}/projects/{context.project}/detections', json=detections_json)
+        if response.status_code != 200:
+            msg = f'could not upload detections. {str(response)}'
+            logging.error(msg)
+            raise Exception(msg)
+        else:
+            logging.info('successfully uploaded detections')
+            if up_progress > len(batch_detections):
+                self.save_detection_upload_progress(0)
+            else:
+                self.save_detection_upload_progress(up_progress)

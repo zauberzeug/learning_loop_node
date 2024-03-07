@@ -10,8 +10,8 @@ def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -
         return None
 
     confusion_matrix = {}
-    assert trainer.training.data is not None
-    for category in trainer.training.data.categories:
+    assert trainer.active_training.data is not None
+    for category in trainer.active_training.data.categories:
         try:
             minimum = latest_known_confusion_matrix[category.id]['tp']
         except Exception:

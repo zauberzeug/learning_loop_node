@@ -21,6 +21,9 @@ class DownloadError(Exception):
         super().__init__(*args)
         self.cause = cause
 
+    def __str__(self) -> str:
+        return f'DownloadError: {self.cause}'
+
 
 class DataExchanger():
 

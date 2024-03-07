@@ -54,19 +54,14 @@ class TestingTrainerLogic(TrainerLogic):
         await super()._download_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
-    async def ensure_confusion_matrix_synced(self):
-        await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        await super().ensure_confusion_matrix_synced()
-        await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-
     async def upload_model(self) -> None:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         await super().upload_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
-    async def _upload_model_return_new_id(self, context: Context) -> Optional[str]:
+    async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        result = await super()._upload_model_return_new_id(context)
+        result = await super()._upload_model_return_new_model_uuid(context)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         assert isinstance(result, str)
         return result

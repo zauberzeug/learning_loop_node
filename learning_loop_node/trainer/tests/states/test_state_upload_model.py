@@ -23,13 +23,13 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
 
     train_task = asyncio.get_running_loop().create_task(trainer.upload_model())
 
-    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     await train_task
 
     assert trainer_has_error(trainer) is False
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
-    assert trainer.training.model_id_for_detecting is not None
-    assert trainer.node.last_training_io.load() == trainer.training
+    assert trainer.active_training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.active_training.model_id_for_detecting is not None
+    assert trainer.node.last_training_io.load() == trainer.active_training
 
 
 async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic):
@@ -40,7 +40,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
-    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
 
     await trainer.stop()
     await asyncio.sleep(0.1)
@@ -60,14 +60,14 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
-    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     # TODO goes to finished because of the error
-    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=2, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.ConfusionMatrixSynced, timeout=2, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
-    assert trainer.training.model_id_for_detecting is None
-    assert trainer.node.last_training_io.load() == trainer.training
+    assert trainer.active_training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.active_training.model_id_for_detecting is None
+    assert trainer.node.last_training_io.load() == trainer.active_training
 
 
 async def test_mock_loop_response_example(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
@@ -79,7 +79,7 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     trainer.init_from_last_training()
 
     # pylint: disable=protected-access
-    result = await trainer._upload_model_return_new_id(Context(organization='zauberzeug', project='demo'))
+    result = await trainer._upload_model_return_new_model_uuid(Context(organization='zauberzeug', project='demo'))
     assert result is not None
 
 

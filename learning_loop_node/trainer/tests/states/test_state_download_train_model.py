@@ -14,17 +14,20 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
     trainer.model_format = 'mocked'
     trainer.init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.download_model())
-    await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, 'train_model_downloaded', timeout=1, interval=0.001)
+    asyncio.get_running_loop().create_task(
+        trainer.perform_state('download_model',
+                              TrainerState.TrainModelDownloading,
+                              TrainerState.TrainModelDownloaded, trainer._download_model))
+    await assert_training_state(trainer.active_training, 'train_model_downloading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, 'train_model_downloaded', timeout=1, interval=0.001)
 
-    assert trainer.training.training_state == TrainerState.TrainModelDownloaded
-    assert trainer.node.last_training_io.load() == trainer.training
+    assert trainer.active_training.training_state == TrainerState.TrainModelDownloaded
+    assert trainer.node.last_training_io.load() == trainer.active_training
 
     # file on disk
-    assert os.path.exists(f'{trainer.training.training_folder}/base_model.json')
-    assert os.path.exists(f'{trainer.training.training_folder}/file_1.txt')
-    assert os.path.exists(f'{trainer.training.training_folder}/file_2.txt')
+    assert os.path.exists(f'{trainer.active_training.training_folder}/base_model.json')
+    assert os.path.exists(f'{trainer.active_training.training_folder}/file_1.txt')
+    assert os.path.exists(f'{trainer.active_training.training_folder}/file_2.txt')
 
 
 async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogic):
@@ -33,7 +36,7 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogi
     trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
-    await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, 'train_model_downloading', timeout=1, interval=0.001)
 
     await trainer.stop()
     await asyncio.sleep(0.1)
@@ -49,10 +52,10 @@ async def test_downloading_failed(test_initialized_trainer: TestingTrainerLogic)
     trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
-    await assert_training_state(trainer.training, 'train_model_downloading', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.DataDownloaded, timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, 'train_model_downloading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.DataDownloaded, timeout=1, interval=0.001)
 
     assert trainer.errors.has_error_for('download_model')
     assert trainer._training is not None  # pylint: disable=protected-access
-    assert trainer.training.training_state == TrainerState.DataDownloaded
-    assert trainer.node.last_training_io.load() == trainer.training
+    assert trainer.active_training.training_state == TrainerState.DataDownloaded
+    assert trainer.node.last_training_io.load() == trainer.active_training

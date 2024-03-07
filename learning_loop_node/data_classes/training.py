@@ -1,8 +1,9 @@
 
 import sys
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 # pylint: disable=no-name-in-module
 from .general import Category, Context
@@ -65,7 +66,7 @@ class TrainerState(str, Enum):
 class TrainingStatus():
     id: str  # TODO this must not be changed, but tests wont detect it -> update tests!
     name: str
-    state: Optional[TrainerState]
+    state: Optional[str]
     errors: Optional[Dict]
     uptime: Optional[float]
     progress: Optional[float]
@@ -95,11 +96,12 @@ class Training():
     project_folder: str
     images_folder: str
     training_folder: str
+    start_time: float = field(default_factory=time.time)
 
     base_model_id: Optional[str] = None
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
-    training_state: Optional[TrainerState] = None
+    training_state: Optional[str] = None
     model_id_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
 
