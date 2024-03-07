@@ -162,7 +162,8 @@ class Node(FastAPI):
 
     @abstractmethod
     async def on_startup(self):
-        """This method is called when the node is started."""
+        """This method is called when the node is started.
+        Note: In this method the sio connection is not yet established!"""
 
     @abstractmethod
     async def on_shutdown(self):

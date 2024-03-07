@@ -22,6 +22,7 @@ class AnnotatorNode(Node):
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)
+        self.status_sent = False
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -65,6 +66,9 @@ class AnnotatorNode(Node):
         return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
+        if self.status_sent:
+            return
+
         status = AnnotationNodeStatus(
             id=self.uuid,
             name=self.name,
@@ -73,14 +77,19 @@ class AnnotatorNode(Node):
         )
 
         self.log.info(f'Sending status {status}')
-        if self._sio_client is None:
-            raise Exception('No socket client')
-        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
+        try:
+            result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
+        except Exception as e:
+            self.log.error(f'Error for updating: {str(e)}')
+            return
+
         assert isinstance(result, Dict)
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
             self.log.error(f'Error for updating: Response from loop was : {asdict(response)}')
+        else:
+            self.status_sent = True
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = create_project_folder(context)
@@ -96,4 +105,4 @@ class AnnotatorNode(Node):
         pass
 
     async def on_repeat(self):
-        pass
+        await self.send_status()

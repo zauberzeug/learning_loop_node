@@ -3,12 +3,10 @@ import time
 from dataclasses import asdict
 from typing import Dict, Optional, Union
 
-from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import Context, NodeState, TrainerState, TrainingStatus
-from ..data_classes.socket_response import SocketResponse
+from ..data_classes import Context, TrainingStatus
 from ..node import Node
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls, controls
@@ -115,41 +113,3 @@ class TrainerNode(Node):
             asyncio.get_event_loop().create_task(self.trainer_logic.run())
             return True
         return False
-
-    # --------------------------------------------------- HELPER ---------------------------------------------------
-
-    @staticmethod
-    def state_for_learning_loop(trainer_state: Union[TrainerState, str]) -> str:
-        if trainer_state == TrainerState.Initialized:
-            return 'Training is initialized'
-        if trainer_state == TrainerState.DataDownloading:
-            return 'Downloading data'
-        if trainer_state == TrainerState.DataDownloaded:
-            return 'Data downloaded'
-        if trainer_state == TrainerState.TrainModelDownloading:
-            return 'Downloading model'
-        if trainer_state == TrainerState.TrainModelDownloaded:
-            return 'Model downloaded'
-        if trainer_state == TrainerState.TrainingRunning:
-            return NodeState.Running
-        if trainer_state == TrainerState.TrainingFinished:
-            return 'Training finished'
-        if trainer_state == TrainerState.Detecting:
-            return NodeState.Detecting
-        if trainer_state == TrainerState.ConfusionMatrixSyncing:
-            return 'Syncing confusion matrix'
-        if trainer_state == TrainerState.ConfusionMatrixSynced:
-            return 'Confusion matrix synced'
-        if trainer_state == TrainerState.TrainModelUploading:
-            return 'Uploading trained model'
-        if trainer_state == TrainerState.TrainModelUploaded:
-            return 'Trained model uploaded'
-        if trainer_state == TrainerState.Detecting:
-            return 'calculating detections'
-        if trainer_state == TrainerState.Detected:
-            return 'Detections calculated'
-        if trainer_state == TrainerState.DetectionUploading:
-            return 'Uploading detections'
-        if trainer_state == TrainerState.ReadyForCleanup:
-            return 'Cleaning training'
-        return 'unknown state'
