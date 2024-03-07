@@ -49,7 +49,7 @@ class TrainerState(str, Enum):
     DataDownloaded = 'data_downloaded'
     TrainModelDownloading = 'train_model_downloading'
     TrainModelDownloaded = 'train_model_downloaded'
-    TrainingRunning = 'training_running'
+    TrainingRunning = 'running'
     TrainingFinished = 'training_finished'
     ConfusionMatrixSyncing = 'confusion_matrix_syncing'
     ConfusionMatrixSynced = 'confusion_matrix_synced'
