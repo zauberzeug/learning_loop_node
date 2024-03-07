@@ -38,5 +38,5 @@ async def test_get_new_model(setup_test_project2):
         images_folder="",
         training_folder="",)
     mock_trainer.active_training.data = TrainingData(image_data=[], categories=[])
-    model = mock_trainer.get_new_model()
+    model = mock_trainer.get_new_best_model()
     assert model is not None

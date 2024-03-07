@@ -38,7 +38,7 @@ class TestingTrainerLogic(TrainerLogic):
     async def start_training_from_scratch(self, base_model_id: str) -> None:
         await self.start_training(model=f'model_{base_model_id}.pt')
 
-    def get_new_model(self) -> Optional[BasicModel]:
+    def get_new_best_model(self) -> Optional[BasicModel]:
         if self.has_new_model:
             return BasicModel(confusion_matrix={})
         return None

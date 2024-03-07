@@ -21,7 +21,8 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     create_active_training_file(trainer)
     trainer.init_from_last_training()
 
-    train_task = asyncio.get_running_loop().create_task(trainer.upload_model())
+    train_task = asyncio.get_running_loop().create_task(
+        trainer.perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded, trainer._upload_model))
 
     await assert_training_state(trainer.active_training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     await train_task

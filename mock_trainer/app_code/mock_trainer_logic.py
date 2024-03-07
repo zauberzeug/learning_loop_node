@@ -111,7 +111,7 @@ class MockTrainerLogic(TrainerLogic):
         print(f'prog. is {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
         return self.current_iteration / self.max_iterations
 
-    def get_new_model(self) -> Optional[BasicModel]:
+    def get_new_best_model(self) -> Optional[BasicModel]:
         logging.warning('get_new_model called')
         if self.error_configuration.get_new_model:
             raise Exception()

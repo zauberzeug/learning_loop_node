@@ -7,9 +7,8 @@ from glob import glob
 from typing import Callable
 
 from learning_loop_node.data_classes import Context
-from learning_loop_node.helpers.misc import create_image_folder, create_project_folder
+from learning_loop_node.helpers.misc import create_image_folder, create_project_folder, create_training_folder
 from learning_loop_node.loop_communication import LoopCommunicator
-from learning_loop_node.node import Node
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
@@ -68,5 +67,5 @@ def create_needed_folders(training_uuid: str = 'some_uuid'):  # pylint: disable=
     project_folder = create_project_folder(
         Context(organization='zauberzeug', project='pytest'))
     image_folder = create_image_folder(project_folder)
-    training_folder = TrainerLogic.create_training_folder(project_folder, training_uuid)
+    training_folder = create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder

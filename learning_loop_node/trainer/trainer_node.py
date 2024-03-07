@@ -32,7 +32,7 @@ class TrainerNode(Node):
 
     async def on_shutdown(self):
         self.log.info('shutdown detected, stopping training')
-        await self.trainer_logic.shutdown()
+        await self.trainer_logic.on_shutdown()
 
     async def on_repeat(self):
         try:
@@ -72,7 +72,7 @@ class TrainerNode(Node):
 
         status = TrainingStatus(id=self.uuid,
                                 name=self.name,
-                                state=self.trainer_logic.state.value,
+                                state=self.trainer_logic.state,
                                 errors={},
                                 uptime=self.trainer_logic.training_uptime,
                                 progress=self.trainer_logic.general_progress)

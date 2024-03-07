@@ -1,9 +1,7 @@
-import asyncio
-import logging
 import os
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Callable, Coroutine, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from socketio import AsyncClient
 
@@ -90,27 +88,32 @@ class TrainerLogicAbstraction(ABC):
         return None
 
     @property
-    def training_data(self) -> TrainingData | None:
+    def training_data(self) -> Optional[TrainingData]:
         if self.training_active and self.active_training.data:
             return self.active_training.data
         return None
 
     @property
-    def training_context(self) -> Context | None:
+    def training_context(self) -> Optional[Context]:
         if self.training_active:
             return self.active_training.context
         return None
 
+    # --- ABSTRACT PROPERTIES
+    # --------- implemented in TrainerLogicGeneric
+
     @property
     @abstractmethod
-    def general_progress(self) -> float | None:
+    def general_progress(self) -> Optional[float]:
         """Returns the general progress of the training per state or None if idle"""
 
+    # --------- implemented in TrainerLogic(with Executor)
     @property
     @abstractmethod
-    def provided_pretrained_models(self) -> List[PretrainedModel]:
-        """Returns the list of provided pretrained models"""
+    def hyperparameters(self) -> Optional[Dict]:
+        """Returns the currently used hyperparameters if available"""
 
+    # --------- not implemented in any abstract class
     @property
     @abstractmethod
     def model_architecture(self) -> Optional[str]:
@@ -118,44 +121,26 @@ class TrainerLogicAbstraction(ABC):
 
     @property
     @abstractmethod
-    def hyperparameters(self) -> dict | None:
-        """Returns the currently used hyperparameters if available"""
+    def provided_pretrained_models(self) -> List[PretrainedModel]:
+        """Returns the list of provided pretrained models"""
+
+    # --- ABSTRACT METHODS -----
+    # --------- implemented in TrainerLogicGeneric ---
+
+    @abstractmethod
+    async def on_shutdown(self):
+        """Called when the trainer is shut down"""
 
     @abstractmethod
     async def begin_training(self, organization: str, project: str, details: dict):
         """Starts the training process"""
 
     @abstractmethod
-    async def stop(self):
-        """Stops the training process"""
-
-    @abstractmethod
-    async def shutdown(self):
-        """Stops the training process and releases resources"""
-
-    @abstractmethod
     async def try_continue_run_if_incomplete(self) -> bool:
         """Start training continuation if possible, returns True if continuation started"""
 
-    async def perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
-        await asyncio.sleep(0.1)
-        logging.info(f'Performing state: {state_during}')
-        previous_state = self.active_training.training_state
-        self.active_training.training_state = state_during
-        await asyncio.sleep(0.1)
-        if reset_early:
-            self.errors.reset(error_key)
+    # --- implemented in TrainerLogic(with Executor) ---
 
-        try:
-            await action()
-        except asyncio.CancelledError:
-            logging.warning(f'CancelledError in {state_during}')
-            raise
-        except Exception as e:
-            self.errors.set(error_key, str(e))
-            logging.exception(f'Error in {state_during} - Exception:')
-            self.active_training.training_state = previous_state
-        else:
-            self.errors.reset(error_key)
-            self.active_training.training_state = state_after
-            self.last_training_io.save(self.active_training)
+    @abstractmethod
+    async def stop(self):
+        """Stops the training process"""
