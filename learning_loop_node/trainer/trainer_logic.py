@@ -10,7 +10,7 @@ from dataclasses import asdict
 from datetime import datetime
 from glob import glob
 from time import perf_counter
-from typing import TYPE_CHECKING, Coroutine, Dict, List, Optional, Union
+from typing import Coroutine, Dict, List, Optional, Union
 from uuid import uuid4
 
 import socketio
@@ -18,7 +18,7 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from tqdm import tqdm
 
-from ..data_classes import (BasicModel, Category, Context, Detections, Errors, Hyperparameter, ModelInformation,
+from ..data_classes import (BasicModel, Category, Context, Detections, Hyperparameter, ModelInformation,
                             PretrainedModel, TrainerState, Training, TrainingData, TrainingError)
 from ..helpers.misc import create_image_folder, create_project_folder, generate_training, is_valid_uuid4
 from . import training_syncronizer
@@ -31,12 +31,12 @@ from .trainer_logic_abstraction import TrainerLogicAbstraction
 class TrainerLogic(TrainerLogicAbstraction):
 
     def __init__(self, model_format: str) -> None:
+        super().__init__()
         self.model_format: str = model_format
         self._executor: Optional[Executor] = None
         self.start_time: Optional[float] = None
         self.training_task: Optional[asyncio.Task] = None
         self.start_training_task: Optional[Coroutine] = None
-        self.errors = Errors()
         self.shutdown_event: asyncio.Event = asyncio.Event()
         self.detection_progress = 0.0
 
