@@ -24,7 +24,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
     await assert_training_state(trainer.training, 'detected', timeout=10, interval=0.001)
 
     assert trainer_has_error(trainer) is False
-    assert trainer.training.training_state == 'detected'
+    assert trainer.training.training_state == TrainerState.Detected
     assert trainer.node.last_training_io.load() == trainer.training
     assert trainer.active_training_io.detections_exist()
 
@@ -48,7 +48,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
 
 async def test_model_not_downloadable_error(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer, training_state='train_model_uploaded',
+    create_active_training_file(trainer, training_state=TrainerState.TrainModelUploaded,
                                 model_id_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
     trainer.init_from_last_training()
 
@@ -58,7 +58,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
     await assert_training_state(trainer.training, 'train_model_uploaded', timeout=1, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer.training.training_state == 'train_model_uploaded'
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_id_for_detecting == '00000000-0000-0000-0000-000000000000'
     assert trainer.node.last_training_io.load() == trainer.training
 

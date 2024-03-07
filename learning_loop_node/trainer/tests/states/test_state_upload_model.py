@@ -2,7 +2,7 @@ import asyncio
 
 from pytest_mock import MockerFixture
 
-from learning_loop_node.data_classes import Context
+from learning_loop_node.data_classes import Context, TrainerState
 from learning_loop_node.trainer.tests.state_helper import assert_training_state, create_active_training_file
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
@@ -23,11 +23,11 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
 
     train_task = asyncio.get_running_loop().create_task(trainer.upload_model())
 
-    await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     await train_task
 
     assert trainer_has_error(trainer) is False
-    assert trainer.training.training_state == 'train_model_uploaded'
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_id_for_detecting is not None
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -35,12 +35,12 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
 async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state='confusion_matrix_synced')
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
     trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
-    await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
 
     await trainer.stop()
     await asyncio.sleep(0.1)
@@ -55,17 +55,17 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     The training should be aborted and the training state should be set to confusion_matrix_synced."""
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state='confusion_matrix_synced')
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
     trainer.init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
-    await assert_training_state(trainer.training, 'train_model_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     # TODO goes to finished because of the error
-    await assert_training_state(trainer.training, 'confusion_matrix_synced', timeout=2, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=2, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer.training.training_state == 'confusion_matrix_synced'
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
     assert trainer.training.model_id_for_detecting is None
     assert trainer.node.last_training_io.load() == trainer.training
 

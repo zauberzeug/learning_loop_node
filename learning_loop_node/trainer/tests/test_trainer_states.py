@@ -30,4 +30,4 @@ def test_save_load_training():
     last_training_io.save(training)
 
     training = last_training_io.load()
-    assert training.training_state == 'preparing'
+    assert training.training_state == TrainerState.Preparing

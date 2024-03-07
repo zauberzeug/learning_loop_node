@@ -25,12 +25,10 @@ from . import training_syncronizer
 from .downloader import TrainingsDownloader
 from .executor import Executor
 from .io_helpers import ActiveTrainingIO
-
-if TYPE_CHECKING:
-    from .trainer_node import TrainerNode
+from .trainer_logic_abstraction import TrainerLogicAbstraction
 
 
-class TrainerLogic():
+class TrainerLogic(TrainerLogicAbstraction):
 
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
@@ -44,11 +42,14 @@ class TrainerLogic():
 
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
-        self._node: Optional[TrainerNode] = None
         self.restart_after_training = os.environ.get('RESTART_AFTER_TRAINING', 'FALSE').lower() in ['true', '1']
         self.keep_old_trainings = os.environ.get('KEEP_OLD_TRAININGS', 'FALSE').lower() in ['true', '1']
         self.inference_batch_size = int(os.environ.get('INFERENCE_BATCH_SIZE', '10'))
         logging.info(f'INFERENCE_BATCH_SIZE: {self.inference_batch_size}')
+
+    @property
+    def training_uptime(self) -> Union[float, None]:
+        return time.time() - self.start_time if self.start_time else None
 
     @property
     def executor(self) -> Executor:
@@ -66,22 +67,28 @@ class TrainerLogic():
         return self._active_training_io
 
     @property
-    def node(self) -> 'TrainerNode':
-        assert self._node is not None, 'node should be set by TrainerNodes before initialization'
-        return self._node
-
-    @property
-    def is_initialized(self) -> bool:
+    def training_active(self) -> bool:
         """_training and _active_training_io are set in 'init_new_training' or 'init_from_last_training'"""
         return self._training is not None and self._active_training_io is not None and self._node is not None
 
     @property
-    def state(self) -> str:
-        if (not self.is_initialized) or (self.training.training_state is None):
-            return TrainerState.Idle.value
+    def state(self) -> TrainerState:
+        if (not self.training_active) or (self.training.training_state is None):
+            return TrainerState.Idle
         else:
-            state = self.training.training_state
-            return state.value if isinstance(state, TrainerState) else state
+            return self.training.training_state
+
+    @property
+    def training_data(self) -> TrainingData | None:
+        if self.training_active and self.training.data:
+            return self.training.data
+        return None
+
+    @property
+    def training_context(self) -> Context | None:
+        if self.training_active:
+            return self.training.context
+        return None
 
     def init_new_training(self, context: Context, details: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
@@ -108,13 +115,25 @@ class TrainerLogic():
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
         self._active_training_io = ActiveTrainingIO(self._training.training_folder)
 
+    async def continue_run_if_incomplete(self) -> bool:
+        if not self.training_active and self.node.last_training_io.exists():
+            logging.info('found incomplete training, continuing now.')
+            self.init_from_last_training()
+            asyncio.get_event_loop().create_task(self.run())
+            return True
+        return False
+
+    async def begin_training(self, organization: str, project: str, details: Dict) -> None:
+        self.init_new_training(Context(organization=organization, project=project), details)
+        asyncio.get_event_loop().create_task(self.run())
+
     async def run(self) -> None:
         """Called on `begin_training` event from the Learning Loop."""
 
         self.start_time = time.time()
         self.errors.reset_all()
         try:
-            self.training_task = asyncio.get_running_loop().create_task(self._run())
+            self.training_task = asyncio.get_running_loop().create_task(self._run_training_loop())
             await self.training_task  # Object is used to potentially cancel the task
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
@@ -130,10 +149,10 @@ class TrainerLogic():
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
-    async def _run(self) -> None:
+    async def _run_training_loop(self) -> None:
         """asyncio.CancelledError is catched in train"""
 
-        if not self.is_initialized:
+        if not self.training_active:
             logging.error('could not start training - trainer is not initialized')
             return
 
@@ -511,7 +530,7 @@ class TrainerLogic():
 
     async def stop(self) -> None:
         """If executor is running, stop it. Else cancel training task."""
-        if not self.is_initialized:
+        if not self.training_active:
             return
         if self._executor and self._executor.is_process_running():
             self.executor.stop()
@@ -543,7 +562,7 @@ class TrainerLogic():
     @property
     def general_progress(self) -> Optional[float]:
         """Represents the progress for different states."""
-        if not self.is_initialized:
+        if not self.training_active:
             return None
 
         t_state = self.training.training_state
