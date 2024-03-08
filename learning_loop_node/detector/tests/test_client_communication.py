@@ -90,7 +90,7 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
 
 # NOTE: This test seems to be flaky.
 async def test_about_endpoint(test_detector_node: DetectorNode):
-    await asyncio.sleep(1)
+    await asyncio.sleep(3)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/about', timeout=30)
 
     assert response.status_code == 200
