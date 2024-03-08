@@ -23,8 +23,8 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
                               TrainerState.Detected, trainer._do_detections)
     )
 
-    await assert_training_state(trainer.active_training, 'detecting', timeout=1, interval=0.001)
-    await assert_training_state(trainer.active_training, 'detected', timeout=10, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.Detecting, timeout=1, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.Detected, timeout=10, interval=0.001)
 
     assert trainer_has_error(trainer) is False
     assert trainer.active_training.training_state == TrainerState.Detected
@@ -40,7 +40,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
 
     _ = asyncio.get_running_loop().create_task(trainer.run())
 
-    await assert_training_state(trainer.active_training, 'detecting', timeout=5, interval=0.001)
+    await assert_training_state(trainer.active_training, TrainerState.Detecting, timeout=5, interval=0.001)
     await trainer.stop()
     await asyncio.sleep(0.1)
 
