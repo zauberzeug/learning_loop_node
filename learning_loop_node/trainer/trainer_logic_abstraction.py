@@ -83,7 +83,7 @@ class TrainerLogicAbstraction(ABC):
 
     @property
     def training_uptime(self) -> Optional[float]:
-        if self.active_training:
+        if self.training_active:
             return time.time() - self.active_training.start_time
         return None
 
