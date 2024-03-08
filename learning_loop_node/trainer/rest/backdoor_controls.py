@@ -9,6 +9,7 @@ from dacite import from_dict
 from fastapi import APIRouter, HTTPException, Request
 
 from ...data_classes import ErrorConfiguration, NodeState
+from ..trainer_logic import TrainerLogic
 
 if TYPE_CHECKING:
     from ..trainer_node import TrainerNode
@@ -95,6 +96,8 @@ async def add_steps(request: Request):
     trainer_node = trainer_node_from_request(request)
     trainer_logic = trainer_node.trainer_logic  # NOTE: is MockTrainerLogic which has 'provide_new_model' and 'current_iteration'
 
+    assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
+
     if not trainer_logic._executor or not trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
         training = trainer_logic._training  # pylint: disable=protected-access
         logging.error(f'cannot add steps when not running, state: {training.training_state if training else "None"}')
@@ -109,7 +112,7 @@ async def add_steps(request: Request):
     for _ in range(steps):
         try:
             logging.warning('calling sync_confusion_matrix')
-            await trainer_logic.sync_confusion_matrix()
+            await trainer_logic._sync_confusion_matrix()  # pylint: disable=protected-access
         except Exception:
             pass  # Tests can force synchroniation to fail, error state is reported to backend
     trainer_logic.provide_new_model = previous_state  # type: ignore
@@ -119,11 +122,14 @@ async def add_steps(request: Request):
 
 @router.post("/kill_training_process")
 async def kill_process(request: Request):
+
     # pylint: disable=protected-access
     trainer_node = trainer_node_from_request(request)
-    if not trainer_node.trainer_logic._executor or not trainer_node.trainer_logic._executor.is_process_running():
+    trainer_logic = trainer_node.trainer_logic
+    assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
+    if not trainer_logic._executor or not trainer_logic._executor.is_process_running():
         raise HTTPException(status_code=409, detail="trainer is not running")
-    trainer_node.trainer_logic._executor.stop()
+    trainer_logic._executor.stop()
 
 
 @router.post("/force_status_update")

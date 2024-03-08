@@ -165,3 +165,6 @@ class TrainingError(Exception):
     def __init__(self, cause: str, *args: object) -> None:
         super().__init__(*args)
         self.cause = cause
+
+    def __str__(self) -> str:
+        return f'TrainingError: {self.cause}'

@@ -71,7 +71,6 @@ class TrainerLogic(TrainerLogicGeneric):
 
             error = self.get_executor_error_from_log()
             if error:
-                self.errors.set(error_key, error)
                 raise TrainingError(cause=error)
             # TODO check if this works:
             # if self.executor.return_code != 0:

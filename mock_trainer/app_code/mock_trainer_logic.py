@@ -32,7 +32,7 @@ class MockTrainerLogic(TrainerLogic):
     async def start_training(self) -> None:
         self.current_iteration = 0
         if self.error_configuration.begin_training:
-            raise Exception()
+            raise Exception('Could not start training')
         self.executor.start('while true; do sleep 1; done')
 
     async def start_training_from_scratch(self, base_model_id: str) -> None:
@@ -114,7 +114,7 @@ class MockTrainerLogic(TrainerLogic):
     def get_new_best_model(self) -> Optional[BasicModel]:
         logging.warning('get_new_model called')
         if self.error_configuration.get_new_model:
-            raise Exception()
+            raise Exception('Could not get new model')
         if not self.provide_new_model:
             return None
         self.current_iteration += 1

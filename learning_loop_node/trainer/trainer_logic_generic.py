@@ -143,7 +143,8 @@ class TrainerLogicGeneric(TrainerLogicAbstraction):
             logging.exception(f'Error in {state_during} - Exception:')
             self.active_training.training_state = previous_state
         else:
-            self.errors.reset(error_key)
+            if not reset_early:
+                self.errors.reset(error_key)
             self.active_training.training_state = state_after
             self.last_training_io.save(self.active_training)
 
@@ -169,6 +170,7 @@ class TrainerLogicGeneric(TrainerLogicAbstraction):
             logging.info(f'base_model_id {model_id} is not a valid uuid4, skipping download')
 
     async def _sync_confusion_matrix(self):
+        '''NOTE: This stage sets the errors explicitly because it may be used inside the training stage.'''
         error_key = 'sync_confusion_matrix'
         try:
             new_best_model = self.get_new_best_model()
