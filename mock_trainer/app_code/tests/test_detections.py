@@ -12,8 +12,10 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 
 from ..mock_trainer_logic import MockTrainerLogic
 
+# pylint: disable=protected-access,redefined-outer-name,unused-argument
 
-async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disable=unused-argument, redefined-outer-name
+
+async def test_all(setup_test_project1, glc: LoopCommunicator):
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 
@@ -28,14 +30,14 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):  # pylint: disab
                'resolution': 800,
                'flip_rl': False,
                'flip_ud': False}
-    trainer._node = node  # pylint: disable=protected-access
+    trainer._node = node
     trainer._init_new_training(context=context, details=details)
 
     project_folder = create_project_folder(context)
     training = generate_training(project_folder, context)
     training.model_id_for_detecting = latest_model_id
-    trainer._training = training  # pylint: disable=protected-access
-    await trainer._do_detections()  # pylint: disable=protected-access
+    trainer._training = training
+    await trainer._do_detections()
     detections = trainer.active_training_io.load_detections()
 
     assert_image_count(10)  # TODO This assert fails frequently on Drone

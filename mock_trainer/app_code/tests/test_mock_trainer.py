@@ -7,6 +7,9 @@ from learning_loop_node.trainer.executor import Executor
 
 from ..mock_trainer_logic import MockTrainerLogic
 
+# pylint: disable=protected-access
+# pylint: disable=unused-argument
+
 
 async def create_mock_trainer() -> MockTrainerLogic:
     mock_trainer = MockTrainerLogic(model_format='mocked')

@@ -117,9 +117,9 @@ class MockTrainerLogic(TrainerLogic):
         self.current_iteration += 1
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
-    def _on_metrics_published(self, basic_model: TrainingStateData) -> None:
-        assert isinstance(basic_model.confusion_matrix, Dict)
-        self.latest_known_confusion_matrix = basic_model.confusion_matrix
+    def _on_metrics_published(self, training_state_data: TrainingStateData) -> None:
+        assert isinstance(training_state_data.confusion_matrix, Dict)
+        self.latest_known_confusion_matrix = training_state_data.confusion_matrix
 
     @property
     def model_architecture(self) -> str:
