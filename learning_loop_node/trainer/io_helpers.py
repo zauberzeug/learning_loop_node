@@ -174,9 +174,9 @@ class ActiveTrainingIO:
             msg = f'could not upload detections. {str(response)}'
             logging.error(msg)
             raise Exception(msg)
+
+        logging.info('successfully uploaded detections')
+        if up_progress > len(batch_detections):
+            self.save_detection_upload_progress(0)
         else:
-            logging.info('successfully uploaded detections')
-            if up_progress > len(batch_detections):
-                self.save_detection_upload_progress(0)
-            else:
-                self.save_detection_upload_progress(up_progress)
+            self.save_detection_upload_progress(up_progress)

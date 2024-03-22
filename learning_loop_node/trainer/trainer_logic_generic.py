@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional, Uni
 
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import (BasicModel, Context, Errors, PretrainedModel, TrainerState, Training, TrainingData,
-                            TrainingOut)
+from ..data_classes import (Context, Errors, PretrainedModel, TrainerState, Training, TrainingData, TrainingOut,
+                            TrainingStateData)
 from ..helpers.misc import create_project_folder, delete_all_training_folders, generate_training, is_valid_uuid4
 from .downloader import TrainingsDownloader
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 class TrainerLogicGeneric(ABC):
 
-    def __init__(self, model_format: str):
+    def __init__(self, model_format: str) -> None:
 
         # NOTE: model_format is used in the file path for the model on the server:
         # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
@@ -86,8 +86,7 @@ class TrainerLogicGeneric(ABC):
         """
         if (not self.training_active) or (self.training.training_state is None):
             return TrainerState.Idle.value
-        else:
-            return self.training.training_state
+        return self.training.training_state
 
     @property
     def training_uptime(self) -> Optional[float]:
@@ -245,7 +244,7 @@ class TrainerLogicGeneric(ABC):
                 await self._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, self.active_training_io.upload_detetions)
             elif tstate == TrainerState.ReadyForCleanup:  # -> RESTART or TrainingFinished
                 await self._clear_training()
-                self.may_restart()
+                self._may_restart()
 
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         await asyncio.sleep(0.1)
@@ -305,7 +304,7 @@ class TrainerLogicGeneric(ABC):
         """
         error_key = 'sync_confusion_matrix'
         try:
-            new_best_model = self.get_new_best_model()
+            new_best_model = self._get_new_best_model()
             if new_best_model and self.training.data:
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            confusion_matrix=new_best_model.confusion_matrix,
@@ -319,7 +318,7 @@ class TrainerLogicGeneric(ABC):
                 if isinstance(result,  dict) and result['success']:
                     logging.info(
                         f'successfully updated training {asdict(new_training)}')
-                    self.on_model_published(new_best_model)
+                    self._on_metrics_published(new_best_model)
                 else:
                     raise Exception(
                         f'Error for update_training: Response from loop was : {result}')
@@ -346,7 +345,7 @@ class TrainerLogicGeneric(ABC):
         Note that trainer may train with different classes, which is why we send an initial model.json file.
         """
         # NOTE: I guess this is in executor because originally the conversion happened here..
-        files = await asyncio.get_running_loop().run_in_executor(None, self.get_latest_model_files)
+        files = await asyncio.get_running_loop().run_in_executor(None, self._get_latest_model_files)
         if files is None:
             return None
 
@@ -385,22 +384,13 @@ class TrainerLogicGeneric(ABC):
         self.active_training_io.delete_detections()
         self.active_training_io.delete_detection_upload_progress()
         self.active_training_io.delete_detections_upload_file_index()
-        await self.clear_training_data(self.training.training_folder)
+        await self._clear_training_data(self.training.training_folder)
         self.last_training_io.delete()
 
         await self.node.send_status()
         self._training = None
 
     # ---------------------------------------- OTHER METHODS ----------------------------------------
-
-    def may_restart(self) -> None:
-        """If the environment variable RESTART_AFTER_TRAINING is set, the trainer will restart after a training.
-        """
-        if self._environment_vars.restart_after_training:
-            logging.info('restarting')
-            sys.exit(0)
-        else:
-            logging.info('not restarting')
 
     async def on_shutdown(self) -> None:
         self.shutdown_event.set()
@@ -420,8 +410,16 @@ class TrainerLogicGeneric(ABC):
                 except asyncio.CancelledError:
                     pass
                 logging.info('cancelled training task')
-                self.may_restart()
+                self._may_restart()
 
+    def _may_restart(self) -> None:
+        """If the environment variable RESTART_AFTER_TRAINING is set, the trainer will restart after a training.
+        """
+        if self._environment_vars.restart_after_training:
+            logging.info('restarting')
+            sys.exit(0)
+        else:
+            logging.info('not restarting')
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
     @abstractmethod
@@ -443,9 +441,9 @@ class TrainerLogicGeneric(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_new_best_model(self) -> Optional[BasicModel]:
+    def _get_new_best_model(self) -> Optional[TrainingStateData]:
         """Is called frequently in `_sync_confusion_matrix` to check if a new "best" model is availabe.
-        Returns None if no new model could be found. Otherwise BasicModel(confusion_matrix, meta_information).
+        Returns None if no new model could be found. Otherwise TrainingStateData(confusion_matrix, meta_information).
         `confusion_matrix` contains a dict of all classes:
             - The classes must be identified by their id, not their name.
             - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
@@ -454,17 +452,17 @@ class TrainerLogicGeneric(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def on_model_published(self, basic_model: BasicModel) -> None:
-        """Called after the confusion matrix corresponding to BasicModel has been successfully send to the Learning Loop.
+    def _on_metrics_published(self, training_state_data: TrainingStateData) -> None:
+        """Called after the metrics corresponding to TrainingStateData have been successfully send to the Learning Loop.
         The respective files for this model should be stored so they can be later uploaded in get_latest_model_files.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def get_latest_model_files(self) -> Optional[Union[List[str], Dict[str, List[str]]]]:
+    def _get_latest_model_files(self) -> Optional[Union[List[str], Dict[str, List[str]]]]:
         """Called when the Learning Loop requests to backup the latest model for the training.
         This function is used to gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
-        In the simplest implementation this method just renames the weight file (encoded in BasicModel.meta_information) into a file name like latest_published_model
+        In the simplest implementation this method just renames the weight file (e.g. stored in TrainingStateData.meta_information) into a file name like latest_published_model
         Should return a list of file paths which describe the model.
         These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.)
         and will be stored in the Learning Loop unter the format of this trainer.
@@ -477,7 +475,7 @@ class TrainerLogicGeneric(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def clear_training_data(self, training_folder: str) -> None:
+    async def _clear_training_data(self, training_folder: str) -> None:
         """Called after a training has finished. Deletes all data that is not needed anymore after a training run. 
         This can be old weightfiles or any additional files.
         """

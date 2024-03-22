@@ -2,7 +2,7 @@ import asyncio
 import json
 
 import pytest
-import requests  # type: ignore
+import requests
 
 from learning_loop_node import DetectorNode
 from learning_loop_node.data_classes import ModelInformation
@@ -101,4 +101,4 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
     assert response_dict['operation_mode'] == 'idle'
     assert response_dict['state'] == 'online'
     assert response_dict['target_model'] == '1.1'
-    assert any([c.name == 'purple point' for c in model_information.categories])
+    assert any(c.name == 'purple point' for c in model_information.categories)

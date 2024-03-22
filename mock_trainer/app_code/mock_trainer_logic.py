@@ -4,9 +4,9 @@ import logging
 import time
 from typing import Dict, List, Optional, Union
 
-from learning_loop_node.data_classes import (BasicModel, BoxDetection, CategoryType, ClassificationDetection,
-                                             Detections, ErrorConfiguration, ModelInformation, Point, PointDetection,
-                                             PretrainedModel, SegmentationDetection, Shape)
+from learning_loop_node.data_classes import (BoxDetection, CategoryType, ClassificationDetection, Detections,
+                                             ErrorConfiguration, ModelInformation, Point, PointDetection,
+                                             PretrainedModel, SegmentationDetection, Shape, TrainingStateData)
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 from . import progress_simulator
@@ -35,7 +35,7 @@ class MockTrainerLogic(TrainerLogic):
             raise Exception('Could not start training')
         self.executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self, base_model_id: str) -> None:
+    async def start_training_from_scratch(self) -> None:
         self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
@@ -44,7 +44,7 @@ class MockTrainerLogic(TrainerLogic):
             return 'mocked crash'
         return None
 
-    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+    def _get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
         if self.error_configuration.save_model:
             raise Exception()
 
@@ -66,37 +66,34 @@ class MockTrainerLogic(TrainerLogic):
         for image in images:
             image_id = image.split('/')[-1].replace('.jpg', '')
 
-            box_detections = []
-            point_detections = []
-            segmentation_detections = []
-            classification_detections = []
-            det_entry = {
-                'image_id': image_id, 'box_detections': box_detections, 'point_detections': point_detections,
-                'segmentation_detections': segmentation_detections,
-                'classification_detections': classification_detections}
+            box_detections: List[BoxDetection] = []
+            point_detections: List[PointDetection] = []
+            segmentation_detections: List[SegmentationDetection] = []
+            classification_detections: List[ClassificationDetection] = []
+
             for c in model_information.categories:
                 if c.type == CategoryType.Box:
-                    d = BoxDetection(category_name=c.name, x=1, y=2, width=30, height=40,
-                                     model_name=model_information.version, confidence=.99, category_id=c.id)
-                    box_detections.append(d)
+                    bd = BoxDetection(category_name=c.name, x=1, y=2, width=30, height=40,
+                                      model_name=model_information.version, confidence=.99, category_id=c.id)
+                    box_detections.append(bd)
                 elif c.type == CategoryType.Point:
-                    d = PointDetection(category_name=c.name, x=100, y=200,
-                                       model_name=model_information.version, confidence=.97, category_id=c.id)
-                    point_detections.append(d)
+                    pd = PointDetection(category_name=c.name, x=100, y=200,
+                                        model_name=model_information.version, confidence=.97, category_id=c.id)
+                    point_detections.append(pd)
                 elif c.type == CategoryType.Segmentation:
-                    d = SegmentationDetection(category_name=c.name, shape=Shape(points=[Point(x=1, y=2), Point(
+                    sd = SegmentationDetection(category_name=c.name, shape=Shape(points=[Point(x=1, y=2), Point(
                         x=3, y=4)]), model_name=model_information.version, confidence=.96, category_id=c.id)
-                    segmentation_detections.append(d)
+                    segmentation_detections.append(sd)
                 elif c.type == CategoryType.Classification:
-                    d = ClassificationDetection(category_name=c.name, model_name=model_information.version,
-                                                confidence=.95, category_id=c.id)
-                    classification_detections.append(d)
+                    cd = ClassificationDetection(category_name=c.name, model_name=model_information.version,
+                                                 confidence=.95, category_id=c.id)
+                    classification_detections.append(cd)
             detections.append(Detections(box_detections=box_detections, point_detections=point_detections,
                                          segmentation_detections=segmentation_detections,
                                          classification_detections=classification_detections, image_id=image_id))
         return detections
 
-    async def clear_training_data(self, training_folder: str):
+    async def _clear_training_data(self, training_folder: str):
         pass
 
     @property
@@ -111,7 +108,7 @@ class MockTrainerLogic(TrainerLogic):
         print(f'prog. is {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
         return self.current_iteration / self.max_iterations
 
-    def get_new_best_model(self) -> Optional[BasicModel]:
+    def _get_new_best_model(self) -> Optional[TrainingStateData]:
         logging.warning('get_new_model called')
         if self.error_configuration.get_new_model:
             raise Exception('Could not get new model')
@@ -120,7 +117,7 @@ class MockTrainerLogic(TrainerLogic):
         self.current_iteration += 1
         return progress_simulator.increment_time(self, self.latest_known_confusion_matrix)
 
-    def on_model_published(self, basic_model: BasicModel) -> None:
+    def _on_metrics_published(self, basic_model: TrainingStateData) -> None:
         assert isinstance(basic_model.confusion_matrix, Dict)
         self.latest_known_confusion_matrix = basic_model.confusion_matrix
 

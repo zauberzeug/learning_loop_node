@@ -10,6 +10,8 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
+# pylint: disable=protected-access
+
 error_key = 'sync_confusion_matrix'
 
 

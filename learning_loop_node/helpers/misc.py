@@ -55,7 +55,7 @@ def _handle_task_result(task: asyncio.Task,
         logger.exception(message, *message_args)
 
 
-def get_free_memory_mb() -> float:  # TODO check if this is used
+def get_free_memory_mb() -> float:  # NOTE used by yolov5
     pynvml.nvmlInit()
     h = pynvml.nvmlDeviceGetHandleByIndex(0)
     info = pynvml.nvmlDeviceGetMemoryInfo(h)
@@ -89,15 +89,7 @@ async def delete_corrupt_images(image_folder: str, check_jpeg: bool = False) -> 
 
 
 def create_resource_paths(organization_name: str, project_name: str, image_ids: List[str]) -> Tuple[List[str], List[str]]:
-    # TODO: experimental:
     return [f'/{organization_name}/projects/{project_name}/images/{id}/main' for id in image_ids], image_ids
-    # if not image_ids:
-    #     return [], []
-    # url_ids: List[Tuple(str, str)] = [(f'/{organization_name}/projects/{project_name}/images/{id}/main', id)
-    #                                   for id in image_ids]
-    # urls, ids = list(map(list, zip(*url_ids)))
-
-    # return urls, ids
 
 
 def create_image_folder(project_folder: str) -> str:
@@ -140,17 +132,17 @@ def ensure_socket_response(func):
 
             if isinstance(value, str):
                 return asdict(SocketResponse.for_success(value))
-            elif isinstance(value, bool):
+            if isinstance(value, bool):
                 return asdict(SocketResponse.from_bool(value))
-            elif isinstance(value, SocketResponse):
+            if isinstance(value, SocketResponse):
                 return value
-            elif (args[0] in ['connect', 'disconnect', 'connect_error']):
+            if (args[0] in ['connect', 'disconnect', 'connect_error']):
                 return value
-            elif value is None:
+            if value is None:
                 return None
-            else:
-                raise Exception(
-                    f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'")
+
+            raise Exception(
+                f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'")
         except Exception as e:
             logging.exception(f'An error occured for {args[0]}')
 

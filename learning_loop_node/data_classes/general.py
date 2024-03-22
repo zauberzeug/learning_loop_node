@@ -34,10 +34,6 @@ class Category():
         return [from_dict(data_class=Category, data=value) for value in values]
 
 
-def create_category(identifier: str, name: str, ctype: Union[CategoryType, str]):  # TODO: This is probably unused
-    return Category(id=identifier, name=name, description='', hotkey='', color='', type=ctype, point_size=None)
-
-
 @dataclass(**KWONLY_SLOTS)
 class Context():
     organization: str

@@ -66,7 +66,8 @@ class TrainerLogic(TrainerLogicGeneric):
             error = self.get_executor_error_from_log()
             if error:
                 raise TrainingError(cause=error)
-            # TODO check if this works:
+
+            # TODO check if this works to catch errors from the executor:
             # if self.executor.return_code != 0:
             #     self.errors.set(error_key, f'Executor return code was {self.executor.return_code}')
             #     raise TrainingError(cause=f'Executor return code was {self.executor.return_code}')
@@ -85,9 +86,7 @@ class TrainerLogic(TrainerLogicGeneric):
         else:
             base_model_id = self.training.base_model_id
             if not is_valid_uuid4(base_model_id):  # TODO this check was done earlier!
-                assert isinstance(base_model_id, str)
-                # TODO this could be removed here and accessed via self.training.base_model_id
-                self.start_training_task = self.start_training_from_scratch(base_model_id)
+                self.start_training_task = self.start_training_from_scratch()
             else:
                 self.start_training_task = self.start_training()
         await self.start_training_task
@@ -146,7 +145,7 @@ class TrainerLogic(TrainerLogicGeneric):
                 except asyncio.CancelledError:
                     pass
                 logging.info('cancelled training task')
-                self.may_restart()
+                self._may_restart()
 
     def get_log(self) -> str:
         return self.executor.get_log()
@@ -158,9 +157,10 @@ class TrainerLogic(TrainerLogicGeneric):
         '''Should be used to start a training.'''
 
     @abstractmethod
-    async def start_training_from_scratch(self, base_model_id: str) -> None:
+    async def start_training_from_scratch(self) -> None:
         '''Should be used to start a training from scratch.
-        base_model_id is the id of a pretrained model provided by self.provided_pretrained_models.'''
+        NOTE base_model_id is now accessible via self.training.base_model_id 
+        the id of a pretrained model provided by self.provided_pretrained_models.'''
 
     @abstractmethod
     def can_resume(self) -> bool:

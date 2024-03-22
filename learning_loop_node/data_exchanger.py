@@ -161,8 +161,8 @@ class DataExchanger():
                 f'---- could not upload model for training {training_number} and format {mformat}. Details: {response.text}')
             response.raise_for_status()
             return None
-        else:
-            uploaded_model = response.json()
-            logging.info(
-                f'---- uploaded model for training {training_number} and format {mformat}. Model id is {uploaded_model}')
-            return uploaded_model['id']
+
+        uploaded_model = response.json()
+        logging.info(
+            f'---- uploaded model for training {training_number} and format {mformat}. Model id is {uploaded_model}')
+        return uploaded_model['id']

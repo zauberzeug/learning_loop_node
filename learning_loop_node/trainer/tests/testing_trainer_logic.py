@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Dict, List, Optional, Union
 
-from learning_loop_node.data_classes import BasicModel, Context, Detections, ModelInformation, PretrainedModel
+from learning_loop_node.data_classes import Context, Detections, ModelInformation, PretrainedModel, TrainingStateData
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
@@ -35,15 +35,17 @@ class TestingTrainerLogic(TrainerLogic):
         assert self._executor is not None
         self._executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self, base_model_id: str) -> None:
+    async def start_training_from_scratch(self) -> None:
+        base_model_id = self.training.base_model_id
+        assert base_model_id is not None
         await self.start_training(model=f'model_{base_model_id}.pt')
 
-    def get_new_best_model(self) -> Optional[BasicModel]:
+    def _get_new_best_model(self) -> Optional[TrainingStateData]:
         if self.has_new_model:
-            return BasicModel(confusion_matrix={})
+            return TrainingStateData(confusion_matrix={})
         return None
 
-    def on_model_published(self, basic_model: BasicModel) -> None:
+    def _on_metrics_published(self, training_state_data: TrainingStateData) -> None:
         pass
 
     async def _prepare(self) -> None:
@@ -54,9 +56,9 @@ class TestingTrainerLogic(TrainerLogic):
         await super()._download_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
-    async def upload_model(self) -> None:
+    async def _upload_model(self) -> None:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        await super().upload_model()
+        await super()._upload_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
@@ -66,7 +68,7 @@ class TestingTrainerLogic(TrainerLogic):
         assert isinstance(result, str)
         return result
 
-    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+    def _get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
         time.sleep(1)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
         fake_weight_file = '/tmp/weightfile.weights'
         with open(fake_weight_file, 'wb') as f:
@@ -87,7 +89,7 @@ class TestingTrainerLogic(TrainerLogic):
         detections: List[Detections] = []
         return detections
 
-    async def clear_training_data(self, training_folder: str) -> None:
+    async def _clear_training_data(self, training_folder: str) -> None:
         return
 
     def get_executor_error_from_log(self) -> Optional[str]:

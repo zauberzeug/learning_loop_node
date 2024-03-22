@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import requests
+import requests  # type: ignore
 
 # https://stackoverflow.com/a/39225272/4082686
 

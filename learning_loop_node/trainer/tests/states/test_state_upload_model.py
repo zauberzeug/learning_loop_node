@@ -7,6 +7,7 @@ from learning_loop_node.trainer.tests.state_helper import assert_training_state,
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
+# pylint: disable=protected-access
 error_key = 'upload_model'
 
 

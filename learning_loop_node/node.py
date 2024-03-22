@@ -62,7 +62,7 @@ class Node(FastAPI):
 
     # --------------------------------------------------- APPLICATION LIFECYCLE ---------------------------------------------------
     @asynccontextmanager
-    async def lifespan(self, app: FastAPI):
+    async def lifespan(self, app: FastAPI):  # pylint: disable=unused-argument
         try:
             await self._on_startup()
             self.repeat_task = asyncio.create_task(self.repeat_loop())

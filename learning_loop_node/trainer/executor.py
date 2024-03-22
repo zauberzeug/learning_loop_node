@@ -11,7 +11,7 @@ import psutil
 
 
 def create_signal_handler(sig=signal.SIGTERM):
-    if platform == "linux" or platform == "linux2":
+    if platform in ('linux', 'linux2'):
         # "The system will send a signal to the child once the parent exits for any reason (even sigkill)."
         # https://stackoverflow.com/a/19448096
         libc = ctypes.CDLL("libc.so.6")

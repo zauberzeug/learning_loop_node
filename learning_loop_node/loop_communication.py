@@ -80,8 +80,15 @@ class LoopCommunicator():
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
 
-        file_list = [('files', open(f, 'rb')) for f in files]  # TODO: does this properly close the files after upload?
-        return await self.async_client.put(api_prefix+path, files=file_list)
+        file_handles = [open(f, 'rb') for f in files]  # Open files and store handles
+        try:
+            file_list = [('files', fh) for fh in file_handles]  # Use file handles
+            response = await self.async_client.put(api_prefix+path, files=file_list)
+        finally:
+            for fh in file_handles:
+                fh.close()  # Ensure all files are closed
+
+        return response
 
     async def post(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -92,14 +99,3 @@ class LoopCommunicator():
         if requires_login:
             await self.ensure_login()
         return await self.async_client.delete(api_prefix+path, **kwargs)
-
-    # --------------------------------- unused?! --------------------------------- #TODO remove?
-
-    # def get_data(self, path):
-    #     return asyncio.get_event_loop().run_until_complete(self._get_data_async(path))
-
-    # async def _get_data_async(self, path) -> bytes:
-    #     response = await self.get(f'{self.project_path}{path}')
-    #     if response.status_code != 200:
-    #         raise LoopCommunicationException('bad response: ' + str(response))
-    #     return response.content

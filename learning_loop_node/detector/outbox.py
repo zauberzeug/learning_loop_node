@@ -53,7 +53,6 @@ class Outbox():
         with open(tmp + '/image.json', 'w') as f:
             json.dump(jsonable_encoder(asdict(detections)), f)
 
-        # TODO sometimes No such file or directory: '/tmp/learning_loop_lib_data/tmp/2023-09-07_13:27:38.399/image.jpg'
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
 

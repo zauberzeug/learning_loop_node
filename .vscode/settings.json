@@ -9,10 +9,19 @@
     "--disable=C0111", // Missing docstring (in function/class/method)
     "--disable=C0114", // Missing module docstring
     "--disable=C0301", // Line too long (exceeds character limit)
+    "--disable=W0511", // TODO/FIXME not being used
     "--disable=W0718", // Catching too general exception
     "--disable=W0719", // Raising too general exception
     "--disable=W1203", // Use % formatting in logging functions and pass the % parameters as arguments
-    "--disable=W1514" // Using open without explicitly specifying an encoding
+    "--disable=W1514", // Using open without explicitly specifying an encoding
+    "--disable=R0902", // Too many instance attributes
+    "--disable=R0903", // Too few public methods
+    "--disable=R0912", // Too many branches
+    "--disable=R0913", // Too many arguments
+    "--disable=R0914", // Too many local variables
+    "--disable=R0915", // Too many statements
+    "--disable=R1732", // Consider using with for resource-allocating operations
+    "--disable=R0801" // Similar lines in 2 files
   ],
   "[python]": {
     "editor.defaultFormatter": "ms-python.autopep8",

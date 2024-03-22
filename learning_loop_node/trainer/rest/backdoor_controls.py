@@ -5,7 +5,6 @@ import logging
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Dict
 
-from dacite import from_dict
 from fastapi import APIRouter, HTTPException, Request
 
 from ...data_classes import ErrorConfiguration, NodeState

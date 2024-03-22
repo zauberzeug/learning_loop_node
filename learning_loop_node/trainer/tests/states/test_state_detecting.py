@@ -6,6 +6,7 @@ from learning_loop_node.trainer.tests.state_helper import assert_training_state,
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
+# pylint: disable=protected-access
 error_key = 'detecting'
 
 
@@ -13,7 +14,7 @@ def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):  # TODO Flaky test
+async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):  # NOTE was a flaky test
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
                                 model_id_for_detecting='917d5c7f-403d-7e92-f95f-577f79c2273a')

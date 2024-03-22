@@ -16,7 +16,7 @@ async def create_mock_trainer() -> MockTrainerLogic:
 
 async def test_get_model_files(setup_test_project2):
     mock_trainer = await create_mock_trainer()
-    files = mock_trainer.get_latest_model_files()
+    files = mock_trainer._get_latest_model_files()
 
     assert isinstance(files, Dict)
 
@@ -38,5 +38,5 @@ async def test_get_new_model(setup_test_project2):
         images_folder="",
         training_folder="",)
     mock_trainer.training.data = TrainingData(image_data=[], categories=[])
-    model = mock_trainer.get_new_best_model()
+    model = mock_trainer._get_new_best_model()
     assert model is not None

@@ -1,6 +1,8 @@
 from learning_loop_node.trainer.tests.state_helper import create_active_training_file
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 
+# pylint: disable=protected-access
+
 
 async def test_cleanup_successfull(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
@@ -18,7 +20,7 @@ async def test_cleanup_successfull(test_initialized_trainer: TestingTrainerLogic
 
     await trainer._clear_training()
 
-    assert trainer._training is None  # pylint: disable=protected-access
+    assert trainer._training is None
     assert trainer.node.last_training_io.exists() is False
     assert trainer.active_training_io.detections_exist() is False
     assert trainer.active_training_io.detection_upload_progress_exist() is False

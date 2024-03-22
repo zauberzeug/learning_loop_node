@@ -6,6 +6,8 @@ from learning_loop_node.data_classes import TrainerState
 from learning_loop_node.trainer.tests.state_helper import assert_training_state, create_active_training_file
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 
+# pylint: disable=protected-access
+
 
 async def test_downloading_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
