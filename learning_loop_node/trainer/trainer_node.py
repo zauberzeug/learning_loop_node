@@ -9,12 +9,12 @@ from ..data_classes import TrainingStatus
 from ..node import Node
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls, controls
-from .trainer_logic_abstraction import TrainerLogicAbstraction
+from .trainer_logic_generic import TrainerLogicGeneric
 
 
 class TrainerNode(Node):
 
-    def __init__(self, name: str, trainer_logic: TrainerLogicAbstraction, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
+    def __init__(self, name: str, trainer_logic: TrainerLogicGeneric, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
         super().__init__(name, uuid, 'trainer')
         trainer_logic._node = self
         self.trainer_logic = trainer_logic

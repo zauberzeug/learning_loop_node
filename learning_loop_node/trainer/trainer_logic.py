@@ -5,7 +5,7 @@ import os
 import shutil
 from abc import abstractmethod
 from datetime import datetime
-from typing import Coroutine, Dict, List, Optional
+from typing import Coroutine, List, Optional
 
 from dacite import from_dict
 
@@ -22,30 +22,24 @@ class TrainerLogic(TrainerLogicGeneric):
         self.model_format: str = model_format
         # NOTE: String to be used in the file path for the model on the server:
         # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
-
+        self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
         self.start_training_task: Optional[Coroutine] = None
+
+    @property
+    def detection_progress(self) -> Optional[float]:
+        return self._detection_progress
 
     @property
     def executor(self) -> Executor:
         assert self._executor is not None, 'executor must be set, call `run_training` first'
         return self._executor
 
-    @property
-    def hyperparameters(self) -> Optional[Dict]:
-        if self._training and self._training.data and self._training.data.hyperparameter:
-            information = {}
-            information['resolution'] = self._training.data.hyperparameter.resolution
-            information['flipRl'] = self._training.data.hyperparameter.flip_rl
-            information['flipUd'] = self._training.data.hyperparameter.flip_ud
-            return information
-        return None
-
     async def _train(self) -> None:
         previous_state = TrainerState.TrainModelDownloaded
         error_key = 'run_training'
-        self._executor = Executor(self.active_training.training_folder)
-        self.active_training.training_state = TrainerState.TrainingRunning
+        self._executor = Executor(self.training.training_folder)
+        self.training.training_state = TrainerState.TrainingRunning
 
         try:
             await self._start_training()
@@ -81,7 +75,7 @@ class TrainerLogic(TrainerLogicGeneric):
             logging.exception('Error in TrainingProcess')
             if self.executor.is_process_running():
                 self.executor.stop()
-            self.active_training.training_state = previous_state
+            self.training.training_state = previous_state
             raise
 
     async def _start_training(self):
@@ -89,7 +83,7 @@ class TrainerLogic(TrainerLogicGeneric):
         if self.can_resume():
             self.start_training_task = self.resume()
         else:
-            base_model_id = self.active_training.base_model_id
+            base_model_id = self.training.base_model_id
             if not is_valid_uuid4(base_model_id):  # TODO this check was done earlier!
                 assert isinstance(base_model_id, str)
                 # TODO this could be removed here and accessed via self.training.base_model_id
@@ -99,8 +93,8 @@ class TrainerLogic(TrainerLogicGeneric):
         await self.start_training_task
 
     async def _do_detections(self) -> None:
-        context = self.active_training.context
-        model_id = self.active_training.model_id_for_detecting
+        context = self.training.context
+        model_id = self.training.model_id_for_detecting
         assert model_id, 'model_id must be set'
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
 
@@ -108,22 +102,22 @@ class TrainerLogic(TrainerLogicGeneric):
         os.makedirs(tmp_folder)
         logging.info(f'downloading detection model to {tmp_folder}')
 
-        await self.data_exchanger.download_model(tmp_folder, context, model_id, self.model_format)
+        await self.node.data_exchanger.download_model(tmp_folder, context, model_id, self.model_format)
         with open(f'{tmp_folder}/model.json', 'r') as f:
             model_information = from_dict(data_class=ModelInformation, data=json.load(f))
 
         project_folder = create_project_folder(context)
         image_folder = create_image_folder(project_folder)
-        self.data_exchanger.set_context(context)
+        self.node.data_exchanger.set_context(context)
         image_ids = []
         for state, p in zip(['inbox', 'annotate', 'review', 'complete'], [0.1, 0.2, 0.3, 0.4]):
-            self.detection_progress = p
+            self._detection_progress = p
             logging.info(f'fetching image ids of {state}')
-            new_ids = await self.data_exchanger.fetch_image_uuids(query_params=f'state={state}')
+            new_ids = await self.node.data_exchanger.fetch_image_uuids(query_params=f'state={state}')
             image_ids += new_ids
             logging.info(f'downloading {len(new_ids)} images')
-            await self.data_exchanger.download_images(new_ids, image_folder)
-        self.detection_progress = 0.42
+            await self.node.data_exchanger.download_images(new_ids, image_folder)
+        self._detection_progress = 0.42
         # await delete_corrupt_images(image_folder)
 
         images = await asyncio.get_event_loop().run_in_executor(None, images_for_ids, image_ids, image_folder)
@@ -133,7 +127,7 @@ class TrainerLogic(TrainerLogicGeneric):
 
         batch_size = 200
         for idx, i in enumerate(range(0, num_images, batch_size)):
-            self.detection_progress = 0.5 + (i/num_images)*0.5
+            self._detection_progress = 0.5 + (i/num_images)*0.5
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)

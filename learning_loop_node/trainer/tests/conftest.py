@@ -25,13 +25,13 @@ async def test_initialized_trainer_node():
     trainer = TestingTrainerLogic()
     node = TrainerNode(name='test', trainer_logic=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
     trainer._node = node  # pylint: disable=protected-access
-    trainer.init_new_training(context=Context(organization='zauberzeug', project='demo'),
-                              details={'categories': [],
-                                       'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
-                                       'training_number': 0,
-                                       'resolution': 800,
-                                       'flip_rl': False,
-                                       'flip_ud': False})
+    trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
+                               details={'categories': [],
+                                        'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
+                                        'training_number': 0,
+                                        'resolution': 800,
+                                        'flip_rl': False,
+                                        'flip_ud': False})
 
     # pylint: disable=protected-access
     await node._on_startup()
@@ -47,13 +47,13 @@ async def test_initialized_trainer():
     # pylint: disable=protected-access
     await node._on_startup()
     trainer._node = node  # pylint: disable=protected-access
-    trainer.init_new_training(context=Context(organization='zauberzeug', project='demo'),
-                              details={'categories': [],
-                                       'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
-                                       'training_number': 0,
-                                       'resolution': 800,
-                                       'flip_rl': False,
-                                       'flip_ud': False})
+    trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
+                               details={'categories': [],
+                                        'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
+                                        'training_number': 0,
+                                        'resolution': 800,
+                                        'flip_rl': False,
+                                        'flip_ud': False})
 
     yield trainer
     # await node._on_shutdown()

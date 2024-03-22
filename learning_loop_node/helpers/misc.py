@@ -76,7 +76,6 @@ async def is_valid_image(filename: str, check_jpeg: bool) -> bool:
     return "OK" in out.decode()
 
 
-@staticmethod
 async def delete_corrupt_images(image_folder: str, check_jpeg: bool = False) -> None:
     logging.info('deleting corrupt images')
     n_deleted = 0
@@ -189,7 +188,6 @@ def activate_asyncio_warnings() -> None:
         logging.exception('could not activate asyncio warnings. Exception:')
 
 
-@staticmethod
 def images_for_ids(image_ids, image_folder) -> List[str]:
     logging.info(f'### Going to get images for {len(image_ids)} images ids')
     start = perf_counter()
@@ -200,7 +198,6 @@ def images_for_ids(image_ids, image_folder) -> List[str]:
     return images
 
 
-@staticmethod
 def generate_training(project_folder: str, context: Context) -> Training:
     training_uuid = str(uuid4())
     return Training(
@@ -212,7 +209,6 @@ def generate_training(project_folder: str, context: Context) -> Training:
     )
 
 
-@staticmethod
 def delete_all_training_folders(project_folder: str):
     if not os.path.exists(f'{project_folder}/trainings'):
         return
@@ -220,7 +216,6 @@ def delete_all_training_folders(project_folder: str):
         shutil.rmtree(f'{project_folder}/trainings/{uuid}', ignore_errors=True)
 
 
-@staticmethod
 def create_training_folder(project_folder: str, trainings_id: str) -> str:
     training_folder = f'{project_folder}/trainings/{trainings_id}'
     os.makedirs(training_folder, exist_ok=True)

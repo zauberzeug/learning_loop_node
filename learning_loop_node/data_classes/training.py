@@ -17,6 +17,14 @@ class Hyperparameter():
     flip_rl: bool
     flip_ud: bool
 
+    @staticmethod
+    def from_data(data: Dict):
+        return Hyperparameter(
+            resolution=data['resolution'],
+            flip_rl=data.get('flip_rl', False),
+            flip_ud=data.get('flip_ud', False)
+        )
+
 
 @dataclass(**KWONLY_SLOTS)
 class TrainingData():
@@ -93,17 +101,24 @@ class Training():
     id: str
     context: Context
 
-    project_folder: str
-    images_folder: str
-    training_folder: str
+    project_folder: str  # f'{GLOBALS.data_folder}/{context.organization}/{context.project}'
+    images_folder: str  # f'{project_folder}/images'
+    training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
     start_time: float = field(default_factory=time.time)
 
-    base_model_id: Optional[str] = None
+    base_model_id: Optional[str] = None  # model uuid to download into base_model.json
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
     training_state: Optional[str] = None
     model_id_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
+
+    def set_values_from_data(self, data: Dict):
+        self.data = TrainingData(categories=Category.from_list(data['categories']))
+        self.data.hyperparameter = Hyperparameter.from_data(data=data)
+        self.training_number = data['training_number']
+        self.base_model_id = data['id']
+        self.training_state = TrainerState.Initialized
 
 
 @dataclass(**KWONLY_SLOTS)

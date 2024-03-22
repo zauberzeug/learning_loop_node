@@ -122,11 +122,11 @@ class DataExchanger():
         if not await is_valid_image(filename, self.check_jpeg):
             os.remove(filename)
 
-    async def download_model(self, target_folder: str, context: Context, model_id: str, model_format: str) -> List[str]:
+    async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
         """Downloads a model and returns the paths of the downloaded files."""
-        logging.info(f'Downloading model {model_id} to {target_folder}..')
+        logging.info(f'Downloading model {model_uuid} to {target_folder}..')
 
-        path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
+        path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{model_format}/file'
         response = await self.loop_communicator.get(path, requires_login=False)
         if response.status_code != 200:
             content = response.json()
@@ -150,7 +150,7 @@ class DataExchanger():
             new_file = shutil.move(file, target_folder)
             created_files.append(new_file)
 
-        logging.info(f'---- downloaded model {model_id}/{model_format} to {tmp_path}. Moved to {target_folder}.')
+        logging.info(f'---- downloaded model {model_uuid}/{model_format} to {tmp_path}. Moved to {target_folder}.')
         return created_files
 
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> Optional[str]:
