@@ -107,7 +107,7 @@ class Training():
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
     start_time: float = field(default_factory=time.time)
 
-    # model uuid to download (to continue training) | is '' when training from scratch
+    # model uuid to download (to continue training) | is not a uuid when training from scratch (blank or pt-name ?!)
     base_model_id: Optional[str] = None
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None

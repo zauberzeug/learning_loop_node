@@ -25,6 +25,7 @@ class TrainerLogicGeneric(ABC):
     def __init__(self, model_format: str) -> None:
 
         # NOTE: model_format is used in the file path for the model on the server:
+        # It acts as a key for list of files (cf. _get_latest_model_files)
         # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
         self.model_format: str = model_format
         self.errors = Errors()
@@ -294,16 +295,17 @@ class TrainerLogicGeneric(ABC):
         The downloaded model.json file is renamed to base_model.json because a new model.json will be created during training.
         """
         base_model_id = self.training.base_model_id
+
         # TODO this checks if we continue a training -> make more explicit
-        if base_model_id and is_valid_uuid4(self.training.base_model_id):
-            logging.info('loading model from Learning Loop')
-            logging.info(f'downloading model {base_model_id} as {self.model_format}')
-            await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_id, self.model_format)
-            shutil.move(f'{self.training.training_folder}/model.json',
-                        f'{self.training.training_folder}/base_model.json')
-        else:
-            logging.info(
-                f'base_model_id {base_model_id} is not a valid uuid4 (or no base model was not provided), skipping download')
+        if not base_model_id or not is_valid_uuid4(base_model_id):
+            logging.info(f'skipping model download. No base model id provided: {base_model_id}')
+            return
+
+        logging.info('loading model from Learning Loop')
+        logging.info(f'downloading model {base_model_id} as {self.model_format}')
+        await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_id, self.model_format)
+        shutil.move(f'{self.training.training_folder}/model.json',
+                    f'{self.training.training_folder}/base_model.json')
 
     async def _sync_confusion_matrix(self) -> None:
         """Syncronizes the confusion matrix with the Learning Loop via the update_training endpoint.
@@ -468,11 +470,12 @@ class TrainerLogicGeneric(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _get_latest_model_files(self) -> Optional[Union[List[str], Dict[str, List[str]]]]:
+    def _get_latest_model_files(self) -> Dict[str, List[str]]:
         """Called when the Learning Loop requests to backup the latest model for the training.
-        This function is used to generate and gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
+        This function is used to __generate and gather__ all files needed for transfering the actual data from the trainer node to the Learning Loop.
         In the simplest implementation this method just renames the weight file (e.g. stored in TrainingStateData.meta_information) into a file name like latest_published_model
-        Should return a list of file paths which describe the model.
+
+        The function should return a list of file paths which describe the model per format.
         These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.)
         and will be stored in the Learning Loop unter the format of this trainer.
         Note: by convention the weightfile should be named "model.<extension>" where extension is the file format of the weightfile.
@@ -480,6 +483,8 @@ class TrainerLogicGeneric(ABC):
 
         If a trainer can also generate other formats (for example for an detector),
         a dictionary mapping format -> list of files can be returned.
+
+        If the function returns an empty dict, something went wrong and the model upload will be skipped.
         """
         raise NotImplementedError
 

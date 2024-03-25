@@ -31,6 +31,7 @@ class Executor:
         self._process: Optional[subprocess.Popen[bytes]] = None
 
     def start(self, cmd: str) -> None:
+        logging.info(f'Starting executor with command: {cmd}')
         with open(f'{self.path}/last_training.log', 'a') as f:
             f.write(f'\nStarting executor with command: {cmd}\n')
 
