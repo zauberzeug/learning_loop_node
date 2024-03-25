@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional, Uni
 
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import (Context, Errors, PretrainedModel, TrainerState, Training, TrainingData, TrainingOut,
-                            TrainingStateData)
+from ..data_classes import (Context, Errors, Hyperparameter, PretrainedModel, TrainerState, Training, TrainingData,
+                            TrainingOut, TrainingStateData)
 from ..helpers.misc import create_project_folder, delete_all_training_folders, generate_training, is_valid_uuid4
 from .downloader import TrainingsDownloader
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
@@ -62,6 +62,14 @@ class TrainerLogicGeneric(ABC):
         return self._training
 
     @property
+    def hyperparameter(self) -> Hyperparameter:
+        assert self.training_data is not None, 'Training should have data'
+        assert self.training_data.hyperparameter is not None, 'Training.data should have hyperparameter'
+        return self.training_data.hyperparameter
+
+    # ---------------------------------------- PROPERTIES ----------------------------------------
+
+    @property
     def training_data(self) -> Optional[TrainingData]:
         if self.training_active and self.training.data:
             return self.training.data
@@ -72,7 +80,6 @@ class TrainerLogicGeneric(ABC):
         if self.training_active:
             return self.training.context
         return None
-    # ---------------------------------------- PROPERTIES ----------------------------------------
 
     @property
     def training_active(self) -> bool:
@@ -97,7 +104,7 @@ class TrainerLogicGeneric(ABC):
         return None
 
     @property
-    def hyperparameters(self) -> Optional[Dict]:
+    def hyperparameters_for_state_sync(self) -> Optional[Dict]:
         """Used in sync_confusion_matrix and send_status to provide information about the training configuration.
         """
         if self._training and self._training.data and self._training.data.hyperparameter:
@@ -310,7 +317,7 @@ class TrainerLogicGeneric(ABC):
                                            confusion_matrix=new_best_model.confusion_matrix,
                                            train_image_count=self.training.data.train_image_count(),
                                            test_image_count=self.training.data.test_image_count(),
-                                           hyperparameters=self.hyperparameters)
+                                           hyperparameters=self.hyperparameters_for_state_sync)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
 
                 result = await self.node.sio_client.call('update_training', (
@@ -447,7 +454,7 @@ class TrainerLogicGeneric(ABC):
         `confusion_matrix` contains a dict of all classes:
             - The classes must be identified by their id, not their name.
             - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
-        `meta_information` can hold any data which is helpful for self.on_model_published to store weight file etc for later upload via self.get_model_files
+        `meta_information` can hold any data which is helpful for self._on_metrics_published to store weight file etc for later upload via self.get_model_files
         """
         raise NotImplementedError
 

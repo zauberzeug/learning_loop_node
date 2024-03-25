@@ -154,11 +154,11 @@ class TrainerLogic(TrainerLogicGeneric):
 
     @abstractmethod
     async def start_training(self) -> None:
-        '''Should be used to start a training.'''
+        '''Should be used to start a training on executer, e.g. self.executor.start(cmd).'''
 
     @abstractmethod
     async def start_training_from_scratch(self) -> None:
-        '''Should be used to start a training from scratch.
+        '''Should be used to start a training from scratch on executer, e.g. self.executor.start(cmd).
         NOTE base_model_id is now accessible via self.training.base_model_id 
         the id of a pretrained model provided by self.provided_pretrained_models.'''
 

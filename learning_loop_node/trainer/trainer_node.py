@@ -84,7 +84,7 @@ class TrainerNode(Node):
             status.train_image_count = data.train_image_count()
             status.test_image_count = data.test_image_count()
             status.skipped_image_count = data.skipped_image_count
-            status.hyperparameters = self.trainer_logic.hyperparameters
+            status.hyperparameters = self.trainer_logic.hyperparameters_for_state_sync
             status.errors = self.trainer_logic.errors.errors
             status.context = self.trainer_logic.training_context
 
