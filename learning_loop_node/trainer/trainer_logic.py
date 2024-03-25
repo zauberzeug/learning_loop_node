@@ -26,14 +26,20 @@ class TrainerLogic(TrainerLogicGeneric):
         self._executor: Optional[Executor] = None
         self.start_training_task: Optional[Coroutine] = None
 
+    # ---------------------------------------- IMPLEMENTED ABSTRACT PROPERTIES ----------------------------------------
+
     @property
     def detection_progress(self) -> Optional[float]:
         return self._detection_progress
+
+    # ---------------------------------------- PROPERTIES ----------------------------------------
 
     @property
     def executor(self) -> Executor:
         assert self._executor is not None, 'executor must be set, call `run_training` first'
         return self._executor
+
+    # ---------------------------------------- IMPLEMENTED ABSTRACT MEHTODS ----------------------------------------
 
     async def _train(self) -> None:
         previous_state = TrainerState.TrainModelDownloaded
@@ -46,11 +52,11 @@ class TrainerLogic(TrainerLogicGeneric):
 
             last_sync_time = datetime.now()
             while True:
-                if not self.executor.is_process_running():
+                if not self.executor.is_running():
                     break
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
                     last_sync_time = datetime.now()
-                    if self.get_executor_error_from_log():
+                    if self._get_executor_error_from_log():
                         break
                     self.errors.reset(error_key)
                     try:
@@ -63,33 +69,19 @@ class TrainerLogic(TrainerLogicGeneric):
                 else:
                     await asyncio.sleep(0.1)
 
-            error = self.get_executor_error_from_log()
+            error = self._get_executor_error_from_log()
             if error:
                 raise TrainingError(cause=error)
 
-            # TODO check if this works to catch errors from the executor:
-            # if self.executor.return_code != 0:
-            #     self.errors.set(error_key, f'Executor return code was {self.executor.return_code}')
-            #     raise TrainingError(cause=f'Executor return code was {self.executor.return_code}')
+            if self.executor.return_code != 0:  # TODO check if this works to catch errors from the executor:
+                raise TrainingError(cause=f'Executor returned with error code: {self.executor.return_code}')
 
         except TrainingError:
             logging.exception('Error in TrainingProcess')
-            if self.executor.is_process_running():
+            if self.executor.is_running():
                 self.executor.stop()
             self.training.training_state = previous_state
             raise
-
-    async def _start_training(self):
-        self.start_training_task = None  # NOTE: this is used i.e. by tests
-        if self.can_resume():
-            self.start_training_task = self.resume()
-        else:
-            base_model_id = self.training.base_model_id
-            if not is_valid_uuid4(base_model_id):  # TODO this check was done earlier!
-                self.start_training_task = self.start_training_from_scratch()
-            else:
-                self.start_training_task = self.start_training()
-        await self.start_training_task
 
     async def _do_detections(self) -> None:
         context = self.training.context
@@ -131,11 +123,27 @@ class TrainerLogic(TrainerLogicGeneric):
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)
 
+    # ---------------------------------------- METHODS ----------------------------------------
+
+    async def _start_training(self):
+        self.start_training_task = None  # NOTE: this is used i.e. by tests
+        if self._can_resume():
+            self.start_training_task = self._resume()
+        else:
+            base_model_id = self.training.base_model_id
+            if not is_valid_uuid4(base_model_id):
+                self.start_training_task = self._start_training_from_scratch()
+            else:
+                self.start_training_task = self._start_training_from_base_model()
+        await self.start_training_task
+
+    # ---------------------------------------- OVERWRITTEN METHODS ----------------------------------------
+
     async def stop(self) -> None:
         """If executor is running, stop it. Else cancel training task."""
         if not self.training_active:
             return
-        if self._executor and self._executor.is_process_running():
+        if self._executor and self._executor.is_running():
             self.executor.stop()
         elif self.training_task:
             logging.info('cancelling training task')
@@ -147,32 +155,29 @@ class TrainerLogic(TrainerLogicGeneric):
                 logging.info('cancelled training task')
                 self._may_restart()
 
-    def get_log(self) -> str:
-        return self.executor.get_log()
-
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
     @abstractmethod
-    async def start_training(self) -> None:
+    async def _start_training_from_base_model(self) -> None:
         '''Should be used to start a training on executer, e.g. self.executor.start(cmd).'''
 
     @abstractmethod
-    async def start_training_from_scratch(self) -> None:
+    async def _start_training_from_scratch(self) -> None:
         '''Should be used to start a training from scratch on executer, e.g. self.executor.start(cmd).
         NOTE base_model_id is now accessible via self.training.base_model_id 
         the id of a pretrained model provided by self.provided_pretrained_models.'''
 
     @abstractmethod
-    def can_resume(self) -> bool:
+    def _can_resume(self) -> bool:
         '''Override this method to return True if the trainer can resume training.'''
 
     @abstractmethod
-    async def resume(self) -> None:
+    async def _resume(self) -> None:
         '''Is called when self.can_resume() returns True.
         One may resume the training on a previously trained model stored by self.on_model_published(basic_model).'''
 
     @abstractmethod
-    def get_executor_error_from_log(self) -> Optional[str]:
+    def _get_executor_error_from_log(self) -> Optional[str]:
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
 
     @abstractmethod

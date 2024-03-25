@@ -60,6 +60,8 @@ class ModelInformation():
 
     @staticmethod
     def load_from_disk(model_root_path: str) -> Optional['ModelInformation']:
+        """Load model.json from model_root_path and return ModelInformation object.
+        """
         model_info_file_path = f'{model_root_path}/model.json'
         if not os.path.exists(model_info_file_path):
             logging.warning(f"could not find model information file '{model_info_file_path}'")

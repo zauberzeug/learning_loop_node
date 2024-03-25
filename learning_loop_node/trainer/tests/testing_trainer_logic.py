@@ -31,16 +31,16 @@ class TestingTrainerLogic(TrainerLogic):
             PretrainedModel(name='large', label='Large', description='a large model')]
 
     # pylint: disable=unused-argument
-    async def start_training(self, model: str = 'model.model') -> None:
+    async def _start_training_from_base_model(self, model: str = 'model.model') -> None:
         assert self._executor is not None
         self._executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self) -> None:
+    async def _start_training_from_scratch(self) -> None:
         base_model_id = self.training.base_model_id
         assert base_model_id is not None
-        await self.start_training(model=f'model_{base_model_id}.pt')
+        await self._start_training_from_base_model(model=f'model_{base_model_id}.pt')
 
-    def _get_new_best_model(self) -> Optional[TrainingStateData]:
+    def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
         if self.has_new_model:
             return TrainingStateData(confusion_matrix={})
         return None
@@ -79,11 +79,11 @@ class TestingTrainerLogic(TrainerLogic):
             f.write('zweiundvierzig')
         return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
-    def can_resume(self) -> bool:
+    def _can_resume(self) -> bool:
         return self._can_resume
 
-    async def resume(self) -> None:
-        return await self.start_training()
+    async def _resume(self) -> None:
+        return await self._start_training_from_base_model()
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
         detections: List[Detections] = []
@@ -92,5 +92,5 @@ class TestingTrainerLogic(TrainerLogic):
     async def _clear_training_data(self, training_folder: str) -> None:
         return
 
-    def get_executor_error_from_log(self) -> Optional[str]:
+    def _get_executor_error_from_log(self) -> Optional[str]:
         return self.error_msg

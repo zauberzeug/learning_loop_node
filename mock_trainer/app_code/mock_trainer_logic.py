@@ -23,23 +23,23 @@ class MockTrainerLogic(TrainerLogic):
         self.current_iteration = 0
         self.provide_new_model = True
 
-    def can_resume(self) -> bool:
+    def _can_resume(self) -> bool:
         return False
 
-    async def resume(self) -> None:
+    async def _resume(self) -> None:
         pass
 
-    async def start_training(self) -> None:
+    async def _start_training_from_base_model(self) -> None:
         self.current_iteration = 0
         if self.error_configuration.begin_training:
             raise Exception('Could not start training')
         self.executor.start('while true; do sleep 1; done')
 
-    async def start_training_from_scratch(self) -> None:
+    async def _start_training_from_scratch(self) -> None:
         self.current_iteration = 0
         self.executor.start('while true; do sleep 1; done')
 
-    def get_executor_error_from_log(self) -> Optional[str]:
+    def _get_executor_error_from_log(self) -> Optional[str]:
         if self.error_configuration.crash_training:
             return 'mocked crash'
         return None
@@ -108,7 +108,7 @@ class MockTrainerLogic(TrainerLogic):
         print(f'prog. is {self.current_iteration} / {self.max_iterations} = {self.current_iteration / self.max_iterations}')
         return self.current_iteration / self.max_iterations
 
-    def _get_new_best_model(self) -> Optional[TrainingStateData]:
+    def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
         logging.warning('get_new_model called')
         if self.error_configuration.get_new_model:
             raise Exception('Could not get new model')

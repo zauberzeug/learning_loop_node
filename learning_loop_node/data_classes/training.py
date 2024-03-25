@@ -3,6 +3,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Optional
 
 # pylint: disable=no-name-in-module
@@ -106,12 +107,17 @@ class Training():
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
     start_time: float = field(default_factory=time.time)
 
-    base_model_id: Optional[str] = None  # model uuid to download (to continue training)
+    # model uuid to download (to continue training) | is '' when training from scratch
+    base_model_id: Optional[str] = None
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
     training_state: Optional[str] = None
     model_id_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
+
+    @property
+    def training_folder_path(self) -> Path:
+        return Path(self.training_folder)
 
     def set_values_from_data(self, data: Dict) -> None:
         self.data = TrainingData(categories=Category.from_list(data['categories']))
@@ -132,8 +138,8 @@ class TrainingOut():
 
 @dataclass(**KWONLY_SLOTS)
 class TrainingStateData():
-    confusion_matrix: Optional[Dict] = None  # This is actually just class-wise metrics
-    meta_information: Optional[Dict] = None
+    confusion_matrix: Dict = field(default_factory=dict)
+    meta_information: Dict = field(default_factory=dict)
 
 
 @dataclass(**KWONLY_SLOTS)

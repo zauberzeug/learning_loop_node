@@ -37,7 +37,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainerLog
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
-    await condition(lambda: trainer._executor and trainer._executor.is_process_running(), timeout=1, interval=0.01)
+    await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     assert trainer.start_training_task is not None
     assert trainer.start_training_task.__name__ == 'start_training'
@@ -59,7 +59,7 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
-    await condition(lambda: trainer._executor and trainer._executor.is_process_running(), timeout=1, interval=0.01)
+    await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     assert trainer.start_training_task is not None
     assert trainer.start_training_task.__name__ == 'resume'

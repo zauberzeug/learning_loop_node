@@ -293,17 +293,17 @@ class TrainerLogicGeneric(ABC):
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
         The downloaded model.json file is renamed to base_model.json because a new model.json will be created during training.
         """
-        model_id = self.training.base_model_id
+        base_model_id = self.training.base_model_id
         # TODO this checks if we continue a training -> make more explicit
-        if model_id and is_valid_uuid4(self.training.base_model_id):
+        if base_model_id and is_valid_uuid4(self.training.base_model_id):
             logging.info('loading model from Learning Loop')
-            logging.info(f'downloading model {model_id} as {self.model_format}')
-            await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, model_id, self.model_format)
+            logging.info(f'downloading model {base_model_id} as {self.model_format}')
+            await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_id, self.model_format)
             shutil.move(f'{self.training.training_folder}/model.json',
                         f'{self.training.training_folder}/base_model.json')
         else:
             logging.info(
-                f'base_model_id {model_id} is not a valid uuid4 (or no base model was not provided), skipping download')
+                f'base_model_id {base_model_id} is not a valid uuid4 (or no base model was not provided), skipping download')
 
     async def _sync_confusion_matrix(self) -> None:
         """Syncronizes the confusion matrix with the Learning Loop via the update_training endpoint.
@@ -311,7 +311,7 @@ class TrainerLogicGeneric(ABC):
         """
         error_key = 'sync_confusion_matrix'
         try:
-            new_best_model = self._get_new_best_model()
+            new_best_model = self._get_new_best_training_state()
             if new_best_model and self.training.data:
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            confusion_matrix=new_best_model.confusion_matrix,
@@ -441,15 +441,15 @@ class TrainerLogicGeneric(ABC):
 
     @abstractmethod
     async def _do_detections(self) -> None:
-        """Should be used to execute detections.
+        """Should be used to infer detections of all images and save them to drive.
         active_training_io.save_detections(...) should be used to store the detections.
         asyncio.CancelledError should be catched and re-raised.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def _get_new_best_model(self) -> Optional[TrainingStateData]:
-        """Is called frequently in `_sync_confusion_matrix` to check if a new "best" model is availabe.
+    def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
+        """Is called frequently by `_sync_confusion_matrix` to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise TrainingStateData(confusion_matrix, meta_information).
         `confusion_matrix` contains a dict of all classes:
             - The classes must be identified by their id, not their name.
@@ -461,6 +461,8 @@ class TrainerLogicGeneric(ABC):
     @abstractmethod
     def _on_metrics_published(self, training_state_data: TrainingStateData) -> None:
         """Called after the metrics corresponding to TrainingStateData have been successfully send to the Learning Loop.
+        Receives the TrainingStateData object which was returned by self._get_new_best_training_state. 
+        If above function returns None, this function is not called.
         The respective files for this model should be stored so they can be later uploaded in get_latest_model_files.
         """
         raise NotImplementedError
@@ -468,7 +470,7 @@ class TrainerLogicGeneric(ABC):
     @abstractmethod
     def _get_latest_model_files(self) -> Optional[Union[List[str], Dict[str, List[str]]]]:
         """Called when the Learning Loop requests to backup the latest model for the training.
-        This function is used to gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
+        This function is used to generate and gather all files needed for transfering the actual data from the trainer node to the Learning Loop.
         In the simplest implementation this method just renames the weight file (e.g. stored in TrainingStateData.meta_information) into a file name like latest_published_model
         Should return a list of file paths which describe the model.
         These files must contain all data neccessary for the trainer to resume a training (eg. weight file, hyperparameters, etc.)

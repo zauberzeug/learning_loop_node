@@ -30,7 +30,7 @@ async def test_get_model_files(setup_test_project2):
 
 async def test_get_new_model(setup_test_project2):
     mock_trainer = await create_mock_trainer()
-    await mock_trainer.start_training()
+    await mock_trainer._start_training_from_base_model()
 
     model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
@@ -41,5 +41,5 @@ async def test_get_new_model(setup_test_project2):
         images_folder="",
         training_folder="",)
     mock_trainer.training.data = TrainingData(image_data=[], categories=[])
-    model = mock_trainer._get_new_best_model()
+    model = mock_trainer._get_new_best_training_state()
     assert model is not None

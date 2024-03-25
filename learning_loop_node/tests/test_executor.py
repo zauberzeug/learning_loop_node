@@ -32,7 +32,7 @@ def test_executor_lifecycle():
 
     executor.start(cmd)
 
-    assert executor.is_process_running()
+    assert executor.is_running()
     assert_process_is_running('some_executable.sh')
 
     sleep(1)
@@ -40,7 +40,7 @@ def test_executor_lifecycle():
 
     executor.stop()
 
-    assert not executor.is_process_running()
+    assert not executor.is_running()
     sleep(1)
     assert_process_is_running('some_executable.sh', False)
 

@@ -97,7 +97,7 @@ async def add_steps(request: Request):
 
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
 
-    if not trainer_logic._executor or not trainer_logic._executor.is_process_running():  # pylint: disable=protected-access
+    if not trainer_logic._executor or not trainer_logic._executor.is_running():  # pylint: disable=protected-access
         training = trainer_logic._training  # pylint: disable=protected-access
         logging.error(f'cannot add steps when not running, state: {training.training_state if training else "None"}')
         raise HTTPException(status_code=409, detail="trainer is not running")
@@ -126,7 +126,7 @@ async def kill_process(request: Request):
     trainer_node = trainer_node_from_request(request)
     trainer_logic = trainer_node.trainer_logic
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
-    if not trainer_logic._executor or not trainer_logic._executor.is_process_running():
+    if not trainer_logic._executor or not trainer_logic._executor.is_running():
         raise HTTPException(status_code=409, detail="trainer is not running")
     trainer_logic._executor.stop()
 

@@ -28,33 +28,33 @@ class Executor:
     def __init__(self, base_path: str) -> None:
         self.path = base_path
         os.makedirs(self.path, exist_ok=True)
-        self.process: Optional[subprocess.Popen[bytes]] = None
+        self._process: Optional[subprocess.Popen[bytes]] = None
 
-    def start(self, cmd: str):
+    def start(self, cmd: str) -> None:
         with open(f'{self.path}/last_training.log', 'a') as f:
             f.write(f'\nStarting executor with command: {cmd}\n')
+
         # pylint: disable=subprocess-popen-preexec-fn
-        self.process = subprocess.Popen(
+        self._process = subprocess.Popen(
             f'cd {self.path}; {cmd} >> last_training.log 2>&1',
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             executable='/bin/bash',
-            preexec_fn=create_signal_handler(),
-        )
+            preexec_fn=create_signal_handler())
 
-    def is_process_running(self):
-        if self.process is None:
+    def is_running(self) -> bool:
+        if self._process is None:
             return False
 
-        if self.process.poll() is not None:
+        if self._process.poll() is not None:
             return False
 
         try:
-            psutil.Process(self.process.pid)
+            psutil.Process(self._process.pid)
         except psutil.NoSuchProcess:
             # self.process.terminate() # TODO does this make sense?
-            # self.process = None
+            self._process = None
             return False
 
         return True
@@ -82,24 +82,24 @@ class Executor:
             return []
 
     def stop(self):
-        if self.process is None:
+        if self._process is None:
             logging.info('no process running ... nothing to stop')
             return
 
         logging.info('terminating process')
 
         try:
-            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
+            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
         except ProcessLookupError:
             pass
 
-        self.process.terminate()
-        _, _ = self.process.communicate(timeout=3)
+        self._process.terminate()
+        _, _ = self._process.communicate(timeout=3)
 
     @property
     def return_code(self):
-        if not self.process:
+        if not self._process:
             return None
-        if self.is_process_running():
+        if self.is_running():
             return None
-        return self.process.poll()
+        return self._process.poll()
