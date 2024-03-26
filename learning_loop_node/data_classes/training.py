@@ -112,7 +112,7 @@ class Training():
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
     training_state: Optional[str] = None
-    model_id_for_detecting: Optional[str] = None
+    model_uuid_for_detecting: Optional[str] = None
     hyperparameters: Optional[Dict] = None
 
     @property

@@ -30,7 +30,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
 
     assert trainer_has_error(trainer) is False
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
-    assert trainer.training.model_id_for_detecting is not None
+    assert trainer.training.model_uuid_for_detecting is not None
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -68,7 +68,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 
     assert trainer_has_error(trainer)
     assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
-    assert trainer.training.model_id_for_detecting is None
+    assert trainer.training.model_uuid_for_detecting is None
     assert trainer.node.last_training_io.load() == trainer.training
 
 

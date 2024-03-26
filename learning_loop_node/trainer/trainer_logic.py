@@ -18,10 +18,10 @@ from .trainer_logic_generic import TrainerLogicGeneric
 class TrainerLogic(TrainerLogicGeneric):
 
     def __init__(self, model_format: str) -> None:
+        """This class is the base class for all trainers that use an executor to run training processes.
+        The executor is used to run the training process in a separate process."""
+
         super().__init__(model_format)
-        self.model_format: str = model_format
-        # NOTE: String to be used in the file path for the model on the server:
-        # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
         self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
         self.start_training_task: Optional[Coroutine] = None
@@ -49,9 +49,10 @@ class TrainerLogic(TrainerLogicGeneric):
 
         try:
             await self._start_training()
-
             last_sync_time = datetime.now()
+
             while True:
+                await asyncio.sleep(0.1)
                 if not self.executor.is_running():
                     break
                 if (datetime.now() - last_sync_time).total_seconds() > 5:
@@ -65,19 +66,16 @@ class TrainerLogic(TrainerLogicGeneric):
                         logging.warning('CancelledError in run_training')
                         raise
                     except Exception:
-                        pass
-                else:
-                    await asyncio.sleep(0.1)
+                        logging.error('Error in sync_confusion_matrix (this error is ignored)')
 
-            error = self._get_executor_error_from_log()
-            if error:
+            if error := self._get_executor_error_from_log():
                 raise TrainingError(cause=error)
 
             if self.executor.return_code != 0:  # TODO check if this works to catch errors from the executor:
                 raise TrainingError(cause=f'Executor returned with error code: {self.executor.return_code}')
 
         except TrainingError:
-            logging.exception('Error in TrainingProcess')
+            logging.exception('Exception in trainer_logic._train')
             if self.executor.is_running():
                 self.executor.stop()
             self.training.training_state = previous_state
@@ -85,7 +83,7 @@ class TrainerLogic(TrainerLogicGeneric):
 
     async def _do_detections(self) -> None:
         context = self.training.context
-        model_id = self.training.model_id_for_detecting
+        model_id = self.training.model_uuid_for_detecting
         assert model_id, 'model_id must be set'
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
 

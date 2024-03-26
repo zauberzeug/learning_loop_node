@@ -340,12 +340,12 @@ class TrainerLogicGeneric(ABC):
     async def _upload_model(self) -> None:
         """Uploads the latest model to the Learning Loop.
         """
-        new_model_id = await self._upload_model_return_new_model_uuid(self.training.context)
-        if new_model_id is None:
+        new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
+        if new_model_uuid is None:
             self.training.training_state = TrainerState.ReadyForCleanup
             logging.error('could not upload model - maybe training failed.. cleaning up')
-        logging.info(f'Successfully uploaded model and received new model id: {new_model_id}')
-        self.training.model_id_for_detecting = new_model_id
+        logging.info(f'Successfully uploaded model and received new model id: {new_model_uuid}')
+        self.training.model_uuid_for_detecting = new_model_uuid
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.

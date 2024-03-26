@@ -35,7 +35,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):
 
     project_folder = create_project_folder(context)
     training = generate_training(project_folder, context)
-    training.model_id_for_detecting = latest_model_id
+    training.model_uuid_for_detecting = latest_model_id
     trainer._training = training
     await trainer._do_detections()
     detections = trainer.active_training_io.load_detections()
