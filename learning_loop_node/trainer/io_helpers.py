@@ -147,7 +147,8 @@ class ActiveTrainingIO:
         num_files = self.get_number_of_detection_files()
         print(f'num_files: {num_files}', flush=True)
         if not num_files:
-            raise Exception('no detection files found')
+            logging.error('no detection files found')
+            return
         current_json_file_index = self.load_detections_upload_file_index()
         for i in range(current_json_file_index, num_files):
             detections = self.load_detections(i)

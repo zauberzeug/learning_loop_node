@@ -85,7 +85,9 @@ class TrainerLogic(TrainerLogicGeneric):
     async def _do_detections(self) -> None:
         context = self.training.context
         model_id = self.training.model_uuid_for_detecting
-        assert model_id, 'model_id must be set'
+        if not model_id:
+            logging.error('model_id is not set! Cannot do detections.')
+            return
         tmp_folder = f'/tmp/model_for_auto_detections_{model_id}_{self.model_format}'
 
         shutil.rmtree(tmp_folder, ignore_errors=True)
