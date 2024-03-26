@@ -50,7 +50,7 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogi
 async def test_downloading_failed(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.DataDownloaded,
-                                base_model_id='00000000-0000-0000-0000-000000000000')  # bad model id)
+                                base_model_uuid_or_name='00000000-0000-0000-0000-000000000000')  # bad model id)
     trainer._init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer._run())

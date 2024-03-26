@@ -152,6 +152,8 @@ def ensure_socket_response(func):
 
 
 def is_valid_uuid4(val):
+    if not val:
+        return False
     try:
         _ = UUID(str(val)).version
         return True

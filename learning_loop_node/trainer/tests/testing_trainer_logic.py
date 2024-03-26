@@ -36,9 +36,8 @@ class TestingTrainerLogic(TrainerLogic):
         self._executor.start('while true; do sleep 1; done')
 
     async def _start_training_from_scratch(self) -> None:
-        base_model_id = self.training.base_model_uuid_or_name
-        assert base_model_id is not None
-        await self._start_training_from_base_model(model=f'model_{base_model_id}.pt')
+        assert self.training.base_model_uuid_or_name is not None, 'base_model_uuid_or_name must be set'
+        await self._start_training_from_base_model(model=f'model_{self.training.base_model_uuid_or_name}.pt')
 
     def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
         if self.has_new_model:

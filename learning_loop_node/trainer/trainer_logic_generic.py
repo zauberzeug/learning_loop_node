@@ -157,7 +157,9 @@ class TrainerLogicGeneric(ABC):
     @property
     @abstractmethod
     def provided_pretrained_models(self) -> List[PretrainedModel]:
-        """Returns the list of provided pretrained models"""
+        """Returns the list of provided pretrained models.
+        The names of the models will come back as model_uuid_or_name in the training details.
+        """
         raise NotImplementedError
 
     # ---------------------------------------- METHODS ----------------------------------------
@@ -294,16 +296,16 @@ class TrainerLogicGeneric(ABC):
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
         The downloaded model.json file is renamed to base_model.json because a new model.json will be created during training.
         """
-        base_model_id = self.training.base_model_uuid_or_name
+        base_model_uuid = self.training.base_model_uuid_or_name
 
         # TODO this checks if we continue a training -> make more explicit
-        if not base_model_id or not is_valid_uuid4(base_model_id):
-            logging.info(f'skipping model download. No base model id provided: {base_model_id}')
+        if not is_valid_uuid4(base_model_uuid):
+            logging.info(f'skipping model download. No base model provided (in form of uuid): {base_model_uuid}')
             return
 
         logging.info('loading model from Learning Loop')
-        logging.info(f'downloading model {base_model_id} as {self.model_format}')
-        await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_id, self.model_format)
+        logging.info(f'downloading model {base_model_uuid} as {self.model_format}')
+        await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_uuid, self.model_format)
         shutil.move(f'{self.training.training_folder}/model.json',
                     f'{self.training.training_folder}/base_model.json')
 
