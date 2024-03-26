@@ -36,7 +36,7 @@ class TestingTrainerLogic(TrainerLogic):
         self._executor.start('while true; do sleep 1; done')
 
     async def _start_training_from_scratch(self) -> None:
-        base_model_id = self.training.base_model_id
+        base_model_id = self.training.base_model_uuid_or_name
         assert base_model_id is not None
         await self._start_training_from_base_model(model=f'model_{base_model_id}.pt')
 

@@ -107,8 +107,9 @@ class Training():
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
     start_time: float = field(default_factory=time.time)
 
-    # model uuid to download (to continue training) | is not a uuid when training from scratch (blank or pt-name ?!)
-    base_model_id: Optional[str] = None
+    # model uuid to download (to continue training) | is not a uuid when training from scratch (blank or pt-name from provided_pretrained_models->name)
+    base_model_uuid_or_name: Optional[str] = None
+
     data: Optional[TrainingData] = None
     training_number: Optional[int] = None
     training_state: Optional[str] = None
@@ -123,7 +124,7 @@ class Training():
         self.data = TrainingData(categories=Category.from_list(data['categories']))
         self.data.hyperparameter = Hyperparameter.from_data(data=data)
         self.training_number = data['training_number']
-        self.base_model_id = data['id']
+        self.base_model_uuid_or_name = data['id']
         self.training_state = TrainerState.Initialized
 
 

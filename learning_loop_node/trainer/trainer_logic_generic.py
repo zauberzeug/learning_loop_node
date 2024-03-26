@@ -294,7 +294,7 @@ class TrainerLogicGeneric(ABC):
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
         The downloaded model.json file is renamed to base_model.json because a new model.json will be created during training.
         """
-        base_model_id = self.training.base_model_id
+        base_model_id = self.training.base_model_uuid_or_name
 
         # TODO this checks if we continue a training -> make more explicit
         if not base_model_id or not is_valid_uuid4(base_model_id):
