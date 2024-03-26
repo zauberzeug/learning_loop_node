@@ -456,7 +456,7 @@ class TrainerLogicGeneric(ABC):
         """Is called frequently by `_sync_confusion_matrix` to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise TrainingStateData(confusion_matrix, meta_information).
         `confusion_matrix` contains a dict of all classes:
-            - The classes must be identified by their id, not their name.
+            - The classes must be identified by their uuid, not their name.
             - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
         `meta_information` can hold any data which is helpful for self._on_metrics_published to store weight file etc for later upload via self.get_model_files
         """
