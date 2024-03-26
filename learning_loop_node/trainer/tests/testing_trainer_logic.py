@@ -11,7 +11,7 @@ class TestingTrainerLogic(TrainerLogic):
 
     def __init__(self, can_resume: bool = False) -> None:
         super().__init__('mocked')
-        self._can_resume: bool = can_resume
+        self._can_resume_flag: bool = can_resume
         self.has_new_model: bool = False
         self.error_msg: Optional[str] = None
 
@@ -68,7 +68,7 @@ class TestingTrainerLogic(TrainerLogic):
         assert isinstance(result, str)
         return result
 
-    def _get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+    def _get_latest_model_files(self) -> Dict[str, List[str]]:
         time.sleep(1)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
         fake_weight_file = '/tmp/weightfile.weights'
         with open(fake_weight_file, 'wb') as f:
@@ -80,7 +80,7 @@ class TestingTrainerLogic(TrainerLogic):
         return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
     def _can_resume(self) -> bool:
-        return self._can_resume
+        return self._can_resume_flag
 
     async def _resume(self) -> None:
         return await self._start_training_from_base_model()

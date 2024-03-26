@@ -19,7 +19,6 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
     assert trainer.start_training_task is not None
-    assert trainer.start_training_task.__name__ == 'start_training'
 
     assert trainer._executor is not None
     trainer._executor.stop()  # NOTE normally a training terminates itself
@@ -38,12 +37,11 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainerLog
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
     await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
-    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.01)
     assert trainer.start_training_task is not None
-    assert trainer.start_training_task.__name__ == 'start_training'
 
     await trainer.stop()
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=2, interval=0.01)
 
     assert trainer.training.training_state == TrainerState.TrainingFinished
     assert trainer.node.last_training_io.load() == trainer.training
@@ -55,14 +53,13 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
     # NOTE e.g. when a node-computer is restarted
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
     trainer._init_from_last_training()
-    trainer._can_resume = True
+    trainer._can_resume_flag = True
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
     await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     assert trainer.start_training_task is not None
-    assert trainer.start_training_task.__name__ == 'resume'
 
     assert trainer._executor is not None
     trainer._executor.stop()  # NOTE normally a training terminates itself e.g

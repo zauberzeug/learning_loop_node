@@ -71,8 +71,9 @@ class TrainerLogic(TrainerLogicGeneric):
             if error := self._get_executor_error_from_log():
                 raise TrainingError(cause=error)
 
-            if self.executor.return_code != 0:  # TODO check if this works to catch errors from the executor:
-                raise TrainingError(cause=f'Executor returned with error code: {self.executor.return_code}')
+            # NOTE: This is problematic, because the return code is not 0 when executor was stoppen e.g. via self.stop()
+            # if self.executor.return_code != 0:
+            #     raise TrainingError(cause=f'Executor returned with error code: {self.executor.return_code}')
 
         except TrainingError:
             logging.exception('Exception in trainer_logic._train')
@@ -139,6 +140,8 @@ class TrainerLogic(TrainerLogicGeneric):
 
     async def stop(self) -> None:
         """If executor is running, stop it. Else cancel training task."""
+        print('===============> stop received in trainer_logic.', flush=True)
+
         if not self.training_active:
             return
         if self._executor and self._executor.is_running():
