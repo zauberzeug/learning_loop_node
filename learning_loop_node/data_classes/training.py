@@ -94,7 +94,7 @@ class TrainingStatus():
         cntxt = f'{self.context.organization}/{self.context.project}' if self.context else ''
         hyps = f'({self.hyperparameters})' if self.hyperparameters else ''
         arch = f'.{self.architecture} - ' if self.architecture else ''
-        return f'[{str(self.state)} {prgr}. {self.name}({self.id}). Tr/Ts/Tsk: {trtesk} {cntxt}{arch}{hyps}]'
+        return f'[{str(self.state).rsplit(".", maxsplit=1)[-1]} {prgr}. {self.name}({self.id}). Tr/Ts/Tsk: {trtesk} {cntxt}{arch}{hyps}]'
 
 
 @dataclass(**KWONLY_SLOTS)

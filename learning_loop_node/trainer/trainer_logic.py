@@ -122,7 +122,6 @@ class TrainerLogic(TrainerLogicGeneric):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)
-            break
 
     # ---------------------------------------- METHODS ----------------------------------------
 
