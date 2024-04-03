@@ -1,6 +1,8 @@
 import asyncio
 import re
 
+import pytest
+
 from learning_loop_node.data_classes import TrainerState
 from learning_loop_node.trainer.tests.state_helper import assert_training_state, create_active_training_file
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
@@ -19,6 +21,7 @@ async def test_training_process_is_stopped_when_trainer_reports_error(test_initi
     await assert_training_state(trainer.training, TrainerState.TrainModelDownloaded, timeout=6, interval=0.001)
 
 
+@pytest.mark.skip(reason='The since_last_start flag is deprecated.')
 async def test_log_can_provide_only_data_for_current_run(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
@@ -39,4 +42,4 @@ async def test_log_can_provide_only_data_for_current_run(test_initialized_traine
 
     assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines()))) > 1
     # Here only the current run is provided
-    assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines(since_last_start=True)))) == 1
+    # assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines(since_last_start=True)))) == 1

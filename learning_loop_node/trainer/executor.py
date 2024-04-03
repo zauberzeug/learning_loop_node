@@ -19,7 +19,6 @@ class Executor:
         self.log_file: None | BufferedWriter = None
         self._process: Optional[asyncio.subprocess.Process] = None  # pylint: disable=no-member
         os.makedirs(self.path, exist_ok=True)
-        return None
 
     def _get_running_process(self) -> Optional[asyncio.subprocess.Process]:  # pylint: disable=no-member
         """Get the running process if available."""

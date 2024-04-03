@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from learning_loop_node.data_classes import Context, Detections, ModelInformation, PretrainedModel, TrainingStateData
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
