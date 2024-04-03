@@ -6,7 +6,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
 
@@ -327,12 +327,10 @@ class TrainerLogicGeneric(ABC):
                 result = await self.node.sio_client.call('update_training', (
                     self.training.context.organization, self.training.context.project, jsonable_encoder(new_training)))
                 if isinstance(result,  dict) and result['success']:
-                    logging.info(
-                        f'successfully updated training {asdict(new_training)}')
+                    logging.info(f'successfully updated training {asdict(new_training)}')
                     self._on_metrics_published(new_best_model)
                 else:
-                    raise Exception(
-                        f'Error for update_training: Response from loop was : {result}')
+                    raise Exception(f'Error for update_training: Response from loop was : {result}')
         except Exception as e:
             logging.exception('Error during confusion matrix syncronization')
             self.errors.set(error_key, str(e))
@@ -353,10 +351,9 @@ class TrainerLogicGeneric(ABC):
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
-        Note that trainer may train with different classes, which is why we send an initial model.json file.
-        """
-        # NOTE: I guess this is in executor because originally the conversion happened here..
-        files = await asyncio.get_running_loop().run_in_executor(None, self._get_latest_model_files)
+        Note that trainer may train with different classes, which is why we send an initial model.json file."""
+
+        files = await self._get_latest_model_files()
         if files is None:
             return None
 
@@ -472,7 +469,7 @@ class TrainerLogicGeneric(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def _get_latest_model_files(self) -> Dict[str, List[str]]:
+    async def _get_latest_model_files(self) -> Dict[str, List[str]]:
         """Called when the Learning Loop requests to backup the latest model for the training.
         This function is used to __generate and gather__ all files needed for transfering the actual data from the trainer node to the Learning Loop.
         In the simplest implementation this method just renames the weight file (e.g. stored in TrainingStateData.meta_information) into a file name like latest_published_model
