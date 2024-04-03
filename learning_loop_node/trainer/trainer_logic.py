@@ -77,8 +77,7 @@ class TrainerLogic(TrainerLogicGeneric):
 
         except TrainingError:
             logging.exception('Exception in trainer_logic._train')
-            if self.executor.is_running():
-                self.executor.stop()
+            await self.executor.stop_and_wait()
             self.training.training_state = previous_state
             raise
 
@@ -123,6 +122,7 @@ class TrainerLogic(TrainerLogicGeneric):
             batch_images = images[i:i+batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)
+            break
 
     # ---------------------------------------- METHODS ----------------------------------------
 
@@ -147,7 +147,7 @@ class TrainerLogic(TrainerLogicGeneric):
         if not self.training_active:
             return
         if self._executor and self._executor.is_running():
-            self.executor.stop()
+            await self.executor.stop_and_wait()
         elif self.training_task:
             logging.info('cancelling training task')
             if self.training_task.cancel():
