@@ -66,7 +66,7 @@ class TestingTrainerLogic(TrainerLogic):
         assert isinstance(result, str)
         return result
 
-    def _get_latest_model_files(self) -> Dict[str, List[str]]:
+    async def _get_latest_model_files(self) -> Dict[str, List[str]]:
         time.sleep(1)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
         fake_weight_file = '/tmp/weightfile.weights'
         with open(fake_weight_file, 'wb') as f:
