@@ -24,6 +24,7 @@ class LoopCommunicator():
         self.project: str = environment_reader.project()  # used by mock_detector
         self.base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
         self.async_client: httpx.AsyncClient = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
+        self.async_client.cookies.clear()
 
         logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
 
