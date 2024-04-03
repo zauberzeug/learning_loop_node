@@ -128,7 +128,7 @@ async def kill_process(request: Request):
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
     if not trainer_logic._executor or not trainer_logic._executor.is_running():
         raise HTTPException(status_code=409, detail="trainer is not running")
-    trainer_logic._executor.stop()
+    await trainer_logic._executor.stop_and_wait()
 
 
 @router.post("/force_status_update")
