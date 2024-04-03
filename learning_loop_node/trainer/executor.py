@@ -1,106 +1,91 @@
-
-import ctypes
+import asyncio
 import logging
 import os
-import signal
-import subprocess
-from sys import platform
+import shlex
+from io import BufferedWriter
 from typing import List, Optional
-
-import psutil
-
-
-def create_signal_handler(sig=signal.SIGTERM):
-    if platform in ('linux', 'linux2'):
-        # "The system will send a signal to the child once the parent exits for any reason (even sigkill)."
-        # https://stackoverflow.com/a/19448096
-        libc = ctypes.CDLL("libc.so.6")
-
-        def callable_():
-            os.setsid()
-            return libc.prctl(1, sig)
-
-        return callable_
-    return os.setsid
 
 
 class Executor:
-    def __init__(self, base_path: str) -> None:
+    def __init__(self, base_path: str, log_name='last_training.log') -> None:
+        """An executor that runs a command in a separate async subprocess.
+        The log of the process is written to 'last_training.log' in the base_path.
+        Tthe process is executed in the base_path directory.
+        The process should be awaited to finish using `wait` or stopped using `stop` to 
+        avoid zombie processes and close the log file."""
+
         self.path = base_path
+        self.log_file_path = f'{self.path}/{log_name}'
+        self.log_file: None | BufferedWriter = None
+        self._process: Optional[asyncio.subprocess.Process] = None  # pylint: disable=no-member
         os.makedirs(self.path, exist_ok=True)
-        self._process: Optional[subprocess.Popen[bytes]] = None
 
-    def start(self, cmd: str) -> None:
-        logging.info(f'Starting executor with command: {cmd}')
-        with open(f'{self.path}/last_training.log', 'a') as f:
-            f.write(f'\nStarting executor with command: {cmd}\n')
+    async def start(self, cmd: str, env: Optional[dict[str, str]] = None) -> None:
+        """Start the process with the given command and environment variables."""
 
-        # pylint: disable=subprocess-popen-preexec-fn
-        self._process = subprocess.Popen(
-            f'cd {self.path}; {cmd} >> last_training.log 2>&1',
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            executable='/bin/bash',
-            preexec_fn=create_signal_handler())
+        full_env = os.environ.copy()
+        if env is not None:
+            full_env.update(env)
+
+        logging.info(f'Starting executor with command: {cmd} in {self.path} - logging to {self.log_file_path}')
+        self.log_file = open(self.log_file_path, 'ab')
+
+        self._process = await asyncio.create_subprocess_exec(
+            *shlex.split(cmd),
+            cwd=self.path,
+            stdout=self.log_file,
+            stderr=asyncio.subprocess.STDOUT,  # Merge stderr with stdout
+            env=full_env
+        )
 
     def is_running(self) -> bool:
-        if self._process is None:
-            return False
-
-        if self._process.poll() is not None:
-            return False
-
-        try:
-            psutil.Process(self._process.pid)
-        except psutil.NoSuchProcess:
-            # self.process.terminate() # TODO does this make sense?
-            self._process = None
-            return False
-
-        return True
+        """Check if the process is still running."""
+        return self._process is not None and self._process.returncode is None
 
     def get_log(self) -> str:
-        try:
-            with open(f'{self.path}/last_training.log') as f:
-                return f.read()
-        except Exception:
+        """Get the log of the process as a string."""
+        if not os.path.exists(self.log_file_path):
             return ''
+        with open(self.log_file_path, 'r') as f:
+            return f.read()
 
-    def get_log_by_lines(self, since_last_start=False) -> List[str]:  # TODO do not read whole log again
-        try:
-            with open(f'{self.path}/last_training.log') as f:
-                lines = f.readlines()
-            if since_last_start:
-                lines_since_last_start = []
-                for line in reversed(lines):
-                    lines_since_last_start.append(line)
-                    if line.startswith('Starting executor with command:'):
-                        break
-                return list(reversed(lines_since_last_start))
-            return lines
-        except Exception:
+    def get_log_by_lines(self, tail: Optional[int] = None) -> List[str]:
+        """Get the log of the process as a list of lines."""
+        if not os.path.exists(self.log_file_path):
             return []
+        with open(self.log_file_path) as f:
+            lines = f.readlines()
+        if tail is not None:
+            lines = lines[-tail:]
+        return lines
 
-    def stop(self):
+    def close_log(self):
+        """Close the log file."""
+        if self.log_file is not None:
+            self.log_file.close()
+            self.log_file = None
+
+    async def wait(self) -> Optional[int]:
+        """Wait for the process to finish. Returns the return code of the process."""
+
+        if not self._process:
+            logging.info('No process started... nothing to wait for')
+            return None
+        return_code = await self._process.wait()
+        self.close_log()
+        return return_code
+
+    async def stop(self) -> Optional[int]:
+        """Stop the process and wait for it to finish. Returns the return code of the process."""
+
         if self._process is None:
-            logging.info('no process running ... nothing to stop')
-            return
-
-        logging.info('terminating process')
+            logging.info('No process started... nothing to stop')
+            return None
 
         try:
-            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
+            self._process.terminate()
         except ProcessLookupError:
-            pass
-
-        self._process.terminate()
-        _, _ = self._process.communicate(timeout=3)
-
-    @property
-    def return_code(self):
-        if not self._process:
+            logging.info('Process not found... nothing to stop')
             return None
-        if self.is_running():
-            return None
-        return self._process.poll()
+
+        return await self.wait()
