@@ -223,8 +223,7 @@ class DetectorNode(Node):
                     await self.data_exchanger.download_model(target_model_folder,
                                                              Context(organization=self.organization,
                                                                      project=self.project),
-                                                             update_to_model_id,
-                                                             self.detector_logic.model_format)
+                                                             update_to_model_id, self.detector_logic.model_format)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
