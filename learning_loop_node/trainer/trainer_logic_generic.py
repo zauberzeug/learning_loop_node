@@ -299,7 +299,7 @@ class TrainerLogicGeneric(ABC):
         base_model_uuid = self.training.base_model_uuid_or_name
 
         # TODO this checks if we continue a training -> make more explicit
-        if not is_valid_uuid4(base_model_uuid):
+        if not base_model_uuid or not is_valid_uuid4(base_model_uuid):
             logging.info(f'skipping model download. No base model provided (in form of uuid): {base_model_uuid}')
             return
 
