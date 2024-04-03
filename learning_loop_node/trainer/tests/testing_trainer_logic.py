@@ -25,15 +25,14 @@ class TestingTrainerLogic(TrainerLogic):
 
     @property
     def provided_pretrained_models(self) -> List[PretrainedModel]:
-        return [
-            PretrainedModel(name='small', label='Small', description='a small model'),
-            PretrainedModel(name='medium', label='Medium', description='a medium model'),
-            PretrainedModel(name='large', label='Large', description='a large model')]
+        return [PretrainedModel(name='small', label='Small', description='a small model'),
+                PretrainedModel(name='medium', label='Medium', description='a medium model'),
+                PretrainedModel(name='large', label='Large', description='a large model')]
 
     # pylint: disable=unused-argument
     async def _start_training_from_base_model(self, model: str = 'model.model') -> None:
         assert self._executor is not None
-        self._executor.start('while true; do sleep 1; done')
+        await self._executor.start('/bin/bash -c "while true; do sleep 1; done"')
 
     async def _start_training_from_scratch(self) -> None:
         assert self.training.base_model_uuid_or_name is not None, 'base_model_uuid_or_name must be set'

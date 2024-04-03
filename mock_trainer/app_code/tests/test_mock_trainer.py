@@ -13,7 +13,7 @@ from ..mock_trainer_logic import MockTrainerLogic
 
 async def create_mock_trainer() -> MockTrainerLogic:
     mock_trainer = MockTrainerLogic(model_format='mocked')
-    mock_trainer._executor = Executor(GLOBALS.data_folder)  # pylint: disable=protected-access
+    mock_trainer._executor = Executor(GLOBALS.data_folder)
     return mock_trainer
 
 

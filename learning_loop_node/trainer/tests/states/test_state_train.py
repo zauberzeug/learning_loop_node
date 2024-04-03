@@ -21,7 +21,7 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
     assert trainer.start_training_task is not None
 
     assert trainer._executor is not None
-    trainer._executor.stop()  # NOTE normally a training terminates itself
+    await trainer._executor.stop_and_wait()  # NOTE normally a training terminates itself
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
 
     assert trainer.training.training_state == TrainerState.TrainingFinished
@@ -62,7 +62,7 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
     assert trainer.start_training_task is not None
 
     assert trainer._executor is not None
-    trainer._executor.stop()  # NOTE normally a training terminates itself e.g
+    await trainer._executor.stop_and_wait()  # NOTE normally a training terminates itself e.g
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
 
     assert trainer.training.training_state == TrainerState.TrainingFinished

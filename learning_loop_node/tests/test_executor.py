@@ -21,16 +21,17 @@ def cleanup():
     cleanup_process.communicate()
 
 
-def test_executor_lifecycle():
+@pytest.mark.asyncio
+async def test_executor_lifecycle():
     assert_process_is_running('some_executable.sh', False)
 
     executor = Executor('/tmp/test_executor/' + str(uuid4()))
     cmd = executor.path + '/some_executable.sh'
     with open(cmd, 'w') as f:
-        f.write('while true; do echo "some output"; sleep 1; done')
+        f.write('/bin/bash -c "while true; do sleep 1; done"')
     os.chmod(cmd, 0o755)
 
-    executor.start(cmd)
+    await executor.start(cmd)
 
     assert executor.is_running()
     assert_process_is_running('some_executable.sh')
@@ -38,7 +39,7 @@ def test_executor_lifecycle():
     sleep(1)
     assert 'some output' in executor.get_log()
 
-    executor.stop()
+    await executor.stop_and_wait()
 
     assert not executor.is_running()
     sleep(1)

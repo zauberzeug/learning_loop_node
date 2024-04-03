@@ -33,11 +33,11 @@ class MockTrainerLogic(TrainerLogic):
         self.current_iteration = 0
         if self.error_configuration.begin_training:
             raise Exception('Could not start training')
-        self.executor.start('while true; do sleep 1; done')
+        await self.executor.start('/bin/bash -c "while true; do sleep 1; done"')
 
     async def _start_training_from_scratch(self) -> None:
         self.current_iteration = 0
-        self.executor.start('while true; do sleep 1; done')
+        await self.executor.start('/bin/bash -c "while true; do sleep 1; done"')
 
     def _get_executor_error_from_log(self) -> Optional[str]:
         if self.error_configuration.crash_training:
