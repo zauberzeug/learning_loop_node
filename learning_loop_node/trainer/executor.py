@@ -19,6 +19,13 @@ class Executor:
         self.log_file: None | BufferedWriter = None
         self._process: Optional[asyncio.subprocess.Process] = None  # pylint: disable=no-member
         os.makedirs(self.path, exist_ok=True)
+        return None
+
+    def _get_running_process(self) -> Optional[asyncio.subprocess.Process]:  # pylint: disable=no-member
+        """Get the running process if available."""
+        if self._process is not None and self._process.returncode is None:
+            return self._process
+        return None
 
     async def start(self, cmd: str, env: Optional[dict[str, str]] = None) -> None:
         """Start the process with the given command and environment variables."""
@@ -42,6 +49,43 @@ class Executor:
         """Check if the process is still running."""
         return self._process is not None and self._process.returncode is None
 
+    def terminate(self) -> None:
+        """Terminate the process."""
+
+        if process := self._get_running_process():
+            try:
+                process.terminate()
+                return
+            except ProcessLookupError:
+                logging.error('No process to terminate')
+        self._process = None
+
+    async def wait(self) -> Optional[int]:
+        """Wait for the process to finish. Returns the return code of the process or None if no process is running."""
+
+        if not self._process:
+            logging.info('No process to wait for')
+            return None
+
+        return_code = await self._process.wait()
+
+        self.close_log()
+        self._process = None
+
+        return return_code
+
+    async def stop_and_wait(self) -> Optional[int]:
+        """Terminate the process and wait for it to finish. Returns the return code of the process."""
+
+        if not self.is_running():
+            logging.info('No process to stop')
+            return None
+
+        self.terminate()
+        return await self.wait()
+
+    # -------------------------------------------------------------------------------------------- LOGGING
+
     def get_log(self) -> str:
         """Get the log of the process as a string."""
         if not os.path.exists(self.log_file_path):
@@ -64,28 +108,3 @@ class Executor:
         if self.log_file is not None:
             self.log_file.close()
             self.log_file = None
-
-    async def wait(self) -> Optional[int]:
-        """Wait for the process to finish. Returns the return code of the process."""
-
-        if not self._process:
-            logging.info('No process started... nothing to wait for')
-            return None
-        return_code = await self._process.wait()
-        self.close_log()
-        return return_code
-
-    async def stop(self) -> Optional[int]:
-        """Stop the process and wait for it to finish. Returns the return code of the process."""
-
-        if self._process is None:
-            logging.info('No process started... nothing to stop')
-            return None
-
-        try:
-            self._process.terminate()
-        except ProcessLookupError:
-            logging.info('Process not found... nothing to stop')
-            return None
-
-        return await self.wait()
