@@ -2,7 +2,7 @@
 import asyncio
 import logging
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from learning_loop_node.data_classes import (BoxDetection, CategoryType, ClassificationDetection, Detections,
                                              ErrorConfiguration, ModelInformation, Point, PointDetection,
@@ -44,7 +44,7 @@ class MockTrainerLogic(TrainerLogic):
             return 'mocked crash'
         return None
 
-    def _get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+    async def _get_latest_model_files(self) -> Dict[str, List[str]]:
         if self.error_configuration.save_model:
             raise Exception()
 
