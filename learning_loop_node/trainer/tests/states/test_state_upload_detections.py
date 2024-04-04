@@ -133,7 +133,9 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_other_errors(test_initialized_trainer: TestingTrainerLogic):
+async def test_go_to_cleanup_if_no_detections_exist(test_initialized_trainer: TestingTrainerLogic):
+    """This test simulates a situation where the detection file is missing.
+    In this case, the trainer should report an error and move to the ReadyForCleanup state."""
     trainer = test_initialized_trainer
 
     # e.g. missing detection file
@@ -141,12 +143,7 @@ async def test_other_errors(test_initialized_trainer: TestingTrainerLogic):
     trainer._init_from_last_training()
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
-    await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.Detected, timeout=1, interval=0.001)
-
-    assert trainer_has_error(trainer)
-    assert trainer.training.training_state == TrainerState.Detected
-    assert trainer.node.last_training_io.load() == trainer.training
+    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=1, interval=0.001)
 
 
 async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
