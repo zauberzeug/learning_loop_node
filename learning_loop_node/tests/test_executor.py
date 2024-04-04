@@ -25,10 +25,10 @@ def cleanup():
 async def test_executor_lifecycle():
     assert_process_is_running('some_executable.sh', False)
 
-    executor = Executor('/tmp/test_executor/' + str(uuid4()))
-    cmd = executor.path + '/some_executable.sh'
-    with open(cmd, 'w') as f:
-        f.write('/bin/bash -c "while true; do sleep 1; done"')
+    executor = Executor('/tmp/test_executor/' + str(uuid4())+'/')
+    cmd = 'bash some_executable.sh'
+    with open(executor.path+'some_executable.sh', 'w') as f:
+        f.write('/bin/bash -c "while true; do sleep 1; echo some output; done"')
     os.chmod(cmd, 0o755)
 
     await executor.start(cmd)
@@ -49,6 +49,7 @@ async def test_executor_lifecycle():
 def assert_process_is_running(process_name, running=True):
     if running:
         for process in psutil.process_iter():
+            print(process.name(), process.cmdline())
             process_name_match = process_name in process.name()
             process_cmd_match = process_name in str(process.cmdline())
             if process_name_match or process_cmd_match:
