@@ -25,6 +25,7 @@ class TrainerLogic(TrainerLogicGeneric):
         self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
         self.start_training_task: Optional[Coroutine] = None
+        self.inference_batch_size = 10
 
     # ---------------------------------------- IMPLEMENTED ABSTRACT PROPERTIES ----------------------------------------
 
@@ -116,10 +117,9 @@ class TrainerLogic(TrainerLogicGeneric):
             self.active_training_io.save_detections([], 0)
         num_images = len(images)
 
-        batch_size = 200
-        for idx, i in enumerate(range(0, num_images, batch_size)):
+        for idx, i in enumerate(range(0, num_images, self.inference_batch_size)):
             self._detection_progress = 0.5 + (i/num_images)*0.5
-            batch_images = images[i:i+batch_size]
+            batch_images = images[i:i+self.inference_batch_size]
             batch_detections = await self._detect(model_information, batch_images, tmp_folder)
             self.active_training_io.save_detections(batch_detections, idx)
 
