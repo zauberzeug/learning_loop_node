@@ -29,7 +29,7 @@ async def test_executor_lifecycle():
     cmd = 'bash some_executable.sh'
     with open(executor.path+'some_executable.sh', 'w') as f:
         f.write('/bin/bash -c "while true; do sleep 1; echo some output; done"')
-    os.chmod(cmd, 0o755)
+    os.chmod(executor.path+'some_executable.sh', 0o755)
 
     await executor.start(cmd)
 

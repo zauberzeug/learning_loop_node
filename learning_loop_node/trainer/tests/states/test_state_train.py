@@ -16,12 +16,12 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
-    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
-    await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
+    await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.01)
     assert trainer.start_training_task is not None
 
     assert trainer._executor is not None
-    await trainer._executor.stop_and_wait()  # NOTE normally a training terminates itself
+    await trainer.stop()  # NOTE normally a training terminates itself
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
 
     assert trainer.training.training_state == TrainerState.TrainingFinished

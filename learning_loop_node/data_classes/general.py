@@ -53,6 +53,7 @@ class ModelInformation():
     categories: List[Category]
     resolution: Optional[int] = None
     model_root_path: Optional[str] = None
+    model_size: Optional[str] = None
 
     @property
     def context(self):
