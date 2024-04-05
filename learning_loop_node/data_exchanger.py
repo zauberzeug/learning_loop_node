@@ -6,6 +6,7 @@ import zipfile
 from glob import glob
 from http import HTTPStatus
 from io import BytesIO
+from time import time
 from typing import Dict, List, Optional
 
 import aiofiles  # type: ignore
@@ -108,13 +109,15 @@ class DataExchanger():
             chunk_ids = image_uuids[i:i+chunk_size]
             tasks = []
             for j, chunk_j in enumerate(chunk_paths):
+                start = time()
                 tasks.append(create_task(self._download_one_image(chunk_j, chunk_ids[j], image_folder)))
+                await asyncio.sleep(max(0, 0.02 - (time() - start)))  # prevent too many requests at once
             await asyncio.gather(*tasks)
 
     async def _download_one_image(self, path: str, image_id: str, image_folder: str) -> None:
         response = await self.loop_communicator.get(path)
         if response.status_code != HTTPStatus.OK:
-            logging.error(f'bad status code {response.status_code} for {path}')
+            logging.error(f'bad status code {response.status_code} for {path}. Details: {response.text}')
             return
         filename = f'{image_folder}/{image_id}.jpg'
         async with aiofiles.open(filename, 'wb') as f:
