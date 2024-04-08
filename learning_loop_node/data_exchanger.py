@@ -126,8 +126,10 @@ class DataExchanger():
             os.remove(filename)
 
     async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
-        """Downloads a model and returns the paths of the downloaded files."""
-        logging.info(f'Downloading model {model_uuid} to {target_folder}..')
+        """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.
+        Used before training a model (in case of resuming a training) or before detecting images.
+        """
+        logging.info(f'Downloading model data for uuid {model_uuid} from the loop to {target_folder}..')
 
         path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{model_format}/file'
         response = await self.loop_communicator.get(path, requires_login=False)
@@ -153,7 +155,8 @@ class DataExchanger():
             new_file = shutil.move(file, target_folder)
             created_files.append(new_file)
 
-        logging.info(f'---- downloaded model {model_uuid}/{model_format} to {tmp_path}. Moved to {target_folder}.')
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        logging.info(f'Downloaded model {model_uuid}({model_format}) to {target_folder}.')
         return created_files
 
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> Optional[str]:

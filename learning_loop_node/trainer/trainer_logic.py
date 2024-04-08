@@ -130,8 +130,8 @@ class TrainerLogic(TrainerLogicGeneric):
         if self._can_resume():
             self.start_training_task = self._resume()
         else:
-            base_model_id = self.training.base_model_uuid_or_name
-            if not is_valid_uuid4(base_model_id):
+            base_model_uuid_or_name = self.training.base_model_uuid_or_name
+            if not is_valid_uuid4(base_model_uuid_or_name):
                 self.start_training_task = self._start_training_from_scratch()
             else:
                 self.start_training_task = self._start_training_from_base_model()
