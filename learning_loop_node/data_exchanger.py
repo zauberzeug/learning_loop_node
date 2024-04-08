@@ -127,7 +127,7 @@ class DataExchanger():
 
     async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
         """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.
-        Used before training a model (in case of resuming a training) or before detecting images.
+        Used before training a model (when continuing a finished training) or before detecting images.
         """
         logging.info(f'Downloading model data for uuid {model_uuid} from the loop to {target_folder}..')
 
