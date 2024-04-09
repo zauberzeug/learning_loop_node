@@ -9,7 +9,6 @@
     "--disable=C0111", // Missing docstring (in function/class/method)
     "--disable=C0114", // Missing module docstring
     "--disable=C0301", // Line too long (exceeds character limit)
-    "--disable=W0511", // TODO/FIXME not being used
     "--disable=W0718", // Catching too general exception
     "--disable=W0719", // Raising too general exception
     "--disable=W1203", // Use % formatting in logging functions and pass the % parameters as arguments
