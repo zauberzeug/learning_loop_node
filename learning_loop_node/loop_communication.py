@@ -81,7 +81,15 @@ class LoopCommunicator():
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
 
-        file_handles = [open(f, 'rb') for f in files]  # Open files and store handles
+        file_handles = []
+        for f in files:
+            try:
+                file_handles.append(open(f, 'rb'))
+            except FileNotFoundError:
+                for fh in file_handles:
+                    fh.close()  # Ensure all files are closed
+                return httpx.Response(404, content=b'File not found')
+
         try:
             file_list = [('files', fh) for fh in file_handles]  # Use file handles
             response = await self.async_client.put(api_prefix+path, files=file_list)
