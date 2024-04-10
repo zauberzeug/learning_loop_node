@@ -31,14 +31,14 @@ class LoopCommunicator():
     def websocket_url(self) -> str:
         return f'ws{"s" if "learning-loop.ai" in self.host else ""}://' + self.host
 
-    async def ensure_login(self) -> None:
+    async def ensure_login(self, relogin=False) -> None:
         """aiohttp client session needs to be created on the event loop"""
 
         assert not self.async_client.is_closed, 'async client must not be used after shutdown'
-        if not self.async_client.cookies.keys():
+        if not self.async_client.cookies.keys() or relogin:
+            self.async_client.cookies.clear()
             response = await self.async_client.post('/api/login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
-                self.async_client.cookies.clear()
                 logging.info(f'Login failed with response: {response}')
                 raise LoopCommunicationException('Login failed with response: ' + str(response))
             self.async_client.cookies.update(response.cookies)
@@ -50,6 +50,7 @@ class LoopCommunicator():
         if response.status_code != 200:
             logging.info(f'Logout failed with response: {response}')
             raise LoopCommunicationException('Logout failed with response: ' + str(response))
+        self.async_client.cookies.clear()
 
     def get_cookies(self) -> Cookies:
         return self.async_client.cookies
@@ -73,7 +74,12 @@ class LoopCommunicator():
     async def get(self, path: str, requires_login: bool = True, api_prefix: str = '/api') -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-        return await self.async_client.get(api_prefix+path)
+
+        response = await self.async_client.get(api_prefix+path)
+
+        if response.status_code == 401:
+            await self.ensure_login(relogin=True)
+        return response
 
     async def put(self, path, files: Optional[List[str]] = None, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -97,14 +103,25 @@ class LoopCommunicator():
             for fh in file_handles:
                 fh.close()  # Ensure all files are closed
 
+        if response.status_code == 401:
+            await self.ensure_login(relogin=True)
         return response
 
     async def post(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-        return await self.async_client.post(api_prefix+path, **kwargs)
+        response = await self.async_client.post(api_prefix+path, **kwargs)
+
+        if response.status_code == 401:
+            await self.ensure_login(relogin=True)
+        return response
 
     async def delete(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-        return await self.async_client.delete(api_prefix+path, **kwargs)
+
+        response = await self.async_client.delete(api_prefix+path, **kwargs)
+
+        if response.status_code == 401:
+            await self.ensure_login(relogin=True)
+        return response
