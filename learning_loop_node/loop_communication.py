@@ -86,10 +86,7 @@ class LoopCommunicator():
             return await self._get(path, api_prefix)
 
     async def _get(self, path: str, api_prefix: str = '/api') -> httpx.Response:
-
-        response = await self.async_client.get(api_prefix+path)
-
-        return response
+        return await self.async_client.get(api_prefix+path)
 
     async def put(self, path: str, files: Optional[List[str]] = None, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -128,10 +125,7 @@ class LoopCommunicator():
             return await self._post(path, api_prefix, **kwargs)
 
     async def _post(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
-
-        response = await self.async_client.post(api_prefix+path, **kwargs)
-
-        return response
+        return await self.async_client.post(api_prefix+path, **kwargs)
 
     async def delete(self, path: str, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -141,7 +135,4 @@ class LoopCommunicator():
             return await self._delete(path, api_prefix, **kwargs)
 
     async def _delete(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
-
-        response = await self.async_client.delete(api_prefix+path, **kwargs)
-
-        return response
+        return await self.async_client.delete(api_prefix+path, **kwargs)
