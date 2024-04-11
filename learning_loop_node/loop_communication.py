@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import List, Optional
+from typing import Awaitable, Callable, List, Optional
 
 import httpx
 from httpx import Cookies, Timeout
@@ -71,19 +71,40 @@ class LoopCommunicator():
                 logging.info(f'backend not ready: {e}')
             await asyncio.sleep(10)
 
+    async def retry_on_401(self, func: Callable[..., Awaitable[httpx.Response]], *args, **kwargs) -> httpx.Response:
+        response = await func(*args, **kwargs)
+        if response.status_code == 401:
+            await self.ensure_login(relogin=True)
+            response = await func(*args, **kwargs)
+        return response
+
     async def get(self, path: str, requires_login: bool = True, api_prefix: str = '/api') -> httpx.Response:
         if requires_login:
             await self.ensure_login()
 
+        # retry on 401 if required
+        if requires_login:
+            return await self.retry_on_401(self._get, path, api_prefix)
+        else:
+            return await self._get(path, api_prefix)
+
+    async def _get(self, path: str, api_prefix: str = '/api') -> httpx.Response:
+
         response = await self.async_client.get(api_prefix+path)
 
-        if response.status_code == 401:
-            await self.ensure_login(relogin=True)
         return response
 
-    async def put(self, path, files: Optional[List[str]] = None, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
+    async def put(self, path: str, files: Optional[List[str]] = None, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
+
+        # retry on 401 if required
+        if requires_login:
+            return await self.retry_on_401(self._put, path, api_prefix, **kwargs)
+        else:
+            return await self._put(path, files, api_prefix, **kwargs)
+
+    async def _put(self, path, files: Optional[List[str]] = None, api_prefix='/api', **kwargs) -> httpx.Response:
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
 
@@ -103,25 +124,36 @@ class LoopCommunicator():
             for fh in file_handles:
                 fh.close()  # Ensure all files are closed
 
-        if response.status_code == 401:
-            await self.ensure_login(relogin=True)
         return response
 
-    async def post(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
+    async def post(self, path: str, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
+
+        # retry on 401 if required
+        if requires_login:
+            return await self.retry_on_401(self._post, path, api_prefix, **kwargs)
+        else:
+            return await self._post(path, api_prefix, **kwargs)
+
+    async def _post(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
+
         response = await self.async_client.post(api_prefix+path, **kwargs)
 
-        if response.status_code == 401:
-            await self.ensure_login(relogin=True)
         return response
 
-    async def delete(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
+    async def delete(self, path: str, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
+
+        # retry on 401 if required
+        if requires_login:
+            return await self.retry_on_401(self._delete, path, api_prefix, **kwargs)
+        else:
+            return await self._delete(path, api_prefix, **kwargs)
+
+    async def _delete(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
 
         response = await self.async_client.delete(api_prefix+path, **kwargs)
 
-        if response.status_code == 401:
-            await self.ensure_login(relogin=True)
         return response
