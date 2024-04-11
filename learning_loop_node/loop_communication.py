@@ -81,9 +81,6 @@ class LoopCommunicator():
     async def get(self, path: str, requires_login: bool = True, api_prefix: str = '/api') -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-
-        # retry on 401 if required
-        if requires_login:
             return await self.retry_on_401(self._get, path, api_prefix)
         else:
             return await self._get(path, api_prefix)
@@ -97,14 +94,11 @@ class LoopCommunicator():
     async def put(self, path: str, files: Optional[List[str]] = None, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-
-        # retry on 401 if required
-        if requires_login:
             return await self.retry_on_401(self._put, path, api_prefix, **kwargs)
         else:
             return await self._put(path, files, api_prefix, **kwargs)
 
-    async def _put(self, path, files: Optional[List[str]] = None, api_prefix='/api', **kwargs) -> httpx.Response:
+    async def _put(self, path: str, files: Optional[List[str]] = None, api_prefix='/api', **kwargs) -> httpx.Response:
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
 
@@ -129,9 +123,6 @@ class LoopCommunicator():
     async def post(self, path: str, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-
-        # retry on 401 if required
-        if requires_login:
             return await self.retry_on_401(self._post, path, api_prefix, **kwargs)
         else:
             return await self._post(path, api_prefix, **kwargs)
@@ -145,9 +136,6 @@ class LoopCommunicator():
     async def delete(self, path: str, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
             await self.ensure_login()
-
-        # retry on 401 if required
-        if requires_login:
             return await self.retry_on_401(self._delete, path, api_prefix, **kwargs)
         else:
             return await self._delete(path, api_prefix, **kwargs)
