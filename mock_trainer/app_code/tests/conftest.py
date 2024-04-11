@@ -1,11 +1,12 @@
 import asyncio
-import logging
 import shutil
 
 import pytest
 
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.loop_communication import LoopCommunicator
+
+# pylint: disable=redefined-outer-name
 
 
 @pytest.fixture()

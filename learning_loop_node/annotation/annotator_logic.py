@@ -7,10 +7,10 @@ from ..node import Node
 
 class AnnotatorLogic():
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._node: Optional[Node] = None
 
-    def init(self, node: Node):
+    def init(self, node: Node) -> None:
         self._node = node
 
     @abstractmethod

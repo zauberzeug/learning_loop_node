@@ -14,6 +14,16 @@ from ..globals import GLOBALS
 from ..loop_communication import LoopCommunicator
 
 
+class EnvironmentVars:
+    def __init__(self) -> None:
+        self.restart_after_training = os.environ.get(
+            'RESTART_AFTER_TRAINING', 'FALSE').lower() in ['true', '1']
+        self.keep_old_trainings = os.environ.get(
+            'KEEP_OLD_TRAININGS', 'FALSE').lower() in ['true', '1']
+        self.inference_batch_size = int(
+            os.environ.get('INFERENCE_BATCH_SIZE', '10'))
+
+
 class LastTrainingIO:
 
     def __init__(self, node_uuid: str) -> None:
@@ -137,7 +147,8 @@ class ActiveTrainingIO:
         num_files = self.get_number_of_detection_files()
         print(f'num_files: {num_files}', flush=True)
         if not num_files:
-            raise Exception('no detection files found')
+            logging.error('no detection files found')
+            return
         current_json_file_index = self.load_detections_upload_file_index()
         for i in range(current_json_file_index, num_files):
             detections = self.load_detections(i)
@@ -164,9 +175,9 @@ class ActiveTrainingIO:
             msg = f'could not upload detections. {str(response)}'
             logging.error(msg)
             raise Exception(msg)
+
+        logging.info('successfully uploaded detections')
+        if up_progress > len(batch_detections):
+            self.save_detection_upload_progress(0)
         else:
-            logging.info('successfully uploaded detections')
-            if up_progress > len(batch_detections):
-                self.save_detection_upload_progress(0)
-            else:
-                self.save_detection_upload_progress(up_progress)
+            self.save_detection_upload_progress(up_progress)

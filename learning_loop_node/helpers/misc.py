@@ -55,7 +55,7 @@ def _handle_task_result(task: asyncio.Task,
         logger.exception(message, *message_args)
 
 
-def get_free_memory_mb() -> float:  # TODO check if this is used
+def get_free_memory_mb() -> float:  # NOTE used by yolov5
     pynvml.nvmlInit()
     h = pynvml.nvmlDeviceGetHandleByIndex(0)
     info = pynvml.nvmlDeviceGetMemoryInfo(h)
@@ -76,7 +76,6 @@ async def is_valid_image(filename: str, check_jpeg: bool) -> bool:
     return "OK" in out.decode()
 
 
-@staticmethod
 async def delete_corrupt_images(image_folder: str, check_jpeg: bool = False) -> None:
     logging.info('deleting corrupt images')
     n_deleted = 0
@@ -90,15 +89,7 @@ async def delete_corrupt_images(image_folder: str, check_jpeg: bool = False) -> 
 
 
 def create_resource_paths(organization_name: str, project_name: str, image_ids: List[str]) -> Tuple[List[str], List[str]]:
-    # TODO: experimental:
     return [f'/{organization_name}/projects/{project_name}/images/{id}/main' for id in image_ids], image_ids
-    # if not image_ids:
-    #     return [], []
-    # url_ids: List[Tuple(str, str)] = [(f'/{organization_name}/projects/{project_name}/images/{id}/main', id)
-    #                                   for id in image_ids]
-    # urls, ids = list(map(list, zip(*url_ids)))
-
-    # return urls, ids
 
 
 def create_image_folder(project_folder: str) -> str:
@@ -141,17 +132,17 @@ def ensure_socket_response(func):
 
             if isinstance(value, str):
                 return asdict(SocketResponse.for_success(value))
-            elif isinstance(value, bool):
+            if isinstance(value, bool):
                 return asdict(SocketResponse.from_bool(value))
-            elif isinstance(value, SocketResponse):
+            if isinstance(value, SocketResponse):
                 return value
-            elif (args[0] in ['connect', 'disconnect', 'connect_error']):
+            if (args[0] in ['connect', 'disconnect', 'connect_error']):
                 return value
-            elif value is None:
+            if value is None:
                 return None
-            else:
-                raise Exception(
-                    f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'")
+
+            raise Exception(
+                f"Return type for sio must be str, bool, SocketResponse or None', but was {type(value)}'")
         except Exception as e:
             logging.exception(f'An error occured for {args[0]}')
 
@@ -161,6 +152,8 @@ def ensure_socket_response(func):
 
 
 def is_valid_uuid4(val):
+    if not val:
+        return False
     try:
         _ = UUID(str(val)).version
         return True
@@ -189,7 +182,6 @@ def activate_asyncio_warnings() -> None:
         logging.exception('could not activate asyncio warnings. Exception:')
 
 
-@staticmethod
 def images_for_ids(image_ids, image_folder) -> List[str]:
     logging.info(f'### Going to get images for {len(image_ids)} images ids')
     start = perf_counter()
@@ -200,7 +192,6 @@ def images_for_ids(image_ids, image_folder) -> List[str]:
     return images
 
 
-@staticmethod
 def generate_training(project_folder: str, context: Context) -> Training:
     training_uuid = str(uuid4())
     return Training(
@@ -212,7 +203,6 @@ def generate_training(project_folder: str, context: Context) -> Training:
     )
 
 
-@staticmethod
 def delete_all_training_folders(project_folder: str):
     if not os.path.exists(f'{project_folder}/trainings'):
         return
@@ -220,7 +210,6 @@ def delete_all_training_folders(project_folder: str):
         shutil.rmtree(f'{project_folder}/trainings/{uuid}', ignore_errors=True)
 
 
-@staticmethod
 def create_training_folder(project_folder: str, trainings_id: str) -> str:
     training_folder = f'{project_folder}/trainings/{trainings_id}'
     os.makedirs(training_folder, exist_ok=True)

@@ -1,8 +1,8 @@
 import asyncio
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
-from learning_loop_node.data_classes import BasicModel, Context, Detections, ModelInformation, PretrainedModel
+from learning_loop_node.data_classes import Context, Detections, ModelInformation, PretrainedModel, TrainingStateData
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
@@ -11,7 +11,7 @@ class TestingTrainerLogic(TrainerLogic):
 
     def __init__(self, can_resume: bool = False) -> None:
         super().__init__('mocked')
-        self._can_resume: bool = can_resume
+        self._can_resume_flag: bool = can_resume
         self.has_new_model: bool = False
         self.error_msg: Optional[str] = None
 
@@ -25,25 +25,25 @@ class TestingTrainerLogic(TrainerLogic):
 
     @property
     def provided_pretrained_models(self) -> List[PretrainedModel]:
-        return [
-            PretrainedModel(name='small', label='Small', description='a small model'),
-            PretrainedModel(name='medium', label='Medium', description='a medium model'),
-            PretrainedModel(name='large', label='Large', description='a large model')]
+        return [PretrainedModel(name='small', label='Small', description='a small model'),
+                PretrainedModel(name='medium', label='Medium', description='a medium model'),
+                PretrainedModel(name='large', label='Large', description='a large model')]
 
     # pylint: disable=unused-argument
-    async def start_training(self, model: str = 'model.model') -> None:
+    async def _start_training_from_base_model(self, model: str = 'model.model') -> None:
         assert self._executor is not None
-        self._executor.start('while true; do sleep 1; done')
+        await self._executor.start('/bin/bash -c "while true; do sleep 1; done"')
 
-    async def start_training_from_scratch(self, base_model_id: str) -> None:
-        await self.start_training(model=f'model_{base_model_id}.pt')
+    async def _start_training_from_scratch(self) -> None:
+        assert self.training.base_model_uuid_or_name is not None, 'base_model_uuid_or_name must be set'
+        await self._start_training_from_base_model(model=f'model_{self.training.base_model_uuid_or_name}.pt')
 
-    def get_new_best_model(self) -> Optional[BasicModel]:
+    def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
         if self.has_new_model:
-            return BasicModel(confusion_matrix={})
+            return TrainingStateData(confusion_matrix={})
         return None
 
-    def on_model_published(self, basic_model: BasicModel) -> None:
+    def _on_metrics_published(self, training_state_data: TrainingStateData) -> None:
         pass
 
     async def _prepare(self) -> None:
@@ -54,9 +54,9 @@ class TestingTrainerLogic(TrainerLogic):
         await super()._download_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
-    async def upload_model(self) -> None:
+    async def _upload_model(self) -> None:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
-        await super().upload_model()
+        await super()._upload_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
@@ -66,7 +66,7 @@ class TestingTrainerLogic(TrainerLogic):
         assert isinstance(result, str)
         return result
 
-    def get_latest_model_files(self) -> Union[List[str], Dict[str, List[str]]]:
+    async def _get_latest_model_files(self) -> Dict[str, List[str]]:
         time.sleep(1)  # NOTE reduce flakyness in Backend tests du to wrong order of events.
         fake_weight_file = '/tmp/weightfile.weights'
         with open(fake_weight_file, 'wb') as f:
@@ -77,18 +77,18 @@ class TestingTrainerLogic(TrainerLogic):
             f.write('zweiundvierzig')
         return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
-    def can_resume(self) -> bool:
-        return self._can_resume
+    def _can_resume(self) -> bool:
+        return self._can_resume_flag
 
-    async def resume(self) -> None:
-        return await self.start_training()
+    async def _resume(self) -> None:
+        return await self._start_training_from_base_model()
 
     async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
         detections: List[Detections] = []
         return detections
 
-    async def clear_training_data(self, training_folder: str) -> None:
+    async def _clear_training_data(self, training_folder: str) -> None:
         return
 
-    def get_executor_error_from_log(self) -> Optional[str]:
+    def _get_executor_error_from_log(self) -> Optional[str]:
         return self.error_msg

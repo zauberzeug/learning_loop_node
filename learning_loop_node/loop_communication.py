@@ -24,6 +24,7 @@ class LoopCommunicator():
         self.project: str = environment_reader.project()  # used by mock_detector
         self.base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
         self.async_client: httpx.AsyncClient = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
+        self.async_client.cookies.clear()
 
         logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
 
@@ -80,8 +81,23 @@ class LoopCommunicator():
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
 
-        file_list = [('files', open(f, 'rb')) for f in files]  # TODO: does this properly close the files after upload?
-        return await self.async_client.put(api_prefix+path, files=file_list)
+        file_handles = []
+        for f in files:
+            try:
+                file_handles.append(open(f, 'rb'))
+            except FileNotFoundError:
+                for fh in file_handles:
+                    fh.close()  # Ensure all files are closed
+                return httpx.Response(404, content=b'File not found')
+
+        try:
+            file_list = [('files', fh) for fh in file_handles]  # Use file handles
+            response = await self.async_client.put(api_prefix+path, files=file_list)
+        finally:
+            for fh in file_handles:
+                fh.close()  # Ensure all files are closed
+
+        return response
 
     async def post(self, path, requires_login=True, api_prefix='/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -92,14 +108,3 @@ class LoopCommunicator():
         if requires_login:
             await self.ensure_login()
         return await self.async_client.delete(api_prefix+path, **kwargs)
-
-    # --------------------------------- unused?! --------------------------------- #TODO remove?
-
-    # def get_data(self, path):
-    #     return asyncio.get_event_loop().run_until_complete(self._get_data_async(path))
-
-    # async def _get_data_async(self, path) -> bytes:
-    #     response = await self.get(f'{self.project_path}{path}')
-    #     if response.status_code != 200:
-    #         raise LoopCommunicationException('bad response: ' + str(response))
-    #     return response.content

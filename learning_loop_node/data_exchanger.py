@@ -6,6 +6,7 @@ import zipfile
 from glob import glob
 from http import HTTPStatus
 from io import BytesIO
+from time import time
 from typing import Dict, List, Optional
 
 import aiofiles  # type: ignore
@@ -108,13 +109,15 @@ class DataExchanger():
             chunk_ids = image_uuids[i:i+chunk_size]
             tasks = []
             for j, chunk_j in enumerate(chunk_paths):
+                start = time()
                 tasks.append(create_task(self._download_one_image(chunk_j, chunk_ids[j], image_folder)))
+                await asyncio.sleep(max(0, 0.02 - (time() - start)))  # prevent too many requests at once
             await asyncio.gather(*tasks)
 
     async def _download_one_image(self, path: str, image_id: str, image_folder: str) -> None:
         response = await self.loop_communicator.get(path)
         if response.status_code != HTTPStatus.OK:
-            logging.error(f'bad status code {response.status_code} for {path}')
+            logging.error(f'bad status code {response.status_code} for {path}. Details: {response.text}')
             return
         filename = f'{image_folder}/{image_id}.jpg'
         async with aiofiles.open(filename, 'wb') as f:
@@ -122,11 +125,13 @@ class DataExchanger():
         if not await is_valid_image(filename, self.check_jpeg):
             os.remove(filename)
 
-    async def download_model(self, target_folder: str, context: Context, model_id: str, model_format: str) -> List[str]:
-        """Downloads a model and returns the paths of the downloaded files."""
-        logging.info(f'Downloading model {model_id} to {target_folder}..')
+    async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
+        """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.
+        Used before training a model (when continuing a finished training) or before detecting images.
+        """
+        logging.info(f'Downloading model data for uuid {model_uuid} from the loop to {target_folder}..')
 
-        path = f'/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
+        path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{model_format}/file'
         response = await self.loop_communicator.get(path, requires_login=False)
         if response.status_code != 200:
             content = response.json()
@@ -150,19 +155,18 @@ class DataExchanger():
             new_file = shutil.move(file, target_folder)
             created_files.append(new_file)
 
-        logging.info(f'---- downloaded model {model_id}/{model_format} to {tmp_path}. Moved to {target_folder}.')
+        shutil.rmtree(tmp_path, ignore_errors=True)
+        logging.info(f'Downloaded model {model_uuid}({model_format}) to {target_folder}.')
         return created_files
 
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> Optional[str]:
         """Used by the trainers. Function returns the new model uuid to use for detection."""
         response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
         if response.status_code != 200:
-            logging.error(
-                f'---- could not upload model for training {training_number} and format {mformat}. Details: {response.text}')
+            logging.error(f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
             response.raise_for_status()
             return None
-        else:
-            uploaded_model = response.json()
-            logging.info(
-                f'---- uploaded model for training {training_number} and format {mformat}. Model id is {uploaded_model}')
-            return uploaded_model['id']
+
+        uploaded_model = response.json()
+        logging.info(f'Uploaded model for training {training_number}, format {mformat}. Response is: {uploaded_model}')
+        return uploaded_model['id']

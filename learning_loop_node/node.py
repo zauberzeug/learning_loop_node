@@ -62,7 +62,7 @@ class Node(FastAPI):
 
     # --------------------------------------------------- APPLICATION LIFECYCLE ---------------------------------------------------
     @asynccontextmanager
-    async def lifespan(self, app: FastAPI):
+    async def lifespan(self, app: FastAPI):  # pylint: disable=unused-argument
         try:
             await self._on_startup()
             self.repeat_task = asyncio.create_task(self.repeat_loop())
@@ -78,7 +78,7 @@ class Node(FastAPI):
 
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
-        activate_asyncio_warnings()
+        # activate_asyncio_warnings()
         if self.needs_login:
             await self.loop_communicator.backend_ready()
             self.log.info('ensuring login')

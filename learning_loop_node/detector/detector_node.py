@@ -186,7 +186,9 @@ class DetectorNode(Node):
             if not update_to_model_id:
                 self.log.info('could not check for updates')
                 return
-            if self.detector_logic.is_initialized:  # TODO: solve race condition !!!
+
+            # TODO: solve race condition (it should not be required to recheck if model_info is not None, but it is!)
+            if self.detector_logic.is_initialized:
                 model_info = self.detector_logic._model_info  # pylint: disable=protected-access
                 if model_info is not None:
                     self.log.info(f'Current model: {model_info.version} with id {model_info.id}')
@@ -221,8 +223,7 @@ class DetectorNode(Node):
                     await self.data_exchanger.download_model(target_model_folder,
                                                              Context(organization=self.organization,
                                                                      project=self.project),
-                                                             update_to_model_id,
-                                                             self.detector_logic.model_format)
+                                                             update_to_model_id, self.detector_logic.model_format)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)

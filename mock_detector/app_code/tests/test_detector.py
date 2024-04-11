@@ -5,6 +5,8 @@ import pytest
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
 
+# pylint: disable=unused-argument
+
 
 @pytest.fixture(scope="session")
 def event_loop(request):

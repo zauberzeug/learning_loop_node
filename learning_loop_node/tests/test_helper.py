@@ -9,7 +9,6 @@ from typing import Callable
 from learning_loop_node.data_classes import Context
 from learning_loop_node.helpers.misc import create_image_folder, create_project_folder, create_training_folder
 from learning_loop_node.loop_communication import LoopCommunicator
-from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
 def get_files_in_folder(folder: str):
