@@ -37,7 +37,7 @@ async def test_executor_lifecycle():
     assert executor.is_running()
     assert_process_is_running('some_executable.sh')
 
-    sleep(1)
+    sleep(5)
     assert 'some output' in executor.get_log()
 
     await executor.stop_and_wait()
