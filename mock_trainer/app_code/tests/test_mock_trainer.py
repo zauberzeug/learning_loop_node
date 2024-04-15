@@ -19,7 +19,7 @@ async def create_mock_trainer() -> MockTrainerLogic:
 
 async def test_get_model_files(setup_test_project2):
     mock_trainer = await create_mock_trainer()
-    files = mock_trainer._get_latest_model_files()
+    files = await mock_trainer._get_latest_model_files()
 
     assert isinstance(files, Dict)
 
