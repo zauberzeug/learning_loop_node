@@ -152,20 +152,22 @@ class ActiveTrainingIO:
         current_json_file_index = self.load_detections_upload_file_index()
         for i in range(current_json_file_index, num_files):
             detections = self.load_detections(i)
-            logging.info(f'uploading detections {i}/{num_files}')
+            logging.info(f'uploading detections in file {i}/{num_files}')
             await self._upload_detections_batched(self.context, detections)
             self.save_detections_upload_file_index(i+1)
 
     async def _upload_detections_batched(self, context: Context, detections: List[Detections]):
-        batch_size = 10
+        batch_size = 100
         skip_detections = self.load_detection_upload_progress()
+        up_count = 0
         for i in range(skip_detections, len(detections), batch_size):
+            up_count += 1
             up_progress = i+batch_size
             batch_detections = detections[i:up_progress]
-            dict_detections = [jsonable_encoder(asdict(detection)) for detection in batch_detections]
-            logging.info(f'uploading detections. File size : {len(json.dumps(dict_detections))}')
             await self._upload_detections(context, batch_detections, up_progress)
             skip_detections = up_progress
+
+        logging.info('uploaded %d detections', len(detections))
 
     async def _upload_detections(self, context: Context, batch_detections: List[Detections], up_progress: int):
         detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
@@ -177,7 +179,7 @@ class ActiveTrainingIO:
             raise Exception(msg)
 
         logging.info('successfully uploaded detections')
-        if up_progress > len(batch_detections):
+        if up_progress >= len(batch_detections):
             self.save_detection_upload_progress(0)
         else:
             self.save_detection_upload_progress(up_progress)
