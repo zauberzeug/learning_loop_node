@@ -2,9 +2,10 @@ import os
 import shutil
 
 from learning_loop_node.data_classes import Context
-from learning_loop_node.data_exchanger import DataExchanger, check_jpeg
+from learning_loop_node.data_exchanger import DataExchanger
 from learning_loop_node.globals import GLOBALS
 
+from ..helpers.misc import delete_corrupt_images
 from . import test_helper
 
 
@@ -33,26 +34,26 @@ async def test_download_model(data_exchanger: DataExchanger):
 
 # pylint: disable=redefined-outer-name
 async def test_fetching_image_ids(data_exchanger: DataExchanger):
-    ids = await data_exchanger.fetch_image_ids()
+    ids = await data_exchanger.fetch_image_uuids()
     assert len(ids) == 3
 
 
 async def test_download_images(data_exchanger: DataExchanger):
     _, image_folder, _ = test_helper.create_needed_folders()
-    image_ids = await data_exchanger.fetch_image_ids()
+    image_ids = await data_exchanger.fetch_image_uuids()
     await data_exchanger.download_images(image_ids, image_folder)
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3
 
 
 async def test_download_training_data(data_exchanger: DataExchanger):
-    image_ids = await data_exchanger.fetch_image_ids()
+    image_ids = await data_exchanger.fetch_image_uuids()
     image_data = await data_exchanger.download_images_data(image_ids)
     assert len(image_data) == 3
 
 
 async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
-    image_ids = await data_exchanger.fetch_image_ids()
+    image_ids = await data_exchanger.fetch_image_uuids()
 
     shutil.rmtree('/tmp/img_folder', ignore_errors=True)
     os.makedirs('/tmp/img_folder', exist_ok=True)
@@ -65,7 +66,7 @@ async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
     with open('/tmp/img_folder/c1.jpg', 'w') as f:
         f.write('I am no image')
 
-    await data_exchanger.delete_corrupt_images('/tmp/img_folder')
+    await delete_corrupt_images('/tmp/img_folder', True)
 
-    assert len(os.listdir('/tmp/img_folder')) == num_images if check_jpeg else num_images - 1
+    assert len(os.listdir('/tmp/img_folder')) == num_images if data_exchanger.check_jpeg else num_images - 1
     shutil.rmtree('/tmp/img_folder', ignore_errors=True)

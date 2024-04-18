@@ -1,20 +1,17 @@
 import os
 from typing import List, Union
 
-from learning_loop_node.data_classes import (BoxDetection,
-                                             ClassificationDetection,
-                                             Detections, Observation,
-                                             PointDetection,
-                                             SegmentationDetection)
+from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, Detections, Observation,
+                                             PointDetection, SegmentationDetection)
 
 
 class CamObservationHistory:
-    def __init__(self):
+    def __init__(self) -> None:
         self.reset_time = 3600
         self.recent_observations: List[Observation] = []
         self.iou_threshold = 0.5
 
-    def forget_old_detections(self):
+    def forget_old_detections(self) -> None:
         self.recent_observations = [detection
                                     for detection in self.recent_observations
                                     if not detection.is_older_than(self.reset_time)]

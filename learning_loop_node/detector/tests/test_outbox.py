@@ -9,6 +9,8 @@ from learning_loop_node.data_classes import Detections
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.detector.outbox import Outbox
 
+# pylint: disable=redefined-outer-name
+
 
 @pytest.fixture()
 def test_outbox():

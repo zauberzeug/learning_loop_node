@@ -5,5 +5,5 @@ if [[ $1 = "debug" ]]; then
 elif [[ $1 = "profile" ]]; then
     kernprof -l /app/main.py
 else
-   python3 /app/main.py
+    uvicorn main:node --host 0.0.0.0 --port 80 --reload --lifespan on --reload-dir /app/app_code/restart
 fi

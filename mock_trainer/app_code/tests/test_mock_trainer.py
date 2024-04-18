@@ -1,23 +1,25 @@
 from typing import Dict
 from uuid import uuid4
 
-from learning_loop_node.data_classes import (Context, Model, Training,
-                                             TrainingData)
+from learning_loop_node.data_classes import Context, Model, Training, TrainingData
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
 
 from ..mock_trainer_logic import MockTrainerLogic
 
+# pylint: disable=protected-access
+# pylint: disable=unused-argument
+
 
 async def create_mock_trainer() -> MockTrainerLogic:
     mock_trainer = MockTrainerLogic(model_format='mocked')
-    mock_trainer._executor = Executor(GLOBALS.data_folder)  # pylint: disable=protected-access
+    mock_trainer._executor = Executor(GLOBALS.data_folder)
     return mock_trainer
 
 
 async def test_get_model_files(setup_test_project2):
     mock_trainer = await create_mock_trainer()
-    files = mock_trainer.get_latest_model_files()
+    files = await mock_trainer._get_latest_model_files()
 
     assert isinstance(files, Dict)
 
@@ -28,7 +30,7 @@ async def test_get_model_files(setup_test_project2):
 
 async def test_get_new_model(setup_test_project2):
     mock_trainer = await create_mock_trainer()
-    await mock_trainer.start_training()
+    await mock_trainer._start_training_from_base_model()
 
     model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
@@ -39,5 +41,5 @@ async def test_get_new_model(setup_test_project2):
         images_folder="",
         training_folder="",)
     mock_trainer.training.data = TrainingData(image_data=[], categories=[])
-    model = mock_trainer.get_new_model()
+    model = mock_trainer._get_new_best_training_state()
     assert model is not None

@@ -13,8 +13,11 @@ KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) e
 
 @dataclass(**KWONLY_SLOTS)
 class BoxDetection():
+    """Coordinates according to COCO format. x,y is the top left corner of the box.
+    x increases to the right, y increases downwards.
+    """
     category_name: str
-    x: int  # TODO add definition of x,y,w,h
+    x: int
     y: int
     width: int
     height: int
@@ -47,6 +50,8 @@ class BoxDetection():
 
 @dataclass(**KWONLY_SLOTS)
 class PointDetection():
+    """Coordinates according to COCO format. x,y is the center of the point.
+    x increases to the right, y increases downwards."""
     category_name: str
     x: float
     y: float
@@ -111,7 +116,7 @@ class Detections():
     point_detections: List[PointDetection] = field(default_factory=list)
     segmentation_detections: List[SegmentationDetection] = field(default_factory=list)
     classification_detections: List[ClassificationDetection] = field(default_factory=list)
-    tags: Optional[List[str]] = field(default_factory=list)
+    tags: List[str] = field(default_factory=list)
     date: Optional[str] = field(default_factory=current_datetime)
     image_id: Optional[str] = None  # used for detection of trainers
 

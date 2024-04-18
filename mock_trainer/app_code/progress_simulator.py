@@ -1,11 +1,11 @@
 import random
 from typing import Dict, Optional
 
-from learning_loop_node.data_classes import BasicModel
+from learning_loop_node.data_classes import TrainingStateData
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
-def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -> Optional[BasicModel]:
+def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -> Optional[TrainingStateData]:
     if not trainer._training or not trainer._training.data:  # pylint: disable=protected-access
         return None
 
@@ -23,7 +23,7 @@ def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -
             'fn': max(random.randint(10-maximum, 10-minimum), 2),
         }
 
-    new_model = BasicModel(
+    new_model = TrainingStateData(
         confusion_matrix=confusion_matrix,
     )
 

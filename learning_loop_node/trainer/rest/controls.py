@@ -7,6 +7,8 @@ from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 router = APIRouter()
 
+# pylint: disable=protected-access
+
 
 @router.post("/controls/detect/{organization}/{project}/{version}")
 async def operation_mode(organization: str, project: str, version: str, request: Request):
@@ -22,5 +24,5 @@ async def operation_mode(organization: str, project: str, version: str, request:
     model_id = next(m for m in models if m['version'] == version)['id']
     logging.info(model_id)
     trainer: TrainerLogic = request.app.trainer
-    await trainer.do_detections()
+    await trainer._do_detections()
     return "OK"

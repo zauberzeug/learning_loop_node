@@ -8,7 +8,7 @@ from socketio import AsyncClient
 from ..data_classes import AnnotationNodeStatus, Context, NodeState, UserInput
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger
-from ..helpers.misc import create_image_folder
+from ..helpers.misc import create_image_folder, create_project_folder
 from ..node import Node
 from .annotator_logic import AnnotatorLogic
 
@@ -18,10 +18,11 @@ from .annotator_logic import AnnotatorLogic
 class AnnotatorNode(Node):
 
     def __init__(self, name: str, annotator_logic: AnnotatorLogic, uuid: Optional[str] = None):
-        super().__init__(name, uuid)
+        super().__init__(name, uuid, 'annotation_node')
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)
+        self.status_sent = False
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -50,8 +51,6 @@ class AnnotatorNode(Node):
             raise
 
         if tool_result.annotation:
-            if not self.sio_is_initialized():
-                raise Exception('Socket client waas not initialized')
             await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
                                                                           user_input.data.context.project,
                                                                           jsonable_encoder(asdict(tool_result.annotation))), timeout=30)
@@ -67,6 +66,9 @@ class AnnotatorNode(Node):
         return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
+        if self.status_sent:
+            return
+
         status = AnnotationNodeStatus(
             id=self.uuid,
             name=self.name,
@@ -75,27 +77,26 @@ class AnnotatorNode(Node):
         )
 
         self.log.info(f'Sending status {status}')
-        if self._sio_client is None:
-            raise Exception('No socket client')
-        result = await self._sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
+        try:
+            result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
+        except Exception as e:
+            self.log.error(f'Error for updating: {str(e)}')
+            return
+
         assert isinstance(result, Dict)
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
             self.log.error(f'Error for updating: Response from loop was : {asdict(response)}')
+        else:
+            self.status_sent = True
 
     async def download_image(self, context: Context, uuid: str):
-        project_folder = Node.create_project_folder(context)
+        project_folder = create_project_folder(context)
         images_folder = create_image_folder(project_folder)
 
         downloader = DataExchanger(context=context, loop_communicator=self.loop_communicator)
         await downloader.download_images([uuid], images_folder)
-
-    async def get_state(self):
-        return NodeState.Online
-
-    def get_node_type(self):
-        return 'annotation_node'
 
     async def on_startup(self):
         pass
@@ -104,4 +105,4 @@ class AnnotatorNode(Node):
         pass
 
     async def on_repeat(self):
-        pass
+        await self.send_status()

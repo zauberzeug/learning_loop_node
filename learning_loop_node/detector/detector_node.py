@@ -14,7 +14,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi_socketio import SocketManager
 from socketio import AsyncClient
 
-from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, NodeState, Shape
+from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, Shape
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
@@ -34,9 +34,8 @@ from .rest.operation_mode import OperationMode
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
-        super().__init__(name, uuid)
+        super().__init__(name, uuid, 'detector', False)
         self.detector_logic = detector
-        self.needs_login = False
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization and self.project, 'Detector node needs an organization and an project'
@@ -170,6 +169,8 @@ class DetectorNode(Node):
         def _connect(sid, environ, auth) -> None:
             self.connected_clients.append(sid)
 
+        print('>>>>>>>>>>>>>>>>>>>>>>> setting up sio server', flush=True)
+
         self.sio_server = SocketManager(app=self)
         self.sio_server.on('detect', _detect)
         self.sio_server.on('info', _info)
@@ -185,7 +186,9 @@ class DetectorNode(Node):
             if not update_to_model_id:
                 self.log.info('could not check for updates')
                 return
-            if self.detector_logic.is_initialized:  # TODO: solve race condition !!!
+
+            # TODO: solve race condition (it should not be required to recheck if model_info is not None, but it is!)
+            if self.detector_logic.is_initialized:
                 model_info = self.detector_logic._model_info  # pylint: disable=protected-access
                 if model_info is not None:
                     self.log.info(f'Current model: {model_info.version} with id {model_info.id}')
@@ -220,8 +223,7 @@ class DetectorNode(Node):
                     await self.data_exchanger.download_model(target_model_folder,
                                                              Context(organization=self.organization,
                                                                      project=self.project),
-                                                             update_to_model_id,
-                                                             self.detector_logic.model_format)
+                                                             update_to_model_id, self.detector_logic.model_format)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
@@ -256,7 +258,7 @@ class DetectorNode(Node):
             name=self.name,
             state=self.status.state,
             errors=self.status.errors,
-            uptime=int((datetime.now() - self.startup_time).total_seconds()),
+            uptime=int((datetime.now() - self.startup_datetime).total_seconds()),
             operation_mode=self.operation_mode,
             current_model=current_model,
             target_model=self.target_model,
@@ -272,12 +274,10 @@ class DetectorNode(Node):
             return False
 
         assert socket_response.payload is not None
+        # TODO This is weird because target_model_version is stored in self and target_model_id is returned
         self.target_model = socket_response.payload['target_model_version']
         self.log.info(f'After sending status. Target_model is {self.target_model}')
         return socket_response.payload['target_model_id']
-
-    async def get_state(self):
-        return NodeState.Online  # NOTE At the moment only trainer-nodes use a meaningful state
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
@@ -352,9 +352,6 @@ class DetectorNode(Node):
             category_id = find_category_id_by_name(model_info.categories, category_name)
             classification_detection.category_id = category_id
         return detections
-
-    def get_node_type(self):
-        return 'detector'
 
     def register_sio_events(self, sio_client: AsyncClient):
         pass

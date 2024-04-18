@@ -16,6 +16,7 @@ async def get_about(request: Request):
         curl http://localhost/about
     '''
     app: 'DetectorNode' = request.app
+
     return {
         'operation_mode': app.operation_mode.value,
         'state': app.status.state,

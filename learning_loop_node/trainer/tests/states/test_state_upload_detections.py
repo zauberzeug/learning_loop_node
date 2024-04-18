@@ -4,12 +4,13 @@ import pytest
 from dacite import from_dict
 
 from learning_loop_node.conftest import get_dummy_detections
-from learning_loop_node.data_classes import BoxDetection, Context, Detections
+from learning_loop_node.data_classes import BoxDetection, Context, Detections, TrainerState
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.trainer.tests.state_helper import assert_training_state, create_active_training_file
 from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
+# pylint: disable=protected-access
 error_key = 'upload_detections'
 
 
@@ -43,13 +44,14 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
 @pytest.mark.asyncio
 async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer, training_state='detected')
-    trainer.init_from_last_training()
+    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    trainer._init_from_last_training()
 
     await create_valid_detection_file(trainer)
-    await trainer.upload_detections()
+    await asyncio.get_running_loop().create_task(
+        trainer._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, trainer.active_training_io.upload_detetions))
 
-    assert trainer.training.training_state == 'ready_for_cleanup'
+    assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -57,13 +59,16 @@ async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
 async def test_detection_upload_progress_is_stored(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state='detected')
-    trainer.init_from_last_training()
+    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    trainer._init_from_last_training()
 
     await create_valid_detection_file(trainer)
 
     assert trainer.active_training_io.load_detections_upload_file_index() == 0
-    await trainer.upload_detections()
+    # await trainer.upload_detections()
+    await asyncio.get_running_loop().create_task(
+        trainer._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, trainer.active_training_io.upload_detetions))
+
     assert trainer.active_training_io.load_detection_upload_progress() == 0  # Progress is reset for every file
     assert trainer.active_training_io.load_detections_upload_file_index() == 1
 
@@ -72,8 +77,8 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
 async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state='detected')
-    trainer.init_from_last_training()
+    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    trainer._init_from_last_training()
 
     await create_valid_detection_file(trainer, 2, 0)
     await create_valid_detection_file(trainer, 2, 1)
@@ -87,7 +92,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
-        await trainer._upload_detections(trainer.training.context, batch_detections, i + batch_size)
+        await trainer.active_training_io._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
         assert trainer.active_training_io.load_detection_upload_progress() == expected_value
@@ -103,7 +108,7 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
         # pylint: disable=protected-access
-        await trainer._upload_detections(trainer.training.context, batch_detections, i + batch_size)
+        await trainer.active_training_io._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
         expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
         assert trainer.active_training_io.load_detection_upload_progress() == expected_value
@@ -114,46 +119,43 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
 async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state='detected', context=Context(
+    create_active_training_file(trainer, training_state=TrainerState.Detected, context=Context(
         organization='zauberzeug', project='some_bad_project'))
-    trainer.init_from_last_training()
+    trainer._init_from_last_training()
     trainer.active_training_io.save_detections([get_dummy_detections()])
 
-    _ = asyncio.get_running_loop().create_task(trainer.run())
-    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
+    _ = asyncio.get_running_loop().create_task(trainer._run())
+    await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.Detected, timeout=1, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer.training.training_state == 'detected'
+    assert trainer.training.training_state == TrainerState.Detected
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_other_errors(test_initialized_trainer: TestingTrainerLogic):
+async def test_go_to_cleanup_if_no_detections_exist(test_initialized_trainer: TestingTrainerLogic):
+    """This test simulates a situation where the detection file is missing.
+    In this case, the trainer should report an error and move to the ReadyForCleanup state."""
     trainer = test_initialized_trainer
 
     # e.g. missing detection file
-    create_active_training_file(trainer, training_state='detected')
-    trainer.init_from_last_training()
+    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer.run())
-    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, 'detected', timeout=1, interval=0.001)
-
-    assert trainer_has_error(trainer)
-    assert trainer.training.training_state == 'detected'
-    assert trainer.node.last_training_io.load() == trainer.training
+    _ = asyncio.get_running_loop().create_task(trainer._run())
+    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=1, interval=0.001)
 
 
 async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state='detected')
-    trainer.init_from_last_training()
+    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    trainer._init_from_last_training()
     await create_valid_detection_file(trainer)
 
-    _ = asyncio.get_running_loop().create_task(trainer.run())
+    _ = asyncio.get_running_loop().create_task(trainer._run())
 
-    await assert_training_state(trainer.training, 'detection_uploading', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
 
     await trainer.stop()
     await asyncio.sleep(0.1)

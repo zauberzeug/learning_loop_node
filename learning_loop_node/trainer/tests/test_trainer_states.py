@@ -1,10 +1,9 @@
 
 from uuid import uuid4
 
-from learning_loop_node.data_classes import Context, Training, TrainingState
+from learning_loop_node.data_classes import Context, TrainerState, Training
 from learning_loop_node.trainer.io_helpers import LastTrainingIO
-from learning_loop_node.trainer.tests.testing_trainer_logic import \
-    TestingTrainerLogic
+from learning_loop_node.trainer.tests.testing_trainer_logic import TestingTrainerLogic
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 
@@ -27,8 +26,8 @@ def test_fixture_trainer_node(test_initialized_trainer_node):
 def test_save_load_training():
     training = create_training()
     last_training_io = LastTrainingIO('00000000-0000-0000-0000-000000000000')
-    training.training_state = TrainingState.Preparing
+    training.training_state = TrainerState.Preparing
     last_training_io.save(training)
 
     training = last_training_io.load()
-    assert training.training_state == 'preparing'
+    assert training.training_state == TrainerState.Preparing

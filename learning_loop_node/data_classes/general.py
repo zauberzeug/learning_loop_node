@@ -34,10 +34,6 @@ class Category():
         return [from_dict(data_class=Category, data=value) for value in values]
 
 
-def create_category(identifier: str, name: str, ctype: Union[CategoryType, str]):  # TODO: This is probably unused
-    return Category(id=identifier, name=name, description='', hotkey='', color='', type=ctype, point_size=None)
-
-
 @dataclass(**KWONLY_SLOTS)
 class Context():
     organization: str
@@ -57,6 +53,7 @@ class ModelInformation():
     categories: List[Category]
     resolution: Optional[int] = None
     model_root_path: Optional[str] = None
+    model_size: Optional[str] = None
 
     @property
     def context(self):
@@ -64,6 +61,8 @@ class ModelInformation():
 
     @staticmethod
     def load_from_disk(model_root_path: str) -> Optional['ModelInformation']:
+        """Load model.json from model_root_path and return ModelInformation object.
+        """
         model_info_file_path = f'{model_root_path}/model.json'
         if not os.path.exists(model_info_file_path):
             logging.warning(f"could not find model information file '{model_info_file_path}'")
@@ -121,7 +120,7 @@ class NodeState(str, Enum):
 class NodeStatus():
     id: str
     name: str
-    state: Optional[NodeState] = NodeState.Offline
+    state: Optional[NodeState] = NodeState.Online
     uptime: Optional[int] = 0
     errors: Dict = field(default_factory=dict)
     capabilities: List[str] = field(default_factory=list)
