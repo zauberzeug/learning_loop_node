@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import ssl
 import sys
 from abc import abstractmethod
 from contextlib import asynccontextmanager
@@ -8,6 +9,7 @@ from typing import Any, Optional
 
 import aiohttp
 import socketio
+from aiohttp import TCPConnector
 from fastapi import FastAPI
 from socketio import AsyncClient
 
@@ -122,8 +124,19 @@ class Node(FastAPI):
         """Create a socket.io client that communicates with the learning loop and register the events.
         Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
 
-        self._sio_client = AsyncClient(request_timeout=20,
-                                       http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies()))
+        if self.loop_communicator.ssl_cert_path:
+            logging.info(f'SIO using SSL certificate path: {self.loop_communicator.ssl_cert_path}')
+            ssl_context = ssl.create_default_context(cafile=self.loop_communicator.ssl_cert_path)
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+            connector = TCPConnector(ssl=ssl_context)
+            self._sio_client = AsyncClient(request_timeout=20,
+                                           http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies(),
+                                                                              connector=connector))
+
+        else:
+            self._sio_client = AsyncClient(request_timeout=20,
+                                           http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies()))
 
         # pylint: disable=protected-access
         self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)

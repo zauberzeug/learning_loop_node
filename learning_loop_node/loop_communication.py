@@ -17,9 +17,9 @@ class LoopCommunicationException(Exception):
 class LoopCommunicator():
     def __init__(self) -> None:
         host: str = environment_reader.host(default='learning-loop.ai')
-        ssl_cert_path = environment_reader.ssl_certificate_path()
-        if ssl_cert_path:
-            logging.info('Using SSL certificate at %s', ssl_cert_path)
+        self.ssl_cert_path = environment_reader.ssl_certificate_path()
+        if self.ssl_cert_path:
+            logging.info('Using SSL certificate at %s', self.ssl_cert_path)
         else:
             logging.info('No SSL certificate path set')
         self.host: str = host
@@ -28,8 +28,9 @@ class LoopCommunicator():
         self.organization: str = environment_reader.organization()  # used by mock_detector
         self.project: str = environment_reader.project()  # used by mock_detector
         self.base_url: str = f'http{"s" if "learning-loop.ai" in host else ""}://' + host
-        if ssl_cert_path:
-            self.async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0), verify=ssl_cert_path)
+        if self.ssl_cert_path:
+            self.async_client = httpx.AsyncClient(
+                base_url=self.base_url, timeout=Timeout(60.0), verify=self.ssl_cert_path)
         else:
             self.async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
         self.async_client.cookies.clear()
