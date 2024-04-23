@@ -43,6 +43,8 @@ class DetectorNode(Node):
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
 
+        self.detection_lock = asyncio.Lock()
+
         self.outbox: Outbox = Outbox()
         self.data_exchanger = DataExchanger(
             Context(organization=self.organization, project=self.project),
@@ -300,8 +302,9 @@ class DetectorNode(Node):
         """Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
         loop = asyncio.get_event_loop()
+        await self.detection_lock.acquire()
         detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
-
+        self.detection_lock.release()
         for seg_detection in detections.segmentation_detections:
             if isinstance(seg_detection.shape, Shape):
                 shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
