@@ -22,6 +22,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | LOOP_HOST               | HOST         | Learning Loop address (e.g. learning-loop.ai)                | all                  |
 | LOOP_USERNAME           | USERNAME     | Learning Loop user name                                      | all besides Detector |
 | LOOP_PASSWORD           | PASSWORD     | Learning Loop password                                       | all besides Detector |
+| LOOP_SSL_CERT_PATH      | -            | Path to the SSL certificate                                  | all (opt.)           |
 | LOOP_ORGANIZATION       | ORGANIZATION | Organization name                                            | Detector             |
 | LOOP_PROJECT            | PROJECT      | Project name                                                 | Detector             |
 | MIN_UNCERTAIN_THRESHOLD | PROJECT      | smallest confidence (float) at which auto-upload will happen | Detector             |
