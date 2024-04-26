@@ -162,14 +162,14 @@ class ActiveTrainingIO:
         up_count = 0
         for i in range(skip_detections, len(detections), batch_size):
             up_count += 1
-            up_progress = i+batch_size
+            up_progress = i + batch_size if i + batch_size < len(detections) else 0
             batch_detections = detections[i:up_progress]
-            await self._upload_detections(context, batch_detections, up_progress)
+            await self._upload_detections_and_save_progress(context, batch_detections, up_progress)
             skip_detections = up_progress
 
         logging.info('uploaded %d detections', len(detections))
 
-    async def _upload_detections(self, context: Context, batch_detections: List[Detections], up_progress: int):
+    async def _upload_detections_and_save_progress(self, context: Context, batch_detections: List[Detections], up_progress: int):
         detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
         response = await self.loop_communicator.post(
             f'/{context.organization}/projects/{context.project}/detections', json=detections_json)
@@ -179,7 +179,4 @@ class ActiveTrainingIO:
             raise Exception(msg)
 
         logging.info('successfully uploaded detections')
-        if up_progress >= len(batch_detections):
-            self.save_detection_upload_progress(0)
-        else:
-            self.save_detection_upload_progress(up_progress)
+        self.save_detection_upload_progress(up_progress)
