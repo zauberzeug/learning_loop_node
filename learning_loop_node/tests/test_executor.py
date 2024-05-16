@@ -44,6 +44,7 @@ async def test_executor_lifecycle():
 
     assert not executor.is_running()
     sleep(1)
+    # NOTE: It happend that this process became a zombie process which leads to repeated test failures -> restart machine required
     assert_process_is_running('some_executable.sh', False)
 
 
