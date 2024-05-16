@@ -29,7 +29,7 @@ async def test_initialized_trainer_node():
     trainer._node = node
     trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
                                details={'categories': [],
-                                        'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
+                                        'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
                                         'training_number': 0,
                                         'resolution': 800,
                                         'flip_rl': False,
@@ -49,7 +49,7 @@ async def test_initialized_trainer():
     trainer._node = node
     trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
                                details={'categories': [],
-                                        'id': '917d5c7f-403d-7e92-f95f-577f79c2273a',  # version 1.2 of demo project
+                                        'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
                                         'training_number': 0,
                                         'resolution': 800,
                                         'flip_rl': False,
