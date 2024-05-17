@@ -1,3 +1,4 @@
+import asyncio
 import os
 from dataclasses import asdict
 from typing import Dict
@@ -7,10 +8,8 @@ from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
 from learning_loop_node.annotation.annotator_node import AnnotatorNode
-from learning_loop_node.data_classes import (AnnotationData,
-                                             AnnotationEventType, Category,
-                                             CategoryType, Context, Point,
-                                             ToolOutput, UserInput)
+from learning_loop_node.data_classes import (AnnotationData, AnnotationEventType, Category, CategoryType, Context,
+                                             Point, ToolOutput, UserInput)
 
 
 class MockedAnnotatatorLogic(AnnotatorLogic):
@@ -29,7 +28,7 @@ def default_user_input() -> UserInput:
         coordinate=Point(x=0, y=0),
         event_type=AnnotationEventType.LeftMouseDown,
         context=Context(organization='zauberzeug', project='pytest_p'),
-        image_uuid='501205a9-9b64-3df0-3785-507a677b7f05',
+        image_uuid='f786350c-89ca-9424-9b00-720a9a85fe09',
         category=Category(id='some_id', name='category_1', description='',
                           hotkey='', color='', type=CategoryType.Segmentation)
     )
@@ -40,7 +39,8 @@ def default_user_input() -> UserInput:
 
 @pytest.mark.asyncio
 async def test_image_download(setup_test_project):  # pylint: disable=unused-argument
-    image_path = '/tmp/learning_loop_lib_data/zauberzeug/pytest_p/images/501205a9-9b64-3df0-3785-507a677b7f05.jpg'
+    # TODO: This test depends on a pseudo-random uuid..
+    image_path = '/tmp/learning_loop_lib_data/zauberzeug/pytest_p/images/f786350c-89ca-9424-9b00-720a9a85fe09.jpg'
 
     assert os.path.exists(image_path) is False
 
