@@ -156,9 +156,6 @@ class DetectorNode(Node):
 
             tags = data.get('tags', [])
             tags.append('picked_by_system')
-            camera_id = data.get('camera-id', None) or data.get('mac', None)
-            if camera_id is not None:
-                tags.append(camera_id)
 
             loop = asyncio.get_event_loop()
             try:
@@ -315,8 +312,6 @@ class DetectorNode(Node):
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
         self.log.info(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
 
-        if camera_id is not None:
-            tags.append(camera_id)
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
                    args=(detections, camera_id, raw_image, tags)).start()
