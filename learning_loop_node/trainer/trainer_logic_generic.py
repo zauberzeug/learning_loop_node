@@ -230,7 +230,7 @@ class TrainerLogicGeneric(ABC):
 
     async def _training_loop(self) -> None:
         """Cycle through the training states until the training is finished or 
-        an asyncio.CancelledError is raised.
+        a critical error occurs (asyncio.CancelledError or CriticalError).
         """
         assert self.training_active
 
