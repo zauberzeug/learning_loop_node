@@ -15,13 +15,12 @@ from ..data_classes import (Context, Errors, Hyperparameter, PretrainedModel, Tr
 from ..helpers.misc import create_project_folder, delete_all_training_folders, generate_training, is_valid_uuid4
 from .downloader import TrainingsDownloader
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
+from .exceptions import CriticalError
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
 
-class CriticalError(Exception):
-    pass
 
 class TrainerLogicGeneric(ABC):
 
