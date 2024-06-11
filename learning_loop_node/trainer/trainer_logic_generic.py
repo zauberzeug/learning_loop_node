@@ -273,12 +273,10 @@ class TrainerLogicGeneric(ABC):
                 raise
             logging.info(f'CancelledError in {state_during} - cleaning up')
             self.training.training_state = TrainerState.ReadyForCleanup
-            return
         except CriticalError as e:
             logging.error(f'CriticalError in {state_during} - Exception: {e}')
             self.errors.set(error_key, str(e))
             self.training.training_state = TrainerState.ReadyForCleanup
-            return
         except Exception as e:
             self.errors.set(error_key, str(e))
             logging.exception(f'Error in {state_during} - Exception:')
@@ -289,7 +287,7 @@ class TrainerLogicGeneric(ABC):
                 self.errors.reset(error_key)
             self.training.training_state = state_after
 
-            self.last_training_io.save(self.training)
+        self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
