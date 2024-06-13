@@ -3,7 +3,7 @@ import logging
 import os
 import shlex
 from io import BufferedWriter
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class Executor:
@@ -16,7 +16,7 @@ class Executor:
 
         self.path = base_path
         self.log_file_path = f'{self.path}/{log_name}'
-        self.log_file: None | BufferedWriter = None
+        self.log_file: Optional[BufferedWriter] = None
         self._process: Optional[asyncio.subprocess.Process] = None  # pylint: disable=no-member
         os.makedirs(self.path, exist_ok=True)
 
@@ -26,7 +26,7 @@ class Executor:
             return self._process
         return None
 
-    async def start(self, cmd: str, env: Optional[dict[str, str]] = None) -> None:
+    async def start(self, cmd: str, env: Optional[Dict[str, str]] = None) -> None:
         """Start the process with the given command and environment variables."""
 
         full_env = os.environ.copy()
