@@ -43,3 +43,7 @@ def password(default: str = '') -> str:
 
 def host(default: str = '') -> str:
     return read_from_env(['LOOP_HOST', 'HOST']) or default
+
+
+def ssl_certificate_path(default: str = '') -> str:
+    return read_from_env(['LOOP_SSL_CERT_PATH',]) or default

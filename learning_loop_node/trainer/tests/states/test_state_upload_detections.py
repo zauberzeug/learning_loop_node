@@ -37,7 +37,7 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
                                                              'point_detections': [], 'segmentation_detections': []})
     detections = [detection_entry] * number_of_entries
 
-    assert trainer.active_training_io is not None  # pylint: disable=protected-access
+    assert trainer.active_training_io is not None
     trainer.active_training_io.save_detections(detections, file_index)
 
 
@@ -80,21 +80,21 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     create_active_training_file(trainer, training_state=TrainerState.Detected)
     trainer._init_from_last_training()
 
-    await create_valid_detection_file(trainer, 2, 0)
-    await create_valid_detection_file(trainer, 2, 1)
+    await create_valid_detection_file(trainer, 4, 0)
+    await create_valid_detection_file(trainer, 4, 1)
 
     assert trainer.active_training_io.load_detections_upload_file_index() == 0
     detections = trainer.active_training_io.load_detections(0)
-    assert len(detections) == 2
+    assert len(detections) == 4
 
-    batch_size = 1
+    batch_size = 2
     skip_detections = trainer.active_training_io.load_detection_upload_progress()
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
-        # pylint: disable=protected-access
-        await trainer.active_training_io._upload_detections(trainer.training.context, batch_detections, i + batch_size)
+        progress = i + batch_size if i + batch_size < len(detections) else 0
+        await trainer.active_training_io._upload_detections_and_save_progress(trainer.training.context, batch_detections, progress)
 
-        expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
+        expected_value = progress  # Progress is reset for every file
         assert trainer.active_training_io.load_detection_upload_progress() == expected_value
 
     assert trainer.active_training_io.load_detections_upload_file_index() == 0
@@ -107,10 +107,11 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
     skip_detections = trainer.active_training_io.load_detection_upload_progress()
     for i in range(skip_detections, len(detections), batch_size):
         batch_detections = detections[i:i+batch_size]
-        # pylint: disable=protected-access
-        await trainer.active_training_io._upload_detections(trainer.training.context, batch_detections, i + batch_size)
 
-        expected_value = i + batch_size if i + batch_size < len(detections) else 0  # Progress is reset for every file
+        progress = i + batch_size if i + batch_size < len(detections) else 0
+        await trainer.active_training_io._upload_detections_and_save_progress(trainer.training.context, batch_detections, progress)
+
+        expected_value = progress  # Progress is reset for every file
         assert trainer.active_training_io.load_detection_upload_progress() == expected_value
         assert trainer.active_training_io.load_detections_upload_file_index() == 1
 
@@ -160,5 +161,5 @@ async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
     await trainer.stop()
     await asyncio.sleep(0.1)
 
-    assert trainer._training is None  # pylint: disable=protected-access
+    assert trainer._training is None
     assert trainer.node.last_training_io.exists() is False

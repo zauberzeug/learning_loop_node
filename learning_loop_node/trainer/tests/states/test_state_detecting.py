@@ -14,11 +14,11 @@ def trainer_has_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for(error_key)
 
 
-async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):  # NOTE was a flaky test
+async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
-                                model_uuid_for_detecting='917d5c7f-403d-7e92-f95f-577f79c2273a')
-    # trainer.load_active_training()
+                                model_uuid_for_detecting='00000000-0000-0000-0000-000000000011')  # NOTE: this is the hard coded model uuid for zauberzeug/demo (model version 1.1)
+
     _ = asyncio.get_running_loop().create_task(
         trainer._perform_state('do_detections', TrainerState.Detecting, TrainerState.Detected, trainer._do_detections))
 
