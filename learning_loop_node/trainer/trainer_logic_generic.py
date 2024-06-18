@@ -20,6 +20,7 @@ from .exceptions import CriticalError
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
+logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
 
 class TrainerLogicGeneric(ABC):
@@ -168,7 +169,7 @@ class TrainerLogicGeneric(ABC):
 
     # NOTE: Trainings are started by the Learning Loop via the begin_training event
         # or by the trainer itself via try_continue_run_if_incomplete.
-        # The trainer will then initialize a new training object and start the training loop.
+        # The trainer will then initialize  new training object and start the training loop.
         # Initializing a new training object will create the folder structure for the training.
         # The training loop will then run through the states of the training.
 
@@ -177,7 +178,7 @@ class TrainerLogicGeneric(ABC):
         """
         if not self.training_active and self.last_training_io.exists():
             self._init_from_last_training()
-            logging.info('found incomplete training, continuing now.')
+            logger.info('found incomplete training, continuing now.')
             asyncio.get_event_loop().create_task(self._run())
             return True
         return False
@@ -209,7 +210,7 @@ class TrainerLogicGeneric(ABC):
 
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, context)
-        logging.info(f'new training initialized: {self._training}')
+        logger.info(f'new training initialized: {self._training}')
 
     async def _run(self) -> None:
         """Called on `begin_training` event from the Learning Loop. 
@@ -223,7 +224,7 @@ class TrainerLogicGeneric(ABC):
             assert self.shutdown_event.is_set(), 'CancelledError should only be raised if shutdown_event is set'
             logging.info('CancelledError in _run - shutting down')
         except Exception as e:
-            logging.exception(f'Error in train: {e}')
+            logger.exception(f'Error in train: {e}')
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
@@ -257,7 +258,7 @@ class TrainerLogicGeneric(ABC):
 
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         await asyncio.sleep(0.1)
-        logging.info(f'Performing state: {state_during}')
+        logger.info(f'Performing state: {state_during}')
         previous_state = self.training.training_state
         self.training.training_state = state_during
         await asyncio.sleep(0.1)
@@ -269,20 +270,21 @@ class TrainerLogicGeneric(ABC):
 
         except asyncio.CancelledError:
             if self.shutdown_event.is_set():
-                logging.info(f'CancelledError in {state_during} - shutdown event set')
+                logger.info(f'CancelledError in {state_during} - shutdown event set')
                 raise
-            logging.info(f'CancelledError in {state_during} - cleaning up')
+            logger.info(f'CancelledError in {state_during} - cleaning up')
             self.training.training_state = TrainerState.ReadyForCleanup
         except CriticalError as e:
-            logging.error(f'CriticalError in {state_during} - Exception: {e}')
+            logger.error(f'CriticalError in {state_during} - Exception: {e}')
             self.errors.set(error_key, str(e))
             self.training.training_state = TrainerState.ReadyForCleanup
         except Exception as e:
             self.errors.set(error_key, str(e))
-            logging.exception(f'Error in {state_during} - Exception:')
+            logger.exception('Error in %s - Exception: %s', state_during, e)
             self.training.training_state = previous_state
             return
         else:
+            logger.info(f'Successfully finished state: {state_during}')
             if not reset_early:
                 self.errors.reset(error_key)
             self.training.training_state = state_after
@@ -307,11 +309,11 @@ class TrainerLogicGeneric(ABC):
 
         # TODO this checks if we continue a training -> make more explicit
         if not base_model_uuid or not is_valid_uuid4(base_model_uuid):
-            logging.info(f'skipping model download. No base model provided (in form of uuid): {base_model_uuid}')
+            logger.info(f'skipping model download. No base model provided (in form of uuid): {base_model_uuid}')
             return
 
-        logging.info('loading model from Learning Loop')
-        logging.info(f'downloading model {base_model_uuid} as {self.model_format}')
+        logger.info('loading model from Learning Loop')
+        logger.info(f'downloading model {base_model_uuid} as {self.model_format}')
         await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_uuid, self.model_format)
         shutil.move(f'{self.training.training_folder}/model.json',
                     f'{self.training.training_folder}/base_model.json')
@@ -334,12 +336,12 @@ class TrainerLogicGeneric(ABC):
                 result = await self.node.sio_client.call('update_training', (
                     self.training.context.organization, self.training.context.project, jsonable_encoder(new_training)))
                 if isinstance(result,  dict) and result['success']:
-                    logging.info(f'successfully updated training {asdict(new_training)}')
+                    logger.info(f'successfully updated training {asdict(new_training)}')
                     self._on_metrics_published(new_best_model)
                 else:
                     raise Exception(f'Error for update_training: Response from loop was : {result}')
         except Exception as e:
-            logging.exception('Error during confusion matrix syncronization')
+            logger.exception('Error during confusion matrix syncronization')
             self.errors.set(error_key, str(e))
             raise
         self.errors.reset(error_key)
@@ -350,8 +352,8 @@ class TrainerLogicGeneric(ABC):
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         if new_model_uuid is None:
             self.training.training_state = TrainerState.ReadyForCleanup
-            logging.error('could not upload model - maybe training failed.. cleaning up')
-        logging.info(f'Successfully uploaded model and received new model id: {new_model_uuid}')
+            logger.error('could not upload model - maybe training failed.. cleaning up')
+        logger.info(f'Successfully uploaded model and received new model id: {new_model_uuid}')
         self.training.model_uuid_for_detecting = new_model_uuid
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
@@ -418,23 +420,23 @@ class TrainerLogicGeneric(ABC):
         if not self.training_active:
             return
         if self.training_task:
-            logging.info('cancelling training task')
+            logger.info('cancelling training task')
             if self.training_task.cancel():
                 try:
                     await self.training_task
                 except asyncio.CancelledError:
                     pass
-                logging.info('cancelled training task')
+                logger.info('cancelled training task')
                 self._may_restart()
 
     def _may_restart(self) -> None:
         """If the environment variable RESTART_AFTER_TRAINING is set, the trainer will restart after a training.
         """
         if self._environment_vars.restart_after_training:
-            logging.info('restarting')
+            logger.info('restarting')
             sys.exit(0)
         else:
-            logging.info('not restarting')
+            logger.info('not restarting')
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
     @abstractmethod
