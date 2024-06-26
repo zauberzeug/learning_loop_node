@@ -5,6 +5,7 @@ import shutil
 import time
 from dataclasses import asdict
 from datetime import datetime
+from enum import StrEnum
 from glob import glob
 from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
@@ -17,6 +18,11 @@ from fastapi.encoders import jsonable_encoder
 from ..data_classes import Detections
 from ..globals import GLOBALS
 from ..helpers import environment_reader
+
+
+class OutboxMode(StrEnum):
+    CONTINUOUS_UPLOAD = 'continuous_upload'
+    STOPPED = 'stopped'
 
 
 class Outbox():
@@ -36,7 +42,7 @@ class Outbox():
         self.target_uri = f'{base}/{o}/projects/{p}/images'
         self.log.info(f'Outbox initialized with target_uri: {self.target_uri}')
 
-        self.shutdown_event: Optional[SyncEvent] = None
+        self.shutdown_event: SyncEvent = Event()
         self.upload_process: Optional[Thread] = None
 
     def save(self, image: bytes, detections: Optional[Detections] = None, tags: Optional[List[str]] = None) -> None:
@@ -65,7 +71,6 @@ class Outbox():
         return glob(f'{self.path}/*')
 
     def start_continuous_upload(self):
-        self.shutdown_event = Event()
         self.upload_process = Thread(target=self._continuous_upload)
         self.upload_process.start()
 
@@ -82,7 +87,7 @@ class Outbox():
         if items:
             self.log.info(f'Found {len(items)} images to upload')
         for item in items:
-            if self.shutdown_event and self.shutdown_event.is_set():
+            if self.shutdown_event.is_set():
                 break
             try:
                 data = [('files', open(f'{item}/image.json', 'r')),
@@ -100,7 +105,7 @@ class Outbox():
             except Exception:
                 self.log.exception('could not upload files')
 
-    def stop_continuous_upload(self, timeout=5):
+    def stop_continuous_upload(self, timeout=31):
         proc = self.upload_process
         if not proc:
             return
@@ -111,7 +116,25 @@ class Outbox():
             assert proc is not None
             proc.join(timeout)
         except Exception:
-            logging.exception('error while shutting down upload thread')
+            logging.exception('Error while shutting down upload thread')
 
         if proc.is_alive():
-            self.log.error('upload thread did not terminate')
+            self.log.error('Upload thread did not terminate')
+
+    def get_mode(self) -> OutboxMode:
+        ''':return: current mode ('continuous_upload' or 'stopped')'''
+        if self.upload_process and self.upload_process.is_alive():
+            return OutboxMode.CONTINUOUS_UPLOAD
+        return OutboxMode.STOPPED
+
+    def set_mode(self, mode: OutboxMode | str) -> None:
+        ''':param mode: 'continuous_upload' or 'stopped'
+        :raises ValueError: if mode is not a valid OutboxMode
+        '''
+        if isinstance(mode, str):
+            mode = OutboxMode(mode)
+
+        if mode == OutboxMode.CONTINUOUS_UPLOAD:
+            self.start_continuous_upload()
+        elif mode == OutboxMode.STOPPED:
+            self.stop_continuous_upload()
