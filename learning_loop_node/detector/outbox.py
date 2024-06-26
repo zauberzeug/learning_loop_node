@@ -7,6 +7,7 @@ from dataclasses import asdict
 from datetime import datetime
 from enum import StrEnum
 from glob import glob
+from io import BufferedReader, TextIOWrapper
 from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
 from threading import Thread
@@ -41,6 +42,8 @@ class Outbox():
         base: str = base_url
         self.target_uri = f'{base}/{o}/projects/{p}/images'
         self.log.info('Outbox initialized with target_uri: %s', self.target_uri)
+
+        self.BATCH_SIZE = 8
 
         self.shutdown_event: SyncEvent = Event()
         self.upload_process: Optional[Thread] = None
@@ -86,24 +89,38 @@ class Outbox():
         items = self.get_data_files()
         if items:
             self.log.info('Found %s images to upload', len(items))
-        for item in items:
-            if self.shutdown_event.is_set():
-                break
-            try:
-                data = [('files', open(f'{item}/image.json', 'r')),
-                        ('files', open(f'{item}/image.jpg', 'rb'))]
+            for i in range(0, len(items), self.BATCH_SIZE):
+                batch_items = items[i:i+self.BATCH_SIZE]
+                if self.shutdown_event.is_set():
+                    break
+                try:
+                    self._upload_batch(batch_items)
+                except Exception:
+                    self.log.exception('Could not upload files')
+        else:
+            self.log.info('No images found to upload')
 
-                response = requests.post(self.target_uri, files=data, timeout=30)
-                if response.status_code == 200:
-                    shutil.rmtree(item)
-                    self.log.info('uploaded %s successfully', item)
-                elif response.status_code == 422:
-                    self.log.error('Broken content in %s: dropping this data', item)
-                    shutil.rmtree(item)
-                else:
-                    self.log.error('Could not upload %s: %s', item, response.status_code)
-            except Exception:
-                self.log.exception('could not upload files')
+    def _upload_batch(self, items: List[str]):
+        data: List[tuple[str, TextIOWrapper | BufferedReader]] = []
+        data = [('files', open(f'{item}/image.json', 'r')) for item in items]
+        data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
+
+        response = requests.post(self.target_uri, files=data, timeout=30)
+        if response.status_code == 200:
+            for item in items:
+                shutil.rmtree(item)
+            self.log.info('Uploaded %s images successfully', len(items))
+        elif response.status_code == 422:
+            if len(items) == 1:
+                self.log.error('Broken content in image: %s\n Skipping.', items[0])
+                shutil.rmtree(items[0])
+                return
+            else:
+                self.log.exception('Broken content in batch. Splitting and retrying')
+                self._upload_batch(items[:len(items)//2])
+                self._upload_batch(items[len(items)//2:])
+        else:
+            self.log.error('Could not upload images: %s', response.content)
 
     def stop_continuous_upload(self, timeout=31):
         proc = self.upload_process
