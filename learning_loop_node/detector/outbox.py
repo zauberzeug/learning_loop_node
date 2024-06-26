@@ -40,7 +40,7 @@ class Outbox():
         base_url = f'http{"s" if "learning-loop.ai" in host else ""}://{host}/api'
         base: str = base_url
         self.target_uri = f'{base}/{o}/projects/{p}/images'
-        self.log.info(f'Outbox initialized with target_uri: {self.target_uri}')
+        self.log.info('Outbox initialized with target_uri: %s', self.target_uri)
 
         self.shutdown_event: SyncEvent = Event()
         self.upload_process: Optional[Thread] = None
@@ -65,7 +65,7 @@ class Outbox():
         if os.path.exists(tmp):
             os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
         else:
-            self.log.error(f'Could not rename {tmp} to {self.path}/{identifier}')
+            self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
 
     def get_data_files(self):
         return glob(f'{self.path}/*')
@@ -85,7 +85,7 @@ class Outbox():
     def upload(self):
         items = self.get_data_files()
         if items:
-            self.log.info(f'Found {len(items)} images to upload')
+            self.log.info('Found %s images to upload', len(items))
         for item in items:
             if self.shutdown_event.is_set():
                 break
@@ -96,12 +96,12 @@ class Outbox():
                 response = requests.post(self.target_uri, files=data, timeout=30)
                 if response.status_code == 200:
                     shutil.rmtree(item)
-                    self.log.info(f'uploaded {item} successfully')
+                    self.log.info('uploaded %s successfully', item)
                 elif response.status_code == 422:
-                    self.log.error(f'Broken content in {item}: dropping this data')
+                    self.log.error('Broken content in %s: dropping this data', item)
                     shutil.rmtree(item)
                 else:
-                    self.log.error(f'Could not upload {item}: {response.status_code}')
+                    self.log.error('Could not upload %s: %s', item, response.status_code)
             except Exception:
                 self.log.exception('could not upload files')
 
