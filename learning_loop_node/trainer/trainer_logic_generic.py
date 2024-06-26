@@ -169,7 +169,7 @@ class TrainerLogicGeneric(ABC):
 
     # NOTE: Trainings are started by the Learning Loop via the begin_training event
         # or by the trainer itself via try_continue_run_if_incomplete.
-        # The trainer will then initialize  new training object and start the training loop.
+        # The trainer will then initialize a new training object and start the training loop.
         # Initializing a new training object will create the folder structure for the training.
         # The training loop will then run through the states of the training.
 
