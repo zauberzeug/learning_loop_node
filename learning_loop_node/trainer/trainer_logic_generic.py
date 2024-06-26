@@ -14,8 +14,8 @@ from ..data_classes import (Context, Errors, Hyperparameter, PretrainedModel, Tr
                             TrainingOut, TrainingStateData)
 from ..helpers.misc import create_project_folder, delete_all_training_folders, generate_training, is_valid_uuid4
 from .downloader import TrainingsDownloader
-from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .exceptions import CriticalError
+from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -355,21 +355,22 @@ class TrainerLogicGeneric(ABC):
         """Uploads the latest model to the Learning Loop.
         """
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
-        if new_model_uuid is None:
-            self.training.training_state = TrainerState.ReadyForCleanup
-            logger.error('could not upload model - maybe training failed.. cleaning up')
         logger.info(f'Successfully uploaded model and received new model id: {new_model_uuid}')
         self.training.model_uuid_for_detecting = new_model_uuid
 
-    async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
+    async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
-        Note that trainer may train with different classes, which is why we send an initial model.json file."""
+        Note that trainer may train with different classes, which is why we send an initial model.json file.
+
+        :return: The new model UUID.
+        :raise CriticalError: If the latest model files cannot be obtained.
+        """
 
         files = await self._get_latest_model_files()
         if files is None:
-            return None
+            raise CriticalError('Could not get latest model files. Training might have failed.')
 
         if isinstance(files, List):
             files = {self.model_format: files}
@@ -383,8 +384,6 @@ class TrainerLogicGeneric(ABC):
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
             model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
-            if model_uuid is None:
-                return None
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)

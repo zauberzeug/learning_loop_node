@@ -14,6 +14,7 @@ import aiofiles  # type: ignore
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image
 from .loop_communication import LoopCommunicator
+from .trainer.exceptions import CriticalError
 
 
 class DownloadError(Exception):
@@ -159,13 +160,17 @@ class DataExchanger():
         logging.info(f'Downloaded model {model_uuid}({model_format}) to {target_folder}.')
         return created_files
 
-    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> Optional[str]:
-        """Used by the trainers. Function returns the new model uuid to use for detection."""
+    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
+        """Used by the trainers. Function returns the new model uuid to use for detection.
+
+        :return: The new model uuid.
+        :raise CriticalError: If the upload does not return status code 200.
+        """
         response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
         if response.status_code != 200:
             logging.error(f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
-            response.raise_for_status()
-            return None
+            raise CriticalError(
+                f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
 
         uploaded_model = response.json()
         logging.info(f'Uploaded model for training {training_number}, format {mformat}. Response is: {uploaded_model}')
