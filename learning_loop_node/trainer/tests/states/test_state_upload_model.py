@@ -54,7 +54,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
 async def test_bad_server_response_content(test_initialized_trainer: TestingTrainerLogic):
     """Set the training state to confusion_matrix_synced and try to upload the model.
     This should fail because the server response is not a valid model id.
-    The training should be aborted and the training state should be set to confusion_matrix_synced."""
+    The training should be aborted and the training state should be set to ready_for_cleanup."""
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
@@ -64,10 +64,10 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     # TODO goes to finished because of the error
-    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=2, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=2, interval=0.001)
 
     assert trainer_has_error(trainer)
-    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert trainer.training.model_uuid_for_detecting is None
     assert trainer.node.last_training_io.load() == trainer.training
 
