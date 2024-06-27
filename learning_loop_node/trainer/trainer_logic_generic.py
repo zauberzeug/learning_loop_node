@@ -263,6 +263,13 @@ class TrainerLogicGeneric(ABC):
                 self._may_restart()
 
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
+        '''
+        Perform a training state and handle errors.
+        - If the loop sends a StopTraining event, this will raise a CancelledError.
+        - States can raise a CriticalError indicating that there is no point in retrying the state.
+        - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+        '''
+
         await asyncio.sleep(0.1)
         logger.info(f'Performing state: {state_during}')
         previous_state = self.training.training_state
