@@ -59,7 +59,7 @@ class TestingTrainerLogic(TrainerLogic):
         await super()._upload_model()
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
 
-    async def _upload_model_return_new_model_uuid(self, context: Context) -> Optional[str]:
+    async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
         result = await super()._upload_model_return_new_model_uuid(context)
         await asyncio.sleep(0.1)  # give tests a bit time to to check for the state
