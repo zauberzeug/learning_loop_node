@@ -102,3 +102,19 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
     assert response_dict['state'] == 'online'
     assert response_dict['target_model'] == '1.1'
     assert any(c.name == 'purple point' for c in model_information.categories)
+
+
+async def test_rest_outbox_mode(test_detector_node: DetectorNode):
+    await asyncio.sleep(3)
+
+    def check_switch_to_mode(mode: str):
+        response = requests.put(f'http://localhost:{GLOBALS.detector_port}/outbox_mode',
+                                data=mode, timeout=30)
+        assert response.status_code == 200
+        response = requests.get(f'http://localhost:{GLOBALS.detector_port}/outbox_mode', timeout=30)
+        assert response.status_code == 200
+        assert response.content == mode.encode()
+
+    check_switch_to_mode('stopped')
+    check_switch_to_mode('continuous_upload')
+    check_switch_to_mode('stopped')
