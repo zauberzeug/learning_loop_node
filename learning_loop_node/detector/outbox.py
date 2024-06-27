@@ -44,7 +44,7 @@ class Outbox():
         self.target_uri = f'{base}/{o}/projects/{p}/images'
         self.log.info('Outbox initialized with target_uri: %s', self.target_uri)
 
-        self.BATCH_SIZE = 8
+        self.BATCH_SIZE = 20
 
         self.shutdown_event: SyncEvent = Event()
         self.upload_process: Optional[Thread] = None
@@ -89,7 +89,7 @@ class Outbox():
         assert self.shutdown_event is not None
         while not self.shutdown_event.is_set():
             self.upload()
-            time.sleep(1)
+            time.sleep(5)
         self.log.info('continuous upload ended')
 
     def upload(self):
@@ -115,12 +115,12 @@ class Outbox():
         response = requests.post(self.target_uri, files=data, timeout=30)
         if response.status_code == 200:
             for item in items:
-                shutil.rmtree(item)
+                shutil.rmtree(item, ignore_errors=True)
             self.log.info('Uploaded %s images successfully', len(items))
         elif response.status_code == 422:
             if len(items) == 1:
                 self.log.error('Broken content in image: %s\n Skipping.', items[0])
-                shutil.rmtree(items[0])
+                shutil.rmtree(items[0], ignore_errors=True)
                 return
 
             self.log.exception('Broken content in batch. Splitting and retrying')
