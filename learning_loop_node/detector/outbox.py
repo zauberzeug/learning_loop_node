@@ -74,16 +74,18 @@ class Outbox():
         return glob(f'{self.path}/*')
 
     def start_continuous_upload(self):
+        logging.debug('start_continuous_upload')
+        self.shutdown_event.clear()
         self.upload_process = Thread(target=self._continuous_upload)
         self.upload_process.start()
 
     def _continuous_upload(self):
-        self.log.info('start continuous upload')
+        self.log.info('continuous upload started')
         assert self.shutdown_event is not None
         while not self.shutdown_event.is_set():
             self.upload()
             time.sleep(1)
-        self.log.info('stop continuous upload')
+        self.log.info('continuous upload ended')
 
     def upload(self):
         items = self.get_data_files()
@@ -123,6 +125,7 @@ class Outbox():
             self.log.error('Could not upload images: %s', response.content)
 
     def stop_continuous_upload(self, timeout=31):
+        logging.debug('stop_continuous_upload')
         proc = self.upload_process
         if not proc:
             return
