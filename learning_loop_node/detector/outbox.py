@@ -27,7 +27,6 @@ class OutboxMode(Enum):
 
 
 class Outbox():
-
     def __init__(self) -> None:
         self.log = logging.getLogger()
         self.path = f'{GLOBALS.data_folder}/outbox'
@@ -45,6 +44,7 @@ class Outbox():
         self.log.info('Outbox initialized with target_uri: %s', self.target_uri)
 
         self.BATCH_SIZE = 20
+        self.UPLOAD_TIMEOUT_S = 30
 
         self.shutdown_event: SyncEvent = Event()
         self.upload_process: Optional[Thread] = None
@@ -112,7 +112,7 @@ class Outbox():
         data = [('files', open(f'{item}/image.json', 'r')) for item in items]
         data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
 
-        response = requests.post(self.target_uri, files=data, timeout=30)
+        response = requests.post(self.target_uri, files=data, timeout=self.UPLOAD_TIMEOUT_S)
         if response.status_code == 200:
             for item in items:
                 shutil.rmtree(item, ignore_errors=True)
@@ -129,7 +129,7 @@ class Outbox():
         else:
             self.log.error('Could not upload images: %s', response.content)
 
-    def ensure_continuous_upload_stopped(self, timeout=31) -> bool:
+    def ensure_continuous_upload_stopped(self) -> bool:
         self.log.debug('Outbox: Ensuring continuous upload')
         if not self._upload_process_alive():
             self.log.debug('Upload thread already stopped')
@@ -142,7 +142,7 @@ class Outbox():
             assert self.shutdown_event is not None
             self.shutdown_event.set()
             assert proc is not None
-            proc.join(timeout)
+            proc.join(self.UPLOAD_TIMEOUT_S + 1)
         except Exception:
             self.log.exception('Error while shutting down upload thread: ')
 
@@ -166,18 +166,20 @@ class Outbox():
         self.log.debug('Outbox: Current mode is %s', current_mode)
         return current_mode
 
-    def set_mode(self, mode: OutboxMode | str) -> bool:
+    def set_mode(self, mode: OutboxMode | str):
         ''':param mode: 'continuous_upload' or 'stopped'
         :raises ValueError: if mode is not a valid OutboxMode
+        :raises TimeoutError: if the upload thread does not terminate within 31 seconds with mode='stopped'
         '''
         if isinstance(mode, str):
             mode = OutboxMode(mode)
 
         if mode == OutboxMode.CONTINUOUS_UPLOAD:
             self.ensure_continuous_upload()
-            sucess = True
         elif mode == OutboxMode.STOPPED:
-            sucess = self.ensure_continuous_upload_stopped()
+            try:
+                self.ensure_continuous_upload_stopped()
+            except TimeoutError as e:
+                raise TimeoutError(f'Upload thread did not terminate within {self.UPLOAD_TIMEOUT_S} seconds.') from e
 
         self.log.debug('set outbox mode to %s', mode)
-        return sucess
