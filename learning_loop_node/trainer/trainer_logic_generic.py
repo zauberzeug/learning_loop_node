@@ -226,6 +226,7 @@ class TrainerLogicGeneric(ABC):
                 self.training.training_state = TrainerState.ReadyForCleanup
                 self.last_training_io.save(self.training)
                 await self._clear_training()
+                self._may_restart()
             else:
                 logger.info('CancelledError in _run - shutting down')
         except Exception as e:
