@@ -5,7 +5,7 @@ import shutil
 import time
 from dataclasses import asdict
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from glob import glob
 from io import BufferedReader, TextIOWrapper
 from multiprocessing import Event
@@ -21,7 +21,7 @@ from ..globals import GLOBALS
 from ..helpers import environment_reader
 
 
-class OutboxMode(StrEnum):
+class OutboxMode(Enum):
     CONTINUOUS_UPLOAD = 'continuous_upload'
     STOPPED = 'stopped'
 
@@ -33,6 +33,7 @@ class Outbox():
         self.path = f'{GLOBALS.data_folder}/outbox'
         os.makedirs(self.path, exist_ok=True)
 
+        self.log = logging.getLogger()
         host = environment_reader.host()
         o = environment_reader.organization()
         p = environment_reader.project()
@@ -144,8 +145,12 @@ class Outbox():
     def get_mode(self) -> OutboxMode:
         ''':return: current mode ('continuous_upload' or 'stopped')'''
         if self.upload_process and self.upload_process.is_alive():
-            return OutboxMode.CONTINUOUS_UPLOAD
-        return OutboxMode.STOPPED
+            current_mode = OutboxMode.CONTINUOUS_UPLOAD
+        else:
+            current_mode = OutboxMode.STOPPED
+
+        self.log.debug('get_mode %s', current_mode)
+        return current_mode
 
     def set_mode(self, mode: OutboxMode | str) -> None:
         ''':param mode: 'continuous_upload' or 'stopped'
@@ -158,3 +163,5 @@ class Outbox():
             self.start_continuous_upload()
         elif mode == OutboxMode.STOPPED:
             self.stop_continuous_upload()
+
+        self.log.debug('set outbox mode to %s', mode)

@@ -1,8 +1,7 @@
-
-import logging
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
+from ..outbox import Outbox
 
 router = APIRouter()
 
@@ -13,9 +12,8 @@ async def get_outbox_mode(request: Request):
     Example Usage
         curl http://localhost/outbox_mode
     '''
-    logging.error("\nget_outbox_mode\n")
-    outbox = request.app.outbox
-    return PlainTextResponse(str(outbox.get_mode()))
+    outbox: Outbox = request.app.outbox
+    return PlainTextResponse(outbox.get_mode().value)
 
 
 @router.put("/outbox_mode")
@@ -25,11 +23,10 @@ async def put_outbox_mode(request: Request):
         curl -X PUT -d "continuous_upload" http://localhost/outbox_mode
         curl -X PUT -d "stopped" http://localhost/outbox_mode
     '''
-    print("put_outbox_mode")
-    outbox = request.app.outbox
+    outbox: Outbox = request.app.outbox
     content = str(await request.body(), 'utf-8')
     try:
         outbox.set_mode(content)
     except ValueError as e:
-        raise HTTPException(422, str(e)) from e
+        raise HTTPException(422, 'Could not set outbox mode: ' + str(e)) from e
     return "OK"
