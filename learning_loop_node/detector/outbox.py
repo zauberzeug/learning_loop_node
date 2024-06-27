@@ -130,7 +130,7 @@ class Outbox():
             self.log.error('Could not upload images: %s', response.content)
 
     def ensure_continuous_upload_stopped(self, timeout=31) -> bool:
-        self.log.debug('stop_continuous_upload')
+        self.log.debug('Outbox: Ensuring continuous upload')
         if not self._upload_process_alive():
             self.log.debug('Upload thread already stopped')
             return True
@@ -163,7 +163,7 @@ class Outbox():
         else:
             current_mode = OutboxMode.STOPPED
 
-        self.log.debug('get_mode %s', current_mode)
+        self.log.debug('Outbox: Current mode is %s', current_mode)
         return current_mode
 
     def set_mode(self, mode: OutboxMode | str) -> bool:
