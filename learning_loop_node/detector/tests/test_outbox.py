@@ -1,5 +1,6 @@
 import os
 import shutil
+from time import sleep
 
 import numpy as np
 import pytest
@@ -21,6 +22,7 @@ def test_outbox():
     os.mkdir(test_outbox.path)
 
     yield test_outbox
+    test_outbox.set_mode('stopped')
     shutil.rmtree(test_outbox.path, ignore_errors=True)
 
 
@@ -52,11 +54,7 @@ def test_saving_opencv_image(test_outbox: Outbox):
 
 def test_saving_binary(test_outbox: Outbox):
     assert len(test_outbox.get_data_files()) == 0
-    img = Image.new('RGB', (60, 30), color=(73, 109, 137))
-    img.save('/tmp/image.jpg')
-    with open('/tmp/image.jpg', 'rb') as f:
-        data = f.read()
-    test_outbox.save(data)
+    save_test_image_to_outbox(test_outbox)
     assert len(test_outbox.get_data_files()) == 1
 
 
@@ -66,3 +64,23 @@ async def test_files_are_automatically_uploaded(test_detector_node: DetectorNode
     assert len(test_detector_node.outbox.get_data_files()) == 1
 
     assert len(test_detector_node.outbox.get_data_files()) == 1
+
+
+def test_set_outbox_mode(test_outbox: Outbox):
+    test_outbox.set_mode('stopped')
+    save_test_image_to_outbox(outbox=test_outbox)
+    sleep(6)
+    assert len(test_outbox.get_data_files()) == 1, 'File was cleared even though outbox should be stopped'
+    test_outbox.set_mode('continuous_upload')
+    sleep(6)
+    assert len(test_outbox.get_data_files()) == 0, 'File was not cleared even though outbox should be in continuous_upload'
+
+### Helper functions ###
+
+
+def save_test_image_to_outbox(outbox: Outbox):
+    img = Image.new('RGB', (60, 30), color=(73, 109, 137))
+    img.save('/tmp/image.jpg')
+    with open('/tmp/image.jpg', 'rb') as f:
+        data = f.read()
+    outbox.save(data)
