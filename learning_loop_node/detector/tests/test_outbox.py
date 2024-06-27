@@ -22,6 +22,7 @@ def test_outbox():
     os.mkdir(test_outbox.path)
 
     yield test_outbox
+    test_outbox.set_mode('stopped')
     shutil.rmtree(test_outbox.path, ignore_errors=True)
 
 
