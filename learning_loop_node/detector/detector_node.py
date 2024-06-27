@@ -27,6 +27,7 @@ from .rest import about as rest_about
 from .rest import backdoor_controls
 from .rest import detect as rest_detect
 from .rest import operation_mode as rest_mode
+from .rest import outbox_mode as rest_outbox_mode
 from .rest import upload as rest_upload
 from .rest.operation_mode import OperationMode
 
@@ -57,6 +58,7 @@ class DetectorNode(Node):
         self.include_router(rest_upload.router, prefix="")
         self.include_router(rest_mode.router, tags=["operation_mode"])
         self.include_router(rest_about.router, tags=["about"])
+        self.include_router(rest_outbox_mode.router, tags=["outbox_mode"])
 
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router)
