@@ -41,6 +41,8 @@ from learning_loop_node/learning_loop_node
 
 Detector Nodes are normally deployed on edge devices like robots or machinery but can also run in the cloud to provide backend services for an app or similar. These nodes register themself at the Learning Loop. They provide REST and Socket.io APIs to run inference on images. The processed images can automatically be used for active learning: e.g. uncertain predictions will be send to the Learning Loop.
 
+### Running Inference
+
 Images can be send to the detector node via socketio or rest.
 The later approach can be used via curl,
 
@@ -61,6 +63,20 @@ The detector also has a sio **upload endpoint** that can be used to upload image
 - `detections`: a dictionary representing the detections. UUIDs for the classes are automatically determined based on the category names. This field is optional. If not provided, no detections are uploaded.
 
 The endpoint returns None if the upload was successful and an error message otherwise.
+
+### Changing the upload mode
+
+If the autoupload is set to `all` or `filtered` (selected) images and the corresponding detections are saved on HDD (the outbox). A background thread will upload the images and detections to the Learning Loop. The outbox is located in the `outbox` folder in the root directory of the node. The outbox can be cleared by deleting the files in the folder.
+
+The continuous upload can be stopped/started via a REST enpoint:
+
+Example Usage:
+
+- Enable upload: `curl -X PUT -d "continuous_upload" http://localhost/outbox_mode`
+- Disable upload: `curl -X PUT -d "stopped" http://localhost/outbox_mode`
+
+The current state can be queried via a GET request:
+`curl http://localhost/outbox_mode`
 
 ## Trainer Node
 
