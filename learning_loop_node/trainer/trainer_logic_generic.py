@@ -222,7 +222,7 @@ class TrainerLogicGeneric(ABC):
             await self.training_task  # NOTE: Task object is used to potentially cancel the task
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
-                logger.info('CancelledError in _ru - training task was cancelled but not by shutdown event')
+                logger.info('CancelledError in _run - training task was cancelled but not by shutdown event')
                 self.training.training_state = TrainerState.ReadyForCleanup
                 self.last_training_io.save(self.training)
                 await self._clear_training()
