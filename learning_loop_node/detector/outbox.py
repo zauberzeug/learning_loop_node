@@ -112,7 +112,7 @@ class Outbox():
         data = [('files', open(f'{item}/image.json', 'r')) for item in items]
         data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
 
-        response = requests.post(self.target_uri, files=data, timeout=60)
+        response = requests.post(self.target_uri, files=data, timeout=30)
         if response.status_code == 200:
             for item in items:
                 shutil.rmtree(item, ignore_errors=True)
