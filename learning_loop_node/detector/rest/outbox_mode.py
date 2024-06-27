@@ -26,7 +26,11 @@ async def put_outbox_mode(request: Request):
     outbox: Outbox = request.app.outbox
     content = str(await request.body(), 'utf-8')
     try:
-        outbox.set_mode(content)
+        success = outbox.set_mode(content)
     except ValueError as e:
         raise HTTPException(422, 'Could not set outbox mode: ' + str(e)) from e
+
+    if not success:
+        raise HTTPException(500, 'Could not set outbox mode')
+
     return "OK"

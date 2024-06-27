@@ -91,7 +91,7 @@ class DetectorNode(Node):
 
     async def on_startup(self) -> None:
         try:
-            self.outbox.start_continuous_upload()
+            self.outbox.ensure_continuous_upload()
             self.detector_logic.load_model()
         except Exception:
             self.log.exception("error during 'startup'")

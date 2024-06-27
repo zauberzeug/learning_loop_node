@@ -74,10 +74,13 @@ class Outbox():
     def get_data_files(self):
         return glob(f'{self.path}/*')
 
-    def start_continuous_upload(self):
+    def ensure_continuous_upload(self):
+        if self.upload_process and self.upload_process.is_alive():
+            self.log.error('Upload thread already running')
+
         logging.debug('start_continuous_upload')
         self.shutdown_event.clear()
-        self.upload_process = Thread(target=self._continuous_upload)
+        self.upload_process = Thread(target=self._continuous_upload, name='OutboxUpload')
         self.upload_process.start()
 
     def _continuous_upload(self):
@@ -118,18 +121,18 @@ class Outbox():
                 self.log.error('Broken content in image: %s\n Skipping.', items[0])
                 shutil.rmtree(items[0])
                 return
-            else:
-                self.log.exception('Broken content in batch. Splitting and retrying')
-                self._upload_batch(items[:len(items)//2])
-                self._upload_batch(items[len(items)//2:])
+
+            self.log.exception('Broken content in batch. Splitting and retrying')
+            self._upload_batch(items[:len(items)//2])
+            self._upload_batch(items[len(items)//2:])
         else:
             self.log.error('Could not upload images: %s', response.content)
 
-    def stop_continuous_upload(self, timeout=31):
+    def stop_continuous_upload(self, timeout=31) -> bool:
         logging.debug('stop_continuous_upload')
         proc = self.upload_process
         if not proc:
-            return
+            return True
 
         try:
             assert self.shutdown_event is not None
@@ -141,6 +144,10 @@ class Outbox():
 
         if proc.is_alive():
             self.log.error('Upload thread did not terminate')
+            return False
+
+        self.log.info('Upload thread terminated')
+        return True
 
     def get_mode(self) -> OutboxMode:
         ''':return: current mode ('continuous_upload' or 'stopped')'''
@@ -152,7 +159,7 @@ class Outbox():
         self.log.debug('get_mode %s', current_mode)
         return current_mode
 
-    def set_mode(self, mode: OutboxMode | str) -> None:
+    def set_mode(self, mode: OutboxMode | str) -> bool:
         ''':param mode: 'continuous_upload' or 'stopped'
         :raises ValueError: if mode is not a valid OutboxMode
         '''
@@ -160,8 +167,10 @@ class Outbox():
             mode = OutboxMode(mode)
 
         if mode == OutboxMode.CONTINUOUS_UPLOAD:
-            self.start_continuous_upload()
+            self.ensure_continuous_upload()
+            sucess = True
         elif mode == OutboxMode.STOPPED:
-            self.stop_continuous_upload()
+            sucess = self.stop_continuous_upload()
 
         self.log.debug('set outbox mode to %s', mode)
+        return sucess
