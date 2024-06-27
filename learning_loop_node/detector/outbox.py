@@ -75,12 +75,11 @@ class Outbox():
         return glob(f'{self.path}/*')
 
     def ensure_continuous_upload(self):
-        if self.upload_process and self.upload_process.is_alive():
-            self.log.error('Upload thread already running')
-
-        logging.debug('start_continuous_upload')
         if self._upload_process_alive():
+            self.log.debug('Upload thread already running')
             return
+
+        self.log.debug('start_continuous_upload')
         self.shutdown_event.clear()
         self.upload_process = Thread(target=self._continuous_upload, name='OutboxUpload')
         self.upload_process.start()
@@ -130,10 +129,10 @@ class Outbox():
         else:
             self.log.error('Could not upload images: %s', response.content)
 
-    def stop_continuous_upload(self, timeout=31) -> bool:
-        logging.debug('stop_continuous_upload')
+    def ensure_continuous_upload_stopped(self, timeout=31) -> bool:
+        self.log.debug('stop_continuous_upload')
         if not self._upload_process_alive():
-            return
+            return True
         proc = self.upload_process
         if not proc:
             return True
@@ -144,7 +143,7 @@ class Outbox():
             assert proc is not None
             proc.join(timeout)
         except Exception:
-            logging.exception('Error while shutting down upload thread')
+            self.log.exception('Error while shutting down upload thread: ')
 
         if proc.is_alive():
             self.log.error('Upload thread did not terminate')
@@ -177,7 +176,7 @@ class Outbox():
             self.ensure_continuous_upload()
             sucess = True
         elif mode == OutboxMode.STOPPED:
-            sucess = self.stop_continuous_upload()
+            sucess = self.ensure_continuous_upload_stopped()
 
         self.log.debug('set outbox mode to %s', mode)
         return sucess

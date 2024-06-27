@@ -99,7 +99,7 @@ class DetectorNode(Node):
 
     async def on_shutdown(self) -> None:
         try:
-            self.outbox.stop_continuous_upload()
+            self.outbox.ensure_continuous_upload_stopped()
             for sid in self.connected_clients:
                 # pylint: disable=no-member
                 await self.sio.disconnect(sid)  # type:ignore
