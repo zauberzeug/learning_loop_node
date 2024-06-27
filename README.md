@@ -64,7 +64,7 @@ The detector also has a sio **upload endpoint** that can be used to upload image
 
 The endpoint returns None if the upload was successful and an error message otherwise.
 
-### Changing the upload mode
+### Changing the outbox mode
 
 If the autoupload is set to `all` or `filtered` (selected) images and the corresponding detections are saved on HDD (the outbox). A background thread will upload the images and detections to the Learning Loop. The outbox is located in the `outbox` folder in the root directory of the node. The outbox can be cleared by deleting the files in the folder.
 
@@ -77,6 +77,12 @@ Example Usage:
 
 The current state can be queried via a GET request:
 `curl http://localhost/outbox_mode`
+
+### Explicit upload
+
+The detector has a REST endpoint to upload images (and detections) to the Learning Loop. The endpoint takes a POST request with the image and optionally the detections. The image is expected to be in jpg format. The detections are expected to be a json dictionary. Example:
+
+`curl -X POST -F 'files=@test.jpg' "http://localhost:/upload"`
 
 ## Trainer Node
 
