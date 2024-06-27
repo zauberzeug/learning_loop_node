@@ -258,7 +258,7 @@ class TrainerLogicGeneric(ABC):
                 await self._perform_state('detecting', TrainerState.Detecting, TrainerState.Detected, self._do_detections)
             elif tstate == TrainerState.Detected:  # -> DetectionUploading -> ReadyForCleanup
                 await self._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, self.active_training_io.upload_detetions)
-            elif tstate == TrainerState.ReadyForCleanup:  # -> RESTART or TrainingFinished
+            elif tstate == TrainerState.ReadyForCleanup:  # -> Idle (RESTART or _training = None)
                 await self._clear_training()
                 self._may_restart()
 
