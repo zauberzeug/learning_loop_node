@@ -1,0 +1,2 @@
+class CriticalError(Exception):
+    pass

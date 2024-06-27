@@ -20,7 +20,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
                                 model_uuid_for_detecting='00000000-0000-0000-0000-000000000011')  # NOTE: this is the hard coded model uuid for zauberzeug/demo (model version 1.1)
 
     _ = asyncio.get_running_loop().create_task(
-        trainer._perform_state('do_detections', TrainerState.Detecting, TrainerState.Detected, trainer._do_detections))
+        trainer._perform_state('detecting', TrainerState.Detecting, TrainerState.Detected, trainer._do_detections))
 
     await assert_training_state(trainer.training, TrainerState.Detecting, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.Detected, timeout=10, interval=0.001)
