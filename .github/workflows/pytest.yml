@@ -33,6 +33,8 @@ jobs:
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_detector -v
 
   pytest_3_11:
+    needs:
+      - pytest_3_8
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -63,7 +65,8 @@ jobs:
 
   slack:
     needs:
-      - pytest
+      - pytest_3_8
+      - pytest_3_11
     if: always() # also execute when pytest fails
     runs-on: ubuntu-latest
     steps:
