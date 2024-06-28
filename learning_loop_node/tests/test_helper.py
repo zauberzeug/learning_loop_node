@@ -6,9 +6,10 @@ import zipfile
 from glob import glob
 from typing import Callable
 
-from learning_loop_node.data_classes import Context
-from learning_loop_node.helpers.misc import create_image_folder, create_project_folder, create_training_folder
-from learning_loop_node.loop_communication import LoopCommunicator
+from ..data_classes import (BoxDetection, ClassificationDetection, Context, Detections, Point, PointDetection,
+                            SegmentationDetection, Shape)
+from ..helpers.misc import create_image_folder, create_project_folder, create_training_folder
+from ..loop_communication import LoopCommunicator
 
 
 def get_files_in_folder(folder: str):
@@ -68,3 +69,21 @@ def create_needed_folders(training_uuid: str = 'some_uuid'):  # pylint: disable=
     image_folder = create_image_folder(project_folder)
     training_folder = create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder
+
+
+def get_dummy_detections():
+    return Detections(
+        box_detections=[
+            BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
+                         model_name='some_model', confidence=.42, category_id='some_id')],
+        point_detections=[
+            PointDetection(category_name='some_category_name_2', x=10, y=12,
+                           model_name='some_model', confidence=.42, category_id='some_id_2')],
+        segmentation_detections=[
+            SegmentationDetection(category_name='some_category_name_3',
+                                  shape=Shape(points=[Point(x=1, y=1)]),
+                                  model_name='some_model', confidence=.42,
+                                  category_id='some_id_3')],
+        classification_detections=[
+            ClassificationDetection(category_name='some_category_name_4', model_name='some_model',
+                                    confidence=.42, category_id='some_id_4')])
