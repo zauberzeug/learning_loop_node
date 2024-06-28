@@ -26,10 +26,14 @@ jobs:
         run: |
           poetry config virtualenvs.create false --local
           poetry install
-      - name: test_detector
+      - name: test_general
         run: |
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/general -v
+      - name: test_detector
+        run: |
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/detector -v
+      - name: test_mock_detector
+        run: |
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_detector -v
 
   pytest_3_11:
@@ -57,10 +61,14 @@ jobs:
         run: |
           poetry config virtualenvs.create false --local
           poetry install
-      - name: test
+      - name: test_annotator
+        run: |
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/annotator -v
+      - name: test_trainer
         run: |
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/trainer -v
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/annotator -v
+      - name: test_mock_trainer
+        run: |
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_trainer -v
 
   slack:
