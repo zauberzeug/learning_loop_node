@@ -11,7 +11,7 @@ from io import BufferedReader, TextIOWrapper
 from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
 from threading import Thread
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 import requests
 from fastapi.encoders import jsonable_encoder
@@ -108,7 +108,7 @@ class Outbox():
             self.log.info('No images found to upload')
 
     def _upload_batch(self, items: List[str]):
-        data: List[tuple[str, TextIOWrapper | BufferedReader]] = []
+        data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
         data = [('files', open(f'{item}/image.json', 'r')) for item in items]
         data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
 
@@ -166,7 +166,7 @@ class Outbox():
         self.log.debug('Outbox: Current mode is %s', current_mode)
         return current_mode
 
-    def set_mode(self, mode: OutboxMode | str):
+    def set_mode(self, mode: Union[OutboxMode, str]) -> None:
         ''':param mode: 'continuous_upload' or 'stopped'
         :raises ValueError: if mode is not a valid OutboxMode
         :raises TimeoutError: if the upload thread does not terminate within 31 seconds with mode='stopped'
