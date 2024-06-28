@@ -3,19 +3,46 @@ name: Run Tests
 on: [push]
 
 jobs:
-  pytest:
+  pytest_3_8:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
-      matrix:
-        python-version: [3.8, 3.11]
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
       - name: set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.8"
+      - name: set up Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: "1.5.0"
+      - name: install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install libcurl4-openssl-dev libssl-dev jpeginfo
+      - name: install dependencies
+        run: |
+          poetry config virtualenvs.create false --local
+          poetry install
+      - name: test_detector
+        run: |
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/general -v
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/detector -v
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_detector -v
+
+  pytest_3_11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
       - name: set up Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
@@ -30,8 +57,9 @@ jobs:
           poetry install
       - name: test
         run: |
-          cd learning_loop_node
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest -v
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/trainer -v
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/annotator -v
+          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_trainer -v
 
   slack:
     needs:
