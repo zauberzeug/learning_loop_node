@@ -1,6 +1,6 @@
+import asyncio
 import os
 import shutil
-from time import sleep
 
 import numpy as np
 import pytest
@@ -66,13 +66,14 @@ async def test_files_are_automatically_uploaded(test_detector_node: DetectorNode
     assert len(test_detector_node.outbox.get_data_files()) == 1
 
 
-def test_set_outbox_mode(test_outbox: Outbox):
+@pytest.mark.asyncio
+async def test_set_outbox_mode(test_outbox: Outbox):
     test_outbox.set_mode('stopped')
     save_test_image_to_outbox(outbox=test_outbox)
-    sleep(6)
+    await asyncio.sleep(6)
     assert len(test_outbox.get_data_files()) == 1, 'File was cleared even though outbox should be stopped'
     test_outbox.set_mode('continuous_upload')
-    sleep(6)
+    await asyncio.sleep(6)
     assert len(test_outbox.get_data_files()) == 0, 'File was not cleared even though outbox should be in continuous_upload'
 
 ### Helper functions ###
