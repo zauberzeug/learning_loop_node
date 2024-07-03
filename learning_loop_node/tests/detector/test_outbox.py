@@ -62,14 +62,14 @@ def test_saving_binary(test_outbox: Outbox):
 async def test_files_are_automatically_uploaded(test_detector_node: DetectorNode):
     test_detector_node.outbox.save(Image.new('RGB', (60, 30), color=(73, 109, 137)).tobytes(), Detections())
     assert len(test_detector_node.outbox.get_data_files()) == 1
-
-    assert len(test_detector_node.outbox.get_data_files()) == 1
+    await asyncio.sleep(6)
+    assert len(test_detector_node.outbox.get_data_files()) == 0
 
 
 @pytest.mark.asyncio
 async def test_set_outbox_mode(test_outbox: Outbox):
     test_outbox.set_mode('stopped')
-    save_test_image_to_outbox(outbox=test_outbox)
+    save_test_image_to_outbox(test_outbox)
     await asyncio.sleep(6)
     assert len(test_outbox.get_data_files()) == 1, 'File was cleared even though outbox should be stopped'
     test_outbox.set_mode('continuous_upload')
