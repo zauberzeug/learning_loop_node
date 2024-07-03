@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 import pytest
 
@@ -6,6 +7,10 @@ from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
 
 # pylint: disable=unused-argument
+
+
+file_path = os.path.abspath(__file__)
+test_image_path = os.path.join(os.path.dirname(file_path), 'test.jpg')
 
 
 @pytest.fixture(scope="session")
@@ -25,7 +30,7 @@ def test_assert_data_folder_for_tests():
 
 
 async def test_sio_detect(test_detector_node: DetectorNode, sio):
-    with open('app_code/tests/test.jpg', 'rb') as f:
+    with open(test_image_path, 'rb') as f:
         image_bytes = f.read()
 
     response = await sio.call('detect', {'image': image_bytes})
