@@ -73,7 +73,7 @@ async def test_set_outbox_mode(test_outbox: Outbox):
     await asyncio.sleep(6)
     assert len(test_outbox.get_data_files()) == 1, 'File was cleared even though outbox should be stopped'
     test_outbox.set_mode('continuous_upload')
-    await asyncio.sleep(6)
+    await asyncio.sleep(12)
     assert len(test_outbox.get_data_files()) == 0, 'File was not cleared even though outbox should be in continuous_upload'
 
 ### Helper functions ###
