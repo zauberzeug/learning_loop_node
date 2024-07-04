@@ -26,19 +26,35 @@ def test_outbox():
     shutil.rmtree(test_outbox.path, ignore_errors=True)
 
 
-@pytest.fixture(autouse=True, scope='module')
-def warmup_outbox():
-    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
-    shutil.rmtree(f'{GLOBALS.data_folder}/outbox', ignore_errors=True)
-    test_outbox = Outbox()
+# @pytest.fixture(autouse=True, scope='module')
+# def warmup_outbox():
+#     print('Warming up outbox', flush=True)
 
+#     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
+#     os.environ['LOOP_PROJECT'] = 'demo'
+#     shutil.rmtree(f'{GLOBALS.data_folder}/outbox', ignore_errors=True)
+#     test_outbox = Outbox()
+#     test_outbox.save(get_test_image_binary())
+#     test_outbox.upload()
+#     test_outbox.set_mode('stopped')
+
+#     test_outbox = Outbox()
+#     test_outbox.save(get_test_image_binary())
+#     test_outbox.upload()
+#     test_outbox.set_mode('stopped')
+
+#     shutil.rmtree(test_outbox.path, ignore_errors=True)
+
+@pytest.mark.asyncio
+async def warmup1(test_outbox: Outbox):
     test_outbox.save(get_test_image_binary())
     test_outbox.upload()
+
+
+@pytest.mark.asyncio
+async def warmup2(test_outbox: Outbox):
     test_outbox.save(get_test_image_binary())
     test_outbox.upload()
-
-    shutil.rmtree(test_outbox.path, ignore_errors=True)
 
 
 @pytest.mark.asyncio
