@@ -46,13 +46,13 @@ def test_outbox():
 #     shutil.rmtree(test_outbox.path, ignore_errors=True)
 
 @pytest.mark.asyncio
-async def warmup1(test_outbox: Outbox):
+async def test_warmup1(test_outbox: Outbox):
     test_outbox.save(get_test_image_binary())
     test_outbox.upload()
 
 
 @pytest.mark.asyncio
-async def warmup2(test_outbox: Outbox):
+async def test_warmup2(test_outbox: Outbox):
     test_outbox.save(get_test_image_binary())
     test_outbox.upload()
 
