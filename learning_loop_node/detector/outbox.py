@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import os
@@ -13,6 +14,8 @@ from multiprocessing.synchronize import Event as SyncEvent
 from threading import Thread
 from typing import List, Optional, Tuple, Union
 
+import PIL
+import PIL.Image  # type: ignore
 import requests
 from fastapi.encoders import jsonable_encoder
 
@@ -49,7 +52,13 @@ class Outbox():
         self.shutdown_event: SyncEvent = Event()
         self.upload_process: Optional[Thread] = None
 
+        self.upload_counter = 0
+
     def save(self, image: bytes, detections: Optional[Detections] = None, tags: Optional[List[str]] = None) -> None:
+        if not self._is_valid_jpg(image):
+            self.log.error('Invalid jpg image')
+            return
+
         if detections is None:
             detections = Detections()
         if not tags:
@@ -94,29 +103,45 @@ class Outbox():
 
     def upload(self):
         items = self.get_data_files()
-        if items:
-            self.log.info('Found %s images to upload', len(items))
-            for i in range(0, len(items), self.BATCH_SIZE):
-                batch_items = items[i:i+self.BATCH_SIZE]
-                if self.shutdown_event.is_set():
-                    break
-                try:
-                    self._upload_batch(batch_items)
-                except Exception:
-                    self.log.exception('Could not upload files')
-        else:
-            self.log.info('No images found to upload')
+        if not items:
+            self.log.debug('No images found to upload')
+            return
+
+        self.log.info('Found %s images to upload', len(items))
+        for i in range(0, len(items), self.BATCH_SIZE):
+            batch_items = items[i:i+self.BATCH_SIZE]
+            if self.shutdown_event.is_set():
+                break
+            try:
+                self._upload_batch(batch_items)
+            except Exception:
+                self.log.exception('Could not upload files')
 
     def _upload_batch(self, items: List[str]):
-        data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
-        data = [('files', open(f'{item}/image.json', 'r')) for item in items]
-        data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
 
-        response = requests.post(self.target_uri, files=data, timeout=self.UPLOAD_TIMEOUT_S)
+        # NOTE: keys are not relevant for the server, but using a fixed key like 'files'
+        # results in a post failure on the first run of the test in a docker environment (WTF)
+
+        data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
+        data = [(f'{item}/image.json', open(f'{item}/image.json', 'r')) for item in items]
+        data += [(f'{item}/image.jpg', open(f'{item}/image.jpg', 'rb')) for item in items]
+
+        try:
+            response = requests.post(self.target_uri, files=data, timeout=self.UPLOAD_TIMEOUT_S)
+        except Exception:
+            self.log.exception('Could not upload images')
+            return
+        finally:
+            self.log.info('Closing files')
+            for _, file in data:
+                file.close()
+
         if response.status_code == 200:
+            self.upload_counter += len(items)
             for item in items:
                 shutil.rmtree(item, ignore_errors=True)
             self.log.info('Uploaded %s images successfully', len(items))
+
         elif response.status_code == 422:
             if len(items) == 1:
                 self.log.error('Broken content in image: %s\n Skipping.', items[0])
@@ -128,6 +153,14 @@ class Outbox():
             self._upload_batch(items[len(items)//2:])
         else:
             self.log.error('Could not upload images: %s', response.content)
+
+    def _is_valid_jpg(self, image: bytes) -> bool:
+        try:
+            _ = PIL.Image.open(io.BytesIO(image), formats=['JPEG'])
+            return True
+        except Exception:
+            self.log.exception('Invalid jpg image')
+            return False
 
     def ensure_continuous_upload_stopped(self) -> bool:
         self.log.debug('Outbox: Ensuring continuous upload')
