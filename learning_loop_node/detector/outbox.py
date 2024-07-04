@@ -123,8 +123,8 @@ class Outbox():
         # results in a post failure on the first run of the test in a docker environment (WTF)
 
         data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
-        data = [(f'{item}/image.json', open(f'{item}/image.json', 'r')) for item in items]
-        data += [(f'{item}/image.jpg', open(f'{item}/image.jpg', 'rb')) for item in items]
+        data = [('files', open(f'{item}/image.json', 'r')) for item in items]
+        data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
 
         try:
             response = requests.post(self.target_uri, files=data, timeout=self.UPLOAD_TIMEOUT_S)
