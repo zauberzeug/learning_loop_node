@@ -1,9 +1,8 @@
-import asyncio
 from dataclasses import asdict
 from typing import Dict, Optional
 
 from fastapi.encoders import jsonable_encoder
-from socketio import AsyncClient
+from socketio import AsyncClient, exceptions
 
 from ..data_classes import TrainingStatus
 from ..node import Node
@@ -39,12 +38,11 @@ class TrainerNode(Node):
             if await self.trainer_logic.try_continue_run_if_incomplete():
                 return  # NOTE: we prevent sending idle status after starting a continuation
             await self.send_status()
+        except exceptions.TimeoutError:
+            self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
+            await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
         except Exception as e:
-            if isinstance(e, asyncio.TimeoutError):
-                self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
-                await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
-            else:
-                self.log.exception(f'could not send status state: {e}')
+            self.log.exception(f'could not send status state: {e}')
 
     # ---------------------------------------------- NODE METHODS ---------------------------------------------------
 
