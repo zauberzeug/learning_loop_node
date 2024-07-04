@@ -26,7 +26,7 @@ async def put_outbox_mode(request: Request):
     outbox: Outbox = request.app.outbox
     content = str(await request.body(), 'utf-8')
     try:
-        outbox.set_mode(content)
+        await outbox.set_mode(content)
     except TimeoutError as e:
         raise HTTPException(202, 'Setting has not completed, yet: ' + str(e)) from e
     except ValueError as e:

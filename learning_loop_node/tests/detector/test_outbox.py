@@ -15,46 +15,15 @@ from ...globals import GLOBALS
 
 
 @pytest.fixture()
-def test_outbox():
+async def test_outbox():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
     shutil.rmtree(f'{GLOBALS.data_folder}/outbox', ignore_errors=True)
     test_outbox = Outbox()
 
     yield test_outbox
-    test_outbox.set_mode('stopped')
+    await test_outbox.set_mode('stopped')
     shutil.rmtree(test_outbox.path, ignore_errors=True)
-
-
-# @pytest.fixture(autouse=True, scope='module')
-# def warmup_outbox():
-#     print('Warming up outbox', flush=True)
-
-#     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-#     os.environ['LOOP_PROJECT'] = 'demo'
-#     shutil.rmtree(f'{GLOBALS.data_folder}/outbox', ignore_errors=True)
-#     test_outbox = Outbox()
-#     test_outbox.save(get_test_image_binary())
-#     test_outbox.upload()
-#     test_outbox.set_mode('stopped')
-
-#     test_outbox = Outbox()
-#     test_outbox.save(get_test_image_binary())
-#     test_outbox.upload()
-#     test_outbox.set_mode('stopped')
-
-#     shutil.rmtree(test_outbox.path, ignore_errors=True)
-
-@pytest.mark.asyncio
-async def test_warmup1(test_outbox: Outbox):
-    test_outbox.save(get_test_image_binary())
-    test_outbox.upload()
-
-
-@pytest.mark.asyncio
-async def test_warmup2(test_outbox: Outbox):
-    test_outbox.save(get_test_image_binary())
-    test_outbox.upload()
 
 
 @pytest.mark.asyncio
@@ -66,13 +35,13 @@ async def test_files_are_automatically_uploaded_by_node(test_detector_node: Dete
 
 @pytest.mark.asyncio
 async def test_set_outbox_mode(test_outbox: Outbox):
-    test_outbox.set_mode('stopped')
+    await test_outbox.set_mode('stopped')
     test_outbox.save(get_test_image_binary())
     assert await wait_for_outbox_count(test_outbox, 1)
     await asyncio.sleep(6)
     assert await wait_for_outbox_count(test_outbox, 1), 'File was cleared even though outbox should be stopped'
 
-    test_outbox.set_mode('continuous_upload')
+    await test_outbox.set_mode('continuous_upload')
     assert await wait_for_outbox_count(test_outbox, 0), 'File was not cleared even though outbox should be in continuous_upload'
     assert test_outbox.upload_counter == 1
 
