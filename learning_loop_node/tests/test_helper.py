@@ -63,14 +63,6 @@ def _update_attribute_dict(obj: dict, **kwargs) -> None:
         obj[key] = value
 
 
-def create_needed_folders(training_uuid: str = 'some_uuid'):  # pylint: disable=unused-argument
-    project_folder = create_project_folder(
-        Context(organization='zauberzeug', project='pytest'))
-    image_folder = create_image_folder(project_folder)
-    training_folder = create_training_folder(project_folder, training_uuid)
-    return project_folder, image_folder, training_folder
-
-
 def get_dummy_detections():
     return Detections(
         box_detections=[
