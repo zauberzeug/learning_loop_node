@@ -13,9 +13,9 @@ from .. import test_helper
 async def test_download_model(data_exchanger: DataExchanger):
 
     _, _, trainings_folder = test_helper.create_needed_folders()
-    model_id = await test_helper.get_latest_model_id(project='pytest_nodelib_generals')
+    model_id = await test_helper.get_latest_model_id(project='pytest_nodelib_general')
 
-    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest_node_general'), model_id, 'mocked')
+    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest_nodelib_general'), model_id, 'mocked')
 
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3, str(files)

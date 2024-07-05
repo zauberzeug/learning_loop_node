@@ -15,22 +15,22 @@ from ...loop_communication import LoopCommunicator
 async def create_project_for_module():
 
     loop_communicator = LoopCommunicator()
-    await loop_communicator.delete("/zauberzeug/projects/pytest_node_general?keep_images=true")
+    await loop_communicator.delete("/zauberzeug/projects/pytest_nodelib_general?keep_images=true")
     await asyncio.sleep(1)
     project_configuration = {
-        'project_name': 'pytest_node_general', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
+        'project_name': 'pytest_nodelib_general', 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
         'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0,
         'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
     assert (await loop_communicator.post("/zauberzeug/projects/generator", json=project_configuration)).status_code == 200
     yield
-    await loop_communicator.delete("/zauberzeug/projects/pytest_node_general?keep_images=true")
+    await loop_communicator.delete("/zauberzeug/projects/pytest_nodelib_general?keep_images=true")
     await loop_communicator.shutdown()
 
 
 @pytest.fixture()
 async def data_exchanger():
     loop_communicator = LoopCommunicator()
-    context = Context(organization='zauberzeug', project='pytest_node_general')
+    context = Context(organization='zauberzeug', project='pytest_nodelib_general')
     dx = DataExchanger(context, loop_communicator)
     yield dx
     await loop_communicator.shutdown()
