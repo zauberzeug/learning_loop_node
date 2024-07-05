@@ -26,7 +26,7 @@ def default_user_input() -> UserInput:
     annotation_data = AnnotationData(
         coordinate=Point(x=0, y=0),
         event_type=AnnotationEventType.LeftMouseDown,
-        context=Context(organization='zauberzeug', project='pytest_p'),
+        context=Context(organization='zauberzeug', project='pytest_nodelib_annotator'),
         image_uuid='f786350c-89ca-9424-9b00-720a9a85fe09',
         category=Category(id='some_id', name='category_1', description='',
                           hotkey='', color='', type=CategoryType.Segmentation)
@@ -39,7 +39,7 @@ def default_user_input() -> UserInput:
 @pytest.mark.asyncio
 async def test_image_download(setup_test_project):  # pylint: disable=unused-argument
     # TODO: This test depends on a pseudo-random uuid..
-    image_path = '/tmp/learning_loop_lib_data/zauberzeug/pytest_p/images/f786350c-89ca-9424-9b00-720a9a85fe09.jpg'
+    image_path = '/tmp/learning_loop_lib_data/zauberzeug/pytest_nodelib_annotator/images/f786350c-89ca-9424-9b00-720a9a85fe09.jpg'
 
     assert os.path.exists(image_path) is False
 

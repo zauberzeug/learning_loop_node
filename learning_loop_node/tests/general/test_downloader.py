@@ -13,16 +13,16 @@ from .. import test_helper
 async def test_download_model(data_exchanger: DataExchanger):
 
     _, _, trainings_folder = test_helper.create_needed_folders()
-    model_id = await test_helper.get_latest_model_id(project='pytest')
+    model_id = await test_helper.get_latest_model_id(project='pytest_nodelib_generals')
 
-    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest'), model_id, 'mocked')
+    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest_node_general'), model_id, 'mocked')
 
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3, str(files)
 
-    file_1 = f'{GLOBALS.data_folder}/zauberzeug/pytest/trainings/some_uuid/file_1.txt'
-    file_2 = f'{GLOBALS.data_folder}/zauberzeug/pytest/trainings/some_uuid/file_2.txt'
-    model_json = f'{GLOBALS.data_folder}/zauberzeug/pytest/trainings/some_uuid/model.json'
+    file_1 = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/file_1.txt'
+    file_2 = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/file_2.txt'
+    model_json = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/model.json'
 
     assert file_1 in files
     assert file_2 in files
