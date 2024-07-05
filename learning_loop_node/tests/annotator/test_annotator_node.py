@@ -27,7 +27,7 @@ def default_user_input() -> UserInput:
         coordinate=Point(x=0, y=0),
         event_type=AnnotationEventType.LeftMouseDown,
         context=Context(organization='zauberzeug', project='pytest_nodelib_annotator'),
-        image_uuid='f786350c-89ca-9424-9b00-720a9a85fe09',
+        image_uuid='10f7d7d2-4076-7006-af37-fa28a6a848ae',
         category=Category(id='some_id', name='category_1', description='',
                           hotkey='', color='', type=CategoryType.Segmentation)
     )
@@ -38,13 +38,12 @@ def default_user_input() -> UserInput:
 
 @pytest.mark.asyncio
 async def test_image_download(setup_test_project):  # pylint: disable=unused-argument
-    # TODO: This test depends on a pseudo-random uuid..
-    image_path = '/tmp/learning_loop_lib_data/zauberzeug/pytest_nodelib_annotator/images/f786350c-89ca-9424-9b00-720a9a85fe09.jpg'
+    image_folder = '/tmp/learning_loop_lib_data/zauberzeug/pytest_nodelib_annotator/images'
 
-    assert os.path.exists(image_path) is False
+    assert os.path.exists(image_folder) is False or len(os.listdir(image_folder)) == 0
 
     node = AnnotatorNode(name="", uuid="", annotator_logic=MockedAnnotatatorLogic())
     user_input = default_user_input()
     _ = await node._handle_user_input(jsonable_encoder(asdict(user_input)))  # pylint: disable=protected-access
 
-    assert os.path.exists(image_path) is True
+    assert os.path.exists(image_folder) is True and len(os.listdir(image_folder)) == 1
