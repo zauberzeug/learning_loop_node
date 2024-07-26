@@ -80,10 +80,7 @@ class Outbox():
             f.write(image)
 
         if os.path.exists(tmp):
-            try:
-                os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
-            except OSError:
-                self.log.exception('Could not rename %s to %s', tmp, self.path + '/' + identifier)
+            os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
 
