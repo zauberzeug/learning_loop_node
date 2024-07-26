@@ -121,3 +121,18 @@ async def test_rest_outbox_mode(test_detector_node: DetectorNode):
     check_switch_to_mode('stopped')
     check_switch_to_mode('continuous_upload')
     check_switch_to_mode('stopped')
+
+
+async def test_api_responsive_during_large_upload(test_detector_node: DetectorNode):
+    assert len(get_outbox_files(test_detector_node.outbox)) == 0
+
+    with open(test_image_path, 'rb') as f:
+        image_bytes = f.read()
+    images = [image_bytes] * 50
+    for image in images:
+        test_detector_node.outbox.save(image)
+    await asyncio.sleep(5)
+
+    # check if api is still responsive
+    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/outbox_mode', timeout=5)
+    assert response.status_code == 200

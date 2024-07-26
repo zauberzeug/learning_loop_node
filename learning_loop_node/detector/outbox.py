@@ -64,7 +64,10 @@ class Outbox():
             detections = Detections()
         if not tags:
             tags = []
-        identifier = datetime.now().isoformat(sep='_', timespec='milliseconds')
+        identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
+        if os.path.exists(self.path + '/' + identifier):
+            self.log.error('Directory with identifier %s already exists', identifier)
+            return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         detections.tags = tags
         detections.date = identifier
@@ -77,7 +80,10 @@ class Outbox():
             f.write(image)
 
         if os.path.exists(tmp):
-            os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
+            try:
+                os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
+            except OSError:
+                self.log.exception('Could not rename %s to %s', tmp, self.path + '/' + identifier)
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
 
