@@ -14,9 +14,9 @@ from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
 from typing import List, Optional, Tuple, Union
 
+import aiohttp
 import PIL
 import PIL.Image  # type: ignore
-import requests
 from fastapi.encoders import jsonable_encoder
 
 from ..data_classes import Detections
@@ -64,7 +64,10 @@ class Outbox():
             detections = Detections()
         if not tags:
             tags = []
-        identifier = datetime.now().isoformat(sep='_', timespec='milliseconds')
+        identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
+        if os.path.exists(self.path + '/' + identifier):
+            self.log.error('Directory with identifier %s already exists', identifier)
+            return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         detections.tags = tags
         detections.date = identifier
@@ -97,11 +100,11 @@ class Outbox():
         self.log.info('continuous upload started')
         assert self.shutdown_event is not None
         while not self.shutdown_event.is_set():
-            self.upload()
+            await self.upload()
             await asyncio.sleep(5)
         self.log.info('continuous upload ended')
 
-    def upload(self):
+    async def upload(self):
         items = self.get_data_files()
         if not items:
             self.log.debug('No images found to upload')
@@ -113,11 +116,11 @@ class Outbox():
             if self.shutdown_event.is_set():
                 break
             try:
-                self._upload_batch(batch_items)
+                await self._upload_batch(batch_items)
             except Exception:
                 self.log.exception('Could not upload files')
 
-    def _upload_batch(self, items: List[str]):
+    async def _upload_batch(self, items: List[str]):
 
         # NOTE: keys are not relevant for the server, but using a fixed key like 'files'
         # results in a post failure on the first run of the test in a docker environment (WTF)
@@ -127,7 +130,8 @@ class Outbox():
         data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
 
         try:
-            response = requests.post(self.target_uri, files=data, timeout=self.UPLOAD_TIMEOUT_S)
+            async with aiohttp.ClientSession() as session:
+                response = await session.post(self.target_uri, data=data, timeout=self.UPLOAD_TIMEOUT_S)
         except Exception:
             self.log.exception('Could not upload images')
             return
@@ -136,21 +140,21 @@ class Outbox():
             for _, file in data:
                 file.close()
 
-        if response.status_code == 200:
+        if response.status == 200:
             self.upload_counter += len(items)
             for item in items:
                 shutil.rmtree(item, ignore_errors=True)
             self.log.info('Uploaded %s images successfully', len(items))
 
-        elif response.status_code == 422:
+        elif response.status == 422:
             if len(items) == 1:
                 self.log.error('Broken content in image: %s\n Skipping.', items[0])
                 shutil.rmtree(items[0], ignore_errors=True)
                 return
 
             self.log.exception('Broken content in batch. Splitting and retrying')
-            self._upload_batch(items[:len(items)//2])
-            self._upload_batch(items[len(items)//2:])
+            await self._upload_batch(items[:len(items)//2])
+            await self._upload_batch(items[len(items)//2:])
         else:
             self.log.error('Could not upload images: %s', response.content)
 
