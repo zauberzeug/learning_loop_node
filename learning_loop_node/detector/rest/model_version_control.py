@@ -70,7 +70,7 @@ async def put_version(request: Request):
         # Fetch the model uuid by version from the loop
         # TODO this should be done by the loop communication
         path = f'/{app.organization}/projects/{app.project}/models'
-        response = await request.app.loop_communication.get(path)
+        response = await app.loop_communicator.get(path)
         if response.status_code != 200:
             raise HTTPException(400, 'could not load latest model')
 

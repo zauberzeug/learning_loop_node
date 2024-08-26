@@ -67,6 +67,7 @@ class DetectorNode(Node):
         self.include_router(rest_mode.router, tags=["operation_mode"])
         self.include_router(rest_about.router, tags=["about"])
         self.include_router(rest_outbox_mode.router, tags=["outbox_mode"])
+        self.include_router(rest_version_control.router, tags=["model_version"])
 
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router)

@@ -107,6 +107,20 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
     assert any(c.name == 'purple point' for c in model_information.categories)
 
 
+async def test_model_version_api(test_detector_node: DetectorNode):
+    await asyncio.sleep(3)
+    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
+
+    assert response.status_code == 200
+    response_dict = json.loads(response.content)
+    assert response_dict['current_version'] == '1.1'
+    assert response_dict['target_version'] == '1.1'
+    assert response_dict['loop_version'] == '1.1'
+    assert response_dict['local_versions'] == []
+
+    response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='1.0', timeout=30)
+
+
 async def test_rest_outbox_mode(test_detector_node: DetectorNode):
     await asyncio.sleep(3)
 
