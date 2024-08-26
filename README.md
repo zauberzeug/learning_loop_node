@@ -64,6 +64,17 @@ The detector also has a sio **upload endpoint** that can be used to upload image
 
 The endpoint returns None if the upload was successful and an error message otherwise.
 
+### Changing the model version
+
+The detector can be configured to use a specific model version, to automatically update the model version according to the learning loop deployment target or to pause the model updates. The model versioning configuration can be accessed/changed via a REST endpoint. Example Usage:
+
+- Fetch the current model versioning configuration: `curl http://localhost/model_version`
+- Configure the detector to use a specific model version: `curl -X PUT -d "1.0" http://localhost/model_version`
+- Configure the detector to automatically update the model version: `curl -X PUT -d "follow_loop" http://localhost/model_version`
+- Pause the model updates: `curl -X PUT -d "pause" http://localhost/model_version`
+
+Note that the configuration is not persistent and will be reset to the default value ("follow_loop") after a restart of the detector.
+
 ### Changing the outbox mode
 
 If the autoupload is set to `all` or `filtered` (selected) images and the corresponding detections are saved on HDD (the outbox). A background thread will upload the images and detections to the Learning Loop. The outbox is located in the `outbox` folder in the root directory of the node. The outbox can be cleared by deleting the files in the folder.
