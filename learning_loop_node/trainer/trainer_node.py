@@ -20,7 +20,6 @@ class TrainerNode(Node):
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
 
-        self.include_router(controls.router, tags=["controls"])
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router, tags=["controls"])
 
