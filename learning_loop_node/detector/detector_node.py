@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import asdict
 from datetime import datetime
 from threading import Thread
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 from dacite import from_dict
@@ -26,6 +26,7 @@ from .outbox import Outbox
 from .rest import about as rest_about
 from .rest import backdoor_controls
 from .rest import detect as rest_detect
+from .rest import model_version_control as rest_version_control
 from .rest import operation_mode as rest_mode
 from .rest import outbox_mode as rest_outbox_mode
 from .rest import upload as rest_upload
@@ -52,7 +53,14 @@ class DetectorNode(Node):
             self.loop_communicator)
 
         self.relevance_filter: RelevanceFilter = RelevanceFilter(self.outbox)
-        self.target_model: Optional[str] = None
+
+        # NOTE: version_control controls the behavior of the detector node.
+        # FollowLoop: the detector node will follow the loop and update the model if necessary
+        # SpecificVersion: the detector node will update to a specific version, set via the /model_version endpoint
+        # Pause: the detector node will not update the model
+        self.version_control: rest_version_control.VersionMode = rest_version_control.VersionMode.FollowLoop
+        self.target_model: Optional[ModelInformation] = None
+        self.loop_deployment_target: Optional[ModelInformation] = None
 
         self.include_router(rest_detect.router, tags=["detect"])
         self.include_router(rest_upload.router, prefix="")
@@ -75,6 +83,7 @@ class DetectorNode(Node):
             Context(organization=self.organization, project=self.project),
             self.loop_communicator)
         self.relevance_filter = RelevanceFilter(self.outbox)
+        self.version_control = rest_version_control.VersionMode.FollowLoop
         self.target_model = None
         # self.setup_sio_server()
 
@@ -183,20 +192,10 @@ class DetectorNode(Node):
             return
         try:
             self.log.info(f'Current operation mode is {self.operation_mode}')
-            update_to_model_id = await self.send_status()
-            if not update_to_model_id:
-                self.log.info('could not check for updates')
+            if not await self.send_status():
+                self.log.info('could not check for updates (communication with loop failed)')
                 return
 
-            # TODO: solve race condition (it should not be required to recheck if model_info is not None, but it is!)
-            if self.detector_logic.is_initialized:
-                model_info = self.detector_logic._model_info  # pylint: disable=protected-access
-                if model_info is not None:
-                    self.log.info(f'Current model: {model_info.version} with id {model_info.id}')
-                else:
-                    self.log.info('no model loaded')
-            else:
-                self.log.info('no model loaded')
             if self.operation_mode != OperationMode.Idle:
                 self.log.info(f'not checking for updates; operation mode is {self.operation_mode}')
                 return
@@ -206,15 +205,11 @@ class DetectorNode(Node):
                 self.log.info('not checking for updates; no target model selected')
                 return
 
-            self.log.info('going to check for new updates')  # TODO: solve race condition !!!
-            model_info = self.detector_logic._model_info  # pylint: disable=protected-access
-            if model_info is not None:
-                version = model_info.version
-            else:
-                version = None
-            if not self.detector_logic.is_initialized or self.target_model != version:
-                cur_model = version or "-"
-                self.log.info(f'Current model "{cur_model}" needs to be updated to {self.target_model}')
+            current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None
+
+            if not self.detector_logic.is_initialized or self.target_model.version != current_version:
+                self.log.info(f'Current model "{current_version or "-"}" needs to be updated to {self.target_model}')
+
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model}'
@@ -224,7 +219,7 @@ class DetectorNode(Node):
                     await self.data_exchanger.download_model(target_model_folder,
                                                              Context(organization=self.organization,
                                                                      project=self.project),
-                                                             update_to_model_id, self.detector_logic.model_format)
+                                                             self.target_model.id, self.detector_logic.model_format)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
@@ -236,15 +231,19 @@ class DetectorNode(Node):
                     self.detector_logic.load_model()
                     await self.send_status()
                     # self.reload(reason='new model installed')
-            else:
-                self.log.info('Versions are identic. Nothing to do.')
+
         except Exception as e:
             self.log.exception('check_for_update failed')
             msg = e.cause if isinstance(e, DownloadError) else str(e)
             self.status.set_error('update_model', f'Could not update model: {msg}')
             await self.send_status()
 
-    async def send_status(self) -> Union[str, Literal[False]]:
+    async def send_status(self) -> bool:
+        """Send the status of the detector to the Learning Loop.
+        The learning loop will respond with the model info of the deployment target.
+        If version_control is set to FollowLoop, the detector will update the target_model.
+        Return if the communication was successful."""
+
         if not self.sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')
             return False
@@ -254,6 +253,8 @@ class DetectorNode(Node):
         except Exception:
             current_model = None
 
+        target_model_version = self.target_model.version if self.target_model else None
+
         status = DetectionStatus(
             id=self.uuid,
             name=self.name,
@@ -262,12 +263,13 @@ class DetectorNode(Node):
             uptime=int((datetime.now() - self.startup_datetime).total_seconds()),
             operation_mode=self.operation_mode,
             current_model=current_model,
-            target_model=self.target_model,
+            target_model=target_model_version,
             model_format=self.detector_logic.model_format,
         )
 
         self.log.info(f'sending status {status}')
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+
         assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
@@ -275,10 +277,19 @@ class DetectorNode(Node):
             return False
 
         assert socket_response.payload is not None
-        # TODO This is weird because target_model_version is stored in self and target_model_id is returned
-        self.target_model = socket_response.payload['target_model_version']
-        self.log.info(f'After sending status. Target_model is {self.target_model}')
-        return socket_response.payload['target_model_id']
+
+        update_to_model_id = socket_response.payload['target_model_id']
+        update_to_model_version = socket_response.payload['target_model_version']
+        self.loop_deployment_target = ModelInformation(organization=self.organization, project=self.project,
+                                                       host="", categories=[],
+                                                       id=update_to_model_id,
+                                                       version=update_to_model_version)
+
+        if self.version_control == rest_version_control.VersionMode.FollowLoop:
+            self.target_model = self.loop_deployment_target
+            self.log.info(f'After sending status. Target_model is {self.target_model.version}')
+
+        return True
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode

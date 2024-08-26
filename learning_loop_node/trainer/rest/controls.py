@@ -9,6 +9,8 @@ router = APIRouter()
 
 # pylint: disable=protected-access
 
+# TODO: is this endpoint used?
+
 
 @router.post("/controls/detect/{organization}/{project}/{version}")
 async def operation_mode(organization: str, project: str, version: str, request: Request):
