@@ -7,7 +7,7 @@ from socketio import AsyncClient, exceptions
 from ..data_classes import TrainingStatus
 from ..node import Node
 from .io_helpers import LastTrainingIO
-from .rest import backdoor_controls, controls
+from .rest import backdoor_controls
 from .trainer_logic_generic import TrainerLogicGeneric
 
 

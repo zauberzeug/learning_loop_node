@@ -1,10 +1,12 @@
 
+import os
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Request
 
 from ...data_classes import ModelInformation
+from ...globals import GLOBALS
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -33,13 +35,18 @@ async def get_version(request: Request):
     loop_version = app.loop_deployment_target.version if app.loop_deployment_target is not None else 'None'
 
     local_versions: list[str] = []
-    # TODO GET all versions from the local folder
+
+    local_models = os.listdir(os.path.join(GLOBALS.data_folder, 'models'))
+    for model in local_models:
+        if model.replace('.', '').isdigit():
+            local_versions.append(model)
 
     return {
         'current_version': current_version,
         'target_version': target_version,
         'loop_version': loop_version,
-        'local_versions': local_versions
+        'local_versions': local_versions,
+        'version_control': app.version_control.value,
     }
 
 
@@ -68,18 +75,20 @@ async def put_version(request: Request):
             return "OK"
 
         # Fetch the model uuid by version from the loop
-        # TODO this should be done by the loop communication
         path = f'/{app.organization}/projects/{app.project}/models'
         response = await app.loop_communicator.get(path)
         if response.status_code != 200:
+            app.version_control = VersionMode.Pause
             raise HTTPException(400, 'could not load latest model')
 
         models = response.json()['models']
         models_with_target_version = [m for m in models if m['version'] == target_version]
         if len(models_with_target_version) != 1:
+            app.version_control = VersionMode.Pause
             raise HTTPException(400, f'could not specify model with version {target_version}')
+
         model_id = models_with_target_version[0]['id']
-        model_host = models_with_target_version[0]['host']
+        model_host = models_with_target_version[0].get('host', 'unknown')
 
         app.target_model = ModelInformation(organization=app.organization, project=app.project,
                                             host=model_host, categories=[],

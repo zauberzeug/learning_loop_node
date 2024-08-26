@@ -209,11 +209,12 @@ class DetectorNode(Node):
             current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None
 
             if not self.detector_logic.is_initialized or self.target_model.version != current_version:
-                self.log.info(f'Current model "{current_version or "-"}" needs to be updated to {self.target_model}')
+                self.log.info(
+                    f'Current model "{current_version or "-"}" needs to be updated to {self.target_model.version}')
 
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
-                    target_model_folder = f'models/{self.target_model}'
+                    target_model_folder = f'models/{self.target_model.version}'
                     shutil.rmtree(target_model_folder, ignore_errors=True)
                     os.makedirs(target_model_folder)
 
