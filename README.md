@@ -73,7 +73,8 @@ The detector can be configured to use a specific model version, to automatically
 - Configure the detector to automatically update the model version: `curl -X PUT -d "follow_loop" http://localhost/model_version`
 - Pause the model updates: `curl -X PUT -d "pause" http://localhost/model_version`
 
-Note that the configuration is not persistent and will be reset to the default value ("follow_loop") after a restart of the detector.
+Note that the configuration is not persistent, however, the default behavior on startup can be configured via the environment variable `VERSION_CONTROL_DEFAULT`.
+If the environment variable is set to `VERSION_CONTROL_DEFAULT=PAUSE`, the detector will pause the model updates on startup. Otherwise, the detector will automatically follow the loop deployment target.
 
 ### Changing the outbox mode
 

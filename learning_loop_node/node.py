@@ -16,7 +16,7 @@ from socketio import AsyncClient
 from .data_classes import NodeStatus
 from .data_exchanger import DataExchanger
 from .helpers import log_conf
-from .helpers.misc import activate_asyncio_warnings, ensure_socket_response, read_or_create_uuid
+from .helpers.misc import ensure_socket_response, read_or_create_uuid
 from .loop_communication import LoopCommunicator
 
 

@@ -58,7 +58,8 @@ class DetectorNode(Node):
         # FollowLoop: the detector node will follow the loop and update the model if necessary
         # SpecificVersion: the detector node will update to a specific version, set via the /model_version endpoint
         # Pause: the detector node will not update the model
-        self.version_control: rest_version_control.VersionMode = rest_version_control.VersionMode.FollowLoop
+        self.version_control: rest_version_control.VersionMode = rest_version_control.VersionMode.Pause if os.environ.get(
+            'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else rest_version_control.VersionMode.FollowLoop
         self.target_model: Optional[ModelInformation] = None
         self.loop_deployment_target: Optional[ModelInformation] = None
 
