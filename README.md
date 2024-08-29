@@ -66,7 +66,13 @@ The endpoint returns None if the upload was successful and an error message othe
 
 ### Changing the model version
 
-The detector can be configured to use a specific model version, to automatically update the model version according to the learning loop deployment target or to pause the model updates. The model versioning configuration can be accessed/changed via a REST endpoint. Example Usage:
+The detector can be configured to one of the following behaviors:
+
+- download use a specific model version
+- automatically update the model version according to the learning loop deployment target
+- pause the model updates and use the version that was last loaded
+
+The model versioning configuration can be accessed/changed via a REST endpoint. Example Usage:
 
 - Fetch the current model versioning configuration: `curl http://localhost/model_version`
 - Configure the detector to use a specific model version: `curl -X PUT -d "1.0" http://localhost/model_version`
