@@ -75,17 +75,20 @@ async def put_version(request: Request):
             return "OK"
 
         # Fetch the model uuid by version from the loop
-        path = f'/{app.organization}/projects/{app.project}/models'
-        response = await app.loop_communicator.get(path)
+        uri = f'/{app.organization}/projects/{app.project}/models'
+        response = await app.loop_communicator.get(uri)
         if response.status_code != 200:
             app.version_control = VersionMode.Pause
-            raise HTTPException(400, 'could not load latest model')
+            raise HTTPException(500, 'Failed to load models from learning loop')
 
         models = response.json()['models']
         models_with_target_version = [m for m in models if m['version'] == target_version]
-        if len(models_with_target_version) != 1:
+        if len(models_with_target_version) == 0:
             app.version_control = VersionMode.Pause
-            raise HTTPException(400, f'could not specify model with version {target_version}')
+            raise HTTPException(400, f'No Model with version {target_version}')
+        if len(models_with_target_version) > 1:
+            app.version_control = VersionMode.Pause
+            raise HTTPException(500, f'Multiple models with version {target_version}')
 
         model_id = models_with_target_version[0]['id']
         model_host = models_with_target_version[0].get('host', 'unknown')
