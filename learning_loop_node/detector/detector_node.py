@@ -281,12 +281,12 @@ class DetectorNode(Node):
 
         assert socket_response.payload is not None
 
-        update_to_model_id = socket_response.payload['target_model_id']
-        update_to_model_version = socket_response.payload['target_model_version']
+        deployment_target_model_id = socket_response.payload['target_model_id']
+        deployment_target_model_version = socket_response.payload['target_model_version']
         self.loop_deployment_target = ModelInformation(organization=self.organization, project=self.project,
                                                        host="", categories=[],
-                                                       id=update_to_model_id,
-                                                       version=update_to_model_version)
+                                                       id=deployment_target_model_id,
+                                                       version=deployment_target_model_version)
 
         if self.version_control == rest_version_control.VersionMode.FollowLoop:
             self.target_model = self.loop_deployment_target
