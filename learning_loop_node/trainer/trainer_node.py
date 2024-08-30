@@ -10,7 +10,7 @@ from socketio import AsyncClient, exceptions
 from ..data_classes import TrainingStatus
 from ..node import Node
 from .io_helpers import LastTrainingIO
-from .rest import backdoor_controls, controls
+from .rest import backdoor_controls
 from .trainer_logic_generic import TrainerLogicGeneric
 
 
@@ -29,7 +29,6 @@ class TrainerNode(Node):
             self.log.info(
                 f'Trainer started with an idle_timeout of {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
 
-        self.include_router(controls.router, tags=["controls"])
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router, tags=["controls"])
 
