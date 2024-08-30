@@ -101,6 +101,12 @@ class DataExchanger():
 
         paths, _ = create_resource_paths(self.context.organization, self.context.project, new_image_uuids)
         num_new_image_ids = len(new_image_uuids)
+        if num_new_image_ids == 0:
+            logging.info('All images are already downloaded. Nothing to do.')
+            self.progress = 1.0
+            return
+
+        logging.info(f'Downloading {num_new_image_ids} new images to {image_folder}..')
         os.makedirs(image_folder, exist_ok=True)
 
         progress_factor = 0.5 / num_new_image_ids  # second 50% of progress is for downloading images
