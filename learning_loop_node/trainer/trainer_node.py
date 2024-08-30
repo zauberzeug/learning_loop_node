@@ -23,8 +23,7 @@ class TrainerNode(Node):
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
 
-        self.idle_time = 0.0
-        self.last_state_change = time.time()
+        self.first_idle_time: float | None = None
         self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0))
         if self.idle_timeout:
             self.log.info(
@@ -103,14 +102,17 @@ class TrainerNode(Node):
             self.log.error(f'Error when sending status update: Response from loop was:\n {result}')
 
     def check_idle_timeout(self):
-        if self.idle_timeout:
-            if self.trainer_logic.state == 'idle':
-                self.idle_time += time.time() - self.last_state_change
-                if self.idle_time > self.idle_timeout:
-                    self.log.info('Trainer has been idle for %s s (with timeout %s s). Shutting down.',
-                                  self.idle_time, self.idle_timeout)
-                    sys.exit(0)
-                self.log.debug('idle time: %s s / %s s', self.idle_time, self.idle_timeout)
-            else:
-                self.idle_time = 0
-            self.last_state_change = time.time()
+        if not self.idle_timeout:
+            return
+
+        if self.trainer_logic.state == 'idle':
+            if self.first_idle_time is None:
+                self.first_idle_time = time.time()
+            idle_time = time.time() - self.first_idle_time
+            if idle_time > self.idle_timeout:
+                self.log.info('Trainer has been idle for %s s (with timeout %s s). Shutting down.',
+                              idle_time, self.idle_timeout)
+                sys.exit(0)
+            self.log.debug('idle time: %s s / %s s', idle_time, self.idle_timeout)
+        else:
+            self.first_idle_time = None
