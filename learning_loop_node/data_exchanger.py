@@ -107,7 +107,7 @@ class DataExchanger():
         for i in range(0, num_image_ids, chunk_size):
             self.progress = 0.5 + i * progress_factor
             chunk_paths = paths[i:i+chunk_size]
-            chunk_ids = image_uuids[i:i+chunk_size]
+            chunk_ids = new_image_uuids[i:i+chunk_size]
             tasks = []
             for j, chunk_j in enumerate(chunk_paths):
                 start = time()
@@ -124,7 +124,10 @@ class DataExchanger():
         async with aiofiles.open(filename, 'wb') as f:
             await f.write(response.content)
         if not await is_valid_image(filename, self.check_jpeg):
+            logging.error(f'Invalid image {filename}. Removing..')
             os.remove(filename)
+        else:
+            logging.debug(f'Downloaded image {filename}')
 
     async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
         """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.
