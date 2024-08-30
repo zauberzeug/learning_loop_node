@@ -114,6 +114,7 @@ class DataExchanger():
                 tasks.append(create_task(self._download_one_image(chunk_j, chunk_ids[j], image_folder)))
                 await asyncio.sleep(max(0, 0.02 - (time() - start)))  # prevent too many requests at once
             await asyncio.gather(*tasks)
+        self.progress = 1.0
 
     async def _download_one_image(self, path: str, image_id: str, image_folder: str) -> None:
         response = await self.loop_communicator.get(path)
