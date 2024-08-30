@@ -100,11 +100,11 @@ class DataExchanger():
         new_image_uuids = [id for id in image_uuids if id not in existing_uuids]
 
         paths, _ = create_resource_paths(self.context.organization, self.context.project, new_image_uuids)
-        num_image_ids = len(image_uuids)
+        num_new_image_ids = len(new_image_uuids)
         os.makedirs(image_folder, exist_ok=True)
 
-        progress_factor = 0.5 / num_image_ids  # second 50% of progress is for downloading images
-        for i in range(0, num_image_ids, chunk_size):
+        progress_factor = 0.5 / num_new_image_ids
+        for i in range(0, num_new_image_ids, chunk_size):
             self.progress = 0.5 + i * progress_factor
             chunk_paths = paths[i:i+chunk_size]
             chunk_ids = new_image_uuids[i:i+chunk_size]
