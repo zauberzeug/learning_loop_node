@@ -30,7 +30,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)       |
 | RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)       |
 | KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)       |
-| TRAINER_IDLE_TIMEOUT_SEK | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)       |
+| TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)       |
 
 #### Testing
 

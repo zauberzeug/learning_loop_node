@@ -25,7 +25,7 @@ class TrainerNode(Node):
 
         self.idle_time = 0.0
         self.last_state_change = time.time()
-        self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEK', 0))
+        self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0))
         if self.idle_timeout:
             self.log.info(
                 f'Trainer started with an idle_timeout of {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
