@@ -198,7 +198,7 @@ class DetectorNode(Node):
             try:
                 await self.sync_status_with_learning_loop()
             except Exception as e:
-                self.log.error(f'could not sync status with learning loop: {e}')
+                self.log.error(f'Could not check for updates: {e}')
                 return
 
             if self.operation_mode != OperationMode.Idle:
@@ -235,16 +235,22 @@ class DetectorNode(Node):
                     self.log.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
 
                     self.detector_logic.load_model()
-                    await self.sync_status_with_learning_loop()
+                    try:
+                        await self.sync_status_with_learning_loop()
+                    except Exception:
+                        pass
                     # self.reload(reason='new model installed')
 
         except Exception as e:
             self.log.exception('check_for_update failed')
             msg = e.cause if isinstance(e, DownloadError) else str(e)
             self.status.set_error('update_model', f'Could not update model: {msg}')
-            await self.sync_status_with_learning_loop()
+            try:
+                await self.sync_status_with_learning_loop()
+            except Exception:
+                pass
 
-    async def sync_status_with_learning_loop(self):
+    async def sync_status_with_learning_loop(self) -> None:
         """Sync status of the detector with the Learning Loop.
         The Learning Loop will respond with the model info of the deployment target.
         If version_control is set to FollowLoop, the detector will update the target_model.
@@ -255,8 +261,8 @@ class DetectorNode(Node):
         """
 
         if not self.sio_client.connected:
-            self.log.info('could not send status -- we are not connected to the Learning Loop')
-            return False
+            self.log.info('Status sync failed: not connected')
+            raise Exception('Status sync failed: not connected')
 
         try:
             current_model = self.detector_logic.model_info.version
