@@ -85,7 +85,8 @@ class DetectorNode(Node):
             Context(organization=self.organization, project=self.project),
             self.loop_communicator)
         self.relevance_filter = RelevanceFilter(self.outbox)
-        self.version_control = rest_version_control.VersionMode.FollowLoop
+        self.version_control: rest_version_control.VersionMode = rest_version_control.VersionMode.Pause if os.environ.get(
+            'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else rest_version_control.VersionMode.FollowLoop
         self.target_model = None
         # self.setup_sio_server()
 
