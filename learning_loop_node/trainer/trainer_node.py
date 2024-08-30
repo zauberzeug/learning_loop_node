@@ -1,3 +1,6 @@
+import os
+import sys
+import time
 from dataclasses import asdict
 from typing import Dict, Optional
 
@@ -19,6 +22,13 @@ class TrainerNode(Node):
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
+
+        self.idle_time = 0.0
+        self.last_state_change = time.time()
+        self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEK', 0))
+        if self.idle_timeout:
+            self.log.info(
+                f'idle timeout set to {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
 
         self.include_router(controls.router, tags=["controls"])
         if use_backdoor_controls:
@@ -74,6 +84,17 @@ class TrainerNode(Node):
                                 errors={},
                                 uptime=self.trainer_logic.training_uptime,
                                 progress=self.trainer_logic.general_progress)
+
+        if self.idle_timeout:
+            if self.trainer_logic.state == 'idle':
+                self.idle_time += time.time() - self.last_state_change
+                if self.idle_time > self.idle_timeout:
+                    self.log.info('idle timeout reached, shutting down')
+                    sys.exit(0)
+                self.log.info(f'idle time: {self.idle_time} / {self.idle_timeout}')
+            else:
+                self.idle_time = 0
+            self.last_state_change = time.time()
 
         status.pretrained_models = self.trainer_logic.provided_pretrained_models
         status.architecture = self.trainer_logic.model_architecture
