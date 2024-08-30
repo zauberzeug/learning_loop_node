@@ -28,7 +28,7 @@ class TrainerNode(Node):
         self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEK', 0))
         if self.idle_timeout:
             self.log.info(
-                f'idle timeout set to {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
+                f'Trainer started with an idle_timeout of {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
 
         self.include_router(controls.router, tags=["controls"])
         if use_backdoor_controls:
@@ -89,9 +89,10 @@ class TrainerNode(Node):
             if self.trainer_logic.state == 'idle':
                 self.idle_time += time.time() - self.last_state_change
                 if self.idle_time > self.idle_timeout:
-                    self.log.info('idle timeout reached, shutting down')
+                    self.log.info('Trainer has been idle for %s s (with timeout %s s). Shutting down.',
+                                  self.idle_time, self.idle_timeout)
                     sys.exit(0)
-                self.log.info(f'idle time: {self.idle_time} / {self.idle_timeout}')
+                self.log.debug('idle time: %s s / %s s', self.idle_time, self.idle_timeout)
             else:
                 self.idle_time = 0
             self.last_state_change = time.time()
