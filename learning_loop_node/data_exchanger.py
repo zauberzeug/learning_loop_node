@@ -124,10 +124,10 @@ class DataExchanger():
         async with aiofiles.open(filename, 'wb') as f:
             await f.write(response.content)
         if not await is_valid_image(filename, self.check_jpeg):
-            logging.error(f'Invalid image {filename}. Removing..')
+            logging.error('Invalid image "%s". Removing it..', filename)
             os.remove(filename)
         else:
-            logging.debug(f'Downloaded image {filename}')
+            logging.debug('Downloaded image "%s"', filename)
 
     async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
         """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.
