@@ -307,7 +307,10 @@ class DetectorNode(Node):
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
-        await self.sync_status_with_learning_loop()
+        try:
+            await self.sync_status_with_learning_loop()
+        except Exception as e:
+            self.log.warning(f'Operation mode set to {mode}, but sync failed: {e}')
 
     def reload(self, reason: str):
         '''provide a cause for the reload'''
