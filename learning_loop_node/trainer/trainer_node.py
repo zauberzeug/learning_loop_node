@@ -48,6 +48,7 @@ class TrainerNode(Node):
             if await self.trainer_logic.try_continue_run_if_incomplete():
                 return  # NOTE: we prevent sending idle status after starting a continuation
             await self.send_status()
+            self.check_idle_timeout()
         except exceptions.TimeoutError:
             self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
             await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
@@ -85,18 +86,6 @@ class TrainerNode(Node):
                                 uptime=self.trainer_logic.training_uptime,
                                 progress=self.trainer_logic.general_progress)
 
-        if self.idle_timeout:
-            if self.trainer_logic.state == 'idle':
-                self.idle_time += time.time() - self.last_state_change
-                if self.idle_time > self.idle_timeout:
-                    self.log.info('Trainer has been idle for %s s (with timeout %s s). Shutting down.',
-                                  self.idle_time, self.idle_timeout)
-                    sys.exit(0)
-                self.log.debug('idle time: %s s / %s s', self.idle_time, self.idle_timeout)
-            else:
-                self.idle_time = 0
-            self.last_state_change = time.time()
-
         status.pretrained_models = self.trainer_logic.provided_pretrained_models
         status.architecture = self.trainer_logic.model_architecture
 
@@ -112,3 +101,16 @@ class TrainerNode(Node):
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
             self.log.error(f'Error when sending status update: Response from loop was:\n {result}')
+
+    def check_idle_timeout(self):
+        if self.idle_timeout:
+            if self.trainer_logic.state == 'idle':
+                self.idle_time += time.time() - self.last_state_change
+                if self.idle_time > self.idle_timeout:
+                    self.log.info('Trainer has been idle for %s s (with timeout %s s). Shutting down.',
+                                  self.idle_time, self.idle_timeout)
+                    sys.exit(0)
+                self.log.debug('idle time: %s s / %s s', self.idle_time, self.idle_timeout)
+            else:
+                self.idle_time = 0
+            self.last_state_change = time.time()
