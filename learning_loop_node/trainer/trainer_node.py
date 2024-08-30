@@ -1,3 +1,6 @@
+import os
+import sys
+import time
 from dataclasses import asdict
 from typing import Dict, Optional
 
@@ -7,7 +10,7 @@ from socketio import AsyncClient, exceptions
 from ..data_classes import TrainingStatus
 from ..node import Node
 from .io_helpers import LastTrainingIO
-from .rest import backdoor_controls, controls
+from .rest import backdoor_controls
 from .trainer_logic_generic import TrainerLogicGeneric
 
 
@@ -20,7 +23,15 @@ class TrainerNode(Node):
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
 
-        self.include_router(controls.router, tags=["controls"])
+        self.first_idle_time: float | None = None
+        if os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0):
+            self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0))
+        else:
+            self.idle_timeout = 0.0
+        if self.idle_timeout:
+            self.log.info(
+                f'Trainer started with an idle_timeout of {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
+
         if use_backdoor_controls:
             self.include_router(backdoor_controls.router, tags=["controls"])
 
@@ -38,6 +49,7 @@ class TrainerNode(Node):
             if await self.trainer_logic.try_continue_run_if_incomplete():
                 return  # NOTE: we prevent sending idle status after starting a continuation
             await self.send_status()
+            self.check_idle_timeout()
         except exceptions.TimeoutError:
             self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
             await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
@@ -90,3 +102,19 @@ class TrainerNode(Node):
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
             self.log.error(f'Error when sending status update: Response from loop was:\n {result}')
+
+    def check_idle_timeout(self):
+        if not self.idle_timeout:
+            return
+
+        if self.trainer_logic.state == 'idle':
+            if self.first_idle_time is None:
+                self.first_idle_time = time.time()
+            idle_time = time.time() - self.first_idle_time
+            if idle_time > self.idle_timeout:
+                self.log.info('Trainer has been idle for %.2f s (with timeout %.2f s). Shutting down.',
+                              idle_time, self.idle_timeout)
+                sys.exit(0)
+            self.log.debug('idle time: %.2f s / %.2f s', idle_time, self.idle_timeout)
+        else:
+            self.first_idle_time = None

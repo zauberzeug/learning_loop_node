@@ -50,7 +50,7 @@ class ModelInformation():
     organization: str
     project: str
     version: str
-    categories: List[Category]
+    categories: List[Category] = field(default_factory=list)
     resolution: Optional[int] = None
     model_root_path: Optional[str] = None
     model_size: Optional[str] = None

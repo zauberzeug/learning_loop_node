@@ -77,7 +77,7 @@ class DataExchanger():
             logging.info('got empty list. No images were downloaded')
             return []
 
-        progress_factor = 0.5 / num_image_ids  # 50% of progress is for downloading data
+        progress_factor = 0.5 / num_image_ids  # first 50% of progress is for downloading data
         images_data: List[Dict] = []
         for i in range(0, num_image_ids, chunk_size):
             self.progress = i * progress_factor
@@ -100,20 +100,21 @@ class DataExchanger():
         new_image_uuids = [id for id in image_uuids if id not in existing_uuids]
 
         paths, _ = create_resource_paths(self.context.organization, self.context.project, new_image_uuids)
-        num_image_ids = len(image_uuids)
+        num_new_image_ids = len(new_image_uuids)
         os.makedirs(image_folder, exist_ok=True)
 
-        progress_factor = 0.5 / num_image_ids  # second 50% of progress is for downloading images
-        for i in range(0, num_image_ids, chunk_size):
+        progress_factor = 0.5 / num_new_image_ids  # second 50% of progress is for downloading images
+        for i in range(0, num_new_image_ids, chunk_size):
             self.progress = 0.5 + i * progress_factor
             chunk_paths = paths[i:i+chunk_size]
-            chunk_ids = image_uuids[i:i+chunk_size]
+            chunk_ids = new_image_uuids[i:i+chunk_size]
             tasks = []
             for j, chunk_j in enumerate(chunk_paths):
                 start = time()
                 tasks.append(create_task(self._download_one_image(chunk_j, chunk_ids[j], image_folder)))
                 await asyncio.sleep(max(0, 0.02 - (time() - start)))  # prevent too many requests at once
             await asyncio.gather(*tasks)
+        self.progress = 1.0
 
     async def _download_one_image(self, path: str, image_id: str, image_folder: str) -> None:
         response = await self.loop_communicator.get(path)
@@ -124,7 +125,10 @@ class DataExchanger():
         async with aiofiles.open(filename, 'wb') as f:
             await f.write(response.content)
         if not await is_valid_image(filename, self.check_jpeg):
+            logging.error('Invalid image "%s". Removing it..', filename)
             os.remove(filename)
+        else:
+            logging.debug('Downloaded image "%s"', filename)
 
     async def download_model(self, target_folder: str, context: Context, model_uuid: str, model_format: str) -> List[str]:
         """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.

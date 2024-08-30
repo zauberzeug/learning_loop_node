@@ -17,8 +17,8 @@ class TrainingsDownloader():
         return (image_data, skipped_image_count)
 
     async def download_images_and_annotations(self, image_ids: List[str], image_folder: str) -> Tuple[List[Dict], int]:
-        await self.data_exchanger.download_images(image_ids, image_folder)
         image_data = await self.data_exchanger.download_images_data(image_ids)
+        await self.data_exchanger.download_images(image_ids, image_folder)
         logging.info('filtering corrupt images')  # download only safes valid images
         valid_image_data: List[Dict] = []
         skipped_image_count = 0
