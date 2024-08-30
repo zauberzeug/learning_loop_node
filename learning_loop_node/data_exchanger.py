@@ -77,7 +77,7 @@ class DataExchanger():
             logging.info('got empty list. No images were downloaded')
             return []
 
-        progress_factor = 0.5 / num_image_ids  # 50% of progress is for downloading data
+        progress_factor = 0.5 / num_image_ids  # first 50% of progress is for downloading data
         images_data: List[Dict] = []
         for i in range(0, num_image_ids, chunk_size):
             self.progress = i * progress_factor
@@ -103,7 +103,7 @@ class DataExchanger():
         num_new_image_ids = len(new_image_uuids)
         os.makedirs(image_folder, exist_ok=True)
 
-        progress_factor = 0.5 / num_new_image_ids
+        progress_factor = 0.5 / num_new_image_ids  # second 50% of progress is for downloading images
         for i in range(0, num_new_image_ids, chunk_size):
             self.progress = 0.5 + i * progress_factor
             chunk_paths = paths[i:i+chunk_size]
