@@ -110,9 +110,9 @@ class TrainerNode(Node):
                 self.first_idle_time = time.time()
             idle_time = time.time() - self.first_idle_time
             if idle_time > self.idle_timeout:
-                self.log.info('Trainer has been idle for %s s (with timeout %s s). Shutting down.',
+                self.log.info('Trainer has been idle for %.2f s (with timeout %.2f s). Shutting down.',
                               idle_time, self.idle_timeout)
                 sys.exit(0)
-            self.log.debug('idle time: %s s / %s s', idle_time, self.idle_timeout)
+            self.log.debug('idle time: %.2f s / %.2f s', idle_time, self.idle_timeout)
         else:
             self.first_idle_time = None
