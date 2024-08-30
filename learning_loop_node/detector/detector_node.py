@@ -195,8 +195,10 @@ class DetectorNode(Node):
             return
         try:
             self.log.info(f'Current operation mode is {self.operation_mode}')
-            if not await self.send_status():
-                self.log.info('could not check for updates (communication with loop failed)')
+            try:
+                await self.sync_status_with_learning_loop()
+            except Exception as e:
+                self.log.error(f'could not sync status with learning loop: {e}')
                 return
 
             if self.operation_mode != OperationMode.Idle:
@@ -233,20 +235,24 @@ class DetectorNode(Node):
                     self.log.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
 
                     self.detector_logic.load_model()
-                    await self.send_status()
+                    await self.sync_status_with_learning_loop()
                     # self.reload(reason='new model installed')
 
         except Exception as e:
             self.log.exception('check_for_update failed')
             msg = e.cause if isinstance(e, DownloadError) else str(e)
             self.status.set_error('update_model', f'Could not update model: {msg}')
-            await self.send_status()
+            await self.sync_status_with_learning_loop()
 
-    async def send_status(self) -> bool:
-        """Send the status of the detector to the Learning Loop.
-        The learning loop will respond with the model info of the deployment target.
+    async def sync_status_with_learning_loop(self):
+        """Sync status of the detector with the Learning Loop.
+        The Learning Loop will respond with the model info of the deployment target.
         If version_control is set to FollowLoop, the detector will update the target_model.
-        Return if the communication was successful."""
+        Return if the communication was successful.
+
+        Raises:
+            Exception: If the communication with the Learning Loop failed.
+        """
 
         if not self.sio_client.connected:
             self.log.info('could not send status -- we are not connected to the Learning Loop')
@@ -278,7 +284,7 @@ class DetectorNode(Node):
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
             self.log.error(f'Statusupdate failed: {response}')
-            return False
+            raise Exception(f'Statusupdate failed: {response}')
 
         assert socket_response.payload is not None
 
@@ -293,11 +299,9 @@ class DetectorNode(Node):
             self.target_model = self.loop_deployment_target
             self.log.info(f'After sending status. Target_model is {self.target_model.version}')
 
-        return True
-
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
-        await self.send_status()
+        await self.sync_status_with_learning_loop()
 
     def reload(self, reason: str):
         '''provide a cause for the reload'''
