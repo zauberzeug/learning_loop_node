@@ -131,10 +131,10 @@ class DetectorNode(Node):
         # Initialize the Socket.IO server
         self.sio = socketio.AsyncServer(async_mode='asgi')
         # Create the ASGI app combining Socket.IO and FastAPI
-        self.sio_app = socketio.ASGIApp(self.sio, other_asgi_app=self)
+        self.sio_app = socketio.ASGIApp(self.sio, socketio_path='/ws/socket.io/')
         # Register event handlers
 
-        print('>>>>>>>>>>>>>>>>>>>>>>> setting up sio server', flush=True)
+        self.log.info('>>>>>>>>>>>>>>>>>>>>>>> Setting up the SIO server')
 
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
@@ -192,6 +192,22 @@ class DetectorNode(Node):
         @self.sio.event
         def connect(sid, environ, auth) -> None:
             self.connected_clients.append(sid)
+
+    async def __call__(self, scope, receive, send):
+        if scope['type'] == 'lifespan':
+            # Handle lifespan events with FastAPI
+            await super().__call__(scope, receive, send)
+        elif scope['type'] in ('http', 'websocket'):
+            path = scope.get('path', '')
+            if path.startswith('/ws/socket.io'):
+                # Handle Socket.IO requests
+                await self.sio_app(scope, receive, send)
+            else:
+                # Handle other HTTP/WebSocket requests with FastAPI
+                await super().__call__(scope, receive, send)
+        else:
+            # For any other scope types, delegate to FastAPI
+            await super().__call__(scope, receive, send)
 
     async def _check_for_update(self) -> None:
         if self.operation_mode == OperationMode.Startup:
