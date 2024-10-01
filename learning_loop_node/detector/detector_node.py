@@ -326,12 +326,14 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self, raw_image: np.ndarray, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-        """Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
+        """ Main processing function for the detector node when an image is received via REST or SocketIO.
+        This function infers the detections from the image, cares about upload ing to the loop and returns the detections as a dictionary.
+        Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
         loop = asyncio.get_event_loop()
-        detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_tags, raw_image, tags)
         self.detection_lock.release()
 
         fix_shape_detections(detections)
