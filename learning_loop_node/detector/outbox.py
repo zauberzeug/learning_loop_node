@@ -55,7 +55,13 @@ class Outbox():
 
         self.upload_counter = 0
 
-    def save(self, image: bytes, detections: Optional[Detections] = None, tags: Optional[List[str]] = None) -> None:
+    def save(self,
+             image: bytes,
+             detections: Optional[Detections] = None,
+             tags: Optional[List[str]] = None,
+             source: Optional[str] = None
+             ) -> None:
+
         if not self._is_valid_jpg(image):
             self.log.error('Invalid jpg image')
             return
@@ -71,6 +77,7 @@ class Outbox():
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         detections.tags = tags
         detections.date = identifier
+        detections.source = source or 'unknown'
         os.makedirs(tmp, exist_ok=True)
 
         with open(tmp + '/image.json', 'w') as f:

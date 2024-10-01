@@ -138,6 +138,7 @@ class DetectorNode(Node):
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     autoupload=data.get('autoupload', None),
+                    source=data.get('source', None)
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
@@ -325,7 +326,12 @@ class DetectorNode(Node):
         else:
             self.log.error('could not reload app')
 
-    async def get_detections(self, raw_image: np.ndarray, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
+    async def get_detections(self,
+                             raw_image: np.ndarray,
+                             camera_id: Optional[str],
+                             tags: List[str],
+                             autoupload: Optional[str] = None,
+                             source: Optional[str] = None) -> Optional[Dict]:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about upload ing to the loop and returns the detections as a dictionary.
         Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
@@ -343,9 +349,9 @@ class DetectorNode(Node):
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags)).start()
+                   args=(detections, camera_id, raw_image, tags, source)).start()
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags)).start()
+            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source)).start()
         elif autoupload == 'disabled':
             pass
         else:
