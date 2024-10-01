@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 
 router = APIRouter()
+logger = logging.getLogger('Node.rest')
 
 
 @router.put("/debug_logging")
@@ -21,8 +22,8 @@ async def _debug_logging(request: Request):
     node: 'Node' = request.app
 
     if state == 'off':
-        logging.info('Node: turning debug logging off')
+        logger.info('turning debug logging off')
         node.log.setLevel('INFO')
     if state == 'on':
-        logging.info('Node: turning debug logging on')
+        logger.info('turning debug logging on')
         node.log.setLevel('DEBUG')
