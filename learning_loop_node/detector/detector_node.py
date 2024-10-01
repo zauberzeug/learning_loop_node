@@ -349,7 +349,7 @@ class DetectorNode(Node):
         fix_shape_detections(detections)
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
-        self.log.debug('Detected:%d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
+        self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
