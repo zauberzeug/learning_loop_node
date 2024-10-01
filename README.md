@@ -31,7 +31,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)            |
 | KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            |
 | TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)            |
-| USE_BACKDOOR_CONTROLS    | -            | Enable backdoor controls (set to 1)                          | Trainer / Detector (opt.) |
+| USE_BACKDOOR_CONTROLS    | -            | Always enable backdoor controls (set to 1)                   | Trainer / Detector (opt.) |
 
 #### Testing
 
