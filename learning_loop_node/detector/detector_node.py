@@ -339,7 +339,7 @@ class DetectorNode(Node):
 
         await self.detection_lock.acquire()
         loop = asyncio.get_event_loop()
-        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_tags, raw_image, tags)
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source)
         self.detection_lock.release()
 
         fix_shape_detections(detections)

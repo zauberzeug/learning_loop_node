@@ -46,9 +46,9 @@ class DetectorLogic():
     def init(self):
         """Called when a (new) model was loaded. Initialize the model. Model information available via `self.model_info`"""
 
-    def evaluate_with_tags(self, image: np.ndarray, tags: List[str]) -> Detections:  # pylint: disable=unused-argument
+    def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None) -> Detections:  # pylint: disable=unused-argument
         """Called by the detector node when an image should be evaluated (REST or SocketIO).
-        Tags come from the caller and may be used in this function. 
+        Tags, source come from the caller and may be used in this function. 
         By default, this function simply calls `evaluate`"""
         return self.evaluate(image)
 
