@@ -41,7 +41,7 @@ class Node(FastAPI):
         self.uuid = uuid or read_or_create_uuid(self.name)
         self.needs_login = needs_login
 
-        self.log = logging.getLogger()
+        self.log = logging.getLogger('Node')
         self.loop_communicator = LoopCommunicator()
         self.websocket_url = self.loop_communicator.websocket_url()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
