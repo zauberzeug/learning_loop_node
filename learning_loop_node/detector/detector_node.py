@@ -137,8 +137,8 @@ class DetectorNode(Node):
                     raw_image=np_image,
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
-                    source=data.get('source', None)
-                    autoupload=data.get('autoupload', None),
+                    source=data.get('source', None),
+                    autoupload=data.get('autoupload', None)
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
