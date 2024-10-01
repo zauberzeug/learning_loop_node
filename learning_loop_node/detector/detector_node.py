@@ -70,7 +70,7 @@ class DetectorNode(Node):
         self.include_router(rest_outbox_mode.router, tags=["outbox_mode"])
         self.include_router(rest_version_control.router, tags=["model_version"])
 
-        if use_backdoor_controls:
+        if use_backdoor_controls or os.environ.get('USE_BACKDOOR_CONTROLS', '0').lower() in ('1', 'true'):
             self.include_router(backdoor_controls.router)
 
         self.setup_sio_server()
