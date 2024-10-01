@@ -333,8 +333,8 @@ class DetectorNode(Node):
                              source: Optional[str] = None,
                              autoupload: Optional[str] = None) -> Optional[Dict]:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
-        This function infers the detections from the image, cares about upload ing to the loop and returns the detections as a dictionary.
-        Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
+        This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
+        Note: raw_image is a numpy array of type uint8, but not in the correct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
@@ -404,6 +404,6 @@ def fix_shape_detections(detections: Detections):
     # TODO This is a quick fix.. check how loop upload detections deals with this
     for seg_detection in detections.segmentation_detections:
         if isinstance(seg_detection.shape, Shape):
-            shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
+            points = ','.join([str(value) for p in seg_detection.shape.points for _,
                                value in asdict(p).items()])
-            seg_detection.shape = shapes
+            seg_detection.shape = points
