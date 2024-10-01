@@ -328,19 +328,16 @@ class DetectorNode(Node):
     async def get_detections(self, raw_image: np.ndarray, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
         """Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
-        loop = asyncio.get_event_loop()
-        await self.detection_lock.acquire()
-        detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
-        self.detection_lock.release()
-        for seg_detection in detections.segmentation_detections:
-            if isinstance(seg_detection.shape, Shape):
-                shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
-                                   value in asdict(p).items()])
-                seg_detection.shape = shapes  # TODO This seems to be a quick fix.. check how loop upload detections deals with this
 
+        await self.detection_lock.acquire()
+        loop = asyncio.get_event_loop()
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
+        self.detection_lock.release()
+
+        fix_shape_detections(detections)
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
-        self.log.info(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
+        self.log.debug(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
@@ -393,3 +390,12 @@ def step_into(new_dir):
         yield
     finally:
         os.chdir(previous_dir)
+
+
+def fix_shape_detections(detections: Detections):
+    # TODO This is a quick fix.. check how loop upload detections deals with this
+    for seg_detection in detections.segmentation_detections:
+        if isinstance(seg_detection.shape, Shape):
+            shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
+                               value in asdict(p).items()])
+            seg_detection.shape = shapes
