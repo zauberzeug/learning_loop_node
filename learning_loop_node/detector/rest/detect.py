@@ -19,8 +19,8 @@ async def http_detect(
     camera_id: Optional[str] = Header(None),
     mac: Optional[str] = Header(None),
     tags: Optional[str] = Header(None),
-    autoupload: Optional[str] = Header(None),
     source: Optional[str] = Header(None),
+    autoupload: Optional[str] = Header(None),
 ):
     """
     Example Usage
@@ -44,8 +44,8 @@ async def http_detect(
         detections = await app.get_detections(raw_image=np_image,
                                               camera_id=camera_id or mac or None,
                                               tags=tags.split(',') if tags else [],
-                                              autoupload=autoupload,
-                                              source=source)
+                                              source=source,
+                                              autoupload=autoupload)
     except Exception as exc:
         logging.exception(f'Error during detection of image {file.filename}.')
         raise Exception(f'Error during detection of image {file.filename}.') from exc
