@@ -18,6 +18,7 @@ from .data_exchanger import DataExchanger
 from .helpers import log_conf
 from .helpers.misc import ensure_socket_response, read_or_create_uuid
 from .loop_communication import LoopCommunicator
+from .rest import router
 
 
 class Node(FastAPI):
@@ -55,6 +56,8 @@ class Node(FastAPI):
                             'nodeType': node_type}
 
         self.repeat_task: Any = None
+
+        self.include_router(router)
 
     @property
     def sio_client(self) -> AsyncClient:
