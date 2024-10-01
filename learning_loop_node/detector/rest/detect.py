@@ -1,9 +1,13 @@
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from fastapi import APIRouter, File, Header, Request, UploadFile
 from fastapi.responses import JSONResponse
+
+if TYPE_CHECKING:
+    from ..detector_node import DetectorNode
+
 
 router = APIRouter()
 
@@ -35,10 +39,11 @@ async def http_detect(
         raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
 
     try:
-        detections = await request.app.get_detections(raw_image=np_image,
-                                                      camera_id=camera_id or mac or None,
-                                                      tags=tags.split(',') if tags else [],
-                                                      autoupload=autoupload,)
+        app: 'DetectorNode' = request.app
+        detections = await app.get_detections(raw_image=np_image,
+                                              camera_id=camera_id or mac or None,
+                                              tags=tags.split(',') if tags else [],
+                                              autoupload=autoupload,)
     except Exception as exc:
         logging.exception(f'Error during detection of image {file.filename}.')
         raise Exception(f'Error during detection of image {file.filename}.') from exc
