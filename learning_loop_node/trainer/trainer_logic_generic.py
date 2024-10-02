@@ -230,7 +230,7 @@ class TrainerLogicGeneric(ABC):
             else:
                 logger.info('CancelledError in _run - shutting down')
         except Exception:
-            logger.exception('(Catched) exception in trainer_logic._run:')
+            logger.exception('(Ignored) exception in trainer_logic._run:')
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
