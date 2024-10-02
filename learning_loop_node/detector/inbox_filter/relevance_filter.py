@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ...data_classes.detections import Detections
 from ..outbox import Outbox
@@ -11,7 +11,13 @@ class RelevanceFilter():
         self.cam_histories: Dict[str, CamObservationHistory] = {}
         self.outbox: Outbox = outbox
 
-    def may_upload_detections(self, dets: Detections, cam_id: str, raw_image: bytes, tags: List[str]) -> List[str]:
+    def may_upload_detections(self,
+                              dets: Detections,
+                              cam_id: str,
+                              raw_image: bytes,
+                              tags: List[str],
+                              source: Optional[str] = None
+                              ) -> List[str]:
         for group in self.cam_histories.values():
             group.forget_old_detections()
 
@@ -23,5 +29,5 @@ class RelevanceFilter():
         if len(causes) > 0:
             tags = tags if tags is not None else []
             tags.extend(causes)
-            self.outbox.save(raw_image, dets, tags)
+            self.outbox.save(raw_image, dets, tags, source)
         return causes

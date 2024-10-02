@@ -118,7 +118,8 @@ class Detections():
     classification_detections: List[ClassificationDetection] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
     date: Optional[str] = field(default_factory=current_datetime)
-    image_id: Optional[str] = None  # used for detection of trainers
+    image_id: Optional[str] = None  # (actually UUID) used for detection of trainers
+    source: Optional[str] = None
 
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)

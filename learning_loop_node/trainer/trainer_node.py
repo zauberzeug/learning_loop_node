@@ -32,7 +32,7 @@ class TrainerNode(Node):
             self.log.info(
                 f'Trainer started with an idle_timeout of {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
 
-        if use_backdoor_controls:
+        if use_backdoor_controls or os.environ.get('USE_BACKDOOR_CONTROLS', '0').lower() in ('1', 'true'):
             self.include_router(backdoor_controls.router, tags=["controls"])
 
     # ----------------------------------- NODE LIVECYCLE METHODS --------------------------

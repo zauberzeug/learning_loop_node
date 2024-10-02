@@ -22,10 +22,8 @@ async def _socketio(request: Request):
         curl -X PUT -d "on" http://localhost:8007/socketio
     '''
     state = str(await request.body(), 'utf-8')
-    await _switch_socketio(state, request.app)
+    detector_node: 'DetectorNode' = request.app
 
-
-async def _switch_socketio(state: str, detector_node: 'DetectorNode'):
     if state == 'off':
         logging.info('BC: turning socketio off')
         await detector_node.sio_client.disconnect()

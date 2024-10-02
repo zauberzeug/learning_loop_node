@@ -70,7 +70,7 @@ class DetectorNode(Node):
         self.include_router(rest_outbox_mode.router, tags=["outbox_mode"])
         self.include_router(rest_version_control.router, tags=["model_version"])
 
-        if use_backdoor_controls:
+        if use_backdoor_controls or os.environ.get('USE_BACKDOOR_CONTROLS', '0').lower() in ('1', 'true'):
             self.include_router(backdoor_controls.router)
 
         self.setup_sio_server()
@@ -146,7 +146,8 @@ class DetectorNode(Node):
                     raw_image=np_image,
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
-                    autoupload=data.get('autoupload', None),
+                    source=data.get('source', None),
+                    autoupload=data.get('autoupload', None)
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
@@ -329,28 +330,32 @@ class DetectorNode(Node):
         else:
             self.log.error('could not reload app')
 
-    async def get_detections(self, raw_image: np.ndarray, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-        """Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
+    async def get_detections(self,
+                             raw_image: np.ndarray,
+                             camera_id: Optional[str],
+                             tags: List[str],
+                             source: Optional[str] = None,
+                             autoupload: Optional[str] = None) -> Optional[Dict]:
+        """ Main processing function for the detector node when an image is received via REST or SocketIO.
+        This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
+        Note: raw_image is a numpy array of type uint8, but not in the correct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
-        loop = asyncio.get_event_loop()
-        await self.detection_lock.acquire()
-        detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
-        self.detection_lock.release()
-        for seg_detection in detections.segmentation_detections:
-            if isinstance(seg_detection.shape, Shape):
-                shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
-                                   value in asdict(p).items()])
-                seg_detection.shape = shapes  # TODO This seems to be a quick fix.. check how loop upload detections deals with this
 
+        await self.detection_lock.acquire()
+        loop = asyncio.get_event_loop()
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source)
+        self.detection_lock.release()
+
+        fix_shape_detections(detections)
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
-        self.log.info('Detected %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
+        self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags)).start()
+                   args=(detections, camera_id, raw_image, tags, source)).start()
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags)).start()
+            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source)).start()
         elif autoupload == 'disabled':
             pass
         else:
@@ -397,3 +402,12 @@ def step_into(new_dir):
         yield
     finally:
         os.chdir(previous_dir)
+
+
+def fix_shape_detections(detections: Detections):
+    # TODO This is a quick fix.. check how loop upload detections deals with this
+    for seg_detection in detections.segmentation_detections:
+        if isinstance(seg_detection.shape, Shape):
+            points = ','.join([str(value) for p in seg_detection.shape.points for _,
+                               value in asdict(p).items()])
+            seg_detection.shape = points
