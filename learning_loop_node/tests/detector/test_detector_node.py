@@ -68,9 +68,10 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
         if save_called:
             save_pos_args, save_kwargs = save_args  # pylint: disable=unbalanced-tuple-unpacking
             expected_values = list(expected_save_args.values())
+            assert len(save_pos_args) + len(save_kwargs) == len(expected_values)
 
             # Check positional arguments
-            for arg, expected in zip(save_pos_args, expected_values[:len(save_pos_args)]):
+            for arg, expected, idx in zip(save_pos_args, expected_values[:len(save_pos_args)], range(len(save_pos_args))):
                 if isinstance(arg, (list, np.ndarray)):
                     assert np.array_equal(arg, expected)
                 else:
