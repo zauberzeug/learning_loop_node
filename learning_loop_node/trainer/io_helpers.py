@@ -16,12 +16,9 @@ from ..loop_communication import LoopCommunicator
 
 class EnvironmentVars:
     def __init__(self) -> None:
-        self.restart_after_training = os.environ.get(
-            'RESTART_AFTER_TRAINING', 'FALSE').lower() in ['true', '1']
-        self.keep_old_trainings = os.environ.get(
-            'KEEP_OLD_TRAININGS', 'FALSE').lower() in ['true', '1']
-        self.inference_batch_size = int(
-            os.environ.get('INFERENCE_BATCH_SIZE', '10'))
+        self.restart_after_training = os.environ.get('RESTART_AFTER_TRAINING', 'FALSE').lower() in ['true', '1']
+        self.keep_old_trainings = os.environ.get('KEEP_OLD_TRAININGS', 'FALSE').lower() in ['true', '1']
+        self.inference_batch_size = int(os.environ.get('INFERENCE_BATCH_SIZE', '10'))
 
 
 class LastTrainingIO:
