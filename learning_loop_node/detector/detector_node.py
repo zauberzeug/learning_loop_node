@@ -139,7 +139,7 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
-            self.log.info('running detect via socketio')
+            self.log.debug('running detect via socketio')
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
                 det = await self.get_detections(
@@ -151,7 +151,7 @@ class DetectorNode(Node):
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
-                self.log.info('detect via socketio finished')
+                self.log.debug('detect via socketio finished')
                 return det
             except Exception as e:
                 self.log.exception('could not detect via socketio')
@@ -183,9 +183,11 @@ class DetectorNode(Node):
             tags = data.get('tags', [])
             tags.append('picked_by_system')
 
+            source = data.get('source', None)
+
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags)
+                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags, source)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
