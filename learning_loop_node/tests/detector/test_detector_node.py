@@ -1,39 +1,8 @@
-import os
-import pytest
-from numpy.typing import ArrayLike
 import numpy as np
+import pytest
+
 from learning_loop_node.detector.detector_node import DetectorNode
-from learning_loop_node.detector.detector_logic import DetectorLogic
-from learning_loop_node.data_classes import Detections, BoxDetection
 
-@pytest.fixture
-def mock_detector_logic(monkeypatch):
-    class MockDetectorLogic(DetectorLogic):
-        def __init__(self):
-            super().__init__('mock')
-            self.detections = Detections(
-                box_detections=[BoxDetection(category_name="test", 
-                                             category_id="1",
-                                             confidence=0.9, 
-                                             x=0, y=0, width=10, height=10, 
-                                             model_name="mock",
-                                             )]
-            )
-
-        @property
-        def is_initialized(self):
-            return True
-
-        def evaluate_with_all_info(self, image, tags, source):
-            return self.detections
-
-    return MockDetectorLogic()
-
-@pytest.fixture
-def detector_node(mock_detector_logic):
-    os.environ['ORGANIZATION'] = 'test_organization'
-    os.environ['PROJECT'] = 'test_project'
-    return DetectorNode(name="test_node", detector=mock_detector_logic)
 
 @pytest.mark.asyncio
 async def test_get_detections(detector_node: DetectorNode, monkeypatch):
@@ -46,7 +15,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     save_args = []
 
-    def mock_filtered_upload(*args, **kwargs):
+    def mock_filtered_upload(*args, **kwargs):  # pylint: disable=unused-argument
         nonlocal filtered_upload_called
         filtered_upload_called = True
 
@@ -69,7 +38,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     expected_save_args = {
         'image': raw_image,
-        'detections': detector_node.detector_logic.detections, # type: ignore
+        'detections': detector_node.detector_logic.detections,  # type: ignore
         'tags': ['test_tag'],
         'source': 'test_source',
     }
@@ -97,20 +66,20 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
         assert save_called == expect_all
 
         if save_called:
-            save_pos_args, save_kwargs = save_args
+            save_pos_args, save_kwargs = save_args  # pylint: disable=unbalanced-tuple-unpacking
             expected_values = list(expected_save_args.values())
-            
+
             # Check positional arguments
             for arg, expected in zip(save_pos_args, expected_values[:len(save_pos_args)]):
-                if isinstance(arg, list) or isinstance(arg, np.ndarray):
+                if isinstance(arg, (list, np.ndarray)):
                     assert np.array_equal(arg, expected)
                 else:
                     assert arg == expected
-            
+
             # Check keyword arguments
             for key, value in save_kwargs.items():
                 expected = expected_save_args[key]
-                if isinstance(value, list) or isinstance(value, np.ndarray):
+                if isinstance(value, (list, np.ndarray)):
                     assert np.array_equal(value, expected)
                 else:
                     assert value == expected
