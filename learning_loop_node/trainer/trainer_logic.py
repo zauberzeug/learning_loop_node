@@ -25,7 +25,7 @@ class TrainerLogic(TrainerLogicGeneric):
         self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
         self.start_training_task: Optional[Coroutine] = None
-        self.inference_batch_size = 10
+        self.inference_batch_size = self._environment_vars.inference_batch_size
 
     # ---------------------------------------- IMPLEMENTED ABSTRACT PROPERTIES ----------------------------------------
 
@@ -92,7 +92,7 @@ class TrainerLogic(TrainerLogicGeneric):
 
         shutil.rmtree(tmp_folder, ignore_errors=True)
         os.makedirs(tmp_folder)
-        logging.info(f'downloading detection model to {tmp_folder}')
+        logging.info('downloading detection model to %s', tmp_folder)
 
         await self.node.data_exchanger.download_model(tmp_folder, context, model_id, self.model_format)
         with open(f'{tmp_folder}/model.json', 'r') as f:
@@ -104,10 +104,10 @@ class TrainerLogic(TrainerLogicGeneric):
         image_ids = []
         for state, p in zip(['inbox', 'annotate', 'review', 'complete'], [0.1, 0.2, 0.3, 0.4]):
             self._detection_progress = p
-            logging.info(f'fetching image ids of {state}')
+            logging.info('fetching image ids of state %s', state)
             new_ids = await self.node.data_exchanger.fetch_image_uuids(query_params=f'state={state}')
             image_ids += new_ids
-            logging.info(f'downloading {len(new_ids)} images')
+            logging.info('downloading %d images', len(new_ids))
             await self.node.data_exchanger.download_images(new_ids, image_folder)
         self._detection_progress = 0.42
         # await delete_corrupt_images(image_folder)
