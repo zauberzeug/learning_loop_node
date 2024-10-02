@@ -1,5 +1,6 @@
 import os
 import pytest
+from numpy.typing import ArrayLike
 import numpy as np
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.detector.detector_logic import DetectorLogic
@@ -10,13 +11,7 @@ def mock_detector_logic(monkeypatch):
     class MockDetectorLogic(DetectorLogic):
         def __init__(self):
             super().__init__('mock')
-
-        @property
-        def is_initialized(self):
-            return True
-
-        def evaluate_with_all_info(self, image, tags, source):
-            return Detections(
+            self.detections = Detections(
                 box_detections=[BoxDetection(category_name="test", 
                                              category_id="1",
                                              confidence=0.9, 
@@ -24,6 +19,13 @@ def mock_detector_logic(monkeypatch):
                                              model_name="mock",
                                              )]
             )
+
+        @property
+        def is_initialized(self):
+            return True
+
+        def evaluate_with_all_info(self, image, tags, source):
+            return self.detections
 
     return MockDetectorLogic()
 
@@ -42,13 +44,17 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     filtered_upload_called = False
     save_called = False
 
+    save_args = []
+
     def mock_filtered_upload(*args, **kwargs):
         nonlocal filtered_upload_called
         filtered_upload_called = True
 
     def mock_save(*args, **kwargs):
         nonlocal save_called
+        nonlocal save_args
         save_called = True
+        save_args = (args, kwargs)
 
     monkeypatch.setattr(detector_node.relevance_filter, "may_upload_detections", mock_filtered_upload)
     monkeypatch.setattr(detector_node.outbox, "save", mock_save)
@@ -60,6 +66,13 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
         ("all", False, True),
         ("disabled", False, False),
     ]
+
+    expected_save_args = {
+        'image': raw_image,
+        'detections': detector_node.detector_logic.detections, # type: ignore
+        'tags': ['test_tag'],
+        'source': 'test_source',
+    }
 
     for autoupload, expect_filtered, expect_all in test_cases:
         filtered_upload_called = False
@@ -82,3 +95,22 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
         # Check if the correct upload method was called
         assert filtered_upload_called == expect_filtered
         assert save_called == expect_all
+
+        if save_called:
+            save_pos_args, save_kwargs = save_args
+            expected_values = list(expected_save_args.values())
+            
+            # Check positional arguments
+            for arg, expected in zip(save_pos_args, expected_values[:len(save_pos_args)]):
+                if isinstance(arg, list) or isinstance(arg, np.ndarray):
+                    assert np.array_equal(arg, expected)
+                else:
+                    assert arg == expected
+            
+            # Check keyword arguments
+            for key, value in save_kwargs.items():
+                expected = expected_save_args[key]
+                if isinstance(value, list) or isinstance(value, np.ndarray):
+                    assert np.array_equal(value, expected)
+                else:
+                    assert value == expected
