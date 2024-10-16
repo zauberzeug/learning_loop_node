@@ -87,7 +87,7 @@ class Node(FastAPI):
         if self.needs_login:
             await self.loop_communicator.backend_ready()
             self.log.info('ensuring login')
-            await self.loop_communicator.ensure_login()
+            await self.loop_communicator.ensure_login(relogin=True)
         self.log.info('create sio client')
         await self.create_sio_client()
         self.log.info('done')
@@ -126,13 +126,16 @@ class Node(FastAPI):
     async def create_sio_client(self):
         """Create a socket.io client that communicates with the learning loop and register the events.
         Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
-
+        print('--------------Connect HTTP Cookie-------------------', flush=True)
+        print(self.loop_communicator.get_cookies(), flush=True)
+        print('---------------------------------', flush=True)
         if self.loop_communicator.ssl_cert_path:
             logging.info(f'SIO using SSL certificate path: {self.loop_communicator.ssl_cert_path}')
             ssl_context = ssl.create_default_context(cafile=self.loop_communicator.ssl_cert_path)
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             connector = TCPConnector(ssl=ssl_context)
+
             self._sio_client = AsyncClient(request_timeout=20,
                                            http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies(),
                                                                               connector=connector))
