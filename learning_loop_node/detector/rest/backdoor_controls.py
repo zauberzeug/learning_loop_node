@@ -19,7 +19,7 @@ async def _socketio(request: Request):
     '''
     Example Usage
 
-        curl -X PUT -d "on" http://localhost:8007/socketio
+        curl -X PUT -d "on" http://hosturl/socketio
     '''
     state = str(await request.body(), 'utf-8')
     detector_node: 'DetectorNode' = request.app
@@ -39,7 +39,7 @@ async def _reset(request: Request):
 
     Example Usage
 
-        curl -X POST http://localhost:8007/reset
+        curl -X POST http://hosturl/reset
     '''
     logging.info('BC: reset')
     try:

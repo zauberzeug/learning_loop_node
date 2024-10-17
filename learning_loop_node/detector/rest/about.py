@@ -31,7 +31,8 @@ async def get_about(request: Request):
     Get information about the detector node.
 
     Example Usage
-        curl http://localhost/about
+
+        curl http://hosturl/about
     '''
     app: 'DetectorNode' = request.app
 

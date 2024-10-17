@@ -57,9 +57,9 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
         # Check if detections were processed
         assert result is not None
-        assert "box_detections" in result
-        assert len(result["box_detections"]) == 1
-        assert result["box_detections"][0]["category_name"] == "test"
+        assert result.box_detections is not None
+        assert len(result.box_detections) == 1
+        assert result.box_detections[0].category_name == "test"
 
         # Check if the correct upload method was called
         assert filtered_upload_called == expect_filtered

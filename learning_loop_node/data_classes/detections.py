@@ -16,14 +16,14 @@ class BoxDetection():
     """Coordinates according to COCO format. x,y is the top left corner of the box.
     x increases to the right, y increases downwards.
     """
-    category_name: str
-    x: int
-    y: int
-    width: int
-    height: int
-    model_name: str
-    confidence: float
-    category_id: Optional[str] = None
+    category_name: str = field(metadata={'description': 'Category name'})
+    x: int = field(metadata={'description': 'X coordinate (right)'})
+    y: int = field(metadata={'description': 'Y coordinate (down)'})
+    width: int = field(metadata={'description': 'Width'})
+    height: int = field(metadata={'description': 'Height'})
+    model_name: str = field(metadata={'description': 'Model name'})
+    confidence: float = field(metadata={'description': 'Confidence'})
+    category_id: Optional[str] = field(default=None, metadata={'description': 'Category ID'})
 
     def intersection_over_union(self, other_detection: 'BoxDetection') -> float:
         # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
@@ -52,12 +52,12 @@ class BoxDetection():
 class PointDetection():
     """Coordinates according to COCO format. x,y is the center of the point.
     x increases to the right, y increases downwards."""
-    category_name: str
-    x: float
-    y: float
-    model_name: str
-    confidence: float
-    category_id: Optional[str] = None
+    category_name: str = field(metadata={'description': 'Category name'})
+    x: float = field(metadata={'description': 'X coordinate (right)'})
+    y: float = field(metadata={'description': 'Y coordinate (down)'})
+    model_name: str = field(metadata={'description': 'Model name'})
+    confidence: float = field(metadata={'description': 'Confidence'})
+    category_id: Optional[str] = field(default=None, metadata={'description': 'Category ID'})
 
     def distance(self, other: 'PointDetection') -> float:
         return np.sqrt((other.x - self.x)**2 + (other.y - self.y)**2)
@@ -68,10 +68,10 @@ class PointDetection():
 
 @dataclass(**KWONLY_SLOTS)
 class ClassificationDetection():
-    category_name: str
-    model_name: str
-    confidence: float
-    category_id: Optional[str] = None
+    category_name: str = field(metadata={'description': 'Category name'})
+    model_name: str = field(metadata={'description': 'Model name'})
+    confidence: float = field(metadata={'description': 'Confidence'})
+    category_id: Optional[str] = field(default=None, metadata={'description': 'Category ID'})
 
     def __str__(self):
         return f'c: {self.confidence:.2f} -> {self.category_name}'
@@ -112,14 +112,22 @@ def current_datetime():
 
 @dataclass(**KWONLY_SLOTS)
 class Detections():
-    box_detections: List[BoxDetection] = field(default_factory=list)
-    point_detections: List[PointDetection] = field(default_factory=list)
-    segmentation_detections: List[SegmentationDetection] = field(default_factory=list)
-    classification_detections: List[ClassificationDetection] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
-    date: Optional[str] = field(default_factory=current_datetime)
-    image_id: Optional[str] = None  # (actually UUID) used for detection of trainers
-    source: Optional[str] = None
+    box_detections: List[BoxDetection] = field(default_factory=list, metadata={
+        'description': 'List of box detections'})
+    point_detections: List[PointDetection] = field(default_factory=list, metadata={
+        'description': 'List of point detections'})
+    segmentation_detections: List[SegmentationDetection] = field(default_factory=list, metadata={
+        'description': 'List of segmentation detections'})
+    classification_detections: List[ClassificationDetection] = field(default_factory=list, metadata={
+        'description': 'List of classification detections'})
+    tags: List[str] = field(default_factory=list, metadata={
+        'description': 'List of tags'})
+    date: Optional[str] = field(default_factory=current_datetime, metadata={
+        'description': 'Date of the detections'})
+    image_id: Optional[str] = field(default=None, metadata={
+        'description': 'Image uuid'})
+    source: Optional[str] = field(default=None, metadata={
+        'description': 'Source of the detections'})
 
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)

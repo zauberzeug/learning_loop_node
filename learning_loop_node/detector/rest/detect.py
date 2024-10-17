@@ -5,22 +5,23 @@ import numpy as np
 from fastapi import APIRouter, File, Header, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from ...data_classes.detections import Detections
+
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
-
 
 router = APIRouter()
 
 
-@router.post("/detect")
+@router.post("/detect", response_model=Detections)
 async def http_detect(
     request: Request,
-    file: UploadFile = File(...),
-    camera_id: Optional[str] = Header(None),
-    mac: Optional[str] = Header(None),
-    tags: Optional[str] = Header(None),
-    source: Optional[str] = Header(None),
-    autoupload: Optional[str] = Header(None),
+    file: UploadFile = File(..., description='The image file to run detection on'),
+    camera_id: Optional[str] = Header(None, description='The camera id'),
+    mac: Optional[str] = Header(None, description='The camera mac address'),
+    tags: Optional[str] = Header(None, description='Tags to add to the image'),
+    source: Optional[str] = Header(None, description='The source of the image'),
+    autoupload: Optional[str] = Header(None, description='The autoupload mode'),
 ):
     """
     Example Usage
@@ -36,7 +37,7 @@ async def http_detect(
     try:
         np_image = np.fromfile(file.file, np.uint8)
     except Exception as exc:
-        logging.exception(f'Error during reading of image {file.filename}.')
+        logging.exception('Error during reading of image %s.', file.filename)
         raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
 
     try:
@@ -47,6 +48,6 @@ async def http_detect(
                                               source=source,
                                               autoupload=autoupload)
     except Exception as exc:
-        logging.exception(f'Error during detection of image {file.filename}.')
+        logging.exception('Error during detection of image %s.', file.filename)
         raise Exception(f'Error during detection of image {file.filename}.') from exc
-    return JSONResponse(detections)
+    return detections
