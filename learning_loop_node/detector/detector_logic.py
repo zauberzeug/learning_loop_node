@@ -28,7 +28,7 @@ class DetectorLogic():
         return self._model_info is not None
 
     def load_model(self):
-        logging.info(f'Loading model from {GLOBALS.data_folder}/model')
+        logging.info('Loading model from %s', GLOBALS.data_folder)
         model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
         if model_info is None:
             logging.warning('No model found')
@@ -37,9 +37,9 @@ class DetectorLogic():
         try:
             self._model_info = model_info
             self.init()
-            logging.info(f'Successfully loaded model {self._model_info}')
+            logging.info('Successfully loaded model %s', self._model_info)
         except Exception:
-            logging.error(f'Could not init model {model_info}')
+            logging.error('Could not init model %s', model_info)
             raise
 
     @abstractmethod
