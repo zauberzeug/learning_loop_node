@@ -109,7 +109,7 @@ class Node(FastAPI):
             except asyncio.CancelledError:
                 return
             except Exception as e:
-                self.log.exception(f'error in repeat loop: {e}')
+                self.log.exception('error in repeat loop: %s', e)
             await asyncio.sleep(5)
 
     async def _on_repeat(self):
@@ -126,11 +126,11 @@ class Node(FastAPI):
     async def create_sio_client(self):
         """Create a socket.io client that communicates with the learning loop and register the events.
         Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
-        print('--------------Connect HTTP Cookie-------------------', flush=True)
-        print(self.loop_communicator.get_cookies(), flush=True)
-        print('---------------------------------', flush=True)
+        self.log.debug('--------------Connect HTTP Cookie-------------------')
+        self.log.debug(f'Cookies: {self.loop_communicator.get_cookies()}')
+        self.log.debug('---------------------------------')
         if self.loop_communicator.ssl_cert_path:
-            logging.info(f'SIO using SSL certificate path: {self.loop_communicator.ssl_cert_path}')
+            logging.info('SIO using SSL certificate path: %s', self.loop_communicator.ssl_cert_path)
             ssl_context = ssl.create_default_context(cafile=self.loop_communicator.ssl_cert_path)
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_REQUIRED
@@ -168,14 +168,14 @@ class Node(FastAPI):
         except Exception:
             pass
 
-        self.log.info(f'(re)connecting to Learning Loop at {self.websocket_url}')
+        self.log.info('(re)connecting to Learning Loop at %s', self.websocket_url)
         try:
             await self.sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
             self.log.info('connected to Learning Loop')
         except socketio.exceptions.ConnectionError:  # type: ignore
             self.log.warning('connection error')
         except Exception:
-            self.log.exception(f'error while connecting to "{self.websocket_url}". Exception:')
+            self.log.exception('error while connecting to "%s". Exception:', self.websocket_url)
 
     # --------------------------------------------------- ABSTRACT METHODS ---------------------------------------------------
 
