@@ -96,7 +96,7 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
     await asyncio.sleep(3)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/about', timeout=30)
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
     assert response_dict['model_info']
     model_information = ModelInformation.from_dict(response_dict['model_info'])
