@@ -20,14 +20,14 @@ class CategoryType(str, Enum):
 
 @dataclass(**KWONLY_SLOTS)
 class Category():
-    id: str  # TODO: rename to identifier or uuid  (cannot be changed because of database / loop communication)
-    name: str
-    description: Optional[str] = None
-    hotkey: Optional[str] = None
-    color: Optional[str] = None
-    point_size: Optional[int] = None
-    # TODO: rename to ctype (cannot be changed because of database / loop communication)
-    type: Optional[Union[CategoryType, str]] = None
+    id: str = field(metadata={"description": "The id of the category."})
+    name: str = field(metadata={"description": "The name of the category."})
+    description: Optional[str] = field(default=None, metadata={"description": "The description of the category."})
+    hotkey: Optional[str] = field(default=None, metadata={"description": "The hotkey of the category."})
+    color: Optional[str] = field(default=None, metadata={"description": "The color of the category."})
+    point_size: Optional[int] = field(default=None, metadata={"description": "The point size of the category."})
+    type: Optional[Union[CategoryType, str]] = field(
+        default=None, metadata={"description": "The type of the category."})
 
     @staticmethod
     def from_list(values: List[dict]) -> List['Category']:
@@ -45,15 +45,15 @@ class Context():
 
 @dataclass(**KWONLY_SLOTS)
 class ModelInformation():
-    id: str
-    host: Optional[str]
-    organization: str
-    project: str
-    version: str
-    categories: List[Category] = field(default_factory=list)
-    resolution: Optional[int] = None
-    model_root_path: Optional[str] = None
-    model_size: Optional[str] = None
+    id: str = field(metadata={"description": "The uuid of the model."})
+    host: Optional[str] = field(metadata={"description": "The host of the model."})
+    organization: str = field(metadata={"description": "The organization of the model."})
+    project: str = field(metadata={"description": "The project of the model."})
+    version: str = field(metadata={"description": "The version of the model."})
+    categories: List[Category] = field(default_factory=list, metadata={"description": "The categories of the model."})
+    resolution: Optional[int] = field(default=None, metadata={"description": "The resolution of the model."})
+    model_root_path: Optional[str] = field(default=None, metadata={"description": "The root path of the model."})
+    model_size: Optional[str] = field(default=None, metadata={"description": "The size of the model."})
 
     @property
     def context(self):
