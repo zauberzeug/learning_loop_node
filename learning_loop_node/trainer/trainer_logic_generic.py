@@ -210,7 +210,7 @@ class TrainerLogicGeneric(ABC):
 
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, context)
-        logger.info(f'new training initialized: {self._training}')
+        logger.info('new training initialized: %s', self._training)
 
     async def _run(self) -> None:
         """Called on `begin_training` event from the Learning Loop. 
@@ -229,8 +229,8 @@ class TrainerLogicGeneric(ABC):
                 self._may_restart()
             else:
                 logger.info('CancelledError in _run - shutting down')
-        except Exception as e:
-            logger.exception(f'Error in train: {e}')
+        except Exception:
+            logger.exception('(Ignored) exception in trainer_logic._run:')
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
@@ -271,7 +271,7 @@ class TrainerLogicGeneric(ABC):
         '''
 
         await asyncio.sleep(0.1)
-        logger.info(f'Performing state: {state_during}')
+        logger.info('Performing state: %s', state_during)
         previous_state = self.training.training_state
         self.training.training_state = state_during
         await asyncio.sleep(0.1)
@@ -283,12 +283,12 @@ class TrainerLogicGeneric(ABC):
 
         except asyncio.CancelledError:
             if self.shutdown_event.is_set():
-                logger.info(f'CancelledError in {state_during} - shutdown event set')
+                logger.info('CancelledError in %s - shutdown event set', state_during)
                 raise
-            logger.info(f'CancelledError in {state_during} - cleaning up')
+            logger.info('CancelledError in %s - cleaning up', state_during)
             self.training.training_state = TrainerState.ReadyForCleanup
         except CriticalError as e:
-            logger.error(f'CriticalError in {state_during} - Exception: {e}')
+            logger.error('CriticalError in %s - Exception: %s', state_during, e)
             self.errors.set(error_key, str(e))
             self.training.training_state = TrainerState.ReadyForCleanup
         except Exception as e:
@@ -297,7 +297,7 @@ class TrainerLogicGeneric(ABC):
             self.training.training_state = previous_state
             return
         else:
-            logger.info(f'Successfully finished state: {state_during}')
+            logger.info('Successfully finished state: %s', state_during)
             if not reset_early:
                 self.errors.reset(error_key)
             self.training.training_state = state_after

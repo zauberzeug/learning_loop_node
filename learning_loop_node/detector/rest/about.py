@@ -22,4 +22,5 @@ async def get_about(request: Request):
         'state': app.status.state,
         'model_info':  app.detector_logic._model_info,  # pylint: disable=protected-access
         'target_model': app.target_model.version if app.target_model is not None else 'None',
+        'version_control': app.version_control.value,
     }

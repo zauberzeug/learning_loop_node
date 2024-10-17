@@ -12,6 +12,9 @@ import pytest
 import socketio
 import uvicorn
 
+from learning_loop_node.data_classes import BoxDetection, Detections
+from learning_loop_node.detector.detector_logic import DetectorLogic
+
 from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
@@ -112,6 +115,37 @@ async def sio_client() -> AsyncGenerator[socketio.AsyncClient, None]:
 def get_outbox_files(outbox: Outbox):
     files = glob(f'{outbox.path}/**/*', recursive=True)
     return [file for file in files if os.path.isfile(file)]
+
+
+@pytest.fixture
+def mock_detector_logic():
+    class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
+        def __init__(self):
+            super().__init__('mock')
+            self.detections = Detections(
+                box_detections=[BoxDetection(category_name="test",
+                                             category_id="1",
+                                             confidence=0.9,
+                                             x=0, y=0, width=10, height=10,
+                                             model_name="mock",
+                                             )]
+            )
+
+        @property
+        def is_initialized(self):
+            return True
+
+        def evaluate_with_all_info(self, image, tags, source):  # pylint: disable=signature-differs
+            return self.detections
+
+    return MockDetectorLogic()
+
+
+@pytest.fixture
+def detector_node(mock_detector_logic):
+    os.environ['ORGANIZATION'] = 'test_organization'
+    os.environ['PROJECT'] = 'test_project'
+    return DetectorNode(name="test_node", detector=mock_detector_logic)
 
 # ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
 

@@ -23,6 +23,11 @@ LOGGING_CONF = {
             'level': 'INFO',
             'propagate': False,
         },
+        'Node': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 

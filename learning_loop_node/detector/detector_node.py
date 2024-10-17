@@ -9,9 +9,9 @@ from threading import Thread
 from typing import Dict, List, Optional, Union
 
 import numpy as np
+import socketio
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
-from fastapi_socketio import SocketManager
 from socketio import AsyncClient
 
 from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, Shape
@@ -41,7 +41,7 @@ class DetectorNode(Node):
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization and self.project, 'Detector node needs an organization and an project'
-        self.log.info(f'Using {self.organization}/{self.project}')
+        self.log.info('Using %s/%s', self.organization, self.project)
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
 
@@ -70,7 +70,7 @@ class DetectorNode(Node):
         self.include_router(rest_outbox_mode.router, tags=["outbox_mode"])
         self.include_router(rest_version_control.router, tags=["model_version"])
 
-        if use_backdoor_controls:
+        if use_backdoor_controls or os.environ.get('USE_BACKDOOR_CONTROLS', '0').lower() in ('1', 'true'):
             self.include_router(backdoor_controls.router)
 
         self.setup_sio_server()
@@ -126,22 +126,32 @@ class DetectorNode(Node):
 
     def setup_sio_server(self) -> None:
         """The DetectorNode acts as a SocketIO server. This method sets up the server and defines the event handlers."""
-
         # pylint: disable=unused-argument
 
-        async def _detect(sid, data: Dict) -> Dict:
-            self.log.info('running detect via socketio')
+        # Initialize the Socket.IO server
+        self.sio = socketio.AsyncServer(async_mode='asgi')
+        # Initialize and mount the ASGI app
+        self.sio_app = socketio.ASGIApp(self.sio, socketio_path='/socket.io')
+        self.mount('/ws', self.sio_app)
+        # Register event handlers
+
+        self.log.info('>>>>>>>>>>>>>>>>>>>>>>> Setting up the SIO server')
+
+        @self.sio.event
+        async def detect(sid, data: Dict) -> Dict:
+            self.log.debug('running detect via socketio')
             try:
                 np_image = np.frombuffer(data['image'], np.uint8)
                 det = await self.get_detections(
                     raw_image=np_image,
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
-                    autoupload=data.get('autoupload', None),
+                    source=data.get('source', None),
+                    autoupload=data.get('autoupload', None)
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
-                self.log.info('detect via socketio finished')
+                self.log.debug('detect via socketio finished')
                 return det
             except Exception as e:
                 self.log.exception('could not detect via socketio')
@@ -149,12 +159,14 @@ class DetectorNode(Node):
                     f.write(data['image'])
                 return {'error': str(e)}
 
-        async def _info(sid) -> Union[str, Dict]:
+        @self.sio.event
+        async def info(sid) -> Union[str, Dict]:
             if self.detector_logic.is_initialized:
                 return asdict(self.detector_logic.model_info)
             return 'No model loaded'
 
-        async def _upload(sid, data: Dict) -> Optional[Dict]:
+        @self.sio.event
+        async def upload(sid, data: Dict) -> Optional[Dict]:
             '''upload an image with detections'''
 
             detection_data = data.get('detections', {})
@@ -171,38 +183,33 @@ class DetectorNode(Node):
             tags = data.get('tags', [])
             tags.append('picked_by_system')
 
+            source = data.get('source', None)
+
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags)
+                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags, source)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
             return None
 
-        def _connect(sid, environ, auth) -> None:
+        @self.sio.event
+        def connect(sid, environ, auth) -> None:
             self.connected_clients.append(sid)
-
-        print('>>>>>>>>>>>>>>>>>>>>>>> setting up sio server', flush=True)
-
-        self.sio_server = SocketManager(app=self)
-        self.sio_server.on('detect', _detect)
-        self.sio_server.on('info', _info)
-        self.sio_server.on('upload', _upload)
-        self.sio_server.on('connect', _connect)
 
     async def _check_for_update(self) -> None:
         if self.operation_mode == OperationMode.Startup:
             return
         try:
-            self.log.info(f'Current operation mode is {self.operation_mode}')
+            self.log.info('Current operation mode is %s', self.operation_mode)
             try:
                 await self.sync_status_with_learning_loop()
             except Exception as e:
-                self.log.error(f'Could not check for updates: {e}')
+                self.log.error('Could not check for updates: %s', e)
                 return
 
             if self.operation_mode != OperationMode.Idle:
-                self.log.info(f'not checking for updates; operation mode is {self.operation_mode}')
+                self.log.info('not checking for updates; operation mode is %s', self.operation_mode)
                 return
 
             self.status.reset_error('update_model')
@@ -210,11 +217,11 @@ class DetectorNode(Node):
                 self.log.info('not checking for updates; no target model selected')
                 return
 
-            current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None
+            current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None  # pylint: disable=protected-access
 
             if not self.detector_logic.is_initialized or self.target_model.version != current_version:
-                self.log.info(
-                    f'Current model "{current_version or "-"}" needs to be updated to {self.target_model.version}')
+                self.log.info('Current model "%s" needs to be updated to %s',
+                              current_version or "-", self.target_model.version)
 
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
@@ -232,7 +239,7 @@ class DetectorNode(Node):
                     except Exception:
                         pass
                     os.symlink(target_model_folder, model_symlink)
-                    self.log.info(f'Updated symlink for model to {os.readlink(model_symlink)}')
+                    self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
 
                     self.detector_logic.load_model()
                     try:
@@ -283,13 +290,13 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log.info(f'sending status {status}')
+        self.log.info('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
 
         assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
-            self.log.error(f'Statusupdate failed: {response}')
+            self.log.error('Statusupdate failed: %s', response)
             raise Exception(f'Statusupdate failed: {response}')
 
         assert socket_response.payload is not None
@@ -303,19 +310,19 @@ class DetectorNode(Node):
 
         if self.version_control == rest_version_control.VersionMode.FollowLoop:
             self.target_model = self.loop_deployment_target
-            self.log.info(f'After sending status. Target_model is {self.target_model.version}')
+            self.log.info('After sending status. Target_model is %s', self.target_model.version)
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
         try:
             await self.sync_status_with_learning_loop()
         except Exception as e:
-            self.log.warning(f'Operation mode set to {mode}, but sync failed: {e}')
+            self.log.warning('Operation mode set to %s, but sync failed: %s', mode, e)
 
     def reload(self, reason: str):
         '''provide a cause for the reload'''
 
-        self.log.info(f'########## reloading app because {reason}')
+        self.log.info('########## reloading app because %s', reason)
         if os.path.isfile('/app/app_code/restart/restart.py'):
             subprocess.call(['touch', '/app/app_code/restart/restart.py'])
         elif os.path.isfile('/app/main.py'):
@@ -325,32 +332,36 @@ class DetectorNode(Node):
         else:
             self.log.error('could not reload app')
 
-    async def get_detections(self, raw_image: np.ndarray, camera_id: Optional[str], tags: List[str], autoupload: Optional[str] = None) -> Optional[Dict]:
-        """Note: raw_image is a numpy array of type uint8, but not in the correrct shape!
+    async def get_detections(self,
+                             raw_image: np.ndarray,
+                             camera_id: Optional[str],
+                             tags: List[str],
+                             source: Optional[str] = None,
+                             autoupload: Optional[str] = None) -> Optional[Dict]:
+        """ Main processing function for the detector node when an image is received via REST or SocketIO.
+        This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
+        Note: raw_image is a numpy array of type uint8, but not in the correct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
-        loop = asyncio.get_event_loop()
-        await self.detection_lock.acquire()
-        detections: Detections = await loop.run_in_executor(None, self.detector_logic.evaluate, raw_image)
-        self.detection_lock.release()
-        for seg_detection in detections.segmentation_detections:
-            if isinstance(seg_detection.shape, Shape):
-                shapes = ','.join([str(value) for p in seg_detection.shape.points for _,
-                                   value in asdict(p).items()])
-                seg_detection.shape = shapes  # TODO This seems to be a quick fix.. check how loop upload detections deals with this
 
+        await self.detection_lock.acquire()
+        loop = asyncio.get_event_loop()
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source)
+        self.detection_lock.release()
+
+        fix_shape_detections(detections)
         n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
-        self.log.info(f'detected:{n_bo} boxes, {n_po} points, {n_se} segs, {n_cl} classes')
+        self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags)).start()
+                   args=(detections, camera_id, raw_image, tags, source)).start()
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags)).start()
+            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source)).start()
         elif autoupload == 'disabled':
             pass
         else:
-            self.log.error(f'unknown autoupload value {autoupload}')
+            self.log.error('unknown autoupload value %s', autoupload)
         return jsonable_encoder(asdict(detections))
 
     async def upload_images(self, images: List[bytes]):
@@ -393,3 +404,12 @@ def step_into(new_dir):
         yield
     finally:
         os.chdir(previous_dir)
+
+
+def fix_shape_detections(detections: Detections):
+    # TODO This is a quick fix.. check how loop upload detections deals with this
+    for seg_detection in detections.segmentation_detections:
+        if isinstance(seg_detection.shape, Shape):
+            points = ','.join([str(value) for p in seg_detection.shape.points for _,
+                               value in asdict(p).items()])
+            seg_detection.shape = points
