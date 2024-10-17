@@ -30,9 +30,9 @@ async def http_detect(
 
         for i in `seq 1 10`; do time curl --request POST -F 'file=@test.jpg' localhost:8004/detect; done
 
-        You can additionally provide the following camera parameters:
-          - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
-          - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
+    You can additionally provide the following camera parameters:
+        - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
+        - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
     """
     try:
         np_image = np.fromfile(file.file, np.uint8)
