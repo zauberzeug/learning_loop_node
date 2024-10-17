@@ -36,7 +36,8 @@ async def get_version(request: Request):
 
     local_versions: list[str] = []
 
-    local_models = os.listdir(os.path.join(GLOBALS.data_folder, 'models'))
+    local_models = os.listdir(os.path.join(GLOBALS.data_folder, 'models')) if os.path.exists(
+        os.path.join(GLOBALS.data_folder, 'models')) else []
     for model in local_models:
         if model.replace('.', '').isdigit():
             local_versions.append(model)
