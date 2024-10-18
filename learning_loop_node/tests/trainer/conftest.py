@@ -1,7 +1,6 @@
-from ...globals import GLOBALS
-import shutil
 import logging
 import os
+import shutil
 import socket
 from multiprocessing import log_to_stderr
 
@@ -9,6 +8,7 @@ import icecream
 import pytest
 
 from ...data_classes import Context
+from ...globals import GLOBALS
 from ...trainer.trainer_node import TrainerNode
 from .testing_trainer_logic import TestingTrainerLogic
 
@@ -23,8 +23,8 @@ icecream.install()
 
 @pytest.fixture()
 async def test_initialized_trainer_node():
-    os.environ['ORGANIZATION'] = 'zauberzeug'
-    os.environ['PROJECT'] = 'demo'
+    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
+    os.environ['LOOP_PROJECT'] = 'demo'
 
     trainer = TestingTrainerLogic()
     node = TrainerNode(name='test', trainer_logic=trainer, uuid='NOD30000-0000-0000-0000-000000000000')

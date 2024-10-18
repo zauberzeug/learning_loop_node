@@ -96,7 +96,7 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
     await asyncio.sleep(3)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/about', timeout=30)
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
     assert response_dict['model_info']
     model_information = ModelInformation.from_dict(response_dict['model_info'])
@@ -111,56 +111,57 @@ async def test_model_version_api(test_detector_node: DetectorNode):
     await asyncio.sleep(3)
 
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
+    assert response_dict['version_control'] == 'follow_loop'
     assert response_dict['current_version'] == '1.1'
     assert response_dict['target_version'] == '1.1'
     assert response_dict['loop_version'] == '1.1'
     assert response_dict['local_versions'] == ['1.1']
-    assert response_dict['version_control'] == 'follow_loop'
 
     response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='1.0', timeout=30)
+    assert response.status_code == 200, response.content
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
+    assert response_dict['version_control'] == 'specific_version'
     assert response_dict['current_version'] == '1.1'
     assert response_dict['target_version'] == '1.0'
     assert response_dict['loop_version'] == '1.1'
     assert response_dict['local_versions'] == ['1.1']
-    assert response_dict['version_control'] == 'specific_version'
 
     await asyncio.sleep(11)
-
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
+    assert response_dict['version_control'] == 'specific_version'
     assert response_dict['current_version'] == '1.0'
     assert response_dict['target_version'] == '1.0'
     assert response_dict['loop_version'] == '1.1'
     assert set(response_dict['local_versions']) == set(['1.1', '1.0'])
-    assert response_dict['version_control'] == 'specific_version'
 
     response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='pause', timeout=30)
+    assert response.status_code == 200, response.content
     await asyncio.sleep(11)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
+    assert response_dict['version_control'] == 'pause'
     assert response_dict['current_version'] == '1.0'
     assert response_dict['target_version'] == '1.0'
     assert response_dict['loop_version'] == '1.1'
     assert set(response_dict['local_versions']) == set(['1.1', '1.0'])
-    assert response_dict['version_control'] == 'pause'
 
     response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='follow_loop', timeout=30)
     await asyncio.sleep(11)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
+    assert response_dict['version_control'] == 'follow_loop'
     assert response_dict['current_version'] == '1.1'
     assert response_dict['target_version'] == '1.1'
     assert response_dict['loop_version'] == '1.1'
     assert set(response_dict['local_versions']) == set(['1.1', '1.0'])
-    assert response_dict['version_control'] == 'follow_loop'
 
 
 async def test_rest_outbox_mode(test_detector_node: DetectorNode):
@@ -169,9 +170,9 @@ async def test_rest_outbox_mode(test_detector_node: DetectorNode):
     def check_switch_to_mode(mode: str):
         response = requests.put(f'http://localhost:{GLOBALS.detector_port}/outbox_mode',
                                 data=mode, timeout=30)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.content
         response = requests.get(f'http://localhost:{GLOBALS.detector_port}/outbox_mode', timeout=30)
-        assert response.status_code == 200
+        assert response.status_code == 200, response.content
         assert response.content == mode.encode()
 
     check_switch_to_mode('stopped')
@@ -185,7 +186,7 @@ async def test_api_responsive_during_large_upload(test_detector_node: DetectorNo
     with open(test_image_path, 'rb') as f:
         image_bytes = f.read()
 
-    for _ in range(100):
+    for _ in range(200):
         test_detector_node.outbox.save(image_bytes)
 
     outbox_size_early = len(get_outbox_files(test_detector_node.outbox))
@@ -193,8 +194,9 @@ async def test_api_responsive_during_large_upload(test_detector_node: DetectorNo
 
     # check if api is still responsive
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/outbox_mode', timeout=2)
-    assert response.status_code == 200
+    assert response.status_code == 200, response.content
 
     await asyncio.sleep(5)
     outbox_size_late = len(get_outbox_files(test_detector_node.outbox))
-    assert outbox_size_early > outbox_size_late > 0, 'The outbox should have been partially emptied.'
+    assert outbox_size_late > 0, 'The outbox should not be fully cleared, maybe the node was too fast.'
+    assert outbox_size_early > outbox_size_late, 'The outbox should have been partially emptied.'
