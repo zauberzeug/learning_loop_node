@@ -1,6 +1,6 @@
 
 import sys
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Request
@@ -44,4 +44,4 @@ async def get_about(request: Request):
         version_control=app.version_control.value
     )
 
-    return JSONResponse(content=response.__dict__)
+    return JSONResponse(content=asdict(response))
