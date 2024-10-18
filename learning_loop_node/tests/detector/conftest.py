@@ -41,8 +41,8 @@ def should_have_segmentations(request) -> bool:
 async def test_detector_node():
     """Initializes and runs a detector testnode. Note that the running instance and the one the function returns are not the same instances!"""
 
-    os.environ['ORGANIZATION'] = 'zauberzeug'
-    os.environ['PROJECT'] = 'demo'
+    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
+    os.environ['LOOP_PROJECT'] = 'demo'
 
     detector = TestingDetectorLogic()
     node = DetectorNode(name='test', detector=detector)
@@ -143,8 +143,8 @@ def mock_detector_logic():
 
 @pytest.fixture
 def detector_node(mock_detector_logic):
-    os.environ['ORGANIZATION'] = 'test_organization'
-    os.environ['PROJECT'] = 'test_project'
+    os.environ['LOOP_ORGANIZATION'] = 'test_organization'
+    os.environ['LOOP_PROJECT'] = 'test_project'
     return DetectorNode(name="test_node", detector=mock_detector_logic)
 
 # ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
