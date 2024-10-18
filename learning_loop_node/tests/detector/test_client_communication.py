@@ -186,7 +186,7 @@ async def test_api_responsive_during_large_upload(test_detector_node: DetectorNo
     with open(test_image_path, 'rb') as f:
         image_bytes = f.read()
 
-    for _ in range(100):
+    for _ in range(500):
         test_detector_node.outbox.save(image_bytes)
 
     outbox_size_early = len(get_outbox_files(test_detector_node.outbox))
@@ -198,4 +198,5 @@ async def test_api_responsive_during_large_upload(test_detector_node: DetectorNo
 
     await asyncio.sleep(5)
     outbox_size_late = len(get_outbox_files(test_detector_node.outbox))
-    assert outbox_size_early > outbox_size_late > 0, 'The outbox should have been partially emptied.'
+    assert outbox_size_late > 0, 'The outbox should not be fully cleared, maybe the node was too fast.'
+    assert outbox_size_early > outbox_size_late, 'The outbox should have been partially emptied.'
