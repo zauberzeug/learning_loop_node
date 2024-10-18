@@ -131,7 +131,6 @@ async def test_model_version_api(test_detector_node: DetectorNode):
     assert response_dict['local_versions'] == ['1.1']
 
     await asyncio.sleep(11)
-
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
     assert response.status_code == 200, response.content
     response_dict = json.loads(response.content)
