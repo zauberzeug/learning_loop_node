@@ -1,4 +1,5 @@
 
+from typing import List
 import os
 import sys
 from dataclasses import dataclass, field
@@ -28,7 +29,7 @@ class ModelVersionResponse:
     current_version: str = field(metadata={"description": "The current version of the model."})
     target_version: str = field(metadata={"description": "The target version of the model."})
     loop_version: str = field(metadata={"description": "The version of the loop."})
-    local_versions: list[str] = field(metadata={"description": "The local versions of the model."})
+    local_versions: List[str] = field(metadata={"description": "The local versions of the model."})
     version_control: str = field(metadata={"description": "The version control mode."})
 
 
