@@ -151,9 +151,9 @@ class DetectorNode(Node):
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
-                det_dict = jsonable_encoder(asdict(det))
+                detection_dict = jsonable_encoder(asdict(det))
                 self.log.debug('detect via socketio finished')
-                return det_dict
+                return detection_dict
             except Exception as e:
                 self.log.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
