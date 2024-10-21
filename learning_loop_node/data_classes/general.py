@@ -55,9 +55,11 @@ class ModelInformation():
     project: str = field(metadata={"description": "The project of the model."})
     version: str = field(metadata={"description": "The version of the model."})
     categories: List[Category] = field(default_factory=list, metadata={"description": "The categories of the model."})
-    resolution: Optional[int] = field(default=None, metadata={"description": "The resolution of the model."})
+    resolution: Optional[int] = field(default=None, metadata={
+        "description": "The resolution of the model (width and height of the image after preprocessing in pixels)."})
     model_root_path: Optional[str] = field(default=None, metadata={"description": "The root path of the model."})
-    model_size: Optional[str] = field(default=None, metadata={"description": "The size of the model."})
+    model_size: Optional[str] = field(default=None, metadata={
+                                      "description": "The size of the model (i.e. the specification or variant of the model architecture)."})
 
     @property
     def context(self):
