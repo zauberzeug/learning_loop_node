@@ -30,6 +30,7 @@ async def _socketio(request: Request):
     if state == 'on':
         logging.info('BC: turning socketio on')
         await detector_node.connect_sio()
+        # await detector_node.reset_sio_connection()
 
 
 @router.post("/reset")
@@ -44,7 +45,8 @@ async def _reset(request: Request):
         # restart_path = Path(os.getcwd()).absolute() / 'app_code' / 'restart' / 'restart.py'
         # restart_path.touch()
         # assert isinstance(request.app, 'DetectorNode')
-        await request.app.soft_reload()
+        app: 'DetectorNode' = request.app
+        await app.soft_reload()
 
         # assert isinstance(request.app, DetectorNode)
         # request.app.reload(reason='------- reset was called from backdoor controls',)
