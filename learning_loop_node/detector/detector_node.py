@@ -205,8 +205,8 @@ class DetectorNode(Node):
             self.log.info('Current operation mode is %s', self.operation_mode)
             try:
                 await self.sync_status_with_learning_loop()
-            except Exception as e:
-                self.log.error('Could not check for updates: %s', e)
+            except Exception:
+                self.log.exception('Could not check for updates. Exception:')
                 return
 
             if self.operation_mode != OperationMode.Idle:
