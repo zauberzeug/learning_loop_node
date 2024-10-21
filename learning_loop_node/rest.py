@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 if TYPE_CHECKING:
     from .node import Node
@@ -14,6 +14,8 @@ logger = logging.getLogger('Node.rest')
 @router.put("/debug_logging")
 async def _debug_logging(request: Request):
     '''
+    Enable or disable debug logging.
+
     Example Usage
 
         curl -X PUT -d "on" http://localhost:8007/debug_logging

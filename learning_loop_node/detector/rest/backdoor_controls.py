@@ -19,7 +19,7 @@ async def _socketio(request: Request):
     '''
     Example Usage
 
-        curl -X PUT -d "on" http://localhost:8007/socketio
+        curl -X PUT -d "on" http://hosturl/socketio
     '''
     state = str(await request.body(), 'utf-8')
     detector_node: 'DetectorNode' = request.app
@@ -34,6 +34,13 @@ async def _socketio(request: Request):
 
 @router.post("/reset")
 async def _reset(request: Request):
+    '''
+    Soft-Reset the detector node.
+
+    Example Usage
+
+        curl -X POST http://hosturl/reset
+    '''
     logging.info('BC: reset')
     try:
         shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
