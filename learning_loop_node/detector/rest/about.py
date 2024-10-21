@@ -17,11 +17,13 @@ router = APIRouter()
 @dataclass(**KWONLY_SLOTS)
 class AboutResponse:
     operation_mode: str = field(metadata={"description": "The operation mode of the detector node."})
-    state: Optional[str] = field(metadata={"description": "The state of the detector node."})
-    model_info: Optional[ModelInformation] = field(
-        metadata={"description": "The model information of the detector node."})
+    state: Optional[str] = field(metadata={
+        "description": "The state of the detector node (e.g. idle, online, detecting, etc.)."})
+    model_info: Optional[ModelInformation] = field(metadata={
+        "description": "Informations about the model of the detector node."})
     target_model: Optional[str] = field(metadata={"description": "The target model of the detector node."})
-    version_control: str = field(metadata={"description": "The version control of the detector node."})
+    version_control: str = field(metadata={
+        "description": "The version control mode of the detector node ('follow_loop' / 'specific_version' / 'pause')."})
 
 
 @router.get("/about", response_model=AboutResponse)
