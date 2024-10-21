@@ -44,7 +44,8 @@ async def _reset(request: Request):
         # restart_path = Path(os.getcwd()).absolute() / 'app_code' / 'restart' / 'restart.py'
         # restart_path.touch()
         # assert isinstance(request.app, 'DetectorNode')
-        await request.app.soft_reload()
+        app: 'DetectorNode' = request.app
+        await app.soft_reload()
 
         # assert isinstance(request.app, DetectorNode)
         # request.app.reload(reason='------- reset was called from backdoor controls',)

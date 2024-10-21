@@ -43,8 +43,7 @@ class Node(FastAPI):
         self.needs_login = needs_login
 
         self.log = logging.getLogger('Node')
-        self.loop_communicator = LoopCommunicator()
-        self.websocket_url = self.loop_communicator.websocket_url()
+        self.init_loop_communicator()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
         self.startup_datetime = datetime.now()
@@ -58,6 +57,10 @@ class Node(FastAPI):
         self.repeat_task: Any = None
 
         self.include_router(router)
+
+    def init_loop_communicator(self):
+        self.loop_communicator = LoopCommunicator()
+        self.websocket_url = self.loop_communicator.websocket_url()
 
     @property
     def sio_client(self) -> AsyncClient:
@@ -117,8 +120,19 @@ class Node(FastAPI):
             self.log.info('Reconnecting to loop via sio')
             await self.connect_sio()
             if not self.sio_client.connected:
-                self.log.warning('Could not connect to loop via sio')
-                return
+                try:
+                    self.log.warning('Could not connect to loop via sio. Reconnecting...')
+
+                    self.init_loop_communicator()
+                    if self.needs_login:
+                        await self.loop_communicator.ensure_login(relogin=True)
+                    await self.create_sio_client()
+                    if not self.sio_client.connected:
+                        raise Exception('Could not connect to loop via sio')
+                except Exception as e:
+                    self.log.exception('Fatal error while reconnecting to loop via sio: %s', e)
+                    return
+
         await self.on_repeat()
 
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
@@ -127,7 +141,7 @@ class Node(FastAPI):
         """Create a socket.io client that communicates with the learning loop and register the events.
         Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
         self.log.debug('--------------Connect HTTP Cookie-------------------')
-        self.log.debug(f'Cookies: {self.loop_communicator.get_cookies()}')
+        self.log.debug('Cookies: %s', self.loop_communicator.get_cookies())
         self.log.debug('---------------------------------')
         if self.loop_communicator.ssl_cert_path:
             logging.info('SIO using SSL certificate path: %s', self.loop_communicator.ssl_cert_path)
@@ -145,7 +159,7 @@ class Node(FastAPI):
                                            http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies()))
 
         # pylint: disable=protected-access
-        self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
+        self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
 
         @self._sio_client.event
         async def connect():
@@ -166,7 +180,7 @@ class Node(FastAPI):
         try:
             await self.sio_client.disconnect()
         except Exception:
-            pass
+            self.log.warning('Could not disconnect from loop via sio. Ignoring...')
 
         self.log.info('(re)connecting to Learning Loop at %s', self.websocket_url)
         try:
@@ -174,6 +188,7 @@ class Node(FastAPI):
             self.log.info('connected to Learning Loop')
         except socketio.exceptions.ConnectionError:  # type: ignore
             self.log.warning('connection error')
+
         except Exception:
             self.log.exception('error while connecting to "%s". Exception:', self.websocket_url)
 
