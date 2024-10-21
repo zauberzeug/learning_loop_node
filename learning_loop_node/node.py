@@ -72,7 +72,10 @@ class Node(FastAPI):
     @asynccontextmanager
     async def lifespan(self, app: FastAPI):  # pylint: disable=unused-argument
         try:
-            await self._on_startup()
+            try:
+                await self._on_startup()
+            except Exception as e:
+                self.log.exception('Fatal error during startup: %s', e)
             self.repeat_task = asyncio.create_task(self.repeat_loop())
             yield
         finally:
@@ -115,6 +118,14 @@ class Node(FastAPI):
                 self.log.exception('error in repeat loop: %s', e)
             await asyncio.sleep(5)
 
+    async def reset_sio_connection(self):
+        self.init_loop_communicator()
+        if self.needs_login:
+            await self.loop_communicator.ensure_login(relogin=True)
+        await self.create_sio_client()
+        if not self.sio_client.connected:
+            raise Exception('Could not connect to loop via sio')
+
     async def _on_repeat(self):
         if not self.sio_client.connected:
             self.log.info('Reconnecting to loop via sio')
@@ -122,13 +133,8 @@ class Node(FastAPI):
             if not self.sio_client.connected:
                 try:
                     self.log.warning('Could not connect to loop via sio. Reconnecting...')
+                    await self.reset_sio_connection()
 
-                    self.init_loop_communicator()
-                    if self.needs_login:
-                        await self.loop_communicator.ensure_login(relogin=True)
-                    await self.create_sio_client()
-                    if not self.sio_client.connected:
-                        raise Exception('Could not connect to loop via sio')
                 except Exception as e:
                     self.log.exception('Fatal error while reconnecting to loop via sio: %s', e)
                     return
@@ -140,9 +146,15 @@ class Node(FastAPI):
     async def create_sio_client(self):
         """Create a socket.io client that communicates with the learning loop and register the events.
         Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
+
         self.log.debug('--------------Connect HTTP Cookie-------------------')
         self.log.debug('Cookies: %s', self.loop_communicator.get_cookies())
         self.log.debug('---------------------------------')
+
+        if self._sio_client is not None:
+            await self.sio_client.disconnect()
+            self._sio_client = None
+
         if self.loop_communicator.ssl_cert_path:
             logging.info('SIO using SSL certificate path: %s', self.loop_communicator.ssl_cert_path)
             ssl_context = ssl.create_default_context(cafile=self.loop_communicator.ssl_cert_path)

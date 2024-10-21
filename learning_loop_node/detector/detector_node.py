@@ -94,6 +94,7 @@ class DetectorNode(Node):
         await self.loop_communicator.backend_ready()
         # await self.loop_communicator.ensure_login()
         await self.create_sio_client()
+        # await self.reset_sio_connection() # TODO This breaks the retry loop !!! check why
         await self.on_startup()
 
         # simulate startup
@@ -204,8 +205,8 @@ class DetectorNode(Node):
             self.log.info('Current operation mode is %s', self.operation_mode)
             try:
                 await self.sync_status_with_learning_loop()
-            except Exception as e:
-                self.log.error('Could not check for updates: %s', e)
+            except Exception:
+                self.log.exception('Sync with learning loop failed (could not check for updates):')
                 return
 
             if self.operation_mode != OperationMode.Idle:
@@ -292,6 +293,9 @@ class DetectorNode(Node):
 
         self.log.info('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        if not response:
+            await self.reset_sio_connection()
+            return
 
         assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)

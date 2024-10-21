@@ -30,6 +30,7 @@ async def _socketio(request: Request):
     if state == 'on':
         logging.info('BC: turning socketio on')
         await detector_node.connect_sio()
+        # await detector_node.reset_sio_connection()
 
 
 @router.post("/reset")
