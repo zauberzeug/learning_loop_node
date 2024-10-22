@@ -17,8 +17,8 @@ class BoxDetection():
     x increases to the right, y increases downwards.
     """
     category_name: str = field(metadata={'description': 'Category name'})
-    x: int = field(metadata={'description': 'X coordinate (right)'})
-    y: int = field(metadata={'description': 'Y coordinate (down)'})
+    x: int = field(metadata={'description': 'X coordinate (left to right)'})
+    y: int = field(metadata={'description': 'Y coordinate (top to bottom)'})
     width: int = field(metadata={'description': 'Width'})
     height: int = field(metadata={'description': 'Height'})
     model_name: str = field(metadata={'description': 'Model name'})

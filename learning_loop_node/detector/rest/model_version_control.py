@@ -1,10 +1,9 @@
 
-from typing import List
 import os
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -26,10 +25,10 @@ class VersionMode(str, Enum):
 
 @dataclass(**KWONLY_SLOTS)
 class ModelVersionResponse:
-    current_version: str = field(metadata={"description": "The current version of the model."})
-    target_version: str = field(metadata={"description": "The target version of the model."})
-    loop_version: str = field(metadata={"description": "The version of the loop."})
-    local_versions: List[str] = field(metadata={"description": "The local versions of the model."})
+    current_version: str = field(metadata={"description": "The version of the model currently used by the detector."})
+    target_version: str = field(metadata={"description": "The target model version set in the detector."})
+    loop_version: str = field(metadata={"description": "The target model version specified by the loop."})
+    local_versions: List[str] = field(metadata={"description": "The locally available versions of the model."})
     version_control: str = field(metadata={"description": "The version control mode."})
 
 

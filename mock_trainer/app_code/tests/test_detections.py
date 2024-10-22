@@ -30,7 +30,6 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):
                'resolution': 800,
                'flip_rl': False,
                'flip_ud': False}
-
     # await asyncio.sleep(100)
 
     trainer._node = node

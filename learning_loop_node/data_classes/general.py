@@ -25,13 +25,14 @@ class Category():
     description: Optional[str] = field(default=None, metadata={
         "description": "An optional description of the category."})
     hotkey: Optional[str] = field(default=None, metadata={
-        "description": "The hotkey of the category when annotating in the Learning Loop UI."})
+        "description": "The key shortcut of the category when annotating in the Learning Loop UI."})
     color: Optional[str] = field(default=None, metadata={
-        "description": "The color of the category for display in the Learning Loop UI."})
+        "description": "The color of the category when displayed in the Learning Loop UI."})
     point_size: Optional[int] = field(default=None, metadata={
         "description": "The point size of the category in pixels. Represents the uncertainty of the category."})
     type: Optional[Union[CategoryType, str]] = field(default=None, metadata={
-        "description": "The type of the category (box, point, segmentation, classification)."})
+        "description": "The type of the category",
+        "example": "box, point, segmentation, classification"})
 
     @staticmethod
     def from_list(values: List[dict]) -> List['Category']:
@@ -50,14 +51,17 @@ class Context():
 @dataclass(**KWONLY_SLOTS)
 class ModelInformation():
     id: str = field(metadata={"description": "The uuid of the model."})
-    host: Optional[str] = field(metadata={"description": "The host of the model."})
-    organization: str = field(metadata={"description": "The organization of the model."})
+    host: Optional[str] = field(metadata={"description": "The hostname that started the training.",
+                                          "example": "learning-loop.ai"})
+    organization: str = field(metadata={"description": "The owner organization of the model."})
     project: str = field(metadata={"description": "The project of the model."})
     version: str = field(metadata={"description": "The version of the model."})
-    categories: List[Category] = field(default_factory=list, metadata={"description": "The categories of the model."})
+    categories: List[Category] = field(default_factory=list, metadata={
+                                       "description": "The categories used in the model."})
     resolution: Optional[int] = field(default=None, metadata={
         "description": "The resolution of the model (width and height of the image after preprocessing in pixels)."})
-    model_root_path: Optional[str] = field(default=None, metadata={"description": "The root path of the model."})
+    model_root_path: Optional[str] = field(
+        default=None, metadata={"description": "The path of the parent directory of the model in the file system."})
     model_size: Optional[str] = field(default=None, metadata={
                                       "description": "The size of the model (i.e. the specification or variant of the model architecture)."})
 

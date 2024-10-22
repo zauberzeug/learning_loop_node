@@ -17,22 +17,22 @@ router = APIRouter()
 async def http_detect(
     request: Request,
     file: UploadFile = File(..., description='The image file to run detection on'),
-    camera_id: Optional[str] = Header(None, description='The camera id'),
-    mac: Optional[str] = Header(None, description='The camera mac address'),
-    tags: Optional[str] = Header(None, description='Tags to add to the image'),
-    source: Optional[str] = Header(None, description='The source of the image'),
-    autoupload: Optional[str] = Header(None, description='The autoupload mode'),
+    camera_id: Optional[str] = Header(None, description='The camera id (used by learning loop)'),
+    mac: Optional[str] = Header(None, description='The camera mac address (used by learning loop)'),
+    tags: Optional[str] = Header(None, description='Tags to add to the image (used by learning loop)'),
+    source: Optional[str] = Header(None, description='The source of the image (used by learning loop)'),
+    autoupload: Optional[str] = Header(None, description='Mode to decide whether to upload the image to the learning loop',
+                                       example='filtered, all, disabled'),
 ):
     """
-    Example Usage
+    Single image example:
 
-        curl --request POST -F 'file=@test.jpg' localhost:8004/detect
+        curl --request POST -F 'file=@test.jpg' localhost:8004/detect -H 'autoupload: all' -H 'camera-id: front_cam' -H 'source: test' -H 'tags: test,test2'
+
+    Multiple images example:
 
         for i in `seq 1 10`; do time curl --request POST -F 'file=@test.jpg' localhost:8004/detect; done
 
-    You can additionally provide the following camera parameters:
-        - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
-        - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
     """
     try:
         np_image = np.fromfile(file.file, np.uint8)
