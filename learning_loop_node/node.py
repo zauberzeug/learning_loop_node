@@ -111,7 +111,8 @@ class Node(FastAPI):
         """NOTE: with the lifespan approach, we cannot use @repeat_every anymore :("""
         while True:
             try:
-                await self._on_repeat()
+                await self.ensure_sio_connection()
+                await self.on_repeat()
             except asyncio.CancelledError:
                 return
             except Exception as e:
@@ -126,7 +127,7 @@ class Node(FastAPI):
         if not self.sio_client.connected:
             raise Exception('Could not connect to loop via sio')
 
-    async def _on_repeat(self):
+    async def ensure_sio_connection(self):
         if not self.sio_client.connected:
             self.log.info('Reconnecting to loop via sio')
             await self.connect_sio()
@@ -134,12 +135,9 @@ class Node(FastAPI):
                 try:
                     self.log.warning('Could not connect to loop via sio. Reconnecting...')
                     await self.reset_sio_connection()
-
-                except Exception:
+                except Exception as e:
                     self.log.exception('Fatal error while reconnecting to loop via sio')
-                    return
-
-        await self.on_repeat()
+                    raise Exception('Could not connect to loop via sio') from e
 
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
 
