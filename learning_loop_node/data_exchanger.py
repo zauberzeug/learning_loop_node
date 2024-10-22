@@ -145,9 +145,10 @@ class DataExchanger():
         path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{model_format}/file'
         response = await self.loop_communicator.get(path, requires_login=False)
         if response.status_code != 200:
+            decoded_content = response.content.decode('utf-8')
             logging.error('could not download loop/%s: %s, content: %s', path,
-                          response.status_code, response.content.decode('utf-8'))
-            raise DownloadError(response.content.decode('utf-8'))
+                          response.status_code, decoded_content)
+            raise DownloadError(decoded_content)
         try:
             provided_filename = response.headers.get(
                 "Content-Disposition").split("filename=")[1].strip('"')
