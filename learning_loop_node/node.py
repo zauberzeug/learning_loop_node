@@ -128,16 +128,18 @@ class Node(FastAPI):
             raise Exception('Could not connect to loop via sio')
 
     async def ensure_sio_connection(self):
+        if self.sio_client.connected:
+            return
+
+        self.log.info('Reconnecting to loop via sio')
+        await self.connect_sio()
         if not self.sio_client.connected:
-            self.log.info('Reconnecting to loop via sio')
-            await self.connect_sio()
-            if not self.sio_client.connected:
-                try:
-                    self.log.warning('Could not connect to loop via sio. Reconnecting...')
-                    await self.reset_sio_connection()
-                except Exception as e:
-                    self.log.exception('Fatal error while reconnecting to loop via sio')
-                    raise Exception('Could not connect to loop via sio') from e
+            try:
+                self.log.warning('Could not connect to loop via sio. Reconnecting...')
+                await self.reset_sio_connection()
+            except Exception as e:
+                self.log.exception('Fatal error while reconnecting to loop via sio')
+                raise Exception('Could not connect to loop via sio') from e
 
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
 
