@@ -192,6 +192,8 @@ class Node(FastAPI):
 
         self.register_sio_events(self._sio_client)
 
+        await self._sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
+
     # --------------------------------------------------- ABSTRACT METHODS ---------------------------------------------------
 
     @abstractmethod
