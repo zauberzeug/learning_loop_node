@@ -74,8 +74,8 @@ class Node(FastAPI):
         try:
             try:
                 await self._on_startup()
-            except Exception as e:
-                self.log.exception('Fatal error during startup: %s', e)
+            except Exception:
+                self.log.exception('Fatal error during startup: %s')
             self.repeat_task = asyncio.create_task(self.repeat_loop())
             yield
         finally:
@@ -135,8 +135,8 @@ class Node(FastAPI):
                     self.log.warning('Could not connect to loop via sio. Reconnecting...')
                     await self.reset_sio_connection()
 
-                except Exception as e:
-                    self.log.exception('Fatal error while reconnecting to loop via sio: %s', e)
+                except Exception:
+                    self.log.exception('Fatal error while reconnecting to loop via sio')
                     return
 
         await self.on_repeat()
@@ -145,6 +145,7 @@ class Node(FastAPI):
 
     async def create_sio_client(self):
         """Create a socket.io client that communicates with the learning loop and register the events.
+        The current client is disconnected and deleted if it already exists.
         Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
 
         self.log.debug('--------------Connect HTTP Cookie-------------------')
