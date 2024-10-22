@@ -55,6 +55,7 @@ class Node(FastAPI):
                             'nodeType': node_type}
 
         self.repeat_task: Any = None
+        self.socket_connection_broken = False
 
         self.include_router(router)
 
@@ -89,13 +90,10 @@ class Node(FastAPI):
 
     async def _on_startup(self):
         self.log.info('received "startup" lifecycle-event')
-        # activate_asyncio_warnings()
-        if self.needs_login:
-            await self.loop_communicator.backend_ready()
-            self.log.info('ensuring login')
-            await self.loop_communicator.ensure_login(relogin=True)
-        self.log.info('create sio client')
-        await self.create_sio_client()
+        try:
+            await self.reset_loop_connection()
+        except Exception:
+            self.log.warning('Could not establish sio connection to loop during startup')
         self.log.info('done')
         await self.on_startup()
 
@@ -111,35 +109,37 @@ class Node(FastAPI):
         """NOTE: with the lifespan approach, we cannot use @repeat_every anymore :("""
         while True:
             try:
-                await self.ensure_sio_connection()
+                await self._ensure_sio_connection()
                 await self.on_repeat()
             except asyncio.CancelledError:
                 return
             except Exception as e:
                 self.log.exception('error in repeat loop: %s', e)
-            await asyncio.sleep(5)
+                print('exception', flush=True)
 
-    async def reset_sio_connection(self):
+            print('sleeping', flush=True)
+            try:
+                await asyncio.sleep(5)
+                print('done sleeping', flush=True)
+            except Exception as e:
+                self.log.exception('Exception during sleep: %s', e)
+                print(f'Sleep interrupted: {e}', flush=True)
+
+    async def _ensure_sio_connection(self):
+        if self.socket_connection_broken or not self.sio_client.connected:
+            self.log.info('Reconnecting to loop via sio due to %s',
+                          'broken connection' if self.socket_connection_broken else 'no connection')
+            await self.reset_loop_connection()
+
+    async def reset_loop_connection(self):
         self.init_loop_communicator()
         if self.needs_login:
             await self.loop_communicator.ensure_login(relogin=True)
         await self.create_sio_client()
-        if not self.sio_client.connected:
-            raise Exception('Could not connect to loop via sio')
 
-    async def ensure_sio_connection(self):
-        if self.sio_client.connected:
-            return
-
-        self.log.info('Reconnecting to loop via sio')
-        await self.connect_sio()
         if not self.sio_client.connected:
-            try:
-                self.log.warning('Could not connect to loop via sio. Reconnecting...')
-                await self.reset_sio_connection()
-            except Exception as e:
-                self.log.exception('Fatal error while reconnecting to loop via sio')
-                raise Exception('Could not connect to loop via sio') from e
+            raise Exception('Could not reset sio connection to loop')
+        self.socket_connection_broken = False
 
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
 
@@ -153,7 +153,10 @@ class Node(FastAPI):
         self.log.debug('---------------------------------')
 
         if self._sio_client is not None:
-            await self.sio_client.disconnect()
+            try:
+                await self.sio_client.disconnect()
+            except Exception:
+                self.log.warning('Could not disconnect from loop via sio. Ignoring...')
             self._sio_client = None
 
         if self.loop_communicator.ssl_cert_path:
@@ -188,22 +191,6 @@ class Node(FastAPI):
             sys.exit(0)
 
         self.register_sio_events(self._sio_client)
-
-    async def connect_sio(self):
-        try:
-            await self.sio_client.disconnect()
-        except Exception:
-            self.log.warning('Could not disconnect from loop via sio. Ignoring...')
-
-        self.log.info('(re)connecting to Learning Loop at %s', self.websocket_url)
-        try:
-            await self.sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
-            self.log.info('connected to Learning Loop')
-        except socketio.exceptions.ConnectionError:  # type: ignore
-            self.log.warning('connection error')
-
-        except Exception:
-            self.log.exception('error while connecting to "%s". Exception:', self.websocket_url)
 
     # --------------------------------------------------- ABSTRACT METHODS ---------------------------------------------------
 

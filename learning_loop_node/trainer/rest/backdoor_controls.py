@@ -8,34 +8,13 @@ from typing import TYPE_CHECKING, Dict
 from fastapi import APIRouter, HTTPException, Request
 
 from ...data_classes import ErrorConfiguration, NodeState
+from ...rest import _socketio
 from ..trainer_logic import TrainerLogic
 
 if TYPE_CHECKING:
     from ..trainer_node import TrainerNode
 
 router = APIRouter()
-
-
-@router.put("/socketio")
-async def switch_socketio(request: Request):
-    '''
-    Example Usage
-
-        curl -X PUT -d "on" http://localhost:8001/socketio
-    '''
-    state = str(await request.body(), 'utf-8')
-    await _switch_socketio(state, request.app)
-
-
-async def _switch_socketio(state: str, trainer_node: TrainerNode):
-    if state == 'off':
-        if trainer_node.status.state != NodeState.Offline:
-            logging.debug('turning socketio off')
-            await trainer_node.sio_client.disconnect()  # pylint: disable=protected-access
-    if state == 'on':
-        if trainer_node.status.state == NodeState.Offline:
-            logging.debug('turning socketio on')
-            await trainer_node.connect_sio()
 
 
 @router.put("/provide_new_model")
@@ -57,7 +36,11 @@ async def provide_new_model(request: Request):
 @router.post("/reset")
 async def reset(request: Request):
     trainer_node = trainer_node_from_request(request)
-    await _switch_socketio('on', trainer_node)
+    try:
+        trainer_node.socket_connection_broken = True
+        await trainer_node.reset_loop_connection()
+    except Exception:
+        logging.exception('Could not reset sio connection to loop')
 
     await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
     await trainer_node.trainer_logic.stop()

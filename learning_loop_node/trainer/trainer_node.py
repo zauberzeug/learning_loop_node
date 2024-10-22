@@ -101,6 +101,7 @@ class TrainerNode(Node):
         self.log.info(f'sending status: {status.short_str()}')
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
+            await self.sio_client.disconnect()  # NOTE: disconnected sio connection will trigger a reconnect
             self.log.error(f'Error when sending status update: Response from loop was:\n {result}')
 
     def check_idle_timeout(self):

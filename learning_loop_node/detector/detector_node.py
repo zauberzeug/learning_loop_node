@@ -93,8 +93,7 @@ class DetectorNode(Node):
         # simulate super().startup
         await self.loop_communicator.backend_ready()
         # await self.loop_communicator.ensure_login()
-        await self.create_sio_client()
-        # await self.reset_sio_connection() # TODO This breaks the retry loop !!! check why
+        self.socket_connection_broken = True
         await self.on_startup()
 
         # simulate startup
@@ -294,7 +293,7 @@ class DetectorNode(Node):
         self.log.info('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         if not response:
-            await self.reset_sio_connection()
+            await self.sio_client.disconnect()
             return
 
         assert response is not None
