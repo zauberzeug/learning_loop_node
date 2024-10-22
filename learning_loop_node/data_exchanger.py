@@ -140,7 +140,7 @@ class DataExchanger():
         """Downloads a model (and additional meta data like model.json) and returns the paths of the downloaded files.
         Used before training a model (when continuing a finished training) or before detecting images.
         """
-        logging.info(f'Downloading model data for uuid {model_uuid} from the loop to {target_folder}..')
+        logging.info('Downloading model data for uuid %s from the loop to %s..', model_uuid, target_folder)
 
         path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{model_format}/file'
         response = await self.loop_communicator.get(path, requires_login=False)
@@ -153,7 +153,7 @@ class DataExchanger():
                 "Content-Disposition").split("filename=")[1].strip('"')
             content = response.content
         except:
-            logging.exception(f'Error during downloading model {path}:')
+            logging.exception('Error while downloading model %s:', path)
             raise
 
         tmp_path = f'/tmp/{os.path.splitext(provided_filename)[0]}'
