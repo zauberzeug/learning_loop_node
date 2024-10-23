@@ -93,6 +93,7 @@ class DetectorNode(Node):
         # simulate super().startup
         await self.loop_communicator.backend_ready()
         # await self.loop_communicator.ensure_login()
+        self.set_muted(False)
         self.socket_connection_broken = True
         await self.on_startup()
 
@@ -309,12 +310,12 @@ class DetectorNode(Node):
                                                        id=deployment_target_model_id,
                                                        version=deployment_target_model_version)
 
-        if self.version_control == rest_version_control.VersionMode.FollowLoop:
-            if self.target_model != self.loop_deployment_target:
-                old_target_model_version = self.target_model.version if self.target_model else None
-                self.target_model = self.loop_deployment_target
-                self.log.info('After sending status. Target_model changed from %s to %s',
-                              old_target_model_version, self.target_model.version)
+        if (self.version_control == rest_version_control.VersionMode.FollowLoop and
+                self.target_model != self.loop_deployment_target):
+            old_target_model_version = self.target_model.version if self.target_model else None
+            self.target_model = self.loop_deployment_target
+            self.log.info('After sending status. Target_model changed from %s to %s',
+                          old_target_model_version, self.target_model.version)
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode

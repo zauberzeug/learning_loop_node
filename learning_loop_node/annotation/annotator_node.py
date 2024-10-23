@@ -22,7 +22,6 @@ class AnnotatorNode(Node):
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)
-        self.status_sent = False
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -66,8 +65,6 @@ class AnnotatorNode(Node):
         return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
-        # if self.status_sent:
-        #     return
 
         status = AnnotationNodeStatus(
             id=self.uuid,
@@ -94,8 +91,6 @@ class AnnotatorNode(Node):
         if not response.success:
             self.socket_connection_broken = True
             self.log.error('Response from loop was: %s', asdict(response))
-        else:
-            self.status_sent = True
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = create_project_folder(context)

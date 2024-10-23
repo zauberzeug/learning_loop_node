@@ -20,6 +20,10 @@ from .loop_communication import LoopCommunicator
 from .rest import router
 
 
+class NodeConnectionError(Exception):
+    pass
+
+
 class Node(FastAPI):
 
     def __init__(self, name: str, uuid: Optional[str] = None, node_type: str = 'node', needs_login: bool = True):
@@ -119,7 +123,6 @@ class Node(FastAPI):
                 return
             except Exception as e:
                 self.log.exception('error in repeat loop: %s', e)
-                print('exception', flush=True)
 
             await asyncio.sleep(5)
 
@@ -133,11 +136,13 @@ class Node(FastAPI):
         self.init_loop_communicator()
         if self.needs_login:
             await self.loop_communicator.ensure_login(relogin=True)
-        await self.create_sio_client()
-
-        if not self.sio_client.connected:
+        try:
+            await self.create_sio_client()
+        except NodeConnectionError:
+            self.log.exception('Could not reset sio connection to loop')
             self.socket_connection_broken = True
-            raise Exception('Could not reset sio connection to loop')
+            raise
+
         self.socket_connection_broken = False
 
     def set_muted(self, muted: bool):
@@ -192,8 +197,15 @@ class Node(FastAPI):
             sys.exit(0)
 
         self.register_sio_events(self._sio_client)
+        try:
+            await self._sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
+        except Exception as e:
+            self.log.exception('Could not connect socketio client to loop')
+            raise NodeConnectionError('Could not connect socketio client to loop') from e
 
-        await self._sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
+        if not self._sio_client.connected:
+            self.log.exception('Could not connect socketio client to loop')
+            raise NodeConnectionError('Could not connect socketio client to loop')
 
     # --------------------------------------------------- ABSTRACT METHODS ---------------------------------------------------
 

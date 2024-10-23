@@ -19,13 +19,12 @@ async def _reset(request: Request):
     logging.info('BC: reset')
     detector_node: 'DetectorNode' = request.app
 
-    detector_node.set_muted(False)
     try:
         shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
         os.makedirs(GLOBALS.data_folder, exist_ok=True)
 
         await detector_node.soft_reload()
     except Exception:
-        logging.exception('BC: could not reset: ')
+        logging.exception('BC: could not reset:')
         return False
     return True
