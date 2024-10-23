@@ -44,7 +44,7 @@ async def reset(request: Request):
     trainer_node.status.reset_all_errors()
 
     try:
-        await trainer_node.reset_loop_connection()
+        await trainer_node.reconnect_to_loop()
     except Exception:
         logging.exception('Could not reset sio connection to loop')
 
