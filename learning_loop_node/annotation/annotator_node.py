@@ -76,24 +76,24 @@ class AnnotatorNode(Node):
             capabilities=['segmentation']
         )
 
-        self.log.info(f'Sending status {status}')
+        self.log.debug('Sending status %s', status)
         try:
             result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
-        except Exception as e:
+        except Exception:
             self.socket_connection_broken = True
-            self.log.error(f'Error for updating: {str(e)}')
+            self.log.exception('Error for updating:')
             return
 
         if not isinstance(result, Dict):
             self.socket_connection_broken = True
-            self.log.error(f'Expected Dict, got {type(result)}')
+            self.log.error('Expected Dict, got %s', type(result))
             return
 
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
             self.socket_connection_broken = True
-            self.log.error(f'Error for updating: Response from loop was : {asdict(response)}')
+            self.log.error('Response from loop was: %s', asdict(response))
         else:
             self.status_sent = True
 

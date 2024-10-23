@@ -109,7 +109,7 @@ class Node(FastAPI):
         """NOTE: with the lifespan approach, we cannot use @repeat_every anymore :("""
         while True:
             if self._muted:
-                self.log.info('node is muted, skipping repeat loop')
+                self.log.debug('node is muted, skipping repeat loop')
                 await asyncio.sleep(1)
                 continue
             try:
@@ -121,13 +121,7 @@ class Node(FastAPI):
                 self.log.exception('error in repeat loop: %s', e)
                 print('exception', flush=True)
 
-            print('sleeping', flush=True)
-            try:
-                await asyncio.sleep(5)
-                print('done sleeping', flush=True)
-            except Exception as e:
-                self.log.exception('Exception during sleep: %s', e)
-                print(f'Sleep interrupted: {e}', flush=True)
+            await asyncio.sleep(5)
 
     async def _ensure_sio_connection(self):
         if self.socket_connection_broken or self._sio_client is None or not self.sio_client.connected:

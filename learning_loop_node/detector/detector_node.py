@@ -199,7 +199,7 @@ class DetectorNode(Node):
 
     async def _check_for_update(self) -> None:
         try:
-            self.log.info('Current operation mode is %s', self.operation_mode)
+            self.log.debug('Current operation mode is %s', self.operation_mode)
             try:
                 await self.sync_status_with_learning_loop()
             except Exception:
@@ -207,12 +207,12 @@ class DetectorNode(Node):
                 return
 
             if self.operation_mode != OperationMode.Idle:
-                self.log.info('not checking for updates; operation mode is %s', self.operation_mode)
+                self.log.debug('not checking for updates; operation mode is %s', self.operation_mode)
                 return
 
             self.status.reset_error('update_model')
             if self.target_model is None:
-                self.log.info('not checking for updates; no target model selected')
+                self.log.debug('not checking for updates; no target model selected')
                 return
 
             current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None  # pylint: disable=protected-access
@@ -288,7 +288,7 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log.info('sending status %s', status)
+        self.log.debug('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         if not response:
             await self.sio_client.disconnect()
@@ -310,8 +310,11 @@ class DetectorNode(Node):
                                                        version=deployment_target_model_version)
 
         if self.version_control == rest_version_control.VersionMode.FollowLoop:
-            self.target_model = self.loop_deployment_target
-            self.log.info('After sending status. Target_model is %s', self.target_model.version)
+            if self.target_model != self.loop_deployment_target:
+                old_target_model_version = self.target_model.version if self.target_model else None
+                self.target_model = self.loop_deployment_target
+                self.log.info('After sending status. Target_model changed from %s to %s',
+                              old_target_model_version, self.target_model.version)
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
