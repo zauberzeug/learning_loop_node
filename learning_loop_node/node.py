@@ -192,11 +192,13 @@ class Node(FastAPI):
         async def connect():
             self.log.info('received "connect" via sio from loop.')
             self.CONNECTED_TO_LOOP.set()
+            self.DISCONNECTED_FROM_LOOP.clear()
 
         @self._sio_client.event
         async def disconnect():
             self.log.info('received "disconnect" via sio from loop.')
             self.DISCONNECTED_FROM_LOOP.set()
+            self.CONNECTED_TO_LOOP.clear()
 
         @self._sio_client.event
         async def restart():
