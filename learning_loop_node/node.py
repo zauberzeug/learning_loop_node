@@ -142,6 +142,7 @@ class Node(FastAPI):
         await self.create_sio_client()
 
         if not self.sio_client.connected:
+            self.socket_connection_broken = True
             raise Exception('Could not reset sio connection to loop')
         self.socket_connection_broken = False
 
@@ -163,11 +164,13 @@ class Node(FastAPI):
             try:
                 await self.sio_client.disconnect()
                 self.log.info('disconnected from loop via sio')
+                # NOTE: wait till we receive the disconnect event, otherwise we might disconnect the next connection too early
                 await asyncio.sleep(3.0)
             except Exception:
                 self.log.warning('Could not disconnect from loop via sio. Ignoring...')
             self._sio_client = None
 
+        connector = None
         if self.loop_communicator.ssl_cert_path:
             logging.info('SIO using SSL certificate path: %s', self.loop_communicator.ssl_cert_path)
             ssl_context = ssl.create_default_context(cafile=self.loop_communicator.ssl_cert_path)
@@ -175,13 +178,8 @@ class Node(FastAPI):
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             connector = TCPConnector(ssl=ssl_context)
 
-            self._sio_client = AsyncClient(request_timeout=20,
-                                           http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies(),
-                                                                              connector=connector))
-
-        else:
-            self._sio_client = AsyncClient(request_timeout=20,
-                                           http_session=aiohttp.ClientSession(cookies=self.loop_communicator.get_cookies()))
+        self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
+            cookies=self.loop_communicator.get_cookies(), connector=connector))
 
         # pylint: disable=protected-access
         self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
