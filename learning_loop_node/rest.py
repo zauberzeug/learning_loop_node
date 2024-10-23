@@ -12,7 +12,7 @@ logger = logging.getLogger('Node.rest')
 
 
 @router.put("/debug_logging")
-async def _debug_logging(request: Request):
+async def _debug_logging(request: Request) -> str:
     '''
     Example Usage
 
@@ -33,7 +33,7 @@ async def _debug_logging(request: Request):
 
 
 @router.put("/socketio")
-async def _socketio(request: Request):
+async def _socketio(request: Request) -> str:
     '''
     Example Usage
 
@@ -45,5 +45,8 @@ async def _socketio(request: Request):
     if state == 'off':
         await node.sio_client.disconnect()
         node.set_muted(True)
+        return 'off'
     if state == 'on':
         node.set_muted(False)
+        return 'on'
+    raise HTTPException(status_code=400, detail='Invalid state')
