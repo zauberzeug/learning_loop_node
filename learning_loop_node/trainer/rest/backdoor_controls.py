@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING, Dict
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ...data_classes import ErrorConfiguration, NodeState
-from ...rest import _socketio
+from ...data_classes import ErrorConfiguration
 from ..trainer_logic import TrainerLogic
 
 if TYPE_CHECKING:
@@ -20,7 +19,7 @@ router = APIRouter()
 @router.put("/provide_new_model")
 async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     # trainer_logic is MockTrainerLogic which has a property provide_new_model
     assert hasattr(trainer_node.trainer_logic,
                    'provide_new_model'), 'trainer_logic does not have property provide_new_model'
@@ -35,13 +34,17 @@ async def provide_new_model(request: Request):
 
 @router.post("/reset")
 async def reset(request: Request):
-    trainer_node = trainer_node_from_request(request)
+    logging.info('BC: reset')
+    trainer_node: 'TrainerNode' = request.app
+
+    trainer_node.set_muted(False)
     try:
         trainer_node.socket_connection_broken = True
         await trainer_node.reset_loop_connection()
     except Exception:
         logging.exception('Could not reset sio connection to loop')
 
+    await trainer_node.send_status()
     await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
     await trainer_node.trainer_logic.stop()
 
@@ -65,7 +68,7 @@ def set_error_configuration(msg: Dict, request: Request):
                                              save_model=msg.get('save_model', None), )
 
     logging.info(f'setting error configuration to: {asdict(error_configuration)}')
-    trainer_logic = trainer_node_from_request(request).trainer_logic
+    trainer_logic = request.app.trainer_logic
 
     # NOTE: trainer_logic is MockTrainerLogic which has a property error_configuration
     assert hasattr(trainer_logic, 'error_configuration'), 'trainer_logic does not have property error_configuration'
@@ -75,7 +78,7 @@ def set_error_configuration(msg: Dict, request: Request):
 @router.post("/steps")
 async def add_steps(request: Request):
     logging.warning('Steps was called')
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     trainer_logic = trainer_node.trainer_logic  # NOTE: is MockTrainerLogic which has 'provide_new_model' and 'current_iteration'
 
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
@@ -106,7 +109,7 @@ async def add_steps(request: Request):
 async def kill_process(request: Request):
 
     # pylint: disable=protected-access
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     trainer_logic = trainer_node.trainer_logic
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
     if not trainer_logic._executor or not trainer_logic._executor.is_running():
@@ -116,9 +119,5 @@ async def kill_process(request: Request):
 
 @router.post("/force_status_update")
 async def force_status_update(request: Request):
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     await trainer_node.send_status()
-
-
-def trainer_node_from_request(request: Request) -> TrainerNode:
-    return request.app

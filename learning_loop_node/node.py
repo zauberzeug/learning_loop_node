@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Any, Optional
 
 import aiohttp
-import socketio
 from aiohttp import TCPConnector
 from fastapi import FastAPI
 from socketio import AsyncClient
@@ -56,6 +55,7 @@ class Node(FastAPI):
 
         self.repeat_task: Any = None
         self.socket_connection_broken = False
+        self._muted = False
 
         self.include_router(router)
 
@@ -108,6 +108,10 @@ class Node(FastAPI):
     async def repeat_loop(self) -> None:
         """NOTE: with the lifespan approach, we cannot use @repeat_every anymore :("""
         while True:
+            if self._muted:
+                self.log.info('node is muted, skipping repeat loop')
+                await asyncio.sleep(1)
+                continue
             try:
                 await self._ensure_sio_connection()
                 await self.on_repeat()
@@ -126,7 +130,7 @@ class Node(FastAPI):
                 print(f'Sleep interrupted: {e}', flush=True)
 
     async def _ensure_sio_connection(self):
-        if self.socket_connection_broken or not self.sio_client.connected:
+        if self.socket_connection_broken or self._sio_client is None or not self.sio_client.connected:
             self.log.info('Reconnecting to loop via sio due to %s',
                           'broken connection' if self.socket_connection_broken else 'no connection')
             await self.reset_loop_connection()
@@ -141,12 +145,15 @@ class Node(FastAPI):
             raise Exception('Could not reset sio connection to loop')
         self.socket_connection_broken = False
 
+    def set_muted(self, muted: bool):
+        self._muted = muted
+        self.log.info('node is muted: %s', muted)
+
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
 
     async def create_sio_client(self):
         """Create a socket.io client that communicates with the learning loop and register the events.
-        The current client is disconnected and deleted if it already exists.
-        Note: The method is called in startup and soft restart of detector, so the _sio_client should always be available."""
+        The current client is disconnected and deleted if it already exists."""
 
         self.log.debug('--------------Connect HTTP Cookie-------------------')
         self.log.debug('Cookies: %s', self.loop_communicator.get_cookies())
@@ -155,6 +162,8 @@ class Node(FastAPI):
         if self._sio_client is not None:
             try:
                 await self.sio_client.disconnect()
+                self.log.info('disconnected from loop via sio')
+                await asyncio.sleep(3.0)
             except Exception:
                 self.log.warning('Could not disconnect from loop via sio. Ignoring...')
             self._sio_client = None

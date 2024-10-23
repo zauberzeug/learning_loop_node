@@ -66,8 +66,8 @@ class AnnotatorNode(Node):
         return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
-        if self.status_sent:
-            return
+        # if self.status_sent:
+        #     return
 
         status = AnnotationNodeStatus(
             id=self.uuid,
@@ -80,13 +80,19 @@ class AnnotatorNode(Node):
         try:
             result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
         except Exception as e:
+            self.socket_connection_broken = True
             self.log.error(f'Error for updating: {str(e)}')
             return
 
-        assert isinstance(result, Dict)
+        if not isinstance(result, Dict):
+            self.socket_connection_broken = True
+            self.log.error(f'Expected Dict, got {type(result)}')
+            return
+
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
+            self.socket_connection_broken = True
             self.log.error(f'Error for updating: Response from loop was : {asdict(response)}')
         else:
             self.status_sent = True

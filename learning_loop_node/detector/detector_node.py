@@ -198,8 +198,6 @@ class DetectorNode(Node):
             self.connected_clients.append(sid)
 
     async def _check_for_update(self) -> None:
-        if self.operation_mode == OperationMode.Startup:
-            return
         try:
             self.log.info('Current operation mode is %s', self.operation_mode)
             try:

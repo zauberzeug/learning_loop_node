@@ -43,9 +43,7 @@ async def _socketio(request: Request):
     node: 'Node' = request.app
 
     if state == 'off':
-        logging.info('BC: turning socketio off')
         await node.sio_client.disconnect()
+        node.set_muted(True)
     if state == 'on':
-        logging.info('BC: turning socketio on')
-        await node.reset_loop_connection()
-        # await detector_node.reset_sio_connection()
+        node.set_muted(False)
