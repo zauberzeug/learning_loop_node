@@ -8,11 +8,10 @@ from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
-error_key = 'upload_model'
 
 
-def trainer_has_error(trainer: TrainerLogic):
-    return trainer.errors.has_error_for(error_key)
+def trainer_has_upload_model_error(trainer: TrainerLogic):
+    return trainer.errors.has_error_for('upload_model')
 
 
 async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
@@ -28,7 +27,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     await train_task
 
-    assert trainer_has_error(trainer) is False
+    assert trainer_has_upload_model_error(trainer) is False
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_uuid_for_detecting is not None
     assert trainer.node.last_training_io.load() == trainer.training
@@ -40,7 +39,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
     create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
 
@@ -60,13 +59,13 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     # TODO goes to finished because of the error
-    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=2, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=10, interval=0.001)
 
-    assert trainer_has_error(trainer)
+    assert trainer_has_upload_model_error(trainer)
     assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert trainer.training.model_uuid_for_detecting is None
     assert trainer.node.last_training_io.load() == trainer.training

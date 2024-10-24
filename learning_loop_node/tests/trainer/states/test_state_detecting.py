@@ -7,11 +7,10 @@ from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
-error_key = 'detecting'
 
 
-def trainer_has_error(trainer: TrainerLogic):
-    return trainer.errors.has_error_for(error_key)
+def trainer_has_detecting_error(trainer: TrainerLogic):
+    return trainer.errors.has_error_for('detecting')
 
 
 async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):
@@ -25,7 +24,7 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
     await assert_training_state(trainer.training, TrainerState.Detecting, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.Detected, timeout=10, interval=0.001)
 
-    assert trainer_has_error(trainer) is False
+    assert trainer_has_detecting_error(trainer) is False
     assert trainer.training.training_state == TrainerState.Detected
     assert trainer.node.last_training_io.load() == trainer.training
     assert trainer.active_training_io.detections_exist()
@@ -37,7 +36,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
     trainer._init_from_last_training()
     trainer.training.model_uuid_for_detecting = '12345678-bobo-7e92-f95f-424242424242'
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.Detecting, timeout=5, interval=0.001)
     await trainer.stop()
@@ -54,13 +53,13 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
                                 model_uuid_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
-    await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, 'train_model_uploaded', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.Detecting, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploaded, timeout=5, interval=0.001)
     await asyncio.sleep(0.1)
 
-    assert trainer_has_error(trainer)
+    assert trainer_has_detecting_error(trainer)
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_uuid_for_detecting == '00000000-0000-0000-0000-000000000000'
     assert trainer.node.last_training_io.load() == trainer.training

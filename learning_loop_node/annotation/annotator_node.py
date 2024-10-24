@@ -22,7 +22,6 @@ class AnnotatorNode(Node):
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)
-        self.status_sent = False
 
     def register_sio_events(self, sio_client: AsyncClient):
 
@@ -66,8 +65,6 @@ class AnnotatorNode(Node):
         return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
-        if self.status_sent:
-            return
 
         status = AnnotationNodeStatus(
             id=self.uuid,
@@ -76,20 +73,24 @@ class AnnotatorNode(Node):
             capabilities=['segmentation']
         )
 
-        self.log.info(f'Sending status {status}')
+        self.log.debug('Sending status %s', status)
         try:
             result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
-        except Exception as e:
-            self.log.error(f'Error for updating: {str(e)}')
+        except Exception:
+            self.socket_connection_broken = True
+            self.log.exception('Error for updating:')
             return
 
-        assert isinstance(result, Dict)
+        if not isinstance(result, Dict):
+            self.socket_connection_broken = True
+            self.log.error('Expected Dict, got %s', type(result))
+            return
+
         response = from_dict(data_class=SocketResponse, data=result)
 
         if not response.success:
-            self.log.error(f'Error for updating: Response from loop was : {asdict(response)}')
-        else:
-            self.status_sent = True
+            self.socket_connection_broken = True
+            self.log.error('Response from loop was: %s', asdict(response))
 
     async def download_image(self, context: Context, uuid: str):
         project_folder = create_project_folder(context)
