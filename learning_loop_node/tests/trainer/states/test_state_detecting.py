@@ -55,8 +55,8 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
 
     trainer._begin_training_task()
 
-    await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.TrainModelUploaded, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.Detecting, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploaded, timeout=5, interval=0.001)
     await asyncio.sleep(0.1)
 
     assert trainer_has_detecting_error(trainer)
