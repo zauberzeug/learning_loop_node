@@ -152,8 +152,9 @@ class DetectorNode(Node):
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
+                detection_dict = jsonable_encoder(asdict(det))
                 self.log.debug('detect via socketio finished')
-                return det
+                return detection_dict
             except Exception as e:
                 self.log.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
@@ -342,7 +343,7 @@ class DetectorNode(Node):
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
-                             autoupload: Optional[str] = None) -> Optional[Dict]:
+                             autoupload: Optional[str] = None) -> Detections:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
@@ -367,7 +368,7 @@ class DetectorNode(Node):
             pass
         else:
             self.log.error('unknown autoupload value %s', autoupload)
-        return jsonable_encoder(asdict(detections))
+        return detections
 
     async def upload_images(self, images: List[bytes]):
         loop = asyncio.get_event_loop()

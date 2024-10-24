@@ -1,7 +1,9 @@
 
 import os
+import sys
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -10,6 +12,7 @@ from ...globals import GLOBALS
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
+KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
 router = APIRouter()
 
@@ -20,9 +23,20 @@ class VersionMode(str, Enum):
     Pause = 'pause'  # will pause the updates
 
 
+@dataclass(**KWONLY_SLOTS)
+class ModelVersionResponse:
+    current_version: str = field(metadata={"description": "The version of the model currently used by the detector."})
+    target_version: str = field(metadata={"description": "The target model version set in the detector."})
+    loop_version: str = field(metadata={"description": "The target model version specified by the loop."})
+    local_versions: List[str] = field(metadata={"description": "The locally available versions of the model."})
+    version_control: str = field(metadata={"description": "The version control mode."})
+
+
 @router.get("/model_version")
 async def get_version(request: Request):
     '''
+    Get information about the model version control and the current model version.
+
     Example Usage
         curl http://localhost/model_version
     '''
@@ -41,22 +55,25 @@ async def get_version(request: Request):
         if model.replace('.', '').isdigit():
             local_versions.append(model)
 
-    return {
-        'current_version': current_version,
-        'target_version': target_version,
-        'loop_version': loop_version,
-        'local_versions': local_versions,
-        'version_control': app.version_control.value,
-    }
+    response = ModelVersionResponse(
+        current_version=current_version,
+        target_version=target_version,
+        loop_version=loop_version,
+        local_versions=local_versions,
+        version_control=app.version_control.value,
+    )
+    return response
 
 
 @router.put("/model_version")
 async def put_version(request: Request):
     '''
+    Set the model version control mode.
+
     Example Usage
-        curl -X PUT -d "follow_loop" http://localhost/model_version
-        curl -X PUT -d "pause" http://localhost/model_version
-        curl -X PUT -d "13.6" http://localhost/model_version
+        curl -X PUT -d "follow_loop" http://hosturl/model_version
+        curl -X PUT -d "pause" http://hosturl/model_version
+        curl -X PUT -d "13.6" http://hosturl/model_version
     '''
     app: 'DetectorNode' = request.app
     content = str(await request.body(), 'utf-8')

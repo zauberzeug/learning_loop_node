@@ -16,6 +16,13 @@ router = APIRouter()
 
 @router.post("/reset")
 async def _reset(request: Request):
+    '''
+    Soft-Reset the detector node.
+
+    Example Usage
+
+        curl -X POST http://hosturl/reset
+    '''
     logging.info('BC: reset')
     detector_node: 'DetectorNode' = request.app
 

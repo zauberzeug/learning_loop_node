@@ -22,7 +22,10 @@ class OperationMode(str, Enum):
 @router.put("/operation_mode")
 async def put_operation_mode(request: Request):
     '''
+    Set the operation mode of the detector node.
+
     Example Usage
+
         curl -X PUT -d "check_for_updates" http://localhost/operation_mode
         curl -X PUT -d "detecting" http://localhost/operation_mode
     '''
@@ -34,22 +37,25 @@ async def put_operation_mode(request: Request):
         raise HTTPException(422, str(exc)) from exc
     node: DetectorNode = request.app
 
-    logging.info(f'current node state : {node.status.state}')
-    logging.info(f'current operation mode : {node.operation_mode.value}')
-    logging.info(f'target operation mode : {target_mode}')
+    logging.info('current node state : %s', node.status.state)
+    logging.info('current operation mode : %s', node.operation_mode.value)
+    logging.info('target operation mode : %s', target_mode)
     if target_mode == node.operation_mode:
         logging.info('operation mode already set')
         return "OK"
 
     await node.set_operation_mode(target_mode)
-    logging.info(f'operation mode set to : {target_mode}')
+    logging.info('operation mode set to : %s', target_mode)
     return "OK"
 
 
-@router.get("/operation_mode")
+@router.get("/operation_mode", response_class=PlainTextResponse)
 async def get_operation_mode(request: Request):
     '''
+    Get the operation mode of the detector node.
+
     Example Usage
+
         curl http://localhost/operation_mode
     '''
     return PlainTextResponse(request.app.operation_mode.value)
