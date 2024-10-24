@@ -40,7 +40,7 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
     create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
 
@@ -60,7 +60,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     # TODO goes to finished because of the error

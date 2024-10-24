@@ -37,7 +37,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
     trainer._init_from_last_training()
     trainer.training.model_uuid_for_detecting = '12345678-bobo-7e92-f95f-424242424242'
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.Detecting, timeout=5, interval=0.001)
     await trainer.stop()
@@ -54,7 +54,7 @@ async def test_model_not_downloadable_error(test_initialized_trainer: TestingTra
                                 model_uuid_for_detecting='00000000-0000-0000-0000-000000000000')  # bad model id
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, 'detecting', timeout=1, interval=0.001)
     await assert_training_state(trainer.training, 'train_model_uploaded', timeout=1, interval=0.001)

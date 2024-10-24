@@ -125,7 +125,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     trainer._init_from_last_training()
     trainer.active_training_io.save_detections([get_dummy_detections()])
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.Detected, timeout=1, interval=0.001)
 
@@ -143,7 +143,7 @@ async def test_go_to_cleanup_if_no_detections_exist(test_initialized_trainer: Te
     create_active_training_file(trainer, training_state=TrainerState.Detected)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=1, interval=0.001)
 
 
@@ -154,7 +154,7 @@ async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
     trainer._init_from_last_training()
     await create_valid_detection_file(trainer)
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
 

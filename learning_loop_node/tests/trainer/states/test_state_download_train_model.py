@@ -37,7 +37,7 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogi
     create_active_training_file(trainer, training_state=TrainerState.DataDownloaded)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.TrainModelDownloading, timeout=1, interval=0.001)
 
     await trainer.stop()
@@ -53,7 +53,7 @@ async def test_downloading_failed(test_initialized_trainer: TestingTrainerLogic)
                                 base_model_uuid_or_name='00000000-0000-0000-0000-000000000000')  # bad model id)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.TrainModelDownloading, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.DataDownloaded, timeout=1, interval=0.001)
 

@@ -30,7 +30,7 @@ async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
     create_active_training_file(trainer)
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=1, interval=0.001)
 
     await trainer.stop()
@@ -46,7 +46,7 @@ async def test_request_error(test_initialized_trainer: TestingTrainerLogic):
         organization='zauberzeug', project='some_bad_project'))
     trainer._init_from_last_training()
 
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=3, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.Initialized, timeout=3, interval=0.001)
 
