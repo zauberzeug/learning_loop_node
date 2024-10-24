@@ -35,6 +35,9 @@ async def _debug_logging(request: Request) -> str:
 @router.put("/socketio")
 async def _socketio(request: Request) -> str:
     '''
+    Enable or disable the socketio connection to the learning loop.
+    Not intended to be used outside of testing.
+
     Example Usage
 
         curl -X PUT -d "on" http://hosturl/socketio
