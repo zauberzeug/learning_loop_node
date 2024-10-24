@@ -22,7 +22,7 @@ async def http_detect(
     tags: Optional[str] = Header(None, description='Tags to add to the image (used by learning loop)'),
     source: Optional[str] = Header(None, description='The source of the image (used by learning loop)'),
     autoupload: Optional[str] = Header(None, description='Mode to decide whether to upload the image to the learning loop',
-                                       example='filtered, all, disabled'),
+                                       examples=['filtered', 'all', 'disabled']),
 ):
     """
     Single image example:
