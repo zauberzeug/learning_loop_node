@@ -59,7 +59,7 @@ class Node(FastAPI):
 
         self.repeat_task: Any = None
         self.socket_connection_broken = False
-        self._muted = False
+        self._skip_repeat_loop = False
 
         self.include_router(router)
 
@@ -114,7 +114,7 @@ class Node(FastAPI):
 
     async def repeat_loop(self) -> None:
         while True:
-            if self._muted:
+            if self._skip_repeat_loop:
                 self.log.debug('node is muted, skipping repeat loop')
                 await asyncio.sleep(1)
                 continue
@@ -148,9 +148,9 @@ class Node(FastAPI):
 
         self.socket_connection_broken = False
 
-    def set_muted(self, muted: bool):
-        self._muted = muted
-        self.log.info('node is muted: %s', muted)
+    def set_skip_repeat_loop(self, value: bool):
+        self._skip_repeat_loop = value
+        self.log.info('node is muted: %s', value)
 
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
 

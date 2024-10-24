@@ -36,7 +36,7 @@ async def provide_new_model(request: Request):
 async def reset(request: Request):
     logging.info('BC: reset')
     trainer_node: 'TrainerNode' = request.app
-    trainer_node.set_muted(True)
+    trainer_node.set_skip_repeat_loop(True)
 
     await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
     await trainer_node.trainer_logic.stop()
@@ -50,7 +50,7 @@ async def reset(request: Request):
 
     logging.info('training should be killed, sending new state to LearningLoop')
     await trainer_node.send_status()
-    trainer_node.set_muted(False)
+    trainer_node.set_skip_repeat_loop(False)
 
 
 @router.put("/error_configuration")

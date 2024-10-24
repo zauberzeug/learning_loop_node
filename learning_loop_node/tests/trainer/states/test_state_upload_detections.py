@@ -11,11 +11,10 @@ from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
-error_key = 'upload_detections'
 
 
-def trainer_has_error(trainer: TrainerLogic):
-    return trainer.errors.has_error_for(error_key)
+def trainer_has_upload_detections_error(trainer: TrainerLogic):
+    return trainer.errors.has_error_for('upload_detections')
 
 
 async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: int = 1, file_index: int = 0):
@@ -129,7 +128,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.Detected, timeout=1, interval=0.001)
 
-    assert trainer_has_error(trainer)
+    assert trainer_has_upload_detections_error(trainer)
     assert trainer.training.training_state == TrainerState.Detected
     assert trainer.node.last_training_io.load() == trainer.training
 

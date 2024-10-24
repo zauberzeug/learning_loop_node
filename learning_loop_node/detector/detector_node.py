@@ -93,7 +93,7 @@ class DetectorNode(Node):
         # simulate super().startup
         await self.loop_communicator.backend_ready()
         # await self.loop_communicator.ensure_login()
-        self.set_muted(False)
+        self.set_skip_repeat_loop(False)
         self.socket_connection_broken = True
         await self.on_startup()
 

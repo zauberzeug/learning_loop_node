@@ -44,9 +44,9 @@ async def _socketio(request: Request) -> str:
 
     if state == 'off':
         await node.sio_client.disconnect()
-        node.set_muted(True)
+        node.set_skip_repeat_loop(True)  # Prevent auto-reconnection
         return 'off'
     if state == 'on':
-        node.set_muted(False)
+        node.set_skip_repeat_loop(False)  # Allow auto-reconnection (1 sec delay)
         return 'on'
     raise HTTPException(status_code=400, detail='Invalid state')

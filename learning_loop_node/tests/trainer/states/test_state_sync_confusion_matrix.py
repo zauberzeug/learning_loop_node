@@ -1,6 +1,5 @@
 
 import asyncio
-import logging
 
 from pytest_mock import MockerFixture  # pip install pytest-mock
 
@@ -55,9 +54,8 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
     trainer = test_initialized_trainer_node.trainer_logic
     assert isinstance(trainer, TestingTrainerLogic)
 
-    # NOTE: we assume that the client stays disconnected until we try to sync the confusion matrix
-    #       node should reconnect automatically after 5 seconds in the repeat loop
     await test_initialized_trainer_node.sio_client.disconnect()
+    test_initialized_trainer_node.set_skip_repeat_loop(True)
     create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
 
     assert test_initialized_trainer_node.sio_client.connected is False
