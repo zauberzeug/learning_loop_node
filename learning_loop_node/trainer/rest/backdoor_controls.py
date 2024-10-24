@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Dict
 
 from fastapi import APIRouter, HTTPException, Request
 
-from ...data_classes import ErrorConfiguration, NodeState
+from ...data_classes import ErrorConfiguration
 from ..trainer_logic import TrainerLogic
 
 if TYPE_CHECKING:
@@ -16,32 +16,10 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-@router.put("/socketio")
-async def switch_socketio(request: Request):
-    '''
-    Example Usage
-
-        curl -X PUT -d "on" http://localhost:8001/socketio
-    '''
-    state = str(await request.body(), 'utf-8')
-    await _switch_socketio(state, request.app)
-
-
-async def _switch_socketio(state: str, trainer_node: TrainerNode):
-    if state == 'off':
-        if trainer_node.status.state != NodeState.Offline:
-            logging.debug('turning socketio off')
-            await trainer_node.sio_client.disconnect()  # pylint: disable=protected-access
-    if state == 'on':
-        if trainer_node.status.state == NodeState.Offline:
-            logging.debug('turning socketio on')
-            await trainer_node.connect_sio()
-
-
 @router.put("/provide_new_model")
 async def provide_new_model(request: Request):
     value = str(await request.body(), 'utf-8')
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     # trainer_logic is MockTrainerLogic which has a property provide_new_model
     assert hasattr(trainer_node.trainer_logic,
                    'provide_new_model'), 'trainer_logic does not have property provide_new_model'
@@ -56,17 +34,22 @@ async def provide_new_model(request: Request):
 
 @router.post("/reset")
 async def reset(request: Request):
-    trainer_node = trainer_node_from_request(request)
-    await _switch_socketio('on', trainer_node)
+    logging.info('BC: reset')
+    trainer_node: 'TrainerNode' = request.app
+    async with trainer_node.repeat_loop_lock:
 
-    await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
-    await trainer_node.trainer_logic.stop()
+        await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
+        await trainer_node.trainer_logic.stop()
+        trainer_node.last_training_io.delete()
+        trainer_node.status.reset_all_errors()
 
-    trainer_node.last_training_io.delete()
+        try:
+            await trainer_node.reconnect_to_loop()
+        except Exception:
+            logging.exception('Could not reset sio connection to loop')
 
-    trainer_node.status.reset_all_errors()
-    logging.info('training should be killed, sending new state to LearningLoop')
-    await trainer_node.send_status()
+        logging.info('training should be killed, sending new state to LearningLoop')
+        await trainer_node.send_status()
 
 
 @router.put("/error_configuration")
@@ -82,7 +65,7 @@ def set_error_configuration(msg: Dict, request: Request):
                                              save_model=msg.get('save_model', None), )
 
     logging.info(f'setting error configuration to: {asdict(error_configuration)}')
-    trainer_logic = trainer_node_from_request(request).trainer_logic
+    trainer_logic = request.app.trainer_logic
 
     # NOTE: trainer_logic is MockTrainerLogic which has a property error_configuration
     assert hasattr(trainer_logic, 'error_configuration'), 'trainer_logic does not have property error_configuration'
@@ -92,7 +75,7 @@ def set_error_configuration(msg: Dict, request: Request):
 @router.post("/steps")
 async def add_steps(request: Request):
     logging.warning('Steps was called')
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     trainer_logic = trainer_node.trainer_logic  # NOTE: is MockTrainerLogic which has 'provide_new_model' and 'current_iteration'
 
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
@@ -123,7 +106,7 @@ async def add_steps(request: Request):
 async def kill_process(request: Request):
 
     # pylint: disable=protected-access
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     trainer_logic = trainer_node.trainer_logic
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
     if not trainer_logic._executor or not trainer_logic._executor.is_running():
@@ -133,9 +116,5 @@ async def kill_process(request: Request):
 
 @router.post("/force_status_update")
 async def force_status_update(request: Request):
-    trainer_node = trainer_node_from_request(request)
+    trainer_node = request.app
     await trainer_node.send_status()
-
-
-def trainer_node_from_request(request: Request) -> TrainerNode:
-    return request.app

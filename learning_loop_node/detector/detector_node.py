@@ -93,7 +93,8 @@ class DetectorNode(Node):
         # simulate super().startup
         await self.loop_communicator.backend_ready()
         # await self.loop_communicator.ensure_login()
-        await self.create_sio_client()
+        self.set_skip_repeat_loop(False)
+        self.socket_connection_broken = True
         await self.on_startup()
 
         # simulate startup
@@ -198,23 +199,21 @@ class DetectorNode(Node):
             self.connected_clients.append(sid)
 
     async def _check_for_update(self) -> None:
-        if self.operation_mode == OperationMode.Startup:
-            return
         try:
-            self.log.info('Current operation mode is %s', self.operation_mode)
+            self.log.debug('Current operation mode is %s', self.operation_mode)
             try:
                 await self.sync_status_with_learning_loop()
-            except Exception as e:
-                self.log.error('Could not check for updates: %s', e)
+            except Exception:
+                self.log.exception('Sync with learning loop failed (could not check for updates):')
                 return
 
             if self.operation_mode != OperationMode.Idle:
-                self.log.info('not checking for updates; operation mode is %s', self.operation_mode)
+                self.log.debug('not checking for updates; operation mode is %s', self.operation_mode)
                 return
 
             self.status.reset_error('update_model')
             if self.target_model is None:
-                self.log.info('not checking for updates; no target model selected')
+                self.log.debug('not checking for updates; no target model selected')
                 return
 
             current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None  # pylint: disable=protected-access
@@ -290,12 +289,15 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log.info('sending status %s', status)
+        self.log.debug('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        if not response:
+            self.socket_connection_broken = True
+            return
 
-        assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
+            self.socket_connection_broken = True
             self.log.error('Statusupdate failed: %s', response)
             raise Exception(f'Statusupdate failed: {response}')
 
@@ -308,9 +310,12 @@ class DetectorNode(Node):
                                                        id=deployment_target_model_id,
                                                        version=deployment_target_model_version)
 
-        if self.version_control == rest_version_control.VersionMode.FollowLoop:
+        if (self.version_control == rest_version_control.VersionMode.FollowLoop and
+                self.target_model != self.loop_deployment_target):
+            old_target_model_version = self.target_model.version if self.target_model else None
             self.target_model = self.loop_deployment_target
-            self.log.info('After sending status. Target_model is %s', self.target_model.version)
+            self.log.info('After sending status. Target_model changed from %s to %s',
+                          old_target_model_version, self.target_model.version)
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode

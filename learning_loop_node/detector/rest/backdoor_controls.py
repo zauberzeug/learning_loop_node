@@ -14,41 +14,17 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-@router.put("/socketio")
-async def _socketio(request: Request):
-    '''
-    Example Usage
-
-        curl -X PUT -d "on" http://localhost:8007/socketio
-    '''
-    state = str(await request.body(), 'utf-8')
-    detector_node: 'DetectorNode' = request.app
-
-    if state == 'off':
-        logging.info('BC: turning socketio off')
-        await detector_node.sio_client.disconnect()
-    if state == 'on':
-        logging.info('BC: turning socketio on')
-        await detector_node.connect_sio()
-
-
 @router.post("/reset")
 async def _reset(request: Request):
     logging.info('BC: reset')
+    detector_node: 'DetectorNode' = request.app
+
     try:
         shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
         os.makedirs(GLOBALS.data_folder, exist_ok=True)
 
-        # get file dir
-        # restart_path = Path(os.path.realpath(__file__)) / 'restart' / 'restart.py'
-        # restart_path = Path(os.getcwd()).absolute() / 'app_code' / 'restart' / 'restart.py'
-        # restart_path.touch()
-        # assert isinstance(request.app, 'DetectorNode')
-        await request.app.soft_reload()
-
-        # assert isinstance(request.app, DetectorNode)
-        # request.app.reload(reason='------- reset was called from backdoor controls',)
-    except Exception as e:
-        logging.error(f'BC: could not reset: {e}')
+        await detector_node.soft_reload()
+    except Exception:
+        logging.exception('BC: could not reset:')
         return False
     return True
