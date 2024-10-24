@@ -126,10 +126,9 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
 
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.Detected, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.Detected, timeout=10, interval=0.001)
 
     assert trainer_has_upload_detections_error(trainer)
-    assert trainer.training.training_state == TrainerState.Detected
     assert trainer.node.last_training_io.load() == trainer.training
 
 

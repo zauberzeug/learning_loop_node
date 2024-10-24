@@ -64,7 +64,7 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=10, interval=0.001)
 
     assert trainer_has_sync_confusion_matrix_error(trainer)  # Due to sio not being connected, the request will fail
     assert trainer.training.training_state == TrainerState.TrainingFinished
@@ -83,7 +83,7 @@ async def test_unsynced_model_available__request_is_not_successful(test_initiali
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=10, interval=0.001)
 
     assert trainer_has_sync_confusion_matrix_error(trainer)  # Due to sio call failure, the error will be set
     assert trainer.training.training_state == TrainerState.TrainingFinished

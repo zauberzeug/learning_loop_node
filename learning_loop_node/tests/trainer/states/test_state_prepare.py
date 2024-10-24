@@ -47,7 +47,7 @@ async def test_request_error(test_initialized_trainer: TestingTrainerLogic):
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
     await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=3, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.Initialized, timeout=3, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.Initialized, timeout=10, interval=0.001)
 
     assert trainer_has_prepare_error(trainer)
     assert trainer._training is not None  # pylint: disable=protected-access

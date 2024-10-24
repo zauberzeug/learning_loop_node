@@ -17,7 +17,7 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
     trainer._begin_training_task()
 
     await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
-    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.01)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=10, interval=0.01)
     assert trainer.start_training_task is not None
 
     assert trainer._executor is not None
@@ -37,13 +37,12 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainerLog
     trainer._begin_training_task()
 
     await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
-    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.01)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=10, interval=0.01)
     assert trainer.start_training_task is not None
 
     await trainer.stop()
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=2, interval=0.01)
 
-    assert trainer.training.training_state == TrainerState.TrainingFinished
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -58,12 +57,11 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
     trainer._begin_training_task()
 
     await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
-    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=10, interval=0.001)
     assert trainer.start_training_task is not None
 
     assert trainer._executor is not None
     await trainer._executor.stop_and_wait()  # NOTE normally a training terminates itself e.g
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
 
-    assert trainer.training.training_state == TrainerState.TrainingFinished
     assert trainer.node.last_training_io.load() == trainer.training

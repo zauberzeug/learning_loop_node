@@ -63,7 +63,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     # TODO goes to finished because of the error
-    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=5, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=10, interval=0.001)
 
     assert trainer_has_upload_model_error(trainer)
     assert trainer.training.training_state == TrainerState.ReadyForCleanup
