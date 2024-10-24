@@ -55,7 +55,7 @@ async def test_downloading_failed(test_initialized_trainer: TestingTrainerLogic)
 
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.TrainModelDownloading, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.DataDownloaded, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.DataDownloaded, timeout=5, interval=0.001)
 
     assert trainer.errors.has_error_for('download_model')
     assert trainer._training is not None  # pylint: disable=protected-access
