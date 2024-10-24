@@ -292,12 +292,12 @@ class DetectorNode(Node):
         self.log.debug('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         if not response:
-            await self.sio_client.disconnect()
+            self.socket_connection_broken = True
             return
 
-        assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
+            self.socket_connection_broken = True
             self.log.error('Statusupdate failed: %s', response)
             raise Exception(f'Statusupdate failed: {response}')
 
