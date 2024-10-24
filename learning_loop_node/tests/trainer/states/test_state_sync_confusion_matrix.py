@@ -1,5 +1,6 @@
 
 import asyncio
+import logging
 
 from pytest_mock import MockerFixture  # pip install pytest-mock
 
@@ -11,11 +12,9 @@ from ..testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
 
-error_key = 'sync_confusion_matrix'
 
-
-def trainer_has_error(trainer: TrainerLogic):
-    return trainer.errors.has_error_for(error_key)
+def trainer_has_sync_confusion_matrix_error(trainer: TrainerLogic):
+    return trainer.errors.has_error_for('sync_confusion_matrix')
 
 
 async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
@@ -29,7 +28,7 @@ async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=1, interval=0.001)
-    assert trainer_has_error(trainer) is False
+    assert trainer_has_sync_confusion_matrix_error(trainer) is False
     assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -38,7 +37,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     trainer = test_initialized_trainer_node.trainer_logic
     assert isinstance(trainer, TestingTrainerLogic)
 
-    await mock_socket_io_call(mocker, test_initialized_trainer_node, {'success': True})
+    await mock_socket_io_call(mocker, test_initialized_trainer_node, return_value={'success': True})
     create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
 
     trainer._init_from_last_training()
@@ -47,7 +46,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     _ = asyncio.get_running_loop().create_task(trainer._run())
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=1, interval=0.001)
 
-    assert trainer_has_error(trainer) is False
+    assert trainer_has_sync_confusion_matrix_error(trainer) is False
 #    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -56,6 +55,9 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
     trainer = test_initialized_trainer_node.trainer_logic
     assert isinstance(trainer, TestingTrainerLogic)
 
+    # NOTE: we assume that the client stays disconnected until we try to sync the confusion matrix
+    #       node should reconnect automatically after 5 seconds in the repeat loop
+    await test_initialized_trainer_node.sio_client.disconnect()
     create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
 
     assert test_initialized_trainer_node.sio_client.connected is False
@@ -63,10 +65,10 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
-    await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
 
-    assert trainer_has_error(trainer)
+    assert trainer_has_sync_confusion_matrix_error(trainer)  # Due to sio not being connected, the request will fail
     assert trainer.training.training_state == TrainerState.TrainingFinished
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -75,17 +77,17 @@ async def test_unsynced_model_available__request_is_not_successful(test_initiali
     trainer = test_initialized_trainer_node.trainer_logic
     assert isinstance(trainer, TestingTrainerLogic)
 
-    await mock_socket_io_call(mocker, test_initialized_trainer_node, {'success': False})
+    await mock_socket_io_call(mocker, test_initialized_trainer_node, return_value={'success': False})
 
     create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
 
     trainer.has_new_model = True
     _ = asyncio.get_running_loop().create_task(trainer._run())
 
-    await assert_training_state(trainer.training, 'confusion_matrix_syncing', timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
     await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
 
-    assert trainer_has_error(trainer)
+    assert trainer_has_sync_confusion_matrix_error(trainer)  # Due to sio call failure, the error will be set
     assert trainer.training.training_state == TrainerState.TrainingFinished
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -100,6 +102,9 @@ async def test_basic_mock(test_initialized_trainer_node: TrainerNode, mocker: Mo
 
 
 async def mock_socket_io_call(mocker, trainer_node: TrainerNode, return_value):
+    '''
+    Patch the socketio call function to always return the given return_value
+    '''
     for _ in range(10):
         if trainer_node.sio_client is None:
             await asyncio.sleep(0.1)
