@@ -142,7 +142,6 @@ class TrainerLogic(TrainerLogicGeneric):
     async def stop(self) -> None:
         """If executor is running, stop it. Else cancel training task."""
         print('===============> stop received in trainer_logic.', flush=True)
-        print(self.training_task is None, flush=True)
 
         if not self.training_active:
             return
