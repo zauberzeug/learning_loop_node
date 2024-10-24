@@ -36,21 +36,20 @@ async def provide_new_model(request: Request):
 async def reset(request: Request):
     logging.info('BC: reset')
     trainer_node: 'TrainerNode' = request.app
-    trainer_node.set_skip_repeat_loop(True)
+    async with trainer_node.repeat_loop_lock:
 
-    await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
-    await trainer_node.trainer_logic.stop()
-    trainer_node.last_training_io.delete()
-    trainer_node.status.reset_all_errors()
+        await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
+        await trainer_node.trainer_logic.stop()
+        trainer_node.last_training_io.delete()
+        trainer_node.status.reset_all_errors()
 
-    try:
-        await trainer_node.reconnect_to_loop()
-    except Exception:
-        logging.exception('Could not reset sio connection to loop')
+        try:
+            await trainer_node.reconnect_to_loop()
+        except Exception:
+            logging.exception('Could not reset sio connection to loop')
 
-    logging.info('training should be killed, sending new state to LearningLoop')
-    await trainer_node.send_status()
-    trainer_node.set_skip_repeat_loop(False)
+        logging.info('training should be killed, sending new state to LearningLoop')
+        await trainer_node.send_status()
 
 
 @router.put("/error_configuration")

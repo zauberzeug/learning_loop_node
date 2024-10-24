@@ -66,6 +66,8 @@ class Node(FastAPI):
         self.CONNECTED_TO_LOOP = asyncio.Event()
         self.DISCONNECTED_FROM_LOOP = asyncio.Event()
 
+        self.repeat_loop_lock = asyncio.Lock()
+
     def init_loop_communicator(self):
         self.loop_communicator = LoopCommunicator()
         self.websocket_url = self.loop_communicator.websocket_url()
@@ -119,8 +121,9 @@ class Node(FastAPI):
                 await asyncio.sleep(1)
                 continue
             try:
-                await self._ensure_sio_connection()
-                await self.on_repeat()
+                async with self.repeat_loop_lock:
+                    await self._ensure_sio_connection()
+                    await self.on_repeat()
             except asyncio.CancelledError:
                 return
             except Exception:
