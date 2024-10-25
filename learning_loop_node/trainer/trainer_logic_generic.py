@@ -179,7 +179,7 @@ class TrainerLogicGeneric(ABC):
         if not self.training_active and self.last_training_io.exists():
             self._init_from_last_training()
             logger.info('found incomplete training, continuing now.')
-            asyncio.get_event_loop().create_task(self._run())
+            self._begin_training_task()
             return True
         return False
 
@@ -195,7 +195,11 @@ class TrainerLogicGeneric(ABC):
         """Called on `begin_training` event from the Learning Loop.
         """
         self._init_new_training(Context(organization=organization, project=project), details)
-        asyncio.get_event_loop().create_task(self._run())
+        self._begin_training_task()
+
+    def _begin_training_task(self) -> None:
+        # NOTE: Task object is used to potentially cancel the task
+        self.training_task = asyncio.get_event_loop().create_task(self._run())
 
     def _init_new_training(self, context: Context, details: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
@@ -218,8 +222,7 @@ class TrainerLogicGeneric(ABC):
         """
         self.errors.reset_all()
         try:
-            self.training_task = asyncio.get_running_loop().create_task(self._training_loop())
-            await self.training_task  # NOTE: Task object is used to potentially cancel the task
+            await self._training_loop()
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
                 logger.info('CancelledError in _run - training task was cancelled but not by shutdown event')

@@ -14,7 +14,7 @@ async def test_training_process_is_stopped_when_trainer_reports_error(test_initi
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
     trainer._init_from_last_training()
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     trainer.error_msg = 'some_error'
@@ -26,7 +26,7 @@ async def test_log_can_provide_only_data_for_current_run(test_initialized_traine
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
     trainer._init_from_last_training()
-    _ = asyncio.get_running_loop().create_task(trainer._run())
+    trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     await asyncio.sleep(0.1)  # give tests a bit time to to check for the state

@@ -77,7 +77,7 @@ class TrainerNode(Node):
 
     async def send_status(self):
         if not self.sio_client.connected:
-            self.log.warning('cannot send status - not connected to the Learning Loop')
+            self.log.debug('cannot send status - not connected to the Learning Loop')
             return
 
         status = TrainingStatus(id=self.uuid,
@@ -98,10 +98,11 @@ class TrainerNode(Node):
             status.errors = self.trainer_logic.errors.errors
             status.context = self.trainer_logic.training_context
 
-        self.log.info(f'sending status: {status.short_str()}')
+        self.log.debug('sending status: %s', status.short_str())
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
-            self.log.error(f'Error when sending status update: Response from loop was:\n {result}')
+            self.socket_connection_broken = True
+            self.log.error('Error when sending status update: Response from loop was:\n %s', result)
 
     def check_idle_timeout(self):
         if not self.idle_timeout:

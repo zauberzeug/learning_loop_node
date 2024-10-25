@@ -93,7 +93,8 @@ class DetectorNode(Node):
         # simulate super().startup
         await self.loop_communicator.backend_ready()
         # await self.loop_communicator.ensure_login()
-        await self.create_sio_client()
+        self.set_skip_repeat_loop(False)
+        self.socket_connection_broken = True
         await self.on_startup()
 
         # simulate startup
@@ -151,8 +152,9 @@ class DetectorNode(Node):
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
+                detection_dict = jsonable_encoder(asdict(det))
                 self.log.debug('detect via socketio finished')
-                return det
+                return detection_dict
             except Exception as e:
                 self.log.exception('could not detect via socketio')
                 with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
@@ -198,23 +200,21 @@ class DetectorNode(Node):
             self.connected_clients.append(sid)
 
     async def _check_for_update(self) -> None:
-        if self.operation_mode == OperationMode.Startup:
-            return
         try:
-            self.log.info('Current operation mode is %s', self.operation_mode)
+            self.log.debug('Current operation mode is %s', self.operation_mode)
             try:
                 await self.sync_status_with_learning_loop()
-            except Exception as e:
-                self.log.error('Could not check for updates: %s', e)
+            except Exception:
+                self.log.exception('Sync with learning loop failed (could not check for updates):')
                 return
 
             if self.operation_mode != OperationMode.Idle:
-                self.log.info('not checking for updates; operation mode is %s', self.operation_mode)
+                self.log.debug('not checking for updates; operation mode is %s', self.operation_mode)
                 return
 
             self.status.reset_error('update_model')
             if self.target_model is None:
-                self.log.info('not checking for updates; no target model selected')
+                self.log.debug('not checking for updates; no target model selected')
                 return
 
             current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None  # pylint: disable=protected-access
@@ -290,12 +290,15 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log.info('sending status %s', status)
+        self.log.debug('sending status %s', status)
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        if not response:
+            self.socket_connection_broken = True
+            return
 
-        assert response is not None
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
+            self.socket_connection_broken = True
             self.log.error('Statusupdate failed: %s', response)
             raise Exception(f'Statusupdate failed: {response}')
 
@@ -308,9 +311,12 @@ class DetectorNode(Node):
                                                        id=deployment_target_model_id,
                                                        version=deployment_target_model_version)
 
-        if self.version_control == rest_version_control.VersionMode.FollowLoop:
+        if (self.version_control == rest_version_control.VersionMode.FollowLoop and
+                self.target_model != self.loop_deployment_target):
+            old_target_model_version = self.target_model.version if self.target_model else None
             self.target_model = self.loop_deployment_target
-            self.log.info('After sending status. Target_model is %s', self.target_model.version)
+            self.log.info('After sending status. Target_model changed from %s to %s',
+                          old_target_model_version, self.target_model.version)
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
@@ -337,7 +343,7 @@ class DetectorNode(Node):
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
-                             autoupload: Optional[str] = None) -> Optional[Dict]:
+                             autoupload: Optional[str] = None) -> Detections:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
@@ -362,7 +368,7 @@ class DetectorNode(Node):
             pass
         else:
             self.log.error('unknown autoupload value %s', autoupload)
-        return jsonable_encoder(asdict(detections))
+        return detections
 
     async def upload_images(self, images: List[bytes]):
         loop = asyncio.get_event_loop()
