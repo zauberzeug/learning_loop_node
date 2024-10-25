@@ -14,7 +14,7 @@ from ..data_classes import (Context, Errors, Hyperparameter, PretrainedModel, Tr
                             TrainingOut, TrainingStateData)
 from ..helpers.misc import create_project_folder, delete_all_training_folders, generate_training, is_valid_uuid4
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError
+from .exceptions import CriticalError, NodeNeedsRestartError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 
 if TYPE_CHECKING:
@@ -294,6 +294,9 @@ class TrainerLogicGeneric(ABC):
             logger.error('CriticalError in %s - Exception: %s', state_during, e)
             self.errors.set(error_key, str(e))
             self.training.training_state = TrainerState.ReadyForCleanup
+        except NodeNeedsRestartError:
+            logger.error('Node Restart Requested')
+            sys.exit(0)
         except Exception as e:
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
