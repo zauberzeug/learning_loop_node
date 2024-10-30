@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from typing import Awaitable, Callable, List, Optional
 
 import httpx
@@ -33,7 +34,6 @@ class LoopCommunicator():
                 base_url=self.base_url, timeout=Timeout(60.0), verify=self.ssl_cert_path)
         else:
             self.async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
-        self.async_client.cookies.clear()
 
         logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
 
@@ -68,16 +68,19 @@ class LoopCommunicator():
         if self.async_client is not None and not self.async_client.is_closed:
             await self.async_client.aclose()
 
-    async def backend_ready(self) -> bool:
+    async def backend_ready(self, timeout: Optional[int] = None) -> bool:
         """Wait until the backend is ready"""
+        start_time = time.time()
         while True:
             try:
                 logging.info('Checking if backend is ready')
                 response = await self.get('/status', requires_login=False)
                 if response.status_code == 200:
                     return True
-            except Exception as e:
-                logging.info(f'backend not ready: {e}')
+            except Exception:
+                logging.info('backend not ready yet.')
+            if timeout is not None and time.time() + 10 - start_time > timeout:
+                raise TimeoutError('Backend not ready within timeout')
             await asyncio.sleep(10)
 
     async def retry_on_401(self, func: Callable[..., Awaitable[httpx.Response]], *args, **kwargs) -> httpx.Response:
