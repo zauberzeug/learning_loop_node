@@ -124,6 +124,9 @@ class DataExchanger():
 
     async def _download_one_image(self, path: str, image_id: str, image_folder: str) -> None:
         response = await self.loop_communicator.get(path)
+        if response.status_code == 429:
+            await asyncio.sleep(1)
+            response = await self.loop_communicator.get(path)
         if response.status_code != HTTPStatus.OK:
             logging.error(f'bad status code {response.status_code} for {path}. Details: {response.text}')
             return
