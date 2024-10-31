@@ -126,6 +126,8 @@ class Node(FastAPI):
                     await self.on_repeat()
             except asyncio.CancelledError:
                 return
+            except TimeoutError:
+                self.log.debug('Backend not ready within timeout, skipping repeat loop')
             except Exception:
                 self.log.exception('error in repeat loop')
 
@@ -140,6 +142,7 @@ class Node(FastAPI):
     async def reconnect_to_loop(self):
         """Initialize the loop communicator, log in if needed and reconnect to the loop via socket.io."""
         self.init_loop_communicator()
+        await self.loop_communicator.backend_ready(timeout=5)
         if self.needs_login:
             await self.loop_communicator.ensure_login(relogin=True)
         try:
@@ -162,7 +165,8 @@ class Node(FastAPI):
         The current client is disconnected and deleted if it already exists."""
 
         self.log.debug('-------------- Connecting to loop via socket.io -------------------')
-        self.log.debug('HTTP Cookies: %s\n', self.loop_communicator.get_cookies())
+        cookies = self.loop_communicator.get_cookies()
+        self.log.debug('HTTP Cookies: %s\n', cookies)
 
         if self._sio_client is not None:
             try:
@@ -185,8 +189,12 @@ class Node(FastAPI):
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             connector = TCPConnector(ssl=ssl_context)
 
-        self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
-            cookies=self.loop_communicator.get_cookies(), connector=connector))
+        if self.needs_login:
+            self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
+                cookies=cookies, connector=connector))
+        else:
+            self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
+                connector=connector))
 
         # pylint: disable=protected-access
         self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
