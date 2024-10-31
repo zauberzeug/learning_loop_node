@@ -32,7 +32,6 @@ class OutboxMode(Enum):
 class Outbox():
     def __init__(self) -> None:
         self.log = logging.getLogger()
-        self.log.setLevel(logging.DEBUG)
         self.path = f'{GLOBALS.data_folder}/outbox'
         os.makedirs(self.path, exist_ok=True)
 
