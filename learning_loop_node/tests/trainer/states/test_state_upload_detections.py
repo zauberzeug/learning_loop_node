@@ -3,7 +3,7 @@ import asyncio
 import pytest
 from dacite import from_dict
 
-from ....data_classes import BoxDetection, Context, ImageMetadata, TrainerState
+from ....data_classes import BoxDetection, Context, Detections, TrainerState
 from ....loop_communication import LoopCommunicator
 from ....trainer.trainer_logic import TrainerLogic
 from ...test_helper import get_dummy_detections
@@ -32,8 +32,8 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
                                  model_name=model_version, confidence=.99, category_id=category['id'])
     box_detections = [box_detection]
 
-    detection_entry = from_dict(data_class=ImageMetadata, data={'image_id': image_id, 'box_detections': box_detections,
-                                                                'point_detections': [], 'segmentation_detections': []})
+    detection_entry = from_dict(data_class=Detections, data={'image_id': image_id, 'box_detections': box_detections,
+                                                             'point_detections': [], 'segmentation_detections': []})
     detections = [detection_entry] * number_of_entries
 
     assert trainer.active_training_io is not None

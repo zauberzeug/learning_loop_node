@@ -3,7 +3,7 @@ import json
 import os
 
 import pytest
-import requests
+import requests  # type: ignore
 
 from ...data_classes import ModelInformation
 from ...detector.detector_node import DetectorNode
