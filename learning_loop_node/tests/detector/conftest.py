@@ -6,8 +6,9 @@ import shutil
 import socket
 from glob import glob
 from multiprocessing import Process, log_to_stderr
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List, Optional
 
+import numpy as np
 import pytest
 import socketio
 import uvicorn
@@ -135,7 +136,7 @@ def mock_detector_logic():
         def is_initialized(self):
             return True
 
-        def evaluate_with_all_info(self, image, tags, source, creation_date):  # pylint: disable=signature-differs
+        def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str], creation_date: Optional[str]):
             return self.detections
 
     return MockDetectorLogic()
