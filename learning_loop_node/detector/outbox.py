@@ -58,7 +58,8 @@ class Outbox():
              image: bytes,
              detections: Optional[ImageMetadata] = None,
              tags: Optional[List[str]] = None,
-             source: Optional[str] = None
+             source: Optional[str] = None,
+             creation_date: Optional[str] = None
              ) -> None:
 
         if not self._is_valid_jpg(image):
@@ -75,7 +76,10 @@ class Outbox():
             return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         detections.tags = tags
-        detections.date = identifier
+        if creation_date and self._is_valid_isoformat(creation_date):
+            detections.date = creation_date
+        else:
+            detections.date = identifier
         detections.source = source or 'unknown'
         os.makedirs(tmp, exist_ok=True)
 
@@ -89,6 +93,13 @@ class Outbox():
             os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
+
+    def _is_valid_isoformat(self, date: str) -> bool:
+        try:
+            datetime.fromisoformat(date)
+            return True
+        except Exception:
+            return False
 
     def get_data_files(self):
         return glob(f'{self.path}/*')
