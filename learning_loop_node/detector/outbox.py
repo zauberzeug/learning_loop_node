@@ -56,7 +56,7 @@ class Outbox():
 
     def save(self,
              image: bytes,
-             detections: Optional[ImageMetadata] = None,
+             image_metadata: Optional[ImageMetadata] = None,
              tags: Optional[List[str]] = None,
              source: Optional[str] = None,
              creation_date: Optional[str] = None
@@ -66,8 +66,8 @@ class Outbox():
             self.log.error('Invalid jpg image')
             return
 
-        if detections is None:
-            detections = ImageMetadata()
+        if image_metadata is None:
+            image_metadata = ImageMetadata()
         if not tags:
             tags = []
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
@@ -75,16 +75,16 @@ class Outbox():
             self.log.error('Directory with identifier %s already exists', identifier)
             return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
-        detections.tags = tags
+        image_metadata.tags = tags
         if creation_date and self._is_valid_isoformat(creation_date):
-            detections.date = creation_date
+            image_metadata.date = creation_date
         else:
-            detections.date = identifier
-        detections.source = source or 'unknown'
+            image_metadata.date = identifier
+        image_metadata.source = source or 'unknown'
         os.makedirs(tmp, exist_ok=True)
 
         with open(tmp + '/image.json', 'w') as f:
-            json.dump(jsonable_encoder(asdict(detections)), f)
+            json.dump(jsonable_encoder(asdict(image_metadata)), f)
 
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
