@@ -136,7 +136,7 @@ def mock_detector_logic():
         def is_initialized(self):
             return True
 
-        def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str], creation_date: Optional[str]):
+        def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None):
             return self.detections
 
     return MockDetectorLogic()
