@@ -11,7 +11,7 @@ from .training import (Errors, Hyperparameter, Model, PretrainedModel, TrainerSt
 __all__ = [
     'AnnotationData', 'AnnotationEventType', 'SegmentationAnnotation', 'ToolOutput', 'UserInput',
     'BoxDetection', 'ClassificationDetection', 'ImageMetadata', 'Observation', 'Point', 'PointDetection',
-    'SegmentationDetection', 'Shape',
+    'SegmentationDetection', 'Shape', 'Detections',
     'AnnotationNodeStatus', 'Category', 'CategoryType', 'Context', 'DetectionStatus', 'ErrorConfiguration',
     'ModelInformation', 'NodeState', 'NodeStatus',
     'SocketResponse',
