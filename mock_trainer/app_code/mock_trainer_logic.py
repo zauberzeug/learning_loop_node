@@ -4,9 +4,9 @@ import logging
 import time
 from typing import Dict, List, Optional
 
-from learning_loop_node.data_classes import (BoxDetection, CategoryType, ClassificationDetection, ErrorConfiguration,
-                                             ImageMetadata, ModelInformation, Point, PointDetection, PretrainedModel,
-                                             SegmentationDetection, Shape, TrainingStateData)
+from learning_loop_node.data_classes import (BoxDetection, CategoryType, ClassificationDetection, Detections,
+                                             ErrorConfiguration, ModelInformation, Point, PointDetection,
+                                             PretrainedModel, SegmentationDetection, Shape, TrainingStateData)
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 from . import progress_simulator
@@ -58,7 +58,7 @@ class MockTrainerLogic(TrainerLogic):
             f.write('zweiundvierzig')
         return {'mocked': [fake_weight_file, more_data_file], 'mocked_2': [fake_weight_file, more_data_file]}
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[ImageMetadata]:
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
         detections = []
 
         await asyncio.sleep(1)
@@ -88,9 +88,10 @@ class MockTrainerLogic(TrainerLogic):
                     cd = ClassificationDetection(category_name=c.name, model_name=model_information.version,
                                                  confidence=.95, category_id=c.id)
                     classification_detections.append(cd)
-            detections.append(ImageMetadata(box_detections=box_detections, point_detections=point_detections,
-                                            segmentation_detections=segmentation_detections,
-                                            classification_detections=classification_detections))
+            detections.append(Detections(box_detections=box_detections, point_detections=point_detections,
+                                         segmentation_detections=segmentation_detections,
+                                         classification_detections=classification_detections,
+                                         image_id=image_id))
         return detections
 
     async def _clear_training_data(self, training_folder: str):

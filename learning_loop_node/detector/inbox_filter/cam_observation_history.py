@@ -16,9 +16,9 @@ class CamObservationHistory:
                                     for detection in self.recent_observations
                                     if not detection.is_older_than(self.reset_time)]
 
-    def get_causes_to_upload(self, detections: ImageMetadata) -> List[str]:
+    def get_causes_to_upload(self, image_metadata: ImageMetadata) -> List[str]:
         causes = set()
-        for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections + detections.classification_detections:
+        for detection in image_metadata.box_detections + image_metadata.point_detections + image_metadata.segmentation_detections + image_metadata.classification_detections:
             if isinstance(detection, SegmentationDetection):
                 # self.recent_observations.append(Observation(detection))
                 causes.add('segmentation_detection')

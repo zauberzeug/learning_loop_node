@@ -5,8 +5,7 @@ from typing import List
 
 from dacite import from_dict
 
-from ....data_classes.image_metadata import (BoxDetection, ImageMetadata, Point, PointDetection, SegmentationDetection,
-                                             Shape)
+from ....data_classes import BoxDetection, ImageMetadata, Point, PointDetection, SegmentationDetection, Shape
 from ....detector.inbox_filter.cam_observation_history import CamObservationHistory
 
 dirt_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100, height=100,

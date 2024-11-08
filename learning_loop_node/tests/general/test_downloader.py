@@ -4,7 +4,7 @@ import shutil
 from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...globals import GLOBALS
-from ...helpers.misc import delete_corrupt_images
+from ...helpers.misc import create_image_folder, create_project_folder, create_training_folder, delete_corrupt_images
 from .. import test_helper
 
 # Used by all Nodes
@@ -77,8 +77,8 @@ async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
 
 
 def create_needed_folders(training_uuid: str = 'some_uuid'):  # pylint: disable=unused-argument
-    project_folder = test_helper.create_project_folder(
+    project_folder = create_project_folder(
         Context(organization='zauberzeug', project='pytest_nodelib_general'))
-    image_folder = test_helper.create_image_folder(project_folder)
-    training_folder = test_helper.create_training_folder(project_folder, training_uuid)
+    image_folder = create_image_folder(project_folder)
+    training_folder = create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder

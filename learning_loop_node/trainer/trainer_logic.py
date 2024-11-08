@@ -9,7 +9,7 @@ from typing import Coroutine, List, Optional
 
 from dacite import from_dict
 
-from ..data_classes import ImageMetadata, ModelInformation, TrainerState, TrainingError
+from ..data_classes import Detections, ModelInformation, TrainerState, TrainingError
 from ..helpers.misc import create_image_folder, create_project_folder, images_for_ids, is_valid_uuid4
 from .executor import Executor
 from .trainer_logic_generic import TrainerLogicGeneric
@@ -183,5 +183,5 @@ class TrainerLogic(TrainerLogicGeneric):
         '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
 
     @abstractmethod
-    async def _detect(self, model_information: ModelInformation, images: List[str], model_folder: str) -> List[ImageMetadata]:
+    async def _detect(self, model_information: ModelInformation, images: List[str], model_folder: str) -> List[Detections]:
         '''Called to run detections on a list of images.'''

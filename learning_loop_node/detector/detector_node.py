@@ -174,13 +174,13 @@ class DetectorNode(Node):
             detection_data = data.get('detections', {})
             if detection_data and self.detector_logic.is_initialized:
                 try:
-                    detections = from_dict(data_class=ImageMetadata, data=detection_data)
+                    image_metadata = from_dict(data_class=ImageMetadata, data=detection_data)
                 except Exception as e:
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
-                detections = self.add_category_id_to_detections(self.detector_logic.model_info, detections)
+                image_metadata = self.add_category_id_to_detections(self.detector_logic.model_info, image_metadata)
             else:
-                detections = ImageMetadata()
+                image_metadata = ImageMetadata()
 
             tags = data.get('tags', [])
             tags.append('picked_by_system')
@@ -190,7 +190,7 @@ class DetectorNode(Node):
 
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags, source, creation_date)
+                await loop.run_in_executor(None, self.outbox.save, data['image'], image_metadata, tags, source, creation_date)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
@@ -377,28 +377,28 @@ class DetectorNode(Node):
         for image in images:
             await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'], source, creation_date)
 
-    def add_category_id_to_detections(self, model_info: ModelInformation, detections: ImageMetadata):
+    def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):
             category_id = [category.id for category in categories if category.name == category_name]
             return category_id[0] if category_id else ''
 
-        for box_detection in detections.box_detections:
+        for box_detection in image_metadata.box_detections:
             category_name = box_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             box_detection.category_id = category_id
-        for point_detection in detections.point_detections:
+        for point_detection in image_metadata.point_detections:
             category_name = point_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             point_detection.category_id = category_id
-        for segmentation_detection in detections.segmentation_detections:
+        for segmentation_detection in image_metadata.segmentation_detections:
             category_name = segmentation_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             segmentation_detection.category_id = category_id
-        for classification_detection in detections.classification_detections:
+        for classification_detection in image_metadata.classification_detections:
             category_name = classification_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             classification_detection.category_id = category_id
-        return detections
+        return image_metadata
 
     def register_sio_events(self, sio_client: AsyncClient):
         pass

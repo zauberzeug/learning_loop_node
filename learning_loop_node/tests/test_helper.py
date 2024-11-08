@@ -6,9 +6,8 @@ import zipfile
 from glob import glob
 from typing import Callable
 
-from ..data_classes import (BoxDetection, ClassificationDetection, Context, ImageMetadata, Point, PointDetection,
+from ..data_classes import (BoxDetection, ClassificationDetection, Detections, Point, PointDetection,
                             SegmentationDetection, Shape)
-from ..helpers.misc import create_image_folder, create_project_folder, create_training_folder
 from ..loop_communication import LoopCommunicator
 
 
@@ -64,7 +63,7 @@ def _update_attribute_dict(obj: dict, **kwargs) -> None:
 
 
 def get_dummy_detections():
-    return ImageMetadata(
+    return Detections(
         box_detections=[
             BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
                          model_name='some_model', confidence=.42, category_id='some_id')],

@@ -101,8 +101,8 @@ async def sio_client() -> AsyncGenerator[socketio.AsyncClient, None]:
         try:
             await sio.connect(f"ws://localhost:{detector_port}", socketio_path="/ws/socket.io")
             try_connect = False
-        except Exception as e:
-            logging.warning(f"Connection failed with error: {str(e)}")
+        except Exception:
+            logging.exception("Connection failed with error:")
             logging.warning('trying again')
             await asyncio.sleep(5)
         retry_count += 1
@@ -123,21 +123,20 @@ def mock_detector_logic():
     class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
         def __init__(self):
             super().__init__('mock')
-            self.detections = ImageMetadata(
+            self.image_metadata = ImageMetadata(
                 box_detections=[BoxDetection(category_name="test",
                                              category_id="1",
                                              confidence=0.9,
                                              x=0, y=0, width=10, height=10,
                                              model_name="mock",
-                                             )]
-            )
+                                             )])
 
         @property
         def is_initialized(self):
             return True
 
         def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None):
-            return self.detections
+            return self.image_metadata
 
     return MockDetectorLogic()
 

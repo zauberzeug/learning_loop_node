@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Dict, List, Optional
 
-from ...data_classes import Context, ImageMetadata, ModelInformation, PretrainedModel, TrainingStateData
+from ...data_classes import Context, Detections, ModelInformation, PretrainedModel, TrainingStateData
 from ...trainer.trainer_logic import TrainerLogic
 
 
@@ -83,8 +83,8 @@ class TestingTrainerLogic(TrainerLogic):
     async def _resume(self) -> None:
         return await self._start_training_from_base_model()
 
-    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[ImageMetadata]:
-        detections: List[ImageMetadata] = []
+    async def _detect(self, model_information: ModelInformation, images:  List[str], model_folder: str) -> List[Detections]:
+        detections: List[Detections] = []
         return detections
 
     async def _clear_training_data(self, training_folder: str) -> None:
