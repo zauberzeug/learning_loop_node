@@ -135,7 +135,7 @@ def mock_detector_logic():
         def is_initialized(self):
             return True
 
-        def evaluate_with_all_info(self, image, tags, source):  # pylint: disable=signature-differs
+        def evaluate_with_all_info(self, image, tags, source, creation_date):  # pylint: disable=signature-differs
             return self.detections
 
     return MockDetectorLogic()
