@@ -186,10 +186,11 @@ class DetectorNode(Node):
             tags.append('picked_by_system')
 
             source = data.get('source', None)
+            creation_date = data.get('creation_date', None)
 
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags, source)
+                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags, source, creation_date)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
@@ -343,7 +344,8 @@ class DetectorNode(Node):
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
-                             autoupload: Optional[str] = None) -> ImageMetadata:
+                             autoupload: Optional[str] = None,
+                             creation_date: Optional[str] = None) -> ImageMetadata:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
@@ -351,7 +353,7 @@ class DetectorNode(Node):
 
         await self.detection_lock.acquire()
         loop = asyncio.get_event_loop()
-        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source)
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
         self.detection_lock.release()
 
         fix_shape_detections(detections)
@@ -361,19 +363,19 @@ class DetectorNode(Node):
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags, source)).start()
+                   args=(detections, camera_id, raw_image, tags, source, creation_date)).start()
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source)).start()
+            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source, creation_date)).start()
         elif autoupload == 'disabled':
             pass
         else:
             self.log.error('unknown autoupload value %s', autoupload)
         return detections
 
-    async def upload_images(self, images: List[bytes]):
+    async def upload_images(self, images: List[bytes], source: Optional[str], creation_date: Optional[str]):
         loop = asyncio.get_event_loop()
         for image in images:
-            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'])
+            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'], source, creation_date)
 
     def add_category_id_to_detections(self, model_info: ModelInformation, detections: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):

@@ -16,7 +16,8 @@ class RelevanceFilter():
                               cam_id: str,
                               raw_image: bytes,
                               tags: List[str],
-                              source: Optional[str] = None
+                              source: Optional[str] = None,
+                              creation_date: Optional[str] = None
                               ) -> List[str]:
         for group in self.cam_histories.values():
             group.forget_old_detections()
@@ -29,5 +30,5 @@ class RelevanceFilter():
         if len(causes) > 0:
             tags = tags if tags is not None else []
             tags.extend(causes)
-            self.outbox.save(raw_image, dets, tags, source)
+            self.outbox.save(raw_image, dets, tags, source, creation_date)
         return causes
