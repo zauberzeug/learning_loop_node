@@ -5,7 +5,8 @@ from typing import List
 
 from dacite import from_dict
 
-from ....data_classes.detections import BoxDetection, Detections, Point, PointDetection, SegmentationDetection, Shape
+from ....data_classes.image_metadata import (BoxDetection, ImageMetadata, Point, PointDetection, SegmentationDetection,
+                                             Shape)
 from ....detector.inbox_filter.cam_observation_history import CamObservationHistory
 
 dirt_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100, height=100,
@@ -18,16 +19,16 @@ conf_too_low_detection = BoxDetection(category_name='dirt', x=0, y=0, width=100,
                                       height=100, category_id='xyz', model_name='test_model', confidence=.29)
 
 
-def det_from_boxes(box_detections: List[BoxDetection]) -> Detections:
-    return Detections(box_detections=box_detections)
+def det_from_boxes(box_detections: List[BoxDetection]) -> ImageMetadata:
+    return ImageMetadata(box_detections=box_detections)
 
 
-def det_from_points(point_detections: List[PointDetection]) -> Detections:
-    return Detections(point_detections=point_detections)
+def det_from_points(point_detections: List[PointDetection]) -> ImageMetadata:
+    return ImageMetadata(point_detections=point_detections)
 
 
-def det_from_seg(seg_detections: List[SegmentationDetection]) -> Detections:
-    return Detections(segmentation_detections=seg_detections)
+def det_from_seg(seg_detections: List[SegmentationDetection]) -> ImageMetadata:
+    return ImageMetadata(segmentation_detections=seg_detections)
 
 
 def test_group_confidence():

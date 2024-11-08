@@ -12,7 +12,7 @@ import pytest
 import socketio
 import uvicorn
 
-from learning_loop_node.data_classes import BoxDetection, Detections
+from learning_loop_node.data_classes import BoxDetection, ImageMetadata
 from learning_loop_node.detector.detector_logic import DetectorLogic
 
 from ...detector.detector_node import DetectorNode
@@ -122,7 +122,7 @@ def mock_detector_logic():
     class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
         def __init__(self):
             super().__init__('mock')
-            self.detections = Detections(
+            self.detections = ImageMetadata(
                 box_detections=[BoxDetection(category_name="test",
                                              category_id="1",
                                              confidence=0.9,

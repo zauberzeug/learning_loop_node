@@ -111,7 +111,7 @@ def current_datetime():
 
 
 @dataclass(**KWONLY_SLOTS)
-class Detections():
+class ImageMetadata():
     box_detections: List[BoxDetection] = field(default_factory=list, metadata={
         'description': 'List of box detections'})
     point_detections: List[PointDetection] = field(default_factory=list, metadata={

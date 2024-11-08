@@ -5,7 +5,7 @@ import numpy as np
 from fastapi import APIRouter, File, Header, Request, UploadFile
 from fastapi.responses import JSONResponse
 
-from ...data_classes.detections import Detections
+from ...data_classes.image_metadata import ImageMetadata
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-@router.post("/detect", response_model=Detections)
+@router.post("/detect", response_model=ImageMetadata)
 async def http_detect(
     request: Request,
     file: UploadFile = File(..., description='The image file to run detection on'),

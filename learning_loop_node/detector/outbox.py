@@ -19,7 +19,7 @@ import PIL
 import PIL.Image  # type: ignore
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import Detections
+from ..data_classes import ImageMetadata
 from ..globals import GLOBALS
 from ..helpers import environment_reader
 
@@ -56,7 +56,7 @@ class Outbox():
 
     def save(self,
              image: bytes,
-             detections: Optional[Detections] = None,
+             detections: Optional[ImageMetadata] = None,
              tags: Optional[List[str]] = None,
              source: Optional[str] = None
              ) -> None:
@@ -66,7 +66,7 @@ class Outbox():
             return
 
         if detections is None:
-            detections = Detections()
+            detections = ImageMetadata()
         if not tags:
             tags = []
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')

@@ -1,7 +1,7 @@
 import os
 from typing import List, Union
 
-from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, Detections, Observation,
+from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, ImageMetadata, Observation,
                                              PointDetection, SegmentationDetection)
 
 
@@ -16,7 +16,7 @@ class CamObservationHistory:
                                     for detection in self.recent_observations
                                     if not detection.is_older_than(self.reset_time)]
 
-    def get_causes_to_upload(self, detections: Detections) -> List[str]:
+    def get_causes_to_upload(self, detections: ImageMetadata) -> List[str]:
         causes = set()
         for detection in detections.box_detections + detections.point_detections + detections.segmentation_detections + detections.classification_detections:
             if isinstance(detection, SegmentationDetection):

@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from ...data_classes.detections import Detections
+from ...data_classes.image_metadata import ImageMetadata
 from ..outbox import Outbox
 from .cam_observation_history import CamObservationHistory
 
@@ -12,7 +12,7 @@ class RelevanceFilter():
         self.outbox: Outbox = outbox
 
     def may_upload_detections(self,
-                              dets: Detections,
+                              dets: ImageMetadata,
                               cam_id: str,
                               raw_image: bytes,
                               tags: List[str],

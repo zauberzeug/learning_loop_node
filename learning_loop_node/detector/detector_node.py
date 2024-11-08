@@ -14,7 +14,7 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, Shape
+from ..data_classes import Category, Context, DetectionStatus, ImageMetadata, ModelInformation, Shape
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
@@ -174,13 +174,13 @@ class DetectorNode(Node):
             detection_data = data.get('detections', {})
             if detection_data and self.detector_logic.is_initialized:
                 try:
-                    detections = from_dict(data_class=Detections, data=detection_data)
+                    detections = from_dict(data_class=ImageMetadata, data=detection_data)
                 except Exception as e:
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
                 detections = self.add_category_id_to_detections(self.detector_logic.model_info, detections)
             else:
-                detections = Detections()
+                detections = ImageMetadata()
 
             tags = data.get('tags', [])
             tags.append('picked_by_system')
@@ -343,7 +343,7 @@ class DetectorNode(Node):
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
-                             autoupload: Optional[str] = None) -> Detections:
+                             autoupload: Optional[str] = None) -> ImageMetadata:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
@@ -373,9 +373,9 @@ class DetectorNode(Node):
     async def upload_images(self, images: List[bytes]):
         loop = asyncio.get_event_loop()
         for image in images:
-            await loop.run_in_executor(None, self.outbox.save, image, Detections(), ['picked_by_system'])
+            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'])
 
-    def add_category_id_to_detections(self, model_info: ModelInformation, detections: Detections):
+    def add_category_id_to_detections(self, model_info: ModelInformation, detections: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):
             category_id = [category.id for category in categories if category.name == category_name]
             return category_id[0] if category_id else ''
@@ -412,7 +412,7 @@ def step_into(new_dir):
         os.chdir(previous_dir)
 
 
-def fix_shape_detections(detections: Detections):
+def fix_shape_detections(detections: ImageMetadata):
     # TODO This is a quick fix.. check how loop upload detections deals with this
     for seg_detection in detections.segmentation_detections:
         if isinstance(seg_detection.shape, Shape):

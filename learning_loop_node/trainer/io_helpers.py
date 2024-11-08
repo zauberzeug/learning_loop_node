@@ -9,7 +9,7 @@ from typing import List
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import Context, Detections, Training
+from ..data_classes import Context, ImageMetadata, Training
 from ..globals import GLOBALS
 from ..loop_communication import LoopCommunicator
 
@@ -86,14 +86,14 @@ class ActiveTrainingIO:
         return len(self._get_detection_file_names())
 
     # TODO: saving and uploading multiple files is not tested!
-    def save_detections(self, detections: List[Detections], index: int = 0) -> None:
+    def save_detections(self, detections: List[ImageMetadata], index: int = 0) -> None:
         with open(self.det_path.format(index), 'w') as f:
             json.dump(jsonable_encoder([asdict(d) for d in detections]), f)
 
-    def load_detections(self, index: int = 0) -> List[Detections]:
+    def load_detections(self, index: int = 0) -> List[ImageMetadata]:
         with open(self.det_path.format(index), 'r') as f:
             dict_list = json.load(f)
-            return [from_dict(data_class=Detections, data=d) for d in dict_list]
+            return [from_dict(data_class=ImageMetadata, data=d) for d in dict_list]
 
     def delete_detections(self) -> None:
         for file in self._get_detection_file_names():
@@ -153,7 +153,7 @@ class ActiveTrainingIO:
             await self._upload_detections_batched(self.context, detections)
             self.save_detections_upload_file_index(i+1)
 
-    async def _upload_detections_batched(self, context: Context, detections: List[Detections]):
+    async def _upload_detections_batched(self, context: Context, detections: List[ImageMetadata]):
         batch_size = 100
         skip_detections = self.load_detection_upload_progress()
         for i in range(skip_detections, len(detections), batch_size):
@@ -164,7 +164,7 @@ class ActiveTrainingIO:
 
         logging.info('uploaded %d detections', len(detections))
 
-    async def _upload_detections_and_save_progress(self, context: Context, batch_detections: List[Detections], up_progress: int):
+    async def _upload_detections_and_save_progress(self, context: Context, batch_detections: List[ImageMetadata], up_progress: int):
         if len(batch_detections) == 0:
             print('skipping empty batch', flush=True)
             return
