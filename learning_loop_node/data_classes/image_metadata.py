@@ -122,12 +122,11 @@ class ImageMetadata():
         'description': 'List of classification detections'})
     tags: List[str] = field(default_factory=list, metadata={
         'description': 'List of tags'})
+
     date: Optional[str] = field(default_factory=current_datetime, metadata={
-        'description': 'Date of the detections'})
-    image_id: Optional[str] = field(default=None, metadata={
-        'description': 'Image uuid'})
+        'description': 'Creation date of the image'})
     source: Optional[str] = field(default=None, metadata={
-        'description': 'Source of the detections'})
+        'description': 'Source of the image'})
 
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
