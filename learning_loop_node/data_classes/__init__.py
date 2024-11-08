@@ -1,5 +1,5 @@
 from .annotations import AnnotationData, AnnotationEventType, SegmentationAnnotation, ToolOutput, UserInput
-from .detections import (BoxDetection, ClassificationDetection, Observation, Point, PointDetection,
+from .detections import (BoxDetection, ClassificationDetection, Detections, Observation, Point, PointDetection,
                          SegmentationDetection, Shape)
 from .general import (AnnotationNodeStatus, Category, CategoryType, Context, DetectionStatus, ErrorConfiguration,
                       ModelInformation, NodeState, NodeStatus)
