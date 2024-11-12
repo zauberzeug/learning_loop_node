@@ -3,9 +3,8 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from fastapi import APIRouter, File, Header, Request, UploadFile
-from fastapi.responses import JSONResponse
 
-from ...data_classes.detections import Detections
+from ...data_classes.image_metadata import ImageMetadata
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 
-@router.post("/detect", response_model=Detections)
+@router.post("/detect", response_model=ImageMetadata)
 async def http_detect(
     request: Request,
     file: UploadFile = File(..., description='The image file to run detection on'),
@@ -23,6 +22,7 @@ async def http_detect(
     source: Optional[str] = Header(None, description='The source of the image (used by learning loop)'),
     autoupload: Optional[str] = Header(None, description='Mode to decide whether to upload the image to the learning loop',
                                        examples=['filtered', 'all', 'disabled']),
+    creation_date: Optional[str] = Header(None, description='The creation date of the image (used by learning loop)')
 ):
     """
     Single image example:
@@ -46,7 +46,8 @@ async def http_detect(
                                               camera_id=camera_id or mac or None,
                                               tags=tags.split(',') if tags else [],
                                               source=source,
-                                              autoupload=autoupload)
+                                              autoupload=autoupload,
+                                              creation_date=creation_date)
     except Exception as exc:
         logging.exception('Error during detection of image %s.', file.filename)
         raise Exception(f'Error during detection of image {file.filename}.') from exc

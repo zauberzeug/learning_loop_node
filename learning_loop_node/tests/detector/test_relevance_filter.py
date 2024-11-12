@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pytest
 
-from ...data_classes import BoxDetection, Detections, PointDetection
+from ...data_classes import BoxDetection, ImageMetadata, PointDetection
 from ...detector.detector_node import DetectorNode
 from .conftest import get_outbox_files
 from .testing_detector import TestingDetectorLogic
@@ -19,7 +19,7 @@ async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autouplo
     Note thatt we have to mock the dummy detections to only return a point and a box detection."""
 
     assert isinstance(test_detector_node.detector_logic, TestingDetectorLogic)
-    test_detector_node.detector_logic.det_to_return = Detections(
+    test_detector_node.detector_logic.det_to_return = ImageMetadata(
         box_detections=[
             BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
                          model_name='some_model', confidence=.42, category_id='some_id')],

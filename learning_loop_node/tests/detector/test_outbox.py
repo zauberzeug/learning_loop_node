@@ -6,7 +6,7 @@ import shutil
 import pytest
 from PIL import Image
 
-from ...data_classes import Detections
+from ...data_classes import ImageMetadata
 from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
@@ -28,7 +28,7 @@ async def test_outbox():
 
 @pytest.mark.asyncio
 async def test_files_are_automatically_uploaded_by_node(test_detector_node: DetectorNode):
-    test_detector_node.outbox.save(get_test_image_binary(), Detections())
+    test_detector_node.outbox.save(get_test_image_binary(), ImageMetadata())
     assert await wait_for_outbox_count(test_detector_node.outbox, 1)
     assert await wait_for_outbox_count(test_detector_node.outbox, 0)
 

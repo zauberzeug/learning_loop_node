@@ -6,9 +6,8 @@ import zipfile
 from glob import glob
 from typing import Callable
 
-from ..data_classes import (BoxDetection, ClassificationDetection, Context, Detections, Point, PointDetection,
+from ..data_classes import (BoxDetection, ClassificationDetection, Detections, Point, PointDetection,
                             SegmentationDetection, Shape)
-from ..helpers.misc import create_image_folder, create_project_folder, create_training_folder
 from ..loop_communication import LoopCommunicator
 
 

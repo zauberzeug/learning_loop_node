@@ -19,7 +19,7 @@ import PIL
 import PIL.Image  # type: ignore
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import Detections
+from ..data_classes import ImageMetadata
 from ..globals import GLOBALS
 from ..helpers import environment_reader
 
@@ -56,17 +56,18 @@ class Outbox():
 
     def save(self,
              image: bytes,
-             detections: Optional[Detections] = None,
+             image_metadata: Optional[ImageMetadata] = None,
              tags: Optional[List[str]] = None,
-             source: Optional[str] = None
+             source: Optional[str] = None,
+             creation_date: Optional[str] = None
              ) -> None:
 
         if not self._is_valid_jpg(image):
             self.log.error('Invalid jpg image')
             return
 
-        if detections is None:
-            detections = Detections()
+        if image_metadata is None:
+            image_metadata = ImageMetadata()
         if not tags:
             tags = []
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
@@ -74,13 +75,16 @@ class Outbox():
             self.log.error('Directory with identifier %s already exists', identifier)
             return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
-        detections.tags = tags
-        detections.date = identifier
-        detections.source = source or 'unknown'
+        image_metadata.tags = tags
+        if creation_date and self._is_valid_isoformat(creation_date):
+            image_metadata.date = creation_date
+        else:
+            image_metadata.date = identifier
+        image_metadata.source = source or 'unknown'
         os.makedirs(tmp, exist_ok=True)
 
         with open(tmp + '/image.json', 'w') as f:
-            json.dump(jsonable_encoder(asdict(detections)), f)
+            json.dump(jsonable_encoder(asdict(image_metadata)), f)
 
         with open(tmp + '/image.jpg', 'wb') as f:
             f.write(image)
@@ -89,6 +93,13 @@ class Outbox():
             os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
+
+    def _is_valid_isoformat(self, date: str) -> bool:
+        try:
+            datetime.fromisoformat(date)
+            return True
+        except Exception:
+            return False
 
     def get_data_files(self):
         return glob(f'{self.path}/*')

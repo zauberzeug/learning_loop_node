@@ -90,7 +90,8 @@ class MockTrainerLogic(TrainerLogic):
                     classification_detections.append(cd)
             detections.append(Detections(box_detections=box_detections, point_detections=point_detections,
                                          segmentation_detections=segmentation_detections,
-                                         classification_detections=classification_detections, image_id=image_id))
+                                         classification_detections=classification_detections,
+                                         image_id=image_id))
         return detections
 
     async def _clear_training_data(self, training_folder: str):

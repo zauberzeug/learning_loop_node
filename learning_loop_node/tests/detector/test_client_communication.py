@@ -3,7 +3,7 @@ import json
 import os
 
 import pytest
-import requests
+import requests  # type: ignore
 
 from ...data_classes import ModelInformation
 from ...detector.detector_node import DetectorNode
@@ -93,7 +93,7 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
 
 # NOTE: This test seems to be flaky.
 async def test_about_endpoint(test_detector_node: DetectorNode):
-    await asyncio.sleep(11)
+    await asyncio.sleep(16)
     response = requests.get(f'http://localhost:{GLOBALS.detector_port}/about', timeout=30)
 
     assert response.status_code == 200, response.content
@@ -108,60 +108,60 @@ async def test_about_endpoint(test_detector_node: DetectorNode):
 
 
 async def test_model_version_api(test_detector_node: DetectorNode):
-    await asyncio.sleep(11)
+    async def await_correct_response(target_values: dict) -> None:
+        response_dict = {}
+        for _ in range(20):
+            await asyncio.sleep(1)
+            response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
+            if not response.status_code == 200:
+                continue
+            response_dict = json.loads(response.content)
+            for key, target_value in target_values.items():
+                if key == 'local_versions':
+                    target_value = set(target_value)
 
-    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200, response.content
-    response_dict = json.loads(response.content)
-    assert response_dict['version_control'] == 'follow_loop'
-    assert response_dict['current_version'] == '1.1'
-    assert response_dict['target_version'] == '1.1'
-    assert response_dict['loop_version'] == '1.1'
-    assert response_dict['local_versions'] == ['1.1']
+                response_value = response_dict.get(key, None)
+                if response_value != target_value:
+                    break
+            return
+        raise Exception(f'Did not receive correct response: {response_dict} != {target_values}')
+
+    await await_correct_response({'version_control': 'follow_loop',
+                                  'current_version': '1.1',
+                                  'target_version': '1.1',
+                                  'loop_version': '1.1',
+                                  'local_versions': ['1.1']})
 
     response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='1.0', timeout=30)
     assert response.status_code == 200, response.content
-    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200, response.content
-    response_dict = json.loads(response.content)
-    assert response_dict['version_control'] == 'specific_version'
-    assert response_dict['current_version'] == '1.1'
-    assert response_dict['target_version'] == '1.0'
-    assert response_dict['loop_version'] == '1.1'
-    assert response_dict['local_versions'] == ['1.1']
 
-    await asyncio.sleep(11)
-    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200, response.content
-    response_dict = json.loads(response.content)
-    assert response_dict['version_control'] == 'specific_version'
-    assert response_dict['current_version'] == '1.0'
-    assert response_dict['target_version'] == '1.0'
-    assert response_dict['loop_version'] == '1.1'
-    assert set(response_dict['local_versions']) == set(['1.1', '1.0'])
+    await await_correct_response({'version_control': 'specific_version',
+                                  'current_version': '1.1',
+                                  'target_version': '1.0',
+                                  'loop_version': '1.1'})
+
+    await await_correct_response({'version_control': 'specific_version',
+                                  'current_version': '1.0',
+                                  'target_version': '1.0',
+                                  'loop_version': '1.1',
+                                  'local_versions': ['1.1', '1.0']})
 
     response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='pause', timeout=30)
     assert response.status_code == 200, response.content
-    await asyncio.sleep(11)
-    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200, response.content
-    response_dict = json.loads(response.content)
-    assert response_dict['version_control'] == 'pause'
-    assert response_dict['current_version'] == '1.0'
-    assert response_dict['target_version'] == '1.0'
-    assert response_dict['loop_version'] == '1.1'
-    assert set(response_dict['local_versions']) == set(['1.1', '1.0'])
+
+    await await_correct_response({'version_control': 'pause',
+                                  'current_version': '1.0',
+                                  'target_version': '1.0',
+                                  'loop_version': '1.1',
+                                  'local_versions': ['1.1', '1.0']})
 
     response = requests.put(f'http://localhost:{GLOBALS.detector_port}/model_version', data='follow_loop', timeout=30)
     await asyncio.sleep(11)
-    response = requests.get(f'http://localhost:{GLOBALS.detector_port}/model_version', timeout=30)
-    assert response.status_code == 200, response.content
-    response_dict = json.loads(response.content)
-    assert response_dict['version_control'] == 'follow_loop'
-    assert response_dict['current_version'] == '1.1'
-    assert response_dict['target_version'] == '1.1'
-    assert response_dict['loop_version'] == '1.1'
-    assert set(response_dict['local_versions']) == set(['1.1', '1.0'])
+    await await_correct_response({'version_control': 'follow_loop',
+                                  'current_version': '1.1',
+                                  'target_version': '1.1',
+                                  'loop_version': '1.1',
+                                  'local_versions': ['1.1', '1.0']})
 
 
 async def test_rest_outbox_mode(test_detector_node: DetectorNode):

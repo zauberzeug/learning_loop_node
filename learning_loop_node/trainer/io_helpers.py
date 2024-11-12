@@ -142,14 +142,14 @@ class ActiveTrainingIO:
 
     async def upload_detetions(self):
         num_files = self.get_number_of_detection_files()
-        print(f'num_files: {num_files}', flush=True)
+        logging.info('Going to upload %s detections', num_files)
         if not num_files:
             logging.error('no detection files found')
             return
         current_json_file_index = self.load_detections_upload_file_index()
         for i in range(current_json_file_index, num_files):
             detections = self.load_detections(i)
-            logging.info(f'uploading detections in file {i}/{num_files}')
+            logging.debug('uploading detections in file %s/%s', i, num_files)
             await self._upload_detections_batched(self.context, detections)
             self.save_detections_upload_file_index(i+1)
 
@@ -166,10 +166,10 @@ class ActiveTrainingIO:
 
     async def _upload_detections_and_save_progress(self, context: Context, batch_detections: List[Detections], up_progress: int):
         if len(batch_detections) == 0:
-            print('skipping empty batch', flush=True)
+            logging.debug('skipping empty batch')
             return
         detections_json = [jsonable_encoder(asdict(detections)) for detections in batch_detections]
-        print(f'uploading {len(detections_json)} detections', flush=True)
+        logging.info('uploading %s detections', len(detections_json))
         response = await self.loop_communicator.post(
             f'/{context.organization}/projects/{context.project}/detections', json=detections_json)
         if response.status_code != 200:
