@@ -118,8 +118,6 @@ class Detections():
         'description': 'List of segmentation detections'})
     classification_detections: List[ClassificationDetection] = field(default_factory=list, metadata={
         'description': 'List of classification detections'})
-    tags: List[str] = field(default_factory=list, metadata={
-        'description': 'List of tags'})
 
     image_id: Optional[str] = field(default=None, metadata={
         'description': 'Image uuid'})
