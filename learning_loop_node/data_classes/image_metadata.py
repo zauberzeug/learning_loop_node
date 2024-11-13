@@ -28,7 +28,7 @@ class ImageMetadata():
     tags: List[str] = field(default_factory=list, metadata={
         'description': 'List of tags'})
 
-    date: Optional[str] = field(default_factory=current_datetime, metadata={
+    created: Optional[str] = field(default_factory=current_datetime, metadata={
         'description': 'Creation date of the image'})
     source: Optional[str] = field(default=None, metadata={
         'description': 'Source of the image'})
