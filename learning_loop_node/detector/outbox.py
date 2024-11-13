@@ -76,7 +76,7 @@ class Outbox():
             return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         image_metadata.tags = tags
-        if creation_date is None or self._is_valid_isoformat(creation_date):
+        if self._is_valid_isoformat(creation_date):
             image_metadata.created = creation_date
         else:
             image_metadata.created = identifier
@@ -95,7 +95,9 @@ class Outbox():
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
 
-    def _is_valid_isoformat(self, date: str) -> bool:
+    def _is_valid_isoformat(self, date: Optional[str]) -> bool:
+        if date is None:
+            return False
         try:
             datetime.fromisoformat(date)
             return True
