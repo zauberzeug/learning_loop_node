@@ -76,10 +76,11 @@ class Outbox():
             return
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         image_metadata.tags = tags
-        if creation_date and self._is_valid_isoformat(creation_date):
-            image_metadata.date = creation_date
+        if self._is_valid_isoformat(creation_date):
+            image_metadata.created = creation_date
         else:
-            image_metadata.date = identifier
+            image_metadata.created = identifier
+
         image_metadata.source = source or 'unknown'
         os.makedirs(tmp, exist_ok=True)
 
@@ -94,7 +95,9 @@ class Outbox():
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
 
-    def _is_valid_isoformat(self, date: str) -> bool:
+    def _is_valid_isoformat(self, date: Optional[str]) -> bool:
+        if date is None:
+            return True
         try:
             datetime.fromisoformat(date)
             return True
@@ -153,7 +156,7 @@ class Outbox():
             self.log.exception('Could not upload images')
             return
         finally:
-            self.log.info('Closing files')
+            self.log.debug('Closing files')
             for _, file in data:
                 file.close()
 
