@@ -1,6 +1,6 @@
 from typing import Any
 
-from learning_loop_node.data_classes import Detections
+from learning_loop_node.data_classes import ImageMetadata
 from learning_loop_node.detector.detector_logic import DetectorLogic
 
 
@@ -15,5 +15,5 @@ class MockDetector(DetectorLogic):
     def init(self) -> None:
         pass
 
-    def evaluate(self, image: Any) -> Detections:
-        return Detections()
+    def evaluate(self, image: Any) -> ImageMetadata:
+        return ImageMetadata()

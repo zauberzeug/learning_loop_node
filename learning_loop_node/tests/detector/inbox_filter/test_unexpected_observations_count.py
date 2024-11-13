@@ -3,7 +3,7 @@ from typing import List
 
 import pytest
 
-from ....data_classes.detections import BoxDetection, Detections, PointDetection
+from ....data_classes.image_metadata import BoxDetection, ImageMetadata, PointDetection
 from ....detector.inbox_filter.relevance_filter import RelevanceFilter
 from ....detector.outbox import Outbox
 
@@ -17,14 +17,14 @@ l_conf_point_det = PointDetection(category_name='point', x=100, y=100,
 
 @pytest.mark.parametrize(
     "detections,reason",
-    [(Detections(box_detections=[h_conf_box_det] * 40, point_detections=[h_conf_point_det] * 40),
+    [(ImageMetadata(box_detections=[h_conf_box_det] * 40, point_detections=[h_conf_point_det] * 40),
       ['unexpected_observations_count']),
-     (Detections(box_detections=[h_conf_box_det], point_detections=[h_conf_point_det]), []),
-     (Detections(box_detections=[h_conf_box_det] * 40, point_detections=[l_conf_point_det] * 40),
+     (ImageMetadata(box_detections=[h_conf_box_det], point_detections=[h_conf_point_det]), []),
+     (ImageMetadata(box_detections=[h_conf_box_det] * 40, point_detections=[l_conf_point_det] * 40),
       ['uncertain', 'unexpected_observations_count']),
-     (Detections(box_detections=[h_conf_box_det], point_detections=[l_conf_point_det]),
+     (ImageMetadata(box_detections=[h_conf_box_det], point_detections=[l_conf_point_det]),
       ['uncertain'])])
-def test_unexpected_observations_count(detections: Detections, reason: List[str]):
+def test_unexpected_observations_count(detections: ImageMetadata, reason: List[str]):
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
     outbox = Outbox()

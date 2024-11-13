@@ -38,9 +38,10 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     expected_save_args = {
         'image': raw_image,
-        'detections': detector_node.detector_logic.detections,  # type: ignore
+        'detections': detector_node.detector_logic.image_metadata,  # type: ignore
         'tags': ['test_tag'],
         'source': 'test_source',
+        'creation_date': '2024-01-01T00:00:00',
     }
 
     for autoupload, expect_filtered, expect_all in test_cases:
@@ -52,6 +53,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
             camera_id="test_camera",
             tags=["test_tag"],
             source="test_source",
+            creation_date="2024-01-01T00:00:00",
             autoupload=autoupload
         )
 

@@ -328,11 +328,11 @@ class TrainerLogicGeneric(ABC):
 
         # TODO this checks if we continue a training -> make more explicit
         if not base_model_uuid or not is_valid_uuid4(base_model_uuid):
-            logger.info(f'skipping model download. No base model provided (in form of uuid): {base_model_uuid}')
+            logger.info('skipping model download. No base model provided (in form of uuid): %s', base_model_uuid)
             return
 
         logger.info('loading model from Learning Loop')
-        logger.info(f'downloading model {base_model_uuid} as {self.model_format}')
+        logger.info('downloading model %s as %s', base_model_uuid, self.model_format)
         await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_uuid, self.model_format)
         shutil.move(f'{self.training.training_folder}/model.json',
                     f'{self.training.training_folder}/base_model.json')
@@ -355,7 +355,7 @@ class TrainerLogicGeneric(ABC):
                 result = await self.node.sio_client.call('update_training', (
                     self.training.context.organization, self.training.context.project, jsonable_encoder(new_training)))
                 if isinstance(result,  dict) and result['success']:
-                    logger.info(f'successfully updated training {asdict(new_training)}')
+                    logger.info('successfully updated training %s', asdict(new_training))
                     self._on_metrics_published(new_best_model)
                 else:
                     raise Exception(f'Error for update_training: Response from loop was : {result}')
@@ -369,7 +369,7 @@ class TrainerLogicGeneric(ABC):
         """Uploads the latest model to the Learning Loop.
         """
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
-        logger.info(f'Successfully uploaded model and received new model id: {new_model_uuid}')
+        logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
@@ -380,6 +380,7 @@ class TrainerLogicGeneric(ABC):
 
         :return: The new model UUID.
         :raise CriticalError: If the latest model files cannot be obtained.
+        :raise Exception: If the response for the model upload attempt is invalid.
         """
 
         files = await self._get_latest_model_files()
@@ -401,6 +402,9 @@ class TrainerLogicGeneric(ABC):
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
+
+        if not model_uuid:
+            raise Exception('Invalid response for model upload attempt')
 
         return model_uuid
 

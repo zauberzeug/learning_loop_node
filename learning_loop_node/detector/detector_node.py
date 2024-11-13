@@ -14,7 +14,7 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import Category, Context, Detections, DetectionStatus, ModelInformation, Shape
+from ..data_classes import Category, Context, DetectionStatus, ImageMetadata, ModelInformation, Shape
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..globals import GLOBALS
@@ -174,22 +174,23 @@ class DetectorNode(Node):
             detection_data = data.get('detections', {})
             if detection_data and self.detector_logic.is_initialized:
                 try:
-                    detections = from_dict(data_class=Detections, data=detection_data)
+                    image_metadata = from_dict(data_class=ImageMetadata, data=detection_data)
                 except Exception as e:
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
-                detections = self.add_category_id_to_detections(self.detector_logic.model_info, detections)
+                image_metadata = self.add_category_id_to_detections(self.detector_logic.model_info, image_metadata)
             else:
-                detections = Detections()
+                image_metadata = ImageMetadata()
 
             tags = data.get('tags', [])
             tags.append('picked_by_system')
 
             source = data.get('source', None)
+            creation_date = data.get('creation_date', None)
 
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], detections, tags, source)
+                await loop.run_in_executor(None, self.outbox.save, data['image'], image_metadata, tags, source, creation_date)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
@@ -343,7 +344,8 @@ class DetectorNode(Node):
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
-                             autoupload: Optional[str] = None) -> Detections:
+                             autoupload: Optional[str] = None,
+                             creation_date: Optional[str] = None) -> ImageMetadata:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
@@ -351,7 +353,7 @@ class DetectorNode(Node):
 
         await self.detection_lock.acquire()
         loop = asyncio.get_event_loop()
-        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source)
+        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
         self.detection_lock.release()
 
         fix_shape_detections(detections)
@@ -361,42 +363,42 @@ class DetectorNode(Node):
 
         if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
             Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags, source)).start()
+                   args=(detections, camera_id, raw_image, tags, source, creation_date)).start()
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source)).start()
+            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source, creation_date)).start()
         elif autoupload == 'disabled':
             pass
         else:
             self.log.error('unknown autoupload value %s', autoupload)
         return detections
 
-    async def upload_images(self, images: List[bytes]):
+    async def upload_images(self, images: List[bytes], source: Optional[str], creation_date: Optional[str]):
         loop = asyncio.get_event_loop()
         for image in images:
-            await loop.run_in_executor(None, self.outbox.save, image, Detections(), ['picked_by_system'])
+            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'], source, creation_date)
 
-    def add_category_id_to_detections(self, model_info: ModelInformation, detections: Detections):
+    def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):
             category_id = [category.id for category in categories if category.name == category_name]
             return category_id[0] if category_id else ''
 
-        for box_detection in detections.box_detections:
+        for box_detection in image_metadata.box_detections:
             category_name = box_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             box_detection.category_id = category_id
-        for point_detection in detections.point_detections:
+        for point_detection in image_metadata.point_detections:
             category_name = point_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             point_detection.category_id = category_id
-        for segmentation_detection in detections.segmentation_detections:
+        for segmentation_detection in image_metadata.segmentation_detections:
             category_name = segmentation_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             segmentation_detection.category_id = category_id
-        for classification_detection in detections.classification_detections:
+        for classification_detection in image_metadata.classification_detections:
             category_name = classification_detection.category_name
             category_id = find_category_id_by_name(model_info.categories, category_name)
             classification_detection.category_id = category_id
-        return detections
+        return image_metadata
 
     def register_sio_events(self, sio_client: AsyncClient):
         pass
@@ -412,7 +414,7 @@ def step_into(new_dir):
         os.chdir(previous_dir)
 
 
-def fix_shape_detections(detections: Detections):
+def fix_shape_detections(detections: ImageMetadata):
     # TODO This is a quick fix.. check how loop upload detections deals with this
     for seg_detection in detections.segmentation_detections:
         if isinstance(seg_detection.shape, Shape):

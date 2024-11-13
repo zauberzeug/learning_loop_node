@@ -6,9 +6,11 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-# pylint: disable=too-many-instance-attributes
-
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
+
+
+def current_datetime():
+    return datetime.now().isoformat(sep='_', timespec='milliseconds')
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -106,10 +108,6 @@ class SegmentationDetection():
         return f'shape:{str(self.shape)}, c: {self.confidence:.2f} -> {self.category_name}'
 
 
-def current_datetime():
-    return datetime.now().isoformat(sep='_', timespec='milliseconds')
-
-
 @dataclass(**KWONLY_SLOTS)
 class Detections():
     box_detections: List[BoxDetection] = field(default_factory=list, metadata={
@@ -120,14 +118,9 @@ class Detections():
         'description': 'List of segmentation detections'})
     classification_detections: List[ClassificationDetection] = field(default_factory=list, metadata={
         'description': 'List of classification detections'})
-    tags: List[str] = field(default_factory=list, metadata={
-        'description': 'List of tags'})
-    date: Optional[str] = field(default_factory=current_datetime, metadata={
-        'description': 'Date of the detections'})
+
     image_id: Optional[str] = field(default=None, metadata={
         'description': 'Image uuid'})
-    source: Optional[str] = field(default=None, metadata={
-        'description': 'Source of the detections'})
 
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
