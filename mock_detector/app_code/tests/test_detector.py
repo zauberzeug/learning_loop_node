@@ -38,4 +38,4 @@ async def test_sio_detect(test_detector_node: DetectorNode, sio):
     assert response['point_detections'] == []
     assert response['segmentation_detections'] == []
     assert response['tags'] == []
-    assert 'date' in response
+    assert 'created' in response
