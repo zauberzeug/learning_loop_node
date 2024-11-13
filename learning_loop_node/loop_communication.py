@@ -35,7 +35,7 @@ class LoopCommunicator():
         else:
             self.async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
 
-        logging.info(f'Loop interface initialized with base_url: {self.base_url} / user: {self.username}')
+        logging.info('Loop interface initialized with base_url: %s / user: %s', self.base_url, self.username)
 
     def websocket_url(self) -> str:
         return f'ws{"s" if "learning-loop.ai" in self.host else ""}://' + self.host
@@ -48,7 +48,7 @@ class LoopCommunicator():
             self.async_client.cookies.clear()
             response = await self.async_client.post('/api/login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
-                logging.info(f'Login failed with response: {response}')
+                logging.info('Login failed with response: %s', response)
                 raise LoopCommunicationException('Login failed with response: ' + str(response))
             self.async_client.cookies.update(response.cookies)
 
@@ -57,7 +57,7 @@ class LoopCommunicator():
 
         response = await self.async_client.post('/api/logout')
         if response.status_code != 200:
-            logging.info(f'Logout failed with response: {response}')
+            logging.info('Logout failed with response: %s', response)
             raise LoopCommunicationException('Logout failed with response: ' + str(response))
         self.async_client.cookies.clear()
 
