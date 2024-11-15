@@ -20,7 +20,6 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerL
     await trainer._perform_state('prepare', TrainerState.DataDownloading, TrainerState.DataDownloaded, trainer._prepare)
     assert trainer_has_prepare_error(trainer) is False
     assert trainer.training.training_state == TrainerState.DataDownloaded
-    assert trainer.training.data is not None
     assert trainer.node.last_training_io.load() == trainer.training
 
 

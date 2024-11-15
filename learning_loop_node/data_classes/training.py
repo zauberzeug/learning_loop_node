@@ -4,8 +4,10 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+from uuid import uuid4
 
+from ..helpers.misc import create_image_folder, create_training_folder
 # pylint: disable=no-name-in-module
 from .general import Category, Context
 
@@ -13,35 +15,11 @@ KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) e
 
 
 @dataclass(**KWONLY_SLOTS)
-class Hyperparameter():
-    resolution: int
-    flip_rl: bool
-    flip_ud: bool
-
-    @staticmethod
-    def from_data(data: Dict):
-        return Hyperparameter(
-            resolution=data['resolution'],
-            flip_rl=data.get('flip_rl', False),
-            flip_ud=data.get('flip_ud', False)
-        )
-
-
-@dataclass(**KWONLY_SLOTS)
 class TrainingData():
-    image_data: List[Dict] = field(default_factory=list)
-    skipped_image_count: Optional[int] = 0
-    categories: List[Category] = field(default_factory=list)
-    hyperparameter: Optional[Hyperparameter] = None
-
-    def image_ids(self):
-        return [image['id'] for image in self.image_data]
-
-    def train_image_count(self):
-        return len([image for image in self.image_data if image['set'] == 'train'])
-
-    def test_image_count(self):
-        return len([image for image in self.image_data if image['set'] == 'test'])
+    image_data: list[dict]
+    skipped_image_count: int
+    categories: list[Category]
+    hyperparameter: dict
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -105,27 +83,63 @@ class Training():
     project_folder: str  # f'{GLOBALS.data_folder}/{context.organization}/{context.project}'
     images_folder: str  # f'{project_folder}/images'
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
-    start_time: float = field(default_factory=time.time)
+
+    categories: list[Category]
+    hyperparameters: dict
 
     # model uuid to download (to continue training) | is not a uuid when training from scratch (blank or pt-name from provided_pretrained_models->name)
-    base_model_uuid_or_name: Optional[str] = None
+    base_model_uuid_or_name: str
 
-    data: Optional[TrainingData] = None
-    training_number: Optional[int] = None
-    training_state: Optional[str] = None
-    model_uuid_for_detecting: Optional[str] = None
-    hyperparameters: Optional[Dict] = None
+    training_number: int
+    training_state: str
+
+    start_time: float = field(default_factory=time.time)
+
+    model_uuid_for_detecting: str | None = None  # NOTE: this is set later after the model has been uploaded
+    image_data: list[dict] | None = None  # NOTE: this is set later after the data has been downloaded
+    skipped_image_count: int | None = None  # NOTE: this is set later after the data has been downloaded
 
     @property
     def training_folder_path(self) -> Path:
         return Path(self.training_folder)
 
-    def set_values_from_data(self, data: Dict) -> None:
-        self.data = TrainingData(categories=Category.from_list(data['categories']))
-        self.data.hyperparameter = Hyperparameter.from_data(data=data)
-        self.training_number = data['training_number']
-        self.base_model_uuid_or_name = data['id']
-        self.training_state = TrainerState.Initialized
+    @classmethod
+    def generate_training(cls, project_folder: str, context: Context, data: dict[str, Any]) -> 'Training':
+        if 'hyperparameters' not in data or not isinstance(data['hyperparameters'], dict):
+            raise ValueError('hyperparameters missing or not a dict')
+        if 'categories' not in data or not isinstance(data['categories'], list):
+            raise ValueError('categories missing or not a list')
+        if 'training_number' not in data or not isinstance(data['training_number'], int):
+            raise ValueError('training_number missing or not an int')
+        if 'id' not in data or not isinstance(data['id'], str):
+            raise ValueError('id missing or not a str')
+
+        training_uuid = str(uuid4())
+
+        return Training(
+            id=training_uuid,
+            context=context,
+            project_folder=project_folder,
+            images_folder=create_image_folder(project_folder),
+            training_folder=create_training_folder(project_folder, training_uuid),
+            categories=Category.from_list(data['categories']),
+            hyperparameters=data['hyperparameters'],
+            training_number=data['training_number'],
+            base_model_uuid_or_name=data['id'],
+            training_state=TrainerState.Initialized.value
+        )
+
+    def image_ids(self) -> list[str]:
+        assert self.image_data is not None, 'Image data not set'
+        return [image['id'] for image in self.image_data]
+
+    def train_image_count(self) -> int:
+        assert self.image_data is not None, 'Image data not set'
+        return len([image for image in self.image_data if image['set'] == 'train'])
+
+    def test_image_count(self) -> int:
+        assert self.image_data is not None, 'Image data not set'
+        return len([image for image in self.image_data if image['set'] == 'test'])
 
 
 @dataclass(**KWONLY_SLOTS)

@@ -33,9 +33,11 @@ async def test_initialized_trainer_node():
                                details={'categories': [],
                                         'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
                                         'training_number': 0,
-                                        'resolution': 800,
-                                        'flip_rl': False,
-                                        'flip_ud': False})
+                                        'hyperparameters': {
+                                            'resolution': 800,
+                                            'flip_rl': False,
+                                            'flip_ud': False}
+                                        })
     await node._on_startup()
     yield node
     await node._on_shutdown()
@@ -53,9 +55,11 @@ async def test_initialized_trainer():
                                details={'categories': [],
                                         'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
                                         'training_number': 0,
-                                        'resolution': 800,
-                                        'flip_rl': False,
-                                        'flip_ud': False})
+                                        'hyperparameters': {
+                                            'resolution': 800,
+                                            'flip_rl': False,
+                                            'flip_ud': False}
+                                        })
     yield trainer
     try:
         await node._on_shutdown()

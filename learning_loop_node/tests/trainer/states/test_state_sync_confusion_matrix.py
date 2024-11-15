@@ -19,7 +19,7 @@ def trainer_has_sync_confusion_matrix_error(trainer: TrainerLogic):
 async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    # TODO this requires trainer to have _training
+    # NOTE: this requires trainer to have _training
     # trainer.load_active_training()
     create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
     trainer._init_from_last_training()
@@ -40,8 +40,10 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
 
     trainer._init_from_last_training()
+    trainer.training.image_data = []
     trainer.has_new_model = True
 
+    print('\n\nnbegin training task', flush=True)
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=1, interval=0.001)
 

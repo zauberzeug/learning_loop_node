@@ -5,7 +5,6 @@ from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.data_classes import Category, Context
 from learning_loop_node.globals import GLOBALS
-from learning_loop_node.helpers.misc import create_project_folder, generate_training
 from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.trainer_node import TrainerNode
@@ -27,18 +26,17 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):
     details = {'categories': [jsonable_encoder(asdict(Category(id='some_id', name='some_category_name')))],
                'id': '798bfbf1-8948-2ea9-32fb-3571b6748bca',  # version 1.2 of demo project
                'training_number': 0,
-               'resolution': 800,
-               'flip_rl': False,
-               'flip_ud': False}
+               'hyperparameters': {
+                   'resolution': 800,
+                   'flip_rl': False,
+                   'flip_ud': False}
+               }
     # await asyncio.sleep(100)
 
     trainer._node = node
     trainer._init_new_training(context=context, details=details)
+    trainer.training.model_uuid_for_detecting = latest_model_id
 
-    project_folder = create_project_folder(context)
-    training = generate_training(project_folder, context)
-    training.model_uuid_for_detecting = latest_model_id
-    trainer._training = training
     await trainer._do_detections()
     detections = trainer.active_training_io.load_detections()
 

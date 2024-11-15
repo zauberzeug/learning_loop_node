@@ -94,8 +94,7 @@ class LoopCommunicator():
         if requires_login:
             await self.ensure_login()
             return await self.retry_on_401(self._get, path, api_prefix)
-        else:
-            return await self._get(path, api_prefix)
+        return await self._get(path, api_prefix)
 
     async def _get(self, path: str, api_prefix: str) -> httpx.Response:
         return await self.async_client.get(api_prefix+path)
@@ -104,8 +103,7 @@ class LoopCommunicator():
         if requires_login:
             await self.ensure_login()
             return await self.retry_on_401(self._put, path, files, api_prefix, **kwargs)
-        else:
-            return await self._put(path, files, api_prefix, **kwargs)
+        return await self._put(path, files, api_prefix, **kwargs)
 
     async def _put(self, path: str, files: Optional[List[str]], api_prefix: str, **kwargs) -> httpx.Response:
         if files is None:
@@ -133,8 +131,7 @@ class LoopCommunicator():
         if requires_login:
             await self.ensure_login()
             return await self.retry_on_401(self._post, path, api_prefix, **kwargs)
-        else:
-            return await self._post(path, api_prefix, **kwargs)
+        return await self._post(path, api_prefix, **kwargs)
 
     async def _post(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
         return await self.async_client.post(api_prefix+path, **kwargs)
@@ -143,8 +140,7 @@ class LoopCommunicator():
         if requires_login:
             await self.ensure_login()
             return await self.retry_on_401(self._delete, path, api_prefix, **kwargs)
-        else:
-            return await self._delete(path, api_prefix, **kwargs)
+        return await self._delete(path, api_prefix, **kwargs)
 
     async def _delete(self, path, api_prefix, **kwargs) -> httpx.Response:
         return await self.async_client.delete(api_prefix+path, **kwargs)

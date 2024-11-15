@@ -7,7 +7,6 @@ from typing import Dict, Optional
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient, exceptions
 
-from ..data_classes import TrainingStatus
 from ..node import Node
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls
@@ -81,24 +80,7 @@ class TrainerNode(Node):
             self.log.debug('cannot send status - not connected to the Learning Loop')
             return
 
-        status = TrainingStatus(id=self.uuid,
-                                name=self.name,
-                                state=self.trainer_logic.state,
-                                errors={},
-                                uptime=self.trainer_logic.training_uptime,
-                                progress=self.trainer_logic.general_progress)
-
-        status.pretrained_models = self.trainer_logic.provided_pretrained_models
-        status.architecture = self.trainer_logic.model_architecture
-
-        if data := self.trainer_logic.training_data:
-            status.train_image_count = data.train_image_count()
-            status.test_image_count = data.test_image_count()
-            status.skipped_image_count = data.skipped_image_count
-            status.hyperparameters = self.trainer_logic.hyperparameters_for_state_sync
-            status.errors = self.trainer_logic.errors.errors
-            status.context = self.trainer_logic.training_context
-
+        status = self.trainer_logic.generate_status_for_loop(self.uuid, self.name)
         self.log.debug('sending status: %s', status.short_str())
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:

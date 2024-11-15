@@ -6,12 +6,11 @@ from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 
 def increment_time(trainer: TrainerLogic, latest_known_confusion_matrix: Dict) -> Optional[TrainingStateData]:
-    if not trainer._training or not trainer._training.data:  # pylint: disable=protected-access
+    if not trainer._training:  # pylint: disable=protected-access
         return None
 
     confusion_matrix = {}
-    assert trainer.training.data is not None
-    for category in trainer.training.data.categories:
+    for category in trainer.training.categories:
         try:
             minimum = latest_known_confusion_matrix[category.id]['tp']
         except Exception:

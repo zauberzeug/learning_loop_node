@@ -75,7 +75,7 @@ class ModelInformation():
         """
         model_info_file_path = f'{model_root_path}/model.json'
         if not os.path.exists(model_info_file_path):
-            logging.warning(f"could not find model information file '{model_info_file_path}'")
+            logging.warning('could not find model information file %s', model_info_file_path)
             return None
         with open(model_info_file_path, 'r') as f:
             try:

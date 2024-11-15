@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import (Context, Errors, Hyperparameter, PretrainedModel, TrainerState, Training, TrainingData,
-                            TrainingOut, TrainingStateData)
-from ..helpers.misc import create_project_folder, delete_all_training_folders, generate_training, is_valid_uuid4
+from ..data_classes import (Context, Errors, PretrainedModel, TrainerState, Training, TrainingOut, TrainingStateData,
+                            TrainingStatus)
+from ..helpers.misc import create_project_folder, delete_all_training_folders, is_valid_uuid4
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
@@ -66,18 +66,11 @@ class TrainerLogicGeneric(ABC):
         return self._training
 
     @property
-    def hyperparameter(self) -> Hyperparameter:
-        assert self.training_data is not None, 'Training should have data'
-        assert self.training_data.hyperparameter is not None, 'Training.data should have hyperparameter'
-        return self.training_data.hyperparameter
+    def hyperparameters(self) -> dict:
+        assert self._training is not None, 'Training should have data'
+        return self._training.hyperparameters
 
     # ---------------------------------------- PROPERTIES ----------------------------------------
-
-    @property
-    def training_data(self) -> Optional[TrainingData]:
-        if self.training_active and self.training.data:
-            return self.training.data
-        return None
 
     @property
     def training_context(self) -> Optional[Context]:
@@ -111,12 +104,8 @@ class TrainerLogicGeneric(ABC):
     def hyperparameters_for_state_sync(self) -> Optional[Dict]:
         """Used in sync_confusion_matrix and send_status to provide information about the training configuration.
         """
-        if self._training and self._training.data and self._training.data.hyperparameter:
-            information = {}
-            information['resolution'] = self._training.data.hyperparameter.resolution
-            information['flipRl'] = self._training.data.hyperparameter.flip_rl
-            information['flipUd'] = self._training.data.hyperparameter.flip_ud
-            return information
+        if self._training:
+            return self._training.hyperparameters
         return None
 
     @property
@@ -173,6 +162,30 @@ class TrainerLogicGeneric(ABC):
         # Initializing a new training object will create the folder structure for the training.
         # The training loop will then run through the states of the training.
 
+    def generate_status_for_loop(self, trainer_uuid: str, trainer_name: str) -> TrainingStatus:
+
+        status = TrainingStatus(id=trainer_uuid,
+                                name=trainer_name,
+                                state=self.state,
+                                errors={},
+                                uptime=self.training_uptime,
+                                progress=self.general_progress)
+
+        status.pretrained_models = self.provided_pretrained_models
+        status.architecture = self.model_architecture
+
+        if self._training:
+            status.hyperparameters = self.hyperparameters_for_state_sync
+            status.errors = self.errors.errors
+            status.context = self.training_context
+
+        if self._training and self._training.image_data:
+            status.train_image_count = self._training.train_image_count()
+            status.test_image_count = self._training.test_image_count()
+            status.skipped_image_count = self._training.skipped_image_count
+
+        return status
+
     async def try_continue_run_if_incomplete(self) -> bool:
         """Tries to continue a training if the last training was not finished.
         """
@@ -199,6 +212,7 @@ class TrainerLogicGeneric(ABC):
 
     def _begin_training_task(self) -> None:
         # NOTE: Task object is used to potentially cancel the task
+        print('Creating training task', flush=True)
         self.training_task = asyncio.get_event_loop().create_task(self._run())
 
     def _init_new_training(self, context: Context, details: Dict) -> None:
@@ -209,8 +223,7 @@ class TrainerLogicGeneric(ABC):
         project_folder = create_project_folder(context)
         if not self._environment_vars.keep_old_trainings:
             delete_all_training_folders(project_folder)
-        self._training = generate_training(project_folder, context)
-        self._training.set_values_from_data(details)
+        self._training = Training.generate_training(project_folder, context, details)
 
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, context)
@@ -220,6 +233,7 @@ class TrainerLogicGeneric(ABC):
         """Called on `begin_training` event from the Learning Loop. 
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
+        print('Starting training loop', flush=True)
         self.errors.reset_all()
         try:
             await self._training_loop()
@@ -273,6 +287,8 @@ class TrainerLogicGeneric(ABC):
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
         '''
 
+        print('Performing state: %s', state_during, flush=True)
+
         await asyncio.sleep(0.1)
         logger.info('Performing state: %s', state_during)
         previous_state = self.training.training_state
@@ -283,6 +299,7 @@ class TrainerLogicGeneric(ABC):
 
         try:
             await action()
+            print('Successfully finished state: %s', state_during, flush=True)
 
         except asyncio.CancelledError:
             if self.shutdown_event.is_set():
@@ -298,6 +315,7 @@ class TrainerLogicGeneric(ABC):
             logger.error('Node Restart Requested')
             sys.exit(0)
         except Exception as e:
+            print('Error in %s - Exception: %s', state_during, e, flush=True)
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
             self.training.training_state = previous_state
@@ -316,9 +334,9 @@ class TrainerLogicGeneric(ABC):
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
-        assert self.training.data is not None, 'training.data must be set'
-        self.training.data.image_data = image_data
-        self.training.data.skipped_image_count = skipped_image_count
+
+        self.training.image_data = image_data
+        self.training.skipped_image_count = skipped_image_count
 
     async def _download_model(self) -> None:
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
@@ -344,11 +362,11 @@ class TrainerLogicGeneric(ABC):
         error_key = 'sync_confusion_matrix'
         try:
             new_best_model = self._get_new_best_training_state()
-            if new_best_model and self.training.data:
+            if new_best_model:
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            confusion_matrix=new_best_model.confusion_matrix,
-                                           train_image_count=self.training.data.train_image_count(),
-                                           test_image_count=self.training.data.test_image_count(),
+                                           train_image_count=self.training.train_image_count(),
+                                           test_image_count=self.training.test_image_count(),
                                            hyperparameters=self.hyperparameters_for_state_sync)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
 
@@ -411,7 +429,7 @@ class TrainerLogicGeneric(ABC):
     def _dump_categories_to_json(self) -> str:
         """Dumps the categories to a json file and returns the path to the file.
         """
-        content = {'categories': [asdict(c) for c in self.training_data.categories], } if self.training_data else None
+        content = {'categories': [asdict(c) for c in self._training.categories], } if self._training else None
         json_path = '/tmp/model.json'
         with open(json_path, 'w') as f:
             json.dump(content, f)

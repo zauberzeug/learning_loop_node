@@ -1,7 +1,7 @@
 from typing import Dict
 from uuid import uuid4
 
-from learning_loop_node.data_classes import Context, Model, Training, TrainingData
+from learning_loop_node.data_classes import Context, Model, TrainerState, Training
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
 
@@ -39,7 +39,12 @@ async def test_get_new_model(setup_test_project2):
         context=context,
         project_folder="",
         images_folder="",
-        training_folder="",)
-    mock_trainer.training.data = TrainingData(image_data=[], categories=[])
+        training_folder="",
+        categories=[],
+        hyperparameters={},
+        base_model_uuid_or_name='',
+        training_number=0,
+        training_state=TrainerState.Preparing)
+    mock_trainer._training.image_data = []
     model = mock_trainer._get_new_best_training_state()
     assert model is not None
