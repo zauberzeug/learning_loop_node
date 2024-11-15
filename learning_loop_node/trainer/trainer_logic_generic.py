@@ -212,7 +212,6 @@ class TrainerLogicGeneric(ABC):
 
     def _begin_training_task(self) -> None:
         # NOTE: Task object is used to potentially cancel the task
-        print('Creating training task', flush=True)
         self.training_task = asyncio.get_event_loop().create_task(self._run())
 
     def _init_new_training(self, context: Context, details: Dict) -> None:
@@ -233,7 +232,6 @@ class TrainerLogicGeneric(ABC):
         """Called on `begin_training` event from the Learning Loop. 
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
-        print('Starting training loop', flush=True)
         self.errors.reset_all()
         try:
             await self._training_loop()
@@ -287,8 +285,6 @@ class TrainerLogicGeneric(ABC):
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
         '''
 
-        print('Performing state: %s', state_during, flush=True)
-
         await asyncio.sleep(0.1)
         logger.info('Performing state: %s', state_during)
         previous_state = self.training.training_state
@@ -299,7 +295,6 @@ class TrainerLogicGeneric(ABC):
 
         try:
             await action()
-            print('Successfully finished state: %s', state_during, flush=True)
 
         except asyncio.CancelledError:
             if self.shutdown_event.is_set():
