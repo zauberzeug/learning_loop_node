@@ -23,14 +23,15 @@ class TrainerNode(Node):
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
 
-        self.first_idle_time: float | None = None
+        self._first_idle_time: float | None = None
         if os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0):
-            self.idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0))
+            self._idle_timeout = float(os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0))
         else:
-            self.idle_timeout = 0.0
-        if self.idle_timeout:
+            self._idle_timeout = 0.0
+        if self._idle_timeout:
             self.log.info(
-                f'Trainer started with an idle_timeout of {self.idle_timeout} seconds. Note that shutdown does not work if docker container has the restart policy set to always')
+                'Trainer started with an idle_timeout of %s seconds. Note that shutdown does not work if docker container has the restart policy set to always',
+                self._idle_timeout)
 
         if use_backdoor_controls or os.environ.get('USE_BACKDOOR_CONTROLS', '0').lower() in ('1', 'true'):
             self.include_router(backdoor_controls.router, tags=["controls"])
@@ -53,8 +54,8 @@ class TrainerNode(Node):
         except exceptions.TimeoutError:
             self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
             await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
-        except Exception as e:
-            self.log.exception(f'could not send status state: {e}')
+        except Exception:
+            self.log.exception('could not send status. Exception:')
 
     # ---------------------------------------------- NODE METHODS ---------------------------------------------------
 
@@ -68,7 +69,7 @@ class TrainerNode(Node):
 
         @sio_client.event
         async def stop_training():
-            self.log.info(f'stop_training received. Current state : {self.status.state}')
+            self.log.info('stop_training received. Current state : %s', self.trainer_logic.state)
             try:
                 await self.trainer_logic.stop()
             except Exception:
@@ -105,17 +106,17 @@ class TrainerNode(Node):
             self.log.error('Error when sending status update: Response from loop was:\n %s', result)
 
     def check_idle_timeout(self):
-        if not self.idle_timeout:
+        if not self._idle_timeout:
             return
 
         if self.trainer_logic.state == 'idle':
-            if self.first_idle_time is None:
-                self.first_idle_time = time.time()
-            idle_time = time.time() - self.first_idle_time
-            if idle_time > self.idle_timeout:
+            if self._first_idle_time is None:
+                self._first_idle_time = time.time()
+            idle_time = time.time() - self._first_idle_time
+            if idle_time > self._idle_timeout:
                 self.log.info('Trainer has been idle for %.2f s (with timeout %.2f s). Shutting down.',
-                              idle_time, self.idle_timeout)
+                              idle_time, self._idle_timeout)
                 sys.exit(0)
-            self.log.debug('idle time: %.2f s / %.2f s', idle_time, self.idle_timeout)
+            self.log.debug('idle time: %.2f s / %.2f s', idle_time, self._idle_timeout)
         else:
-            self.first_idle_time = None
+            self._first_idle_time = None
