@@ -53,26 +53,21 @@ class TrainerState(str, Enum):
 class TrainingStatus():
     id: str  # NOTE this must not be changed, but tests wont detect a change -> update tests!
     name: str
+
     state: Optional[str]
-    errors: Optional[Dict]
     uptime: Optional[float]
+    errors: Optional[Dict[str, Any]]
     progress: Optional[float]
 
-    train_image_count: Optional[int] = None
-    test_image_count: Optional[int] = None
-    skipped_image_count: Optional[int] = None
     pretrained_models: List[PretrainedModel] = field(default_factory=list)
-    hyperparameters: Optional[Dict] = None
     architecture: Optional[str] = None
     context: Optional[Context] = None
 
     def short_str(self) -> str:
         prgr = f'{self.progress * 100:.0f}%' if self.progress else ''
-        trtesk = f'{self.train_image_count}/{self.test_image_count}/{self.skipped_image_count}' if self.train_image_count else 'n.a.'
         cntxt = f'{self.context.organization}/{self.context.project}' if self.context else ''
-        hyps = f'({self.hyperparameters})' if self.hyperparameters else ''
         arch = f'.{self.architecture} - ' if self.architecture else ''
-        return f'[{str(self.state).rsplit(".", maxsplit=1)[-1]} {prgr}. {self.name}({self.id}). Tr/Ts/Tsk: {trtesk} {cntxt}{arch}{hyps}]'
+        return f'[{str(self.state).rsplit(".", maxsplit=1)[-1]} {prgr}. {self.name}({self.id}). {cntxt}{arch}]'
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -144,28 +139,20 @@ class Training():
 
 @dataclass(**KWONLY_SLOTS)
 class TrainingOut():
-    confusion_matrix: Optional[Dict] = None  # This is actually just class-wise metrics
-    train_image_count: Optional[int] = None
-    test_image_count: Optional[int] = None
-    trainer_id: Optional[str] = None
-    hyperparameters: Optional[Dict] = None
+    trainer_id: str
+    trainer_name: str | None = None
+    confusion_matrix: Dict | None = None  # This is actually just class-wise metrics
+    train_image_count: int | None = None
+    test_image_count: int | None = None
+    hyperparameters: Dict[str, Any] | None = None
+    best_epoch: int | None = None
 
 
 @dataclass(**KWONLY_SLOTS)
 class TrainingStateData():
     confusion_matrix: Dict = field(default_factory=dict)
     meta_information: Dict = field(default_factory=dict)
-
-
-@dataclass(**KWONLY_SLOTS)
-class Model():
-    uuid: str
-    confusion_matrix: Optional[Dict] = None
-    parent_id: Optional[str] = None
-    train_image_count: Optional[int] = None
-    test_image_count: Optional[int] = None
-    trainer_id: Optional[str] = None
-    hyperparameters: Optional[str] = None
+    epoch: int | None = None
 
 
 class Errors():

@@ -5,7 +5,7 @@ from .general import (AnnotationNodeStatus, Category, CategoryType, Context, Det
                       ModelInformation, NodeState, NodeStatus)
 from .image_metadata import ImageMetadata
 from .socket_response import SocketResponse
-from .training import (Errors, Model, PretrainedModel, TrainerState, Training, TrainingData, TrainingError, TrainingOut,
+from .training import (Errors, PretrainedModel, TrainerState, Training, TrainingData, TrainingError, TrainingOut,
                        TrainingStateData, TrainingStatus)
 
 __all__ = [
@@ -15,6 +15,6 @@ __all__ = [
     'AnnotationNodeStatus', 'Category', 'CategoryType', 'Context', 'DetectionStatus', 'ErrorConfiguration',
     'ModelInformation', 'NodeState', 'NodeStatus',
     'SocketResponse',
-    'Errors', 'Model', 'PretrainedModel', 'TrainerState', 'Training', 'TrainingData',
+    'Errors', 'PretrainedModel', 'TrainerState', 'Training', 'TrainingData',
     'TrainingError', 'TrainingOut', 'TrainingStateData', 'TrainingStatus',
 ]

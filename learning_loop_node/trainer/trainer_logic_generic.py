@@ -175,14 +175,8 @@ class TrainerLogicGeneric(ABC):
         status.architecture = self.model_architecture
 
         if self._training:
-            status.hyperparameters = self.hyperparameters_for_state_sync
             status.errors = self.errors.errors
             status.context = self.training_context
-
-        if self._training and self._training.image_data:
-            status.train_image_count = self._training.train_image_count()
-            status.test_image_count = self._training.test_image_count()
-            status.skipped_image_count = self._training.skipped_image_count
 
         return status
 
@@ -266,7 +260,7 @@ class TrainerLogicGeneric(ABC):
             elif tstate == TrainerState.TrainModelDownloaded:  # -> TrainingRunning -> TrainingFinished
                 await self._perform_state('run_training', TrainerState.TrainingRunning, TrainerState.TrainingFinished, self._train)
             elif tstate == TrainerState.TrainingFinished:  # -> ConfusionMatrixSyncing -> ConfusionMatrixSynced
-                await self._perform_state('sync_confusion_matrix', TrainerState.ConfusionMatrixSyncing, TrainerState.ConfusionMatrixSynced, self._sync_confusion_matrix)
+                await self._perform_state('sync_confusion_matrix', TrainerState.ConfusionMatrixSyncing, TrainerState.ConfusionMatrixSynced, self._sync_training)
             elif tstate == TrainerState.ConfusionMatrixSynced:  # -> TrainModelUploading -> TrainModelUploaded
                 await self._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded, self._upload_model)
             elif tstate == TrainerState.TrainModelUploaded:  # -> Detecting -> Detected
@@ -350,8 +344,8 @@ class TrainerLogicGeneric(ABC):
         shutil.move(f'{self.training.training_folder}/model.json',
                     f'{self.training.training_folder}/base_model.json')
 
-    async def _sync_confusion_matrix(self) -> None:
-        """Syncronizes the confusion matrix with the Learning Loop via the update_training endpoint.
+    async def _sync_training(self) -> None:
+        """Syncronizes the training with the Learning Loop via the update_training endpoint.
         NOTE: This stage sets the errors explicitly because it may be used inside the training stage.
         """
         error_key = 'sync_confusion_matrix'
@@ -359,10 +353,12 @@ class TrainerLogicGeneric(ABC):
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
                 new_training = TrainingOut(trainer_id=self.node.uuid,
+                                           trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,
                                            train_image_count=self.training.train_image_count(),
                                            test_image_count=self.training.test_image_count(),
-                                           hyperparameters=self.hyperparameters_for_state_sync)
+                                           hyperparameters=self.hyperparameters_for_state_sync,
+                                           best_epoch=new_best_model.epoch)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
 
                 result = await self.node.sio_client.call('update_training', (
@@ -500,6 +496,7 @@ class TrainerLogicGeneric(ABC):
             - The classes must be identified by their uuid, not their name.
             - For each class a dict with tp, fp, fn is provided (true positives, false positives, false negatives).
         `meta_information` can hold any data which is helpful for self._on_metrics_published to store weight file etc for later upload via self.get_model_files
+        `epoch` is the epoch number of the best model.
         """
         raise NotImplementedError
 

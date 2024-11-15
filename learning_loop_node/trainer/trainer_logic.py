@@ -62,7 +62,7 @@ class TrainerLogic(TrainerLogicGeneric):
                         break
                     self.errors.reset(error_key)
                     try:
-                        await self._sync_confusion_matrix()
+                        await self._sync_training()
                     except asyncio.CancelledError:
                         logging.warning('CancelledError in run_training')
                         raise

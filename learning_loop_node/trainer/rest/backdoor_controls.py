@@ -94,7 +94,7 @@ async def add_steps(request: Request):
     for _ in range(steps):
         try:
             logging.warning('calling sync_confusion_matrix')
-            await trainer_logic._sync_confusion_matrix()  # pylint: disable=protected-access
+            await trainer_logic._sync_training()  # pylint: disable=protected-access
         except Exception:
             pass  # Tests can force synchroniation to fail, error state is reported to backend
     trainer_logic.provide_new_model = previous_state  # type: ignore
