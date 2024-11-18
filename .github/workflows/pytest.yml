@@ -74,12 +74,24 @@ jobs:
           poetry config virtualenvs.create false --local
           poetry install
       - name: test_annotator
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/annotator -v
+          pytest learning_loop_node/tests/annotator -v
       - name: test_trainer
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/trainer -v
+          pytest learning_loop_node/tests/trainer -v
       - name: test_mock_trainer
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
           LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_trainer -v
 
