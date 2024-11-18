@@ -15,14 +15,6 @@ KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) e
 
 
 @dataclass(**KWONLY_SLOTS)
-class TrainingData():
-    image_data: list[dict]
-    skipped_image_count: int
-    categories: list[Category]
-    hyperparameter: dict
-
-
-@dataclass(**KWONLY_SLOTS)
 class PretrainedModel():
     name: str
     label: str
