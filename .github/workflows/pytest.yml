@@ -27,14 +27,18 @@ jobs:
           poetry config virtualenvs.create false --local
           poetry install
       - name: test_general
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/general -v
+          pytest "learning_loop_node/tests/general" -v
       - name: test_detector
         run: |
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest learning_loop_node/tests/detector -v
+          pytest learning_loop_node/tests/detector -v
       - name: test_mock_detector
         run: |
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_detector -v
+          pytest mock_detector -v
 
   pytest_3_11:
     needs:
