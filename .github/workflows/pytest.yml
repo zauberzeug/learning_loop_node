@@ -93,7 +93,7 @@ jobs:
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          LOOP_HOST=preview.learning-loop.ai LOOP_USERNAME=admin LOOP_PASSWORD=${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }} pytest mock_trainer -v
+          pytest mock_trainer -v
 
   slack:
     needs:
