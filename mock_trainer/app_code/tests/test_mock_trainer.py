@@ -1,7 +1,7 @@
 from typing import Dict
 from uuid import uuid4
 
-from learning_loop_node.data_classes import Context, Model, TrainerState, Training
+from learning_loop_node.data_classes import Context, TrainerState, Training
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
 
@@ -32,7 +32,6 @@ async def test_get_new_model(setup_test_project2):
     mock_trainer = await create_mock_trainer()
     await mock_trainer._start_training_from_base_model()
 
-    model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
     mock_trainer._training = Training(  # pylint: disable=protected-access
         id=str(uuid4()),

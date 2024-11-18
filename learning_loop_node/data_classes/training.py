@@ -71,7 +71,7 @@ class Training():
     images_folder: str  # f'{project_folder}/images'
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
 
-    categories: list[Category]
+    categories: List[Category]
     hyperparameters: dict
 
     # model uuid to download (to continue training) | is not a uuid when training from scratch (blank or pt-name from provided_pretrained_models->name)
@@ -82,16 +82,16 @@ class Training():
 
     start_time: float = field(default_factory=time.time)
 
-    model_uuid_for_detecting: str | None = None  # NOTE: this is set later after the model has been uploaded
-    image_data: list[dict] | None = None  # NOTE: this is set later after the data has been downloaded
-    skipped_image_count: int | None = None  # NOTE: this is set later after the data has been downloaded
+    model_uuid_for_detecting: Optional[str] = None  # NOTE: this is set later after the model has been uploaded
+    image_data: Optional[List[dict]] = None  # NOTE: this is set later after the data has been downloaded
+    skipped_image_count: Optional[int] = None  # NOTE: this is set later after the data has been downloaded
 
     @property
     def training_folder_path(self) -> Path:
         return Path(self.training_folder)
 
     @classmethod
-    def generate_training(cls, project_folder: str, context: Context, data: dict[str, Any]) -> 'Training':
+    def generate_training(cls, project_folder: str, context: Context, data: Dict[str, Any]) -> 'Training':
         if 'hyperparameters' not in data or not isinstance(data['hyperparameters'], dict):
             raise ValueError('hyperparameters missing or not a dict')
         if 'categories' not in data or not isinstance(data['categories'], list):
@@ -116,7 +116,7 @@ class Training():
             training_state=TrainerState.Initialized.value
         )
 
-    def image_ids(self) -> list[str]:
+    def image_ids(self) -> List[str]:
         assert self.image_data is not None, 'Image data not set'
         return [image['id'] for image in self.image_data]
 
@@ -132,19 +132,19 @@ class Training():
 @dataclass(**KWONLY_SLOTS)
 class TrainingOut():
     trainer_id: str
-    trainer_name: str | None = None
-    confusion_matrix: Dict | None = None  # This is actually just class-wise metrics
-    train_image_count: int | None = None
-    test_image_count: int | None = None
-    hyperparameters: Dict[str, Any] | None = None
-    best_epoch: int | None = None
+    trainer_name: Optional[str] = None
+    confusion_matrix: Optional[Dict] = None  # This is actually just class-wise metrics
+    train_image_count: Optional[int] = None
+    test_image_count: Optional[int] = None
+    hyperparameters: Optional[Dict[str, Any]] = None
+    best_epoch: Optional[int] = None
 
 
 @dataclass(**KWONLY_SLOTS)
 class TrainingStateData():
     confusion_matrix: Dict = field(default_factory=dict)
     meta_information: Dict = field(default_factory=dict)
-    epoch: int | None = None
+    epoch: Optional[int] = None
 
 
 class Errors():
