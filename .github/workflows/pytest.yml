@@ -34,9 +34,17 @@ jobs:
         run: |
           pytest "learning_loop_node/tests/general" -v
       - name: test_detector
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
           pytest learning_loop_node/tests/detector -v
       - name: test_mock_detector
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
           pytest mock_detector -v
 
