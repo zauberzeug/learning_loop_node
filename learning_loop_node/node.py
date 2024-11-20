@@ -98,13 +98,14 @@ class Node(FastAPI):
                     pass
 
     async def _on_startup(self):
-        self.log.info('received "startup" lifecycle-event')
+        self.log.info('received "startup" lifecycle-event - connecting to loop')
         try:
             await self.reconnect_to_loop()
         except Exception:
             self.log.warning('Could not establish sio connection to loop during startup')
-        self.log.info('done')
+        self.log.info('successfully connected to loop - calling on_startup')
         await self.on_startup()
+        self.log.info('successfully finished on_startup')
 
     async def _on_shutdown(self):
         self.log.info('received "shutdown" lifecycle-event')

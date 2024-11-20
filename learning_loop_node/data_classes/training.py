@@ -74,17 +74,18 @@ class Training():
     categories: List[Category]
     hyperparameters: dict
 
-    # model uuid to download (to continue training) | is not a uuid when training from scratch (blank or pt-name from provided_pretrained_models->name)
-    base_model_uuid_or_name: str
-
     training_number: int
     training_state: str
+    model_variant: str  # from `provided_pretrained_models->name`
 
     start_time: float = field(default_factory=time.time)
 
-    model_uuid_for_detecting: Optional[str] = None  # NOTE: this is set later after the model has been uploaded
-    image_data: Optional[List[dict]] = None  # NOTE: this is set later after the data has been downloaded
-    skipped_image_count: Optional[int] = None  # NOTE: this is set later after the data has been downloaded
+    base_model_uuid: Optional[str] = None  # model uuid to continue training (is loaded from loop)
+
+    # NOTE: these are set later after the model has been uploaded
+    image_data: Optional[List[dict]] = None
+    skipped_image_count: Optional[int] = None
+    model_uuid_for_detecting: Optional[str] = None  # Model uuid to load from the loop after training and upload
 
     @property
     def training_folder_path(self) -> Path:
@@ -98,8 +99,8 @@ class Training():
             raise ValueError('categories missing or not a list')
         if 'training_number' not in data or not isinstance(data['training_number'], int):
             raise ValueError('training_number missing or not an int')
-        if 'id' not in data or not isinstance(data['id'], str):
-            raise ValueError('id missing or not a str')
+        if 'model_variant' not in data or not isinstance(data['model_variant'], str):
+            raise ValueError('model_variant missing or not a str')
 
         training_uuid = str(uuid4())
 
@@ -112,7 +113,8 @@ class Training():
             categories=Category.from_list(data['categories']),
             hyperparameters=data['hyperparameters'],
             training_number=data['training_number'],
-            base_model_uuid_or_name=data['id'],
+            base_model_uuid=data.get('base_model_uuid', None),
+            model_variant=data['model_variant'],
             training_state=TrainerState.Initialized.value
         )
 

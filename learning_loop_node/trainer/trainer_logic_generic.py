@@ -198,25 +198,26 @@ class TrainerLogicGeneric(ABC):
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, self._training.context)
 
-    async def begin_training(self, organization: str, project: str, details: Dict) -> None:
+    async def begin_training(self, organization: str, project: str, training_config: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
         """
-        self._init_new_training(Context(organization=organization, project=project), details)
+        self._init_new_training(Context(organization=organization, project=project), training_config)
         self._begin_training_task()
 
     def _begin_training_task(self) -> None:
         # NOTE: Task object is used to potentially cancel the task
         self.training_task = asyncio.get_event_loop().create_task(self._run())
 
-    def _init_new_training(self, context: Context, details: Dict) -> None:
+    def _init_new_training(self, context: Context, training_config: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
-        Note that details needs the entries 'categories' and 'training_number',
+        Note that training_config needs the entries 'categories', 'model_variant' and 'training_number',
         but also the hyperparameter entries.
+        'base_model_uuid' is optional if the training is continued from a previous training.
         """
         project_folder = create_project_folder(context)
         if not self._environment_vars.keep_old_trainings:
             delete_all_training_folders(project_folder)
-        self._training = Training.generate_training(project_folder, context, details)
+        self._training = Training.generate_training(project_folder, context, training_config)
 
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, context)
@@ -331,7 +332,7 @@ class TrainerLogicGeneric(ABC):
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
         The downloaded model.json file is renamed to base_model.json because a new model.json will be created during training.
         """
-        base_model_uuid = self.training.base_model_uuid_or_name
+        base_model_uuid = self.training.base_model_uuid
 
         # TODO this checks if we continue a training -> make more explicit
         if not base_model_uuid or not is_valid_uuid4(base_model_uuid):
@@ -490,7 +491,7 @@ class TrainerLogicGeneric(ABC):
 
     @abstractmethod
     def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
-        """Is called frequently by `_sync_confusion_matrix` to check if a new "best" model is availabe.
+        """Is called frequently by `_sync_training` during training to check if a new "best" model is availabe.
         Returns None if no new model could be found. Otherwise TrainingStateData(confusion_matrix, meta_information).
         `confusion_matrix` contains a dict of all classes:
             - The classes must be identified by their uuid, not their name.

@@ -34,7 +34,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):
     # await asyncio.sleep(100)
 
     trainer._node = node
-    trainer._init_new_training(context=context, details=details)
+    trainer._init_new_training(context=context, training_config=details)
     trainer.training.model_uuid_for_detecting = latest_model_id
 
     await trainer._do_detections()
