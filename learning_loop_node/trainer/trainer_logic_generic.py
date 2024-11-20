@@ -195,6 +195,7 @@ class TrainerLogicGeneric(ABC):
         """
         self._training = self.last_training_io.load()
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
+        logger.info('restored training: \n%s', self._training)
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, self._training.context)
 

@@ -1,3 +1,10 @@
+
+# NOTE: log_conf is imported first to initialize the loggers before they are created
+from .helpers import log_conf  # pylint: disable=unused-import
+
+# isort: split
+# pylint: disable=wrong-import-order,ungrouped-imports
+
 import asyncio
 import logging
 import ssl
@@ -14,7 +21,6 @@ from socketio import AsyncClient
 
 from .data_classes import NodeStatus
 from .data_exchanger import DataExchanger
-from .helpers import log_conf
 from .helpers.misc import ensure_socket_response, read_or_create_uuid
 from .loop_communication import LoopCommunicator
 from .rest import router
@@ -39,7 +45,6 @@ class Node(FastAPI):
         """
 
         super().__init__(lifespan=self.lifespan)
-        log_conf.init()
 
         self.name = name
         self.uuid = uuid or read_or_create_uuid(self.name)

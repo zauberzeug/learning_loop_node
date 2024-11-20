@@ -17,7 +17,7 @@ def create_training() -> Training:
         training_folder='',
         categories=[],
         hyperparameters={},
-        base_model_uuid_or_name='',
+        model_variant='',
         training_number=0,
         training_state=TrainerState.Preparing)
     return training

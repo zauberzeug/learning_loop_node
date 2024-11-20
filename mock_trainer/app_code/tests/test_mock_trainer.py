@@ -1,6 +1,8 @@
 from typing import Dict
 from uuid import uuid4
 
+import pytest
+
 from learning_loop_node.data_classes import Context, TrainerState, Training
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
@@ -17,7 +19,8 @@ async def create_mock_trainer() -> MockTrainerLogic:
     return mock_trainer
 
 
-async def test_get_model_files(setup_test_project2):
+@pytest.mark.usefixtures('setup_test_project2')
+async def test_get_model_files():
     mock_trainer = await create_mock_trainer()
     files = await mock_trainer._get_latest_model_files()
 
@@ -28,7 +31,8 @@ async def test_get_model_files(setup_test_project2):
     assert files['mocked_2'] == ['/tmp/weightfile.weights', '/tmp/some_more_data.txt']
 
 
-async def test_get_new_model(setup_test_project2):
+@pytest.mark.usefixtures('setup_test_project2')
+async def test_get_new_model():
     mock_trainer = await create_mock_trainer()
     await mock_trainer._start_training_from_base_model()
 
@@ -41,7 +45,7 @@ async def test_get_new_model(setup_test_project2):
         training_folder="",
         categories=[],
         hyperparameters={},
-        base_model_uuid_or_name='',
+        model_variant='',
         training_number=0,
         training_state=TrainerState.Preparing)
     mock_trainer._training.image_data = []

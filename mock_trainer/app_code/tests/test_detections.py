@@ -1,20 +1,20 @@
 from dataclasses import asdict
 from glob import glob
 
+# pylint: disable=protected-access,redefined-outer-name,unused-argument
+import pytest
 from fastapi.encoders import jsonable_encoder
 
 from learning_loop_node.data_classes import Category, Context
 from learning_loop_node.globals import GLOBALS
-from learning_loop_node.loop_communication import LoopCommunicator
 from learning_loop_node.tests import test_helper
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 from ..mock_trainer_logic import MockTrainerLogic
 
-# pylint: disable=protected-access,redefined-outer-name,unused-argument
 
-
-async def test_all(setup_test_project1, glc: LoopCommunicator):
+@pytest.mark.usefixtures('setup_test_project1')
+async def test_all():
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 
@@ -26,6 +26,7 @@ async def test_all(setup_test_project1, glc: LoopCommunicator):
     details = {'categories': [jsonable_encoder(asdict(Category(id='some_id', name='some_category_name')))],
                'id': '798bfbf1-8948-2ea9-32fb-3571b6748bca',  # version 1.2 of demo project
                'training_number': 0,
+               'model_variant': '',
                'hyperparameters': {
                    'resolution': 800,
                    'flip_rl': False,

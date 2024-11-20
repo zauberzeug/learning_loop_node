@@ -33,6 +33,7 @@ async def test_initialized_trainer_node():
                                training_config={'categories': [],
                                                 'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
                                                 'training_number': 0,
+                                                'model_variant': '',
                                                 'hyperparameters': {
                                    'resolution': 800,
                                    'flip_rl': False,
@@ -55,6 +56,7 @@ async def test_initialized_trainer():
                                training_config={'categories': [],
                                                 'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
                                                 'training_number': 0,
+                                                'model_variant': '',
                                                 'hyperparameters': {
                                    'resolution': 800,
                                    'flip_rl': False,

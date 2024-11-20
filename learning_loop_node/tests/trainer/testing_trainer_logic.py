@@ -30,13 +30,13 @@ class TestingTrainerLogic(TrainerLogic):
                 PretrainedModel(name='large', label='Large', description='a large model')]
 
     # pylint: disable=unused-argument
-    async def _start_training_from_base_model(self, model: str = 'model.model') -> None:
+    async def _start_training_from_base_model(self) -> None:
         assert self._executor is not None
         await self._executor.start('/bin/bash -c "while true; do sleep 1; done"')
 
     async def _start_training_from_scratch(self) -> None:
-        assert self.training.base_model_uuid_or_name is not None, 'base_model_uuid_or_name must be set'
-        await self._start_training_from_base_model(model=f'model_{self.training.base_model_uuid_or_name}.pt')
+        assert self._executor is not None
+        await self._executor.start('/bin/bash -c "while true; do sleep 1; done"')
 
     def _get_new_best_training_state(self) -> Optional[TrainingStateData]:
         if self.has_new_model:

@@ -3,7 +3,6 @@ import os
 
 import pytest
 
-from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
 
 # pylint: disable=unused-argument
@@ -14,7 +13,7 @@ test_image_path = os.path.join(os.path.dirname(file_path), 'test.jpg')
 
 
 @pytest.fixture(scope="session")
-def event_loop(request):
+def event_loop():
     """https://stackoverflow.com/a/66225169/4082686
        Create an instance of the default event loop for each test case.
        Prevents 'RuntimeError: Event loop is closed'
@@ -29,7 +28,8 @@ def test_assert_data_folder_for_tests():
     assert GLOBALS.data_folder.startswith('/tmp')
 
 
-async def test_sio_detect(test_detector_node: DetectorNode, sio):
+@pytest.mark.usefixtures('test_detector_node')
+async def test_sio_detect(sio):
     with open(test_image_path, 'rb') as f:
         image_bytes = f.read()
 
