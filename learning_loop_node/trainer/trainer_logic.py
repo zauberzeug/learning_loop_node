@@ -130,7 +130,12 @@ class TrainerLogic(TrainerLogicGeneric):
         if self._can_resume():
             self.start_training_task = self._resume()
         else:
-            if not self.training.base_model_uuid or not is_valid_uuid4(self.training.base_model_uuid):
+            base_model_uuid_is_none = self.training.base_model_uuid is None
+            base_model_uuid_is_valid = is_valid_uuid4(self.training.base_model_uuid)
+            if not base_model_uuid_is_none and not base_model_uuid_is_valid:
+                logging.warning('base_model_uuid is not a valid uuid4: %s\n Starting training from scratch.',
+                                self.training.base_model_uuid)
+            if not base_model_uuid_is_valid:
                 self.start_training_task = self._start_training_from_scratch()
             else:
                 self.start_training_task = self._start_training_from_base_model()
