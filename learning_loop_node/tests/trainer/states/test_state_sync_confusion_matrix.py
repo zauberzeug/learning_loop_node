@@ -43,7 +43,6 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     trainer.training.image_data = []
     trainer.has_new_model = True
 
-    print('\n\nnbegin training task', flush=True)
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=1, interval=0.001)
 
