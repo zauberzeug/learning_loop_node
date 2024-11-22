@@ -334,10 +334,16 @@ class TrainerLogicGeneric(ABC):
         The downloaded model.json file is renamed to base_model.json because a new model.json will be created during training.
         """
         base_model_uuid = self.training.base_model_uuid
+        base_model_uuid_is_none = base_model_uuid is None
+        base_model_uuid_is_valid = is_valid_uuid4(base_model_uuid)
 
-        # TODO this checks if we continue a training -> make more explicit
-        if not base_model_uuid or not is_valid_uuid4(base_model_uuid):
-            logger.info('skipping model download. No base model provided (in form of uuid): %s', base_model_uuid)
+        if not base_model_uuid_is_none and not base_model_uuid_is_valid:
+            logger.warning(
+                'base model uuid was provided but was not valid (base_model_uuid: %s).\nSkipping download and starting training from scratch.', base_model_uuid)
+            return
+
+        if base_model_uuid_is_none:
+            logger.info('No base model provided (base_model_uuid: %s).\nStarting training from scratch.', base_model_uuid)
             return
 
         logger.info('loading model from Learning Loop')
