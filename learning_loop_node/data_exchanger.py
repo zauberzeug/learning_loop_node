@@ -62,7 +62,7 @@ class DataExchanger():
 
     async def fetch_image_uuids(self, query_params: Optional[str] = '') -> List[str]:
         """Fetch image uuids from the learning loop data endpoint."""
-        logging.info(f'Fetching image uuids for {self.context.organization}/{self.context.project}..')
+        logging.info('Fetching image uuids for %s/%s..', self.context.organization, self.context.project)
 
         response = await self.loop_communicator.get(f'/{self.context.organization}/projects/{self.context.project}/data?{query_params}')
         assert response.status_code == 200, response
@@ -70,7 +70,7 @@ class DataExchanger():
 
     async def download_images_data(self, image_uuids: List[str], chunk_size: int = 100) -> List[Dict]:
         """Download image annotations, tags, set and other information for the given image uuids."""
-        logging.info(f'Fetching annotations, tags, sets, etc. for {len(image_uuids)} images..')
+        logging.info('Fetching annotations, tags, sets, etc. for %s images..', len(image_uuids))
 
         num_image_ids = len(image_uuids)
         if num_image_ids == 0:
@@ -84,7 +84,7 @@ class DataExchanger():
             chunk_ids = image_uuids[i:i+chunk_size]
             response = await self.loop_communicator.get(f'/{self.context.organization}/projects/{self.context.project}/images?ids={",".join(chunk_ids)}')
             if response.status_code != 200:
-                logging.error(f'Error {response.status_code} during downloading image data. Continue with next batch..')
+                logging.error('Error %s during downloading image data. Continue with next batch..', response.status_code)
                 continue
             images_data += response.json()['images']
 
@@ -92,7 +92,7 @@ class DataExchanger():
 
     async def download_images(self, image_uuids: List[str], image_folder: str, chunk_size: int = 10) -> None:
         """Downloads images (actual image data). Will skip existing images"""
-        logging.info(f'Downloading {len(image_uuids)} images (actual image data).. skipping existing images.')
+        logging.info('Downloading %s images (actual image data).. skipping existing images.', len(image_uuids))
         if not image_uuids:
             return
 
@@ -106,7 +106,7 @@ class DataExchanger():
             self.progress = 1.0
             return
 
-        logging.info(f'Downloading {num_new_image_ids} new images to {image_folder}..')
+        logging.info('Downloading %s new images to %s..', num_new_image_ids, image_folder)
         os.makedirs(image_folder, exist_ok=True)
 
         progress_factor = 0.5 / num_new_image_ids  # second 50% of progress is for downloading images
@@ -128,7 +128,7 @@ class DataExchanger():
             await asyncio.sleep(1)
             response = await self.loop_communicator.get(path)
         if response.status_code != HTTPStatus.OK:
-            logging.error(f'bad status code {response.status_code} for {path}. Details: {response.text}')
+            logging.error('bad status code %s for %s. Details: %s', response.status_code, path, response.text)
             return
         filename = f'{image_folder}/{image_id}.jpg'
         async with aiofiles.open(filename, 'wb') as f:
@@ -171,7 +171,7 @@ class DataExchanger():
             created_files.append(new_file)
 
         shutil.rmtree(tmp_path, ignore_errors=True)
-        logging.info(f'Downloaded model {model_uuid}({model_format}) to {target_folder}.')
+        logging.info('Downloaded model %s(%s) to %s.', model_uuid, model_format, target_folder)
         return created_files
 
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
@@ -182,10 +182,12 @@ class DataExchanger():
         """
         response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
         if response.status_code != 200:
-            logging.error(f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
+            logging.error('Could not upload model for training %s, format %s: %s',
+                          training_number, mformat, response.text)
             raise CriticalError(
                 f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
 
         uploaded_model = response.json()
-        logging.info(f'Uploaded model for training {training_number}, format {mformat}. Response is: {uploaded_model}')
+        logging.info('Uploaded model for training %s, format %s. Response is: %s',
+                     training_number, mformat, uploaded_model)
         return uploaded_model['id']

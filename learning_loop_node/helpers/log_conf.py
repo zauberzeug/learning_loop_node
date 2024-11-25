@@ -2,7 +2,7 @@ import logging.config
 
 LOGGING_CONF = {
     'version': 1,
-    'disable_existing_loggers': True,  # to make sure this config is used
+    'disable_existing_loggers': False,  # to make sure this config is used
     'formatters': {
         'default': {
             'format': '%(asctime)s,%(msecs)01d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
@@ -34,3 +34,6 @@ LOGGING_CONF = {
 
 def init():
     logging.config.dictConfig(LOGGING_CONF)
+
+
+init()

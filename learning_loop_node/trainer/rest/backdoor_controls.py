@@ -29,7 +29,7 @@ async def provide_new_model(request: Request):
     if value == 'on':
         trainer_node.trainer_logic.provide_new_model = True  # type: ignore
 
-    logging.debug(f'turning automatically provide_new_model {value}')
+    logging.debug('turning automatically provide_new_model %s', value)
 
 
 @router.post("/reset")
@@ -64,7 +64,7 @@ def set_error_configuration(msg: Dict, request: Request):
                                              get_new_model=msg.get('get_new_model', None),
                                              save_model=msg.get('save_model', None), )
 
-    logging.info(f'setting error configuration to: {asdict(error_configuration)}')
+    logging.info('setting error configuration to: %s', asdict(error_configuration))
     trainer_logic = request.app.trainer_logic
 
     # NOTE: trainer_logic is MockTrainerLogic which has a property error_configuration
@@ -82,23 +82,23 @@ async def add_steps(request: Request):
 
     if not trainer_logic._executor or not trainer_logic._executor.is_running():  # pylint: disable=protected-access
         training = trainer_logic._training  # pylint: disable=protected-access
-        logging.error(f'cannot add steps when not running, state: {training.training_state if training else "None"}')
+        logging.error('cannot add steps when not running, state: %s', training.training_state if training else 'None')
         raise HTTPException(status_code=409, detail="trainer is not running")
 
     steps = int(str(await request.body(), 'utf-8'))
 
     previous_state = trainer_logic.provide_new_model  # type: ignore
     trainer_logic.provide_new_model = True  # type: ignore
-    logging.warning(f'simulating newly completed models by moving {steps} forward')
+    logging.warning('simulating newly completed models by moving %s forward', steps)
 
     for _ in range(steps):
         try:
             logging.warning('calling sync_confusion_matrix')
-            await trainer_logic._sync_confusion_matrix()  # pylint: disable=protected-access
+            await trainer_logic._sync_training()  # pylint: disable=protected-access
         except Exception:
             pass  # Tests can force synchroniation to fail, error state is reported to backend
     trainer_logic.provide_new_model = previous_state  # type: ignore
-    logging.warning(f'progress increased to {trainer_logic.current_iteration}')  # type: ignore
+    logging.warning('progress increased to %s', trainer_logic.current_iteration)  # type: ignore
     await trainer_node.send_status()
 
 

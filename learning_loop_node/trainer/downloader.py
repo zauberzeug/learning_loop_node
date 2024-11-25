@@ -27,5 +27,5 @@ class TrainingsDownloader():
                 valid_image_data.append(i)
             else:
                 skipped_image_count += 1
-        logging.info(f'Done downloading image data for {len(image_data)} images.')
+        logging.info('Done downloading image data for %s images.', len(image_data))
         return (valid_image_data, skipped_image_count)

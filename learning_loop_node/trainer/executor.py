@@ -3,7 +3,7 @@ import logging
 import os
 import shlex
 from io import BufferedWriter
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 
 class Executor:
@@ -33,7 +33,7 @@ class Executor:
         if env is not None:
             full_env.update(env)
 
-        logging.info(f'Starting executor with command: {cmd} in {self.path} - logging to {self.log_file_path}')
+        logging.info('Starting executor with command: %s in %s - logging to %s', cmd, self.path, self.log_file_path)
         self.log_file = open(self.log_file_path, 'ab')
 
         self._process = await asyncio.create_subprocess_exec(

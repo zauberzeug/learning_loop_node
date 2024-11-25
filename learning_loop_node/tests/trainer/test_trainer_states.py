@@ -14,7 +14,12 @@ def create_training() -> Training:
         context=context,
         project_folder='',
         images_folder='',
-        training_folder='')
+        training_folder='',
+        categories=[],
+        hyperparameters={},
+        model_variant='',
+        training_number=0,
+        training_state=TrainerState.Preparing)
     return training
 
 

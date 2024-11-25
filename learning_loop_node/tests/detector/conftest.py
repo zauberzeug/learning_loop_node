@@ -118,34 +118,30 @@ def get_outbox_files(outbox: Outbox):
     return [file for file in files if os.path.isfile(file)]
 
 
-@pytest.fixture
-def mock_detector_logic():
-    class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
-        def __init__(self):
-            super().__init__('mock')
-            self.image_metadata = ImageMetadata(
-                box_detections=[BoxDetection(category_name="test",
-                                             category_id="1",
-                                             confidence=0.9,
-                                             x=0, y=0, width=10, height=10,
-                                             model_name="mock",
-                                             )])
+class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
+    def __init__(self):
+        super().__init__('mock')
+        self.image_metadata = ImageMetadata(
+            box_detections=[BoxDetection(category_name="test",
+                                         category_id="1",
+                                         confidence=0.9,
+                                         x=0, y=0, width=10, height=10,
+                                         model_name="mock",
+                                         )])
 
-        @property
-        def is_initialized(self):
-            return True
+    @property
+    def is_initialized(self):
+        return True
 
-        def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None):
-            return self.image_metadata
-
-    return MockDetectorLogic()
+    def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None):
+        return self.image_metadata
 
 
 @pytest.fixture
-def detector_node(mock_detector_logic):
+def detector_node():
     os.environ['LOOP_ORGANIZATION'] = 'test_organization'
     os.environ['LOOP_PROJECT'] = 'test_project'
-    return DetectorNode(name="test_node", detector=mock_detector_logic)
+    return DetectorNode(name="test_node", detector=MockDetectorLogic())
 
 # ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
 

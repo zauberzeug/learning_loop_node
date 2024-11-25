@@ -1,4 +1,5 @@
 import logging
+from logging import Logger
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Request
@@ -20,14 +21,15 @@ async def _debug_logging(request: Request) -> str:
     '''
     state = str(await request.body(), 'utf-8')
     node: 'Node' = request.app
+    log: Logger = node.log  # type: ignore
 
     if state == 'off':
         logger.info('turning debug logging off')
-        node.log.setLevel('INFO')
+        log.setLevel('INFO')
         return 'off'
     if state == 'on':
         logger.info('turning debug logging on')
-        node.log.setLevel('DEBUG')
+        log.setLevel('DEBUG')
         return 'on'
     raise HTTPException(status_code=400, detail='Invalid state')
 

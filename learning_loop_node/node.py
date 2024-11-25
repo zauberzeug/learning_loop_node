@@ -1,3 +1,10 @@
+
+# NOTE: log_conf is imported first to initialize the loggers before they are created
+from .helpers import log_conf  # pylint: disable=unused-import
+
+# isort: split
+# pylint: disable=wrong-import-order,ungrouped-imports
+
 import asyncio
 import logging
 import ssl
@@ -14,7 +21,6 @@ from socketio import AsyncClient
 
 from .data_classes import NodeStatus
 from .data_exchanger import DataExchanger
-from .helpers import log_conf
 from .helpers.misc import ensure_socket_response, read_or_create_uuid
 from .loop_communication import LoopCommunicator
 from .rest import router
@@ -39,7 +45,6 @@ class Node(FastAPI):
         """
 
         super().__init__(lifespan=self.lifespan)
-        log_conf.init()
 
         self.name = name
         self.uuid = uuid or read_or_create_uuid(self.name)
@@ -98,13 +103,14 @@ class Node(FastAPI):
                     pass
 
     async def _on_startup(self):
-        self.log.info('received "startup" lifecycle-event')
+        self.log.info('received "startup" lifecycle-event - connecting to loop')
         try:
             await self.reconnect_to_loop()
         except Exception:
             self.log.warning('Could not establish sio connection to loop during startup')
-        self.log.info('done')
+        self.log.info('successfully connected to loop - calling on_startup')
         await self.on_startup()
+        self.log.info('successfully finished on_startup')
 
     async def _on_shutdown(self):
         self.log.info('received "shutdown" lifecycle-event')

@@ -30,12 +30,15 @@ async def test_initialized_trainer_node():
     node = TrainerNode(name='test', trainer_logic=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
     trainer._node = node
     trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
-                               details={'categories': [],
-                                        'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
-                                        'training_number': 0,
-                                        'resolution': 800,
-                                        'flip_rl': False,
-                                        'flip_ud': False})
+                               training_config={'categories': [],
+                                                'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
+                                                'training_number': 0,
+                                                'model_variant': '',
+                                                'hyperparameters': {
+                                   'resolution': 800,
+                                   'flip_rl': False,
+                                   'flip_ud': False}
+    })
     await node._on_startup()
     yield node
     await node._on_shutdown()
@@ -50,12 +53,15 @@ async def test_initialized_trainer():
     await node._on_startup()
     trainer._node = node
     trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
-                               details={'categories': [],
-                                        'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
-                                        'training_number': 0,
-                                        'resolution': 800,
-                                        'flip_rl': False,
-                                        'flip_ud': False})
+                               training_config={'categories': [],
+                                                'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
+                                                'training_number': 0,
+                                                'model_variant': '',
+                                                'hyperparameters': {
+                                   'resolution': 800,
+                                   'flip_rl': False,
+                                   'flip_ud': False}
+    })
     yield trainer
     try:
         await node._on_shutdown()

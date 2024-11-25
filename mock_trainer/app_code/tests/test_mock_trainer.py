@@ -1,7 +1,9 @@
 from typing import Dict
 from uuid import uuid4
 
-from learning_loop_node.data_classes import Context, Model, Training, TrainingData
+import pytest
+
+from learning_loop_node.data_classes import Context, TrainerState, Training
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
 
@@ -17,7 +19,8 @@ async def create_mock_trainer() -> MockTrainerLogic:
     return mock_trainer
 
 
-async def test_get_model_files(setup_test_project2):
+@pytest.mark.usefixtures('setup_test_project2')
+async def test_get_model_files():
     mock_trainer = await create_mock_trainer()
     files = await mock_trainer._get_latest_model_files()
 
@@ -28,18 +31,23 @@ async def test_get_model_files(setup_test_project2):
     assert files['mocked_2'] == ['/tmp/weightfile.weights', '/tmp/some_more_data.txt']
 
 
-async def test_get_new_model(setup_test_project2):
+@pytest.mark.usefixtures('setup_test_project2')
+async def test_get_new_model():
     mock_trainer = await create_mock_trainer()
     await mock_trainer._start_training_from_base_model()
 
-    model = Model(uuid=(str(uuid4())))
     context = Context(organization="", project="")
     mock_trainer._training = Training(  # pylint: disable=protected-access
         id=str(uuid4()),
         context=context,
         project_folder="",
         images_folder="",
-        training_folder="",)
-    mock_trainer.training.data = TrainingData(image_data=[], categories=[])
+        training_folder="",
+        categories=[],
+        hyperparameters={},
+        model_variant='',
+        training_number=0,
+        training_state=TrainerState.Preparing)
+    mock_trainer._training.image_data = []
     model = mock_trainer._get_new_best_training_state()
     assert model is not None
