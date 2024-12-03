@@ -17,13 +17,11 @@ MAX_RETRIES_ON_429 = 20
 def retry_on_429(func: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
     """Decorator that retries requests that receive a 429 status code."""
     async def wrapper(*args, **kwargs) -> httpx.Response:
-        retries = 0
-        while retries < MAX_RETRIES_ON_429:
+        for _ in range(MAX_RETRIES_ON_429):
             response = await func(*args, **kwargs)
             if response.status_code != 429:
                 return response
 
-            retries += 1
             await asyncio.sleep(SLEEP_TIME_ON_429)
 
         return response
