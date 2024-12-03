@@ -10,6 +10,23 @@ from .helpers import environment_reader
 
 logging.basicConfig(level=logging.INFO)
 
+SLEEP_TIME_ON_429 = 5
+MAX_RETRIES_ON_429 = 20
+
+
+def retry_on_429(func: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
+    """Decorator that retries requests that receive a 429 status code."""
+    async def wrapper(*args, **kwargs) -> httpx.Response:
+        for _ in range(MAX_RETRIES_ON_429):
+            response = await func(*args, **kwargs)
+            if response.status_code != 429:
+                return response
+
+            await asyncio.sleep(SLEEP_TIME_ON_429)
+
+        return response
+    return wrapper
+
 
 class LoopCommunicationException(Exception):
     """Raised when there's an unexpected answer from the learning loop."""
@@ -96,6 +113,7 @@ class LoopCommunicator():
             return await self.retry_on_401(self._get, path, api_prefix)
         return await self._get(path, api_prefix)
 
+    @retry_on_429
     async def _get(self, path: str, api_prefix: str) -> httpx.Response:
         return await self.async_client.get(api_prefix+path)
 
@@ -105,6 +123,7 @@ class LoopCommunicator():
             return await self.retry_on_401(self._put, path, files, api_prefix, **kwargs)
         return await self._put(path, files, api_prefix, **kwargs)
 
+    @retry_on_429
     async def _put(self, path: str, files: Optional[List[str]], api_prefix: str, **kwargs) -> httpx.Response:
         if files is None:
             return await self.async_client.put(api_prefix+path, **kwargs)
@@ -133,6 +152,7 @@ class LoopCommunicator():
             return await self.retry_on_401(self._post, path, api_prefix, **kwargs)
         return await self._post(path, api_prefix, **kwargs)
 
+    @retry_on_429
     async def _post(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
         return await self.async_client.post(api_prefix+path, **kwargs)
 
@@ -142,5 +162,6 @@ class LoopCommunicator():
             return await self.retry_on_401(self._delete, path, api_prefix, **kwargs)
         return await self._delete(path, api_prefix, **kwargs)
 
+    @retry_on_429
     async def _delete(self, path, api_prefix, **kwargs) -> httpx.Response:
         return await self.async_client.delete(api_prefix+path, **kwargs)
