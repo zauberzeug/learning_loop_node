@@ -10,6 +10,8 @@ from .helpers import environment_reader
 
 logging.basicConfig(level=logging.INFO)
 
+SLEEP_TIME_ON_429 = 5
+
 
 class LoopCommunicationException(Exception):
     """Raised when there's an unexpected answer from the learning loop."""
@@ -97,7 +99,11 @@ class LoopCommunicator():
         return await self._get(path, api_prefix)
 
     async def _get(self, path: str, api_prefix: str) -> httpx.Response:
-        return await self.async_client.get(api_prefix+path)
+        response = await self.async_client.get(api_prefix+path)
+        while response.status_code == 429:
+            await asyncio.sleep(SLEEP_TIME_ON_429)
+            response = await self.async_client.get(api_prefix+path)
+        return response
 
     async def put(self, path: str, files: Optional[List[str]] = None, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -121,6 +127,9 @@ class LoopCommunicator():
         try:
             file_list = [('files', fh) for fh in file_handles]  # Use file handles
             response = await self.async_client.put(api_prefix+path, files=file_list)
+            while response.status_code == 429:
+                await asyncio.sleep(SLEEP_TIME_ON_429)
+                response = await self.async_client.put(api_prefix+path, files=file_list)
         finally:
             for fh in file_handles:
                 fh.close()  # Ensure all files are closed
@@ -134,7 +143,11 @@ class LoopCommunicator():
         return await self._post(path, api_prefix, **kwargs)
 
     async def _post(self, path, api_prefix='/api', **kwargs) -> httpx.Response:
-        return await self.async_client.post(api_prefix+path, **kwargs)
+        response = await self.async_client.post(api_prefix+path, **kwargs)
+        while response.status_code == 429:
+            await asyncio.sleep(SLEEP_TIME_ON_429)
+            response = await self.async_client.post(api_prefix+path, **kwargs)
+        return response
 
     async def delete(self, path: str, requires_login: bool = True, api_prefix: str = '/api', **kwargs) -> httpx.Response:
         if requires_login:
@@ -143,4 +156,8 @@ class LoopCommunicator():
         return await self._delete(path, api_prefix, **kwargs)
 
     async def _delete(self, path, api_prefix, **kwargs) -> httpx.Response:
-        return await self.async_client.delete(api_prefix+path, **kwargs)
+        response = await self.async_client.delete(api_prefix+path, **kwargs)
+        while response.status_code == 429:
+            await asyncio.sleep(SLEEP_TIME_ON_429)
+            response = await self.async_client.delete(api_prefix+path, **kwargs)
+        return response
