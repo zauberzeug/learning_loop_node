@@ -105,6 +105,29 @@ class ModelInformation():
 
 
 @dataclass(**KWONLY_SLOTS)
+class AboutResponse:
+    operation_mode: str = field(metadata={"description": "The operation mode of the detector node"})
+    state: Optional[str] = field(metadata={
+        "description": "The state of the detector node",
+        "example": "idle, online, detecting"})
+    model_info: Optional[ModelInformation] = field(metadata={
+        "description": "Information about the model of the detector node"})
+    target_model: Optional[str] = field(metadata={"description": "The target model of the detector node"})
+    version_control: str = field(metadata={
+        "description": "The version control mode of the detector node",
+        "example": "follow_loop, specific_version, pause"})
+
+
+@dataclass(**KWONLY_SLOTS)
+class ModelVersionResponse:
+    current_version: str = field(metadata={"description": "The version of the model currently used by the detector."})
+    target_version: str = field(metadata={"description": "The target model version set in the detector."})
+    loop_version: str = field(metadata={"description": "The target model version specified by the loop."})
+    local_versions: List[str] = field(metadata={"description": "The locally available versions of the model."})
+    version_control: str = field(metadata={"description": "The version control mode."})
+
+
+@dataclass(**KWONLY_SLOTS)
 class ErrorConfiguration():
     begin_training: Optional[bool] = False
     save_model: Optional[bool] = False
