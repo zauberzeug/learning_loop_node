@@ -35,6 +35,12 @@ from .rest import upload as rest_upload
 from .rest.operation_mode import OperationMode
 
 
+class VersionMode(str, Enum):
+    FollowLoop = 'follow_loop'  # will follow the loop
+    SpecificVersion = 'specific_version'  # will follow the specific version
+    Pause = 'pause'  # will pause the updates
+
+
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
@@ -519,9 +525,3 @@ def fix_shape_detections(detections: ImageMetadata):
             points = ','.join([str(value) for p in seg_detection.shape.points for _,
                                value in asdict(p).items()])
             seg_detection.shape = points
-
-
-class VersionMode(str, Enum):
-    FollowLoop = 'follow_loop'  # will follow the loop
-    SpecificVersion = 'specific_version'  # will follow the specific version
-    Pause = 'pause'  # will pause the updates
