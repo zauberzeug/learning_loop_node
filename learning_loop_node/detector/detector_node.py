@@ -229,10 +229,10 @@ class DetectorNode(Node):
                 return {'error': str(e)}
 
         @self.sio.event
-        async def info(sid) -> Union[str, Dict]:
+        async def info(sid) -> Dict:
             if self.detector_logic.is_initialized:
                 return asdict(self.detector_logic.model_info)
-            return 'No model loaded'
+            return {"status": "No model loaded"}
 
         @self.sio.event
         async def about(sid) -> Dict:
@@ -243,12 +243,24 @@ class DetectorNode(Node):
             return asdict(self.get_model_version_response())
 
         @self.sio.event
-        async def set_model_version_mode(sid, data: str) -> Union[Dict, str]:
+        async def set_model_version_mode(sid, data: str) -> Dict:
             try:
                 await self.set_model_version_mode(data)
+                return {"status": "OK"}
             except Exception as e:
                 return {'error': str(e)}
-            return "OK"
+
+        @self.sio.event
+        async def get_outbox_mode(sid) -> Dict:
+            return {'outbox_mode': self.outbox.get_mode().value}
+
+        @self.sio.event
+        async def set_outbox_mode(sid, data: str) -> Dict:
+            try:
+                await self.outbox.set_mode(data)
+                return {"status": "OK"}
+            except Exception as e:
+                return {'error': str(e)}
 
         @self.sio.event
         async def upload(sid, data: Dict) -> Optional[Dict]:
