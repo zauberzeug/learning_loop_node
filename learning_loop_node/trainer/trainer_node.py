@@ -21,6 +21,7 @@ class TrainerNode(Node):
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
+        self.previous_state: Optional[str] = None
 
         self._first_idle_time: float | None = None
         if os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0):
@@ -81,7 +82,8 @@ class TrainerNode(Node):
             return
 
         status = self.trainer_logic.generate_status_for_loop(self.uuid, self.name)
-        self.log.debug('sending status: %s', status.short_str())
+        self.log_status_on_change(status.state or 'None', status.short_str())
+
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
             self.socket_connection_broken = True

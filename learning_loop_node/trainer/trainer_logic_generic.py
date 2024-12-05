@@ -348,6 +348,7 @@ class TrainerLogicGeneric(ABC):
 
         logger.info('loading model from Learning Loop')
         logger.info('downloading model %s as %s', base_model_uuid, self.model_format)
+        assert base_model_uuid is not None
         await self.node.data_exchanger.download_model(self.training.training_folder, self.training.context, base_model_uuid, self.model_format)
         shutil.move(f'{self.training.training_folder}/model.json',
                     f'{self.training.training_folder}/base_model.json')
