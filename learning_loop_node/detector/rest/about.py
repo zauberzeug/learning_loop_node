@@ -23,4 +23,4 @@ async def get_about(request: Request):
         curl http://hosturl/about
     '''
     app: 'DetectorNode' = request.app
-    return app.get_about()
+    return app.get_about_response()

@@ -7,7 +7,7 @@ from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
 from threading import Thread
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import socketio
@@ -83,7 +83,7 @@ class DetectorNode(Node):
 
         self.setup_sio_server()
 
-    def get_about(self) -> AboutResponse:
+    def get_about_response(self) -> AboutResponse:
         return AboutResponse(
             operation_mode=self.operation_mode.value,
             state=self.status.state,
@@ -242,7 +242,7 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def about(sid) -> Dict:
-            return asdict(self.get_about())
+            return asdict(self.get_about_response())
 
         @self.sio.event
         async def get_model_version(sid) -> Dict:
