@@ -1,7 +1,5 @@
-from learning_loop_node.data_classes import (AnnotationData,
-                                             AnnotationEventType, Category,
-                                             CategoryType, Context, Point,
-                                             UserInput)
+from learning_loop_node.data_classes import AnnotationData, Category, Context, Point, UserInput
+from learning_loop_node.enums import AnnotationEventType, CategoryType
 
 
 class MockAsyncClient():  # pylint: disable=too-few-public-methods

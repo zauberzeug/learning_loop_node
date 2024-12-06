@@ -1,22 +1,15 @@
 import logging
-from enum import Enum
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
+from ...enums import OperationMode
+
 if TYPE_CHECKING:
     from learning_loop_node.detector.detector_node import DetectorNode
 
 router = APIRouter()
-
-
-class OperationMode(str, Enum):
-    Startup = 'startup'  # used until model is loaded
-    Idle = 'idle'  # will check and perform updates
-    Detecting = 'detecting'  # Blocks updates
-
-# NOTE: This is only ment to be used by a detector node
 
 
 @router.put("/operation_mode")

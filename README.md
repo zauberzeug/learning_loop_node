@@ -66,11 +66,11 @@ The detector also has a sio **upload endpoint** that can be used to upload image
 
 The endpoint returns None if the upload was successful and an error message otherwise.
 
-### Changing the model version
+### Changing the model versioning mode
 
 The detector can be configured to one of the following behaviors:
 
-- download use a specific model version
+- use a specific model version
 - automatically update the model version according to the learning loop deployment target
 - pause the model updates and use the version that was last loaded
 
@@ -83,6 +83,15 @@ The model versioning configuration can be accessed/changed via a REST endpoint. 
 
 Note that the configuration is not persistent, however, the default behavior on startup can be configured via the environment variable `VERSION_CONTROL_DEFAULT`.
 If the environment variable is set to `VERSION_CONTROL_DEFAULT=PAUSE`, the detector will pause the model updates on startup. Otherwise, the detector will automatically follow the loop deployment target.
+
+The model versioning configuration can also be changed via a socketio event:
+
+- Configure the detector to use a specific model version: `sio.emit('set_model_version_mode', '1.0')`
+- Configure the detector to automatically update the model version: `sio.emit('set_model_version_mode', 'follow_loop')`
+- Pause the model updates: `sio.emit('set_model_version_mode', 'pause')`
+
+There is also a GET endpoint to fetch the current model versioning configuration:
+`sio.emit('get_model_version')` or `curl http://localhost/model_version`
 
 ### Changing the outbox mode
 
@@ -97,6 +106,16 @@ Example Usage:
 
 The current state can be queried via a GET request:
 `curl http://localhost/outbox_mode`
+
+Alternatively, the outbox mode can be changed via a socketio event:
+
+- Enable upload: `sio.emit('set_outbox_mode', 'continuous_upload')`
+- Disable upload: `sio.emit('set_outbox_mode', 'stopped')`
+
+The outbox mode can also be queried via:
+
+- HTTP: `curl http://localhost/outbox_mode`
+- SocketIO: `sio.emit('get_outbox_mode')`
 
 ### Explicit upload
 

@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import asdict
 from datetime import datetime
 from threading import Thread
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 import numpy as np
 import socketio
@@ -14,9 +14,11 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import Category, Context, DetectionStatus, ImageMetadata, ModelInformation, Shape
+from ..data_classes import (AboutResponse, Category, Context, DetectionStatus, ImageMetadata, ModelInformation,
+                            ModelVersionResponse, Shape)
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
+from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader
 from ..node import Node
@@ -30,7 +32,6 @@ from .rest import model_version_control as rest_version_control
 from .rest import operation_mode as rest_mode
 from .rest import outbox_mode as rest_outbox_mode
 from .rest import upload as rest_upload
-from .rest.operation_mode import OperationMode
 
 
 class DetectorNode(Node):
@@ -58,8 +59,8 @@ class DetectorNode(Node):
         # FollowLoop: the detector node will follow the loop and update the model if necessary
         # SpecificVersion: the detector node will update to a specific version, set via the /model_version endpoint
         # Pause: the detector node will not update the model
-        self.version_control: rest_version_control.VersionMode = rest_version_control.VersionMode.Pause if os.environ.get(
-            'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else rest_version_control.VersionMode.FollowLoop
+        self.version_control: VersionMode = VersionMode.Pause if os.environ.get(
+            'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else VersionMode.FollowLoop
         self.target_model: Optional[ModelInformation] = None
         self.loop_deployment_target: Optional[ModelInformation] = None
 
@@ -75,6 +76,74 @@ class DetectorNode(Node):
 
         self.setup_sio_server()
 
+    def get_about_response(self) -> AboutResponse:
+        return AboutResponse(
+            operation_mode=self.operation_mode.value,
+            state=self.status.state,
+            model_info=self.detector_logic._model_info,  # pylint: disable=protected-access
+            target_model=self.target_model.version if self.target_model else None,
+            version_control=self.version_control.value
+        )
+
+    def get_model_version_response(self) -> ModelVersionResponse:
+        current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else 'None'  # pylint: disable=protected-access
+        target_version = self.target_model.version if self.target_model is not None else 'None'
+        loop_version = self.loop_deployment_target.version if self.loop_deployment_target is not None else 'None'
+
+        local_versions: list[str] = []
+        models_path = os.path.join(GLOBALS.data_folder, 'models')
+        local_models = os.listdir(models_path) if os.path.exists(models_path) else []
+        for model in local_models:
+            if model.replace('.', '').isdigit():
+                local_versions.append(model)
+
+        return ModelVersionResponse(
+            current_version=current_version,
+            target_version=target_version,
+            loop_version=loop_version,
+            local_versions=local_versions,
+            version_control=self.version_control.value,
+        )
+
+    async def set_model_version_mode(self, version_control_mode: str) -> None:
+
+        if version_control_mode == 'follow_loop':
+            self.version_control = VersionMode.FollowLoop
+        elif version_control_mode == 'pause':
+            self.version_control = VersionMode.Pause
+        else:
+            self.version_control = VersionMode.SpecificVersion
+            if not version_control_mode or not version_control_mode.replace('.', '').isdigit():
+                raise Exception('Invalid version number')
+            target_version = version_control_mode
+
+            if self.target_model is not None and self.target_model.version == target_version:
+                return
+
+            # Fetch the model uuid by version from the loop
+            uri = f'/{self.organization}/projects/{self.project}/models'
+            response = await self.loop_communicator.get(uri)
+            if response.status_code != 200:
+                self.version_control = VersionMode.Pause
+                raise Exception('Failed to load models from learning loop')
+
+            models = response.json()['models']
+            models_with_target_version = [m for m in models if m['version'] == target_version]
+            if len(models_with_target_version) == 0:
+                self.version_control = VersionMode.Pause
+                raise Exception(f'No Model with version {target_version}')
+            if len(models_with_target_version) > 1:
+                self.version_control = VersionMode.Pause
+                raise Exception(f'Multiple models with version {target_version}')
+
+            model_id = models_with_target_version[0]['id']
+            model_host = models_with_target_version[0].get('host', 'unknown')
+
+            self.target_model = ModelInformation(organization=self.organization, project=self.project,
+                                                 host=model_host, categories=[],
+                                                 id=model_id,
+                                                 version=target_version)
+
     async def soft_reload(self) -> None:
         # simulate init
         self.organization = environment_reader.organization()
@@ -85,8 +154,8 @@ class DetectorNode(Node):
             Context(organization=self.organization, project=self.project),
             self.loop_communicator)
         self.relevance_filter = RelevanceFilter(self.outbox)
-        self.version_control = rest_version_control.VersionMode.Pause if os.environ.get(
-            'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else rest_version_control.VersionMode.FollowLoop
+        self.version_control = VersionMode.Pause if os.environ.get(
+            'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else VersionMode.FollowLoop
         self.target_model = None
         # self.setup_sio_server()
 
@@ -141,9 +210,8 @@ class DetectorNode(Node):
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
             try:
-                np_image = np.frombuffer(data['image'], np.uint8)
                 det = await self.get_detections(
-                    raw_image=np_image,
+                    raw_image=np.frombuffer(data['image'], np.uint8),
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
@@ -160,10 +228,38 @@ class DetectorNode(Node):
                 return {'error': str(e)}
 
         @self.sio.event
-        async def info(sid) -> Union[str, Dict]:
+        async def info(sid) -> Dict:
             if self.detector_logic.is_initialized:
                 return asdict(self.detector_logic.model_info)
-            return 'No model loaded'
+            return {"status": "No model loaded"}
+
+        @self.sio.event
+        async def about(sid) -> Dict:
+            return asdict(self.get_about_response())
+
+        @self.sio.event
+        async def get_model_version(sid) -> Dict:
+            return asdict(self.get_model_version_response())
+
+        @self.sio.event
+        async def set_model_version_mode(sid, data: str) -> Dict:
+            try:
+                await self.set_model_version_mode(data)
+                return {"status": "OK"}
+            except Exception as e:
+                return {'error': str(e)}
+
+        @self.sio.event
+        async def get_outbox_mode(sid) -> Dict:
+            return {'outbox_mode': self.outbox.get_mode().value}
+
+        @self.sio.event
+        async def set_outbox_mode(sid, data: str) -> Dict:
+            try:
+                await self.outbox.set_mode(data)
+                return {"status": "OK"}
+            except Exception as e:
+                return {'error': str(e)}
 
         @self.sio.event
         async def upload(sid, data: Dict) -> Optional[Dict]:
@@ -314,7 +410,7 @@ class DetectorNode(Node):
                                                        id=deployment_target_model_id,
                                                        version=deployment_target_model_version)
 
-        if (self.version_control == rest_version_control.VersionMode.FollowLoop and
+        if (self.version_control == VersionMode.FollowLoop and
                 self.target_model != self.loop_deployment_target):
             old_target_model_version = self.target_model.version if self.target_model else None
             self.target_model = self.loop_deployment_target

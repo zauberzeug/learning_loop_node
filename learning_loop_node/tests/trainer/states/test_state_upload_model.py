@@ -2,7 +2,8 @@ import asyncio
 
 from pytest_mock import MockerFixture
 
-from ....data_classes import Context, TrainerState
+from ....data_classes import Context
+from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic

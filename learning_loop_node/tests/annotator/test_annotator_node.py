@@ -7,8 +7,8 @@ from fastapi.encoders import jsonable_encoder
 
 from ...annotation.annotator_logic import AnnotatorLogic
 from ...annotation.annotator_node import AnnotatorNode
-from ...data_classes import (AnnotationData, AnnotationEventType, Category, CategoryType, Context, Point, ToolOutput,
-                             UserInput)
+from ...data_classes import AnnotationData, Category, Context, Point, ToolOutput, UserInput
+from ...enums import AnnotationEventType, CategoryType
 
 
 class MockedAnnotatatorLogic(AnnotatorLogic):

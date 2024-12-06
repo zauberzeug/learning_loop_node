@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from ...data_classes import TrainerState
+from ...enums import TrainerState
 from .state_helper import assert_training_state, create_active_training_file
 from .testing_trainer_logic import TestingTrainerLogic
 

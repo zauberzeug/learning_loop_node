@@ -3,7 +3,8 @@ from uuid import uuid4
 
 import pytest
 
-from learning_loop_node.data_classes import Context, TrainerState, Training
+from learning_loop_node.data_classes import Context, Training
+from learning_loop_node.enums import TrainerState
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
 

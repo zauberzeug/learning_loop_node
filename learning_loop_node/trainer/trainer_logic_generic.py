@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import (Context, Errors, PretrainedModel, TrainerState, Training, TrainingOut, TrainingStateData,
-                            TrainingStatus)
+from ..data_classes import Context, Errors, PretrainedModel, Training, TrainingOut, TrainingStateData, TrainingStatus
+from ..enums import TrainerState
 from ..helpers.misc import create_project_folder, delete_all_training_folders, is_valid_uuid4
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError

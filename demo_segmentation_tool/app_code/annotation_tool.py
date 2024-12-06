@@ -10,9 +10,8 @@ import cv2
 import numpy as np
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
-from learning_loop_node.data_classes import (AnnotationEventType, Point,
-                                             SegmentationAnnotation, Shape,
-                                             ToolOutput, UserInput)
+from learning_loop_node.data_classes import Point, SegmentationAnnotation, Shape, ToolOutput, UserInput
+from learning_loop_node.enums import AnnotationEventType
 
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
@@ -63,7 +62,8 @@ class History():
 
 
 class SegmentationTool(AnnotatorLogic):
-    async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:
+    # TODO: fix signature
+    async def handle_user_input(self, user_input: UserInput, history: History) -> ToolOutput:  # type: ignore
         coordinate = user_input.data.coordinate
         output = ToolOutput(svg="", annotation=None)
 

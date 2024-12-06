@@ -3,7 +3,7 @@ import asyncio
 
 from pytest_mock import MockerFixture  # pip install pytest-mock
 
-from ....data_classes import TrainerState
+from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
 from ....trainer.trainer_node import TrainerNode
 from ..state_helper import assert_training_state, create_active_training_file

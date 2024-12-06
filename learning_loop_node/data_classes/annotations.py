@@ -1,22 +1,12 @@
 import sys
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional, Union
 
+from ..enums import AnnotationEventType
 from .detections import Point, Shape
 from .general import Category, Context
 
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
-
-
-class AnnotationEventType(str, Enum):
-    LeftMouseDown = 'left_mouse_down'
-    RightMouseDown = 'right_mouse_down'
-    MouseMove = 'mouse_move'
-    LeftMouseUp = 'left_mouse_up'
-    RightMouseUp = 'right_mouse_up'
-    KeyUp = 'key_up'
-    KeyDown = 'key_down'
 
 
 @dataclass(**KWONLY_SLOTS)

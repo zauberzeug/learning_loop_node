@@ -4,9 +4,10 @@ import logging
 import time
 from typing import Dict, List, Optional
 
-from learning_loop_node.data_classes import (BoxDetection, CategoryType, ClassificationDetection, Detections,
-                                             ErrorConfiguration, ModelInformation, Point, PointDetection,
-                                             PretrainedModel, SegmentationDetection, Shape, TrainingStateData)
+from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, Detections, ErrorConfiguration,
+                                             ModelInformation, Point, PointDetection, PretrainedModel,
+                                             SegmentationDetection, Shape, TrainingStateData)
+from learning_loop_node.enums import CategoryType
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
 
 from . import progress_simulator

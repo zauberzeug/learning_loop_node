@@ -1,6 +1,6 @@
 import asyncio
 
-from ....data_classes import TrainerState
+from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
 from ...test_helper import get_dummy_detections
 from ..state_helper import assert_training_state, create_active_training_file

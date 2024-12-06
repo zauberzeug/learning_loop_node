@@ -3,7 +3,8 @@ import asyncio
 import pytest
 from dacite import from_dict
 
-from ....data_classes import BoxDetection, Context, Detections, TrainerState
+from ....data_classes import BoxDetection, Context, Detections
+from ....enums import TrainerState
 from ....loop_communication import LoopCommunicator
 from ....trainer.trainer_logic import TrainerLogic
 from ...test_helper import get_dummy_detections
