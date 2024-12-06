@@ -21,7 +21,6 @@ class TrainerNode(Node):
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
         self.trainer_logic._last_training_io = self.last_training_io
-        self.previous_state: Optional[str] = None
 
         self._first_idle_time: float | None = None
         if os.environ.get('TRAINER_IDLE_TIMEOUT_SEC', 0.0):
