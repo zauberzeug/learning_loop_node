@@ -73,6 +73,15 @@ class Node(FastAPI):
 
         self.repeat_loop_lock = asyncio.Lock()
 
+        self.previous_state: Optional[str] = None
+
+    def log_status_on_change(self, current_state_str: str, full_status: Any):
+        if self.previous_state != current_state_str:
+            self.previous_state = current_state_str
+            self.log.info('Status changed to %s', full_status)
+        else:
+            self.log.debug('sending status %s', full_status)
+
     def init_loop_communicator(self):
         self.loop_communicator = LoopCommunicator()
         self.websocket_url = self.loop_communicator.websocket_url()
