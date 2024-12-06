@@ -8,14 +8,9 @@ from typing import Dict, List, Optional, Union
 
 from dacite import from_dict
 
+from ..enums import CategoryType
+
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
-
-
-class CategoryType(str, Enum):
-    Box = 'box'
-    Point = 'point'
-    Segmentation = 'segmentation'
-    Classification = 'classification'
 
 
 @dataclass(**KWONLY_SLOTS)

@@ -1,7 +1,8 @@
 
 from uuid import uuid4
 
-from ...data_classes import Context, TrainerState, Training
+from ...data_classes import Context, Training
+from ...enums import TrainerState
 from ...trainer.io_helpers import LastTrainingIO
 from ...trainer.trainer_node import TrainerNode
 from .testing_trainer_logic import TestingTrainerLogic

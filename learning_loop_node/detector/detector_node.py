@@ -5,7 +5,6 @@ import shutil
 import subprocess
 from dataclasses import asdict
 from datetime import datetime
-from enum import Enum
 from threading import Thread
 from typing import Dict, List, Optional
 
@@ -19,6 +18,7 @@ from ..data_classes import (AboutResponse, Category, Context, DetectionStatus, I
                             ModelVersionResponse, Shape)
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
+from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader
 from ..node import Node
@@ -32,13 +32,6 @@ from .rest import model_version_control as rest_version_control
 from .rest import operation_mode as rest_mode
 from .rest import outbox_mode as rest_outbox_mode
 from .rest import upload as rest_upload
-from .rest.operation_mode import OperationMode
-
-
-class VersionMode(str, Enum):
-    FollowLoop = 'follow_loop'  # will follow the loop
-    SpecificVersion = 'specific_version'  # will follow the specific version
-    Pause = 'pause'  # will pause the updates
 
 
 class DetectorNode(Node):

@@ -3,7 +3,8 @@ from dataclasses import asdict
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from ...data_classes import AnnotationData, AnnotationEventType, Category, Context, Point
+from ...data_classes import AnnotationData, Category, Context, Point
+from ...enums import AnnotationEventType
 
 # Used by all Nodes
 

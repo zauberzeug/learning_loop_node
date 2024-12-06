@@ -7,7 +7,6 @@ import shutil
 from asyncio import Task
 from dataclasses import asdict
 from datetime import datetime
-from enum import Enum
 from glob import glob
 from io import BufferedReader, TextIOWrapper
 from multiprocessing import Event
@@ -20,13 +19,9 @@ import PIL.Image  # type: ignore
 from fastapi.encoders import jsonable_encoder
 
 from ..data_classes import ImageMetadata
+from ..enums import OutboxMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader
-
-
-class OutboxMode(Enum):
-    CONTINUOUS_UPLOAD = 'continuous_upload'
-    STOPPED = 'stopped'
 
 
 class Outbox():

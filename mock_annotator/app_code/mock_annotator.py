@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 from learning_loop_node.annotation.annotator_logic import AnnotatorLogic
-from learning_loop_node.data_classes import AnnotationEventType, ToolOutput
+from learning_loop_node.data_classes import ToolOutput
+from learning_loop_node.enums import AnnotationEventType
 
 # NOTE: This is a mock annotator tool. It is used for testing purposes only.
 

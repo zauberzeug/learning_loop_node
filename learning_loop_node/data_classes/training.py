@@ -2,11 +2,11 @@
 import sys
 import time
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
+from ..enums import TrainerState
 from ..helpers.misc import create_image_folder, create_training_folder
 # pylint: disable=no-name-in-module
 from .general import Category, Context
@@ -19,26 +19,6 @@ class PretrainedModel():
     name: str
     label: str
     description: str
-
-
-class TrainerState(str, Enum):
-    Idle = 'idle'
-    Initialized = 'initialized'
-    Preparing = 'preparing'
-    DataDownloading = 'data_downloading'
-    DataDownloaded = 'data_downloaded'
-    TrainModelDownloading = 'train_model_downloading'
-    TrainModelDownloaded = 'train_model_downloaded'
-    TrainingRunning = 'running'
-    TrainingFinished = 'training_finished'
-    ConfusionMatrixSyncing = 'confusion_matrix_syncing'
-    ConfusionMatrixSynced = 'confusion_matrix_synced'
-    TrainModelUploading = 'train_model_uploading'
-    TrainModelUploaded = 'train_model_uploaded'
-    Detecting = 'detecting'
-    Detected = 'detected'
-    DetectionUploading = 'detection_uploading'
-    ReadyForCleanup = 'ready_for_cleanup'
 
 
 @dataclass(**KWONLY_SLOTS)
