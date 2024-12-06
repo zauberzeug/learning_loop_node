@@ -44,7 +44,6 @@ class DetectorNode(Node):
         self.log.info('Using %s/%s', self.organization, self.project)
         self.operation_mode: OperationMode = OperationMode.Startup
         self.connected_clients: List[str] = []
-        self.previous_state: Optional[str] = None
 
         self.detection_lock = asyncio.Lock()
 
