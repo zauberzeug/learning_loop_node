@@ -73,7 +73,8 @@ class AnnotatorNode(Node):
             capabilities=['segmentation']
         )
 
-        self.log.debug('Sending status %s', status)
+        self.log_status_on_change(status.state.value if status.state else 'None', status)
+
         try:
             result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
         except Exception:

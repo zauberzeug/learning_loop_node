@@ -388,7 +388,8 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log.debug('sending status %s', status)
+        self.log_status_on_change(status.state or 'None', status)
+
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         if not response:
             self.socket_connection_broken = True

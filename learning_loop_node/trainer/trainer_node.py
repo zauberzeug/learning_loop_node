@@ -81,7 +81,8 @@ class TrainerNode(Node):
             return
 
         status = self.trainer_logic.generate_status_for_loop(self.uuid, self.name)
-        self.log.debug('sending status: %s', status.short_str())
+        self.log_status_on_change(status.state or 'None', status.short_str())
+
         result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
             self.socket_connection_broken = True
