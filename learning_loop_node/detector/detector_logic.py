@@ -31,14 +31,15 @@ class DetectorLogic():
         logging.info('Loading model from %s', GLOBALS.data_folder)
         model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
         if model_info is None:
-            logging.warning('No model found')
+            logging.error('No model found')
             self._model_info = None
-            return
+            raise Exception('No model found')
         try:
             self._model_info = model_info
             self.init()
             logging.info('Successfully loaded model %s', self._model_info)
         except Exception:
+            self._model_info = None
             logging.error('Could not init model %s', model_info)
             raise
 

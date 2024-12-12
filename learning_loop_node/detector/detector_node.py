@@ -107,6 +107,8 @@ class DetectorNode(Node):
 
     async def set_model_version_mode(self, version_control_mode: str) -> None:
 
+        self.log.info('Setting model version mode to %s', version_control_mode)
+
         if version_control_mode == 'follow_loop':
             self.version_control = VersionMode.FollowLoop
         elif version_control_mode == 'pause':
@@ -324,13 +326,13 @@ class DetectorNode(Node):
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model.version}'
-                    shutil.rmtree(target_model_folder, ignore_errors=True)
-                    os.makedirs(target_model_folder)
-
-                    await self.data_exchanger.download_model(target_model_folder,
-                                                             Context(organization=self.organization,
-                                                                     project=self.project),
-                                                             self.target_model.id, self.detector_logic.model_format)
+                    if not os.path.exists(target_model_folder):
+                        os.makedirs(target_model_folder)
+                        await self.data_exchanger.download_model(target_model_folder,
+                                                                 Context(organization=self.organization,
+                                                                         project=self.project),
+                                                                 self.target_model.id,
+                                                                 self.detector_logic.model_format)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
@@ -339,7 +341,12 @@ class DetectorNode(Node):
                     os.symlink(target_model_folder, model_symlink)
                     self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
 
-                    self.detector_logic.load_model()
+                    try:
+                        self.detector_logic.load_model()
+                    except Exception:
+                        self.log.exception('Could not load model, will retry download on next check')
+                        shutil.rmtree(target_model_folder, ignore_errors=True)
+                        return
                     try:
                         await self.sync_status_with_learning_loop()
                     except Exception:
