@@ -333,6 +333,9 @@ class DetectorNode(Node):
                                                                          project=self.project),
                                                                  self.target_model.id,
                                                                  self.detector_logic.model_format)
+                        self.log.info('Downloaded model %s', self.target_model.version)
+                    else:
+                        self.log.info('No need to download model %s (already exists)', self.target_model.version)
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
