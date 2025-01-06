@@ -217,7 +217,8 @@ class DetectorNode(Node):
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
-                    autoupload=data.get('autoupload', None)
+                    autoupload=data.get('autoupload', None),
+                    creation_date=data.get('creation_date', None)
                 )
                 if det is None:
                     return {'error': 'no model loaded'}
