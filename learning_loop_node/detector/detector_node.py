@@ -400,6 +400,7 @@ class DetectorNode(Node):
 
         self.log_status_on_change(status.state or 'None', status)
 
+        # NOTE: sending organization and project is no longer required!
         response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         if not response:
             self.socket_connection_broken = True
