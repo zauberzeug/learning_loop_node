@@ -1,8 +1,8 @@
 import os
 from typing import List, Union
 
-from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, ImageMetadata, Observation,
-                                             PointDetection, SegmentationDetection)
+from ...data_classes import (BoxDetection, ClassificationDetection, ImageMetadata, Observation, PointDetection,
+                             SegmentationDetection)
 
 
 class CamObservationHistory:
