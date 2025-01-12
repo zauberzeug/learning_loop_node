@@ -4,7 +4,6 @@ from glob import glob
 # pylint: disable=protected-access,redefined-outer-name,unused-argument
 import pytest
 from fastapi.encoders import jsonable_encoder
-
 from learning_loop_node.data_classes import Category, Context
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.tests import test_helper
@@ -29,8 +28,8 @@ async def test_all():
                'model_variant': '',
                'hyperparameters': {
                    'resolution': 800,
-                   'flip_rl': False,
-                   'flip_ud': False}
+                   'fliplr': 0.5,
+                   'flipud': 0.5}
                }
     # await asyncio.sleep(100)
 
