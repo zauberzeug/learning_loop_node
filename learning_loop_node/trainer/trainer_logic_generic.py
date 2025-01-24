@@ -402,7 +402,7 @@ class TrainerLogicGeneric(ABC):
         """
 
         files = await self._get_latest_model_files()
-        if files is None:
+        if files is None or len(files) == 0:
             raise CriticalError('Could not get latest model files. Training might have failed.')
 
         if isinstance(files, List):
