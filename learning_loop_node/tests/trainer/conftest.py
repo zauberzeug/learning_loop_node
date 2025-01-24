@@ -36,8 +36,8 @@ async def test_initialized_trainer_node():
                                                 'model_variant': '',
                                                 'hyperparameters': {
                                    'resolution': 800,
-                                   'flip_rl': False,
-                                   'flip_ud': False}
+                                   'fliplr': 0.5,
+                                   'flipud': 0.5}
     })
     await node._on_startup()
     yield node
@@ -59,8 +59,8 @@ async def test_initialized_trainer():
                                                 'model_variant': '',
                                                 'hyperparameters': {
                                    'resolution': 800,
-                                   'flip_rl': False,
-                                   'flip_ud': False}
+                                   'fliplr': 0.5,
+                                   'flipud': 0.5}
     })
     yield trainer
     try:
