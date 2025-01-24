@@ -79,10 +79,10 @@ class Outbox():
         image_metadata.source = source or 'unknown'
         os.makedirs(tmp, exist_ok=True)
 
-        with open(tmp + '/image.json', 'w') as f:
+        with open(tmp + f'/image_{identifier}.json', 'w') as f:
             json.dump(jsonable_encoder(asdict(image_metadata)), f)
 
-        with open(tmp + '/image.jpg', 'wb') as f:
+        with open(tmp + f'/image_{identifier}.jpg', 'wb') as f:
             f.write(image)
 
         if os.path.exists(tmp):
@@ -141,8 +141,10 @@ class Outbox():
         # results in a post failure on the first run of the test in a docker environment (WTF)
 
         data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
-        data = [('files', open(f'{item}/image.json', 'r')) for item in items]
-        data += [('files', open(f'{item}/image.jpg', 'rb')) for item in items]
+        for item in items:
+            identifier = os.path.basename(item)
+            data.append(('files', open(f'{item}/image_{identifier}.json', 'r')))
+            data.append(('files', open(f'{item}/image_{identifier}.jpg', 'rb')))
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -158,7 +160,11 @@ class Outbox():
         if response.status == 200:
             self.upload_counter += len(items)
             for item in items:
-                shutil.rmtree(item, ignore_errors=True)
+                try:
+                    shutil.rmtree(item)
+                    self.log.debug('Deleted %s', item)
+                except Exception:
+                    self.log.exception('Failed to delete %s', item)
             self.log.info('Uploaded %s images successfully', len(items))
 
         elif response.status == 422:
