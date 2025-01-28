@@ -202,8 +202,11 @@ class DetectorNode(Node):
         """The DetectorNode acts as a SocketIO server. This method sets up the server and defines the event handlers."""
         # pylint: disable=unused-argument
 
-        # Initialize the Socket.IO server
-        self.sio = socketio.AsyncServer(async_mode='asgi')
+        # Initialize the Socket.IO server with 20MB buffer size
+        self.sio = socketio.AsyncServer(
+            async_mode='asgi',
+            max_http_buffer_size=2e7,  # 20MB
+        )
         # Initialize and mount the ASGI app
         self.sio_app = socketio.ASGIApp(self.sio, socketio_path='/socket.io')
         self.mount('/ws', self.sio_app)
