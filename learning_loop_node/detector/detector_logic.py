@@ -14,7 +14,8 @@ class DetectorLogic():
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
         self._model_info: Optional[ModelInformation] = None
-        self._remaining_init_retries: int = 2
+
+        self._remaining_init_attempts: int = 2
 
     async def soft_reload(self):
         self._model_info = None
@@ -38,12 +39,12 @@ class DetectorLogic():
         try:
             self.init()
             logging.info('Successfully loaded model %s', self._model_info)
-            self._remaining_init_retries = 2
+            self._remaining_init_attempts = 2
         except Exception:
-            self._remaining_init_retries -= 1
+            self._remaining_init_attempts -= 1
             self._model_info = None
-            logging.error('Could not init model %s. Retries left: %s', self._model_info, self._remaining_init_retries)
-            if self._remaining_init_retries == 0:
+            logging.error('Could not init model %s. Retries left: %s', self._model_info, self._remaining_init_attempts)
+            if self._remaining_init_attempts == 0:
                 raise NodeNeedsRestartError('Could not init model') from None
             raise
 
