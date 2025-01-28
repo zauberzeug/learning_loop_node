@@ -6,6 +6,7 @@ import numpy as np
 
 from ..data_classes import ImageMetadata, ModelInformation
 from ..globals import GLOBALS
+from .exceptions import NodeNeedsRestartError
 
 
 class DetectorLogic():
@@ -13,6 +14,7 @@ class DetectorLogic():
     def __init__(self, model_format: str) -> None:
         self.model_format: str = model_format
         self._model_info: Optional[ModelInformation] = None
+        self._remaining_init_retries: int = 2
 
     async def soft_reload(self):
         self._model_info = None
@@ -27,20 +29,22 @@ class DetectorLogic():
     def is_initialized(self) -> bool:
         return self._model_info is not None
 
-    def load_model(self):
+    def load_model_info_and_init_model(self):
         logging.info('Loading model from %s', GLOBALS.data_folder)
-        model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
-        if model_info is None:
+        self._model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
+        if self._model_info is None:
             logging.error('No model found')
             self._model_info = None
-            raise Exception('No model found')
         try:
-            self._model_info = model_info
             self.init()
             logging.info('Successfully loaded model %s', self._model_info)
+            self._remaining_init_retries = 2
         except Exception:
+            self._remaining_init_retries -= 1
             self._model_info = None
-            logging.error('Could not init model %s', model_info)
+            logging.error('Could not init model %s. Retries left: %s', self._model_info, self._remaining_init_retries)
+            if self._remaining_init_retries == 0:
+                raise NodeNeedsRestartError('Could not init model') from None
             raise
 
     @abstractmethod
