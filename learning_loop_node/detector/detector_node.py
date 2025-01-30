@@ -3,6 +3,7 @@ import contextlib
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import asdict
 from datetime import datetime
 from threading import Thread
@@ -23,6 +24,7 @@ from ..globals import GLOBALS
 from ..helpers import environment_reader
 from ..node import Node
 from .detector_logic import DetectorLogic
+from .exceptions import NodeNeedsRestartError
 from .inbox_filter.relevance_filter import RelevanceFilter
 from .outbox import Outbox
 from .rest import about as rest_about
@@ -170,13 +172,13 @@ class DetectorNode(Node):
 
         # simulate startup
         await self.detector_logic.soft_reload()
-        self.detector_logic.load_model()
+        self.detector_logic.load_model_info_and_init_model()
         self.operation_mode = OperationMode.Idle
 
     async def on_startup(self) -> None:
         try:
             self.outbox.ensure_continuous_upload()
-            self.detector_logic.load_model()
+            self.detector_logic.load_model_info_and_init_model()
         except Exception:
             self.log.exception("error during 'startup'")
         self.operation_mode = OperationMode.Idle
@@ -321,9 +323,12 @@ class DetectorNode(Node):
                 self.log.debug('not checking for updates; no target model selected')
                 return
 
-            current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else None  # pylint: disable=protected-access
+            if self.detector_logic.is_initialized:
+                current_version = self.detector_logic.model_info.version
+            else:
+                current_version = None
 
-            if not self.detector_logic.is_initialized or self.target_model.version != current_version:
+            if current_version != self.target_model.version:
                 self.log.info('Current model "%s" needs to be updated to %s',
                               current_version or "-", self.target_model.version)
 
@@ -349,7 +354,10 @@ class DetectorNode(Node):
                     self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
 
                     try:
-                        self.detector_logic.load_model()
+                        self.detector_logic.load_model_info_and_init_model()
+                    except NodeNeedsRestartError:
+                        self.log.error('Node needs restart')
+                        sys.exit(0)
                     except Exception:
                         self.log.exception('Could not load model, will retry download on next check')
                         shutil.rmtree(target_model_folder, ignore_errors=True)
