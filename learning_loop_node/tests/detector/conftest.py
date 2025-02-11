@@ -129,10 +129,6 @@ class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
                                          model_name="mock",
                                          )])
 
-    @property
-    def is_initialized(self):
-        return True
-
     def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None):
         return self.image_metadata
 

@@ -51,9 +51,6 @@ def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     headers = {grouping_key: '0:0:0:0', 'tags':  'some_tag'}
 
     assert isinstance(test_detector_node.detector_logic, TestingDetectorLogic)
-    # test_detector_node.detector_logic.mock_is_initialized = True
-    # print(test_detector_node.detector_logic.mock_is_initialized)
-    # print(test_detector_node.detector_logic.is_initialized)
     response = requests.post(f'http://localhost:{GLOBALS.detector_port}/detect',
                              files=image, headers=headers, timeout=30)
     assert response.status_code == 200
