@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import math
 import os
 import shutil
 import subprocess
@@ -169,7 +170,6 @@ class DetectorNode(Node):
         self.version_control = VersionMode.Pause if os.environ.get(
             'VERSION_CONTROL_DEFAULT', 'follow_loop').lower() == 'pause' else VersionMode.FollowLoop
         self.target_model = None
-        self.repeat_loop_cycle_sec = 5
         # self.setup_sio_server()
 
         # simulate super().startup
@@ -437,12 +437,6 @@ class DetectorNode(Node):
 
         deployment_target_model_id = socket_response.payload['target_model_id']
         deployment_target_model_version = socket_response.payload['target_model_version']
-        if deployment_target_model_id is None:
-            self.log.info('No deployment target set in loop')
-            self.repeat_loop_cycle_sec = min(self.repeat_loop_cycle_sec+1, 60)
-            return
-
-        self.repeat_loop_cycle_sec = 5
         self.loop_deployment_target = ModelInformation(organization=self.organization, project=self.project,
                                                        host="", categories=[],
                                                        id=deployment_target_model_id,
