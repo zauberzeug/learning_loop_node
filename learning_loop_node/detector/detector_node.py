@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import math
 import os
 import shutil
 import subprocess
@@ -15,8 +16,16 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import (AboutResponse, Category, Context, DetectionStatus, ImageMetadata, ModelInformation,
-                            ModelVersionResponse, Shape)
+from ..data_classes import (
+    AboutResponse,
+    Category,
+    Context,
+    DetectionStatus,
+    ImageMetadata,
+    ModelInformation,
+    ModelVersionResponse,
+    Shape,
+)
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
@@ -82,13 +91,13 @@ class DetectorNode(Node):
         return AboutResponse(
             operation_mode=self.operation_mode.value,
             state=self.status.state,
-            model_info=self.detector_logic._model_info,  # pylint: disable=protected-access
+            model_info=self.detector_logic.model_info,  # pylint: disable=protected-access
             target_model=self.target_model.version if self.target_model else None,
             version_control=self.version_control.value
         )
 
     def get_model_version_response(self) -> ModelVersionResponse:
-        current_version = self.detector_logic._model_info.version if self.detector_logic._model_info is not None else 'None'  # pylint: disable=protected-access
+        current_version = self.detector_logic.model_info.version if self.detector_logic.model_info is not None else 'None'  # pylint: disable=protected-access
         target_version = self.target_model.version if self.target_model is not None else 'None'
         loop_version = self.loop_deployment_target.version if self.loop_deployment_target is not None else 'None'
 
@@ -237,7 +246,7 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def info(sid) -> Dict:
-            if self.detector_logic.is_initialized:
+            if self.detector_logic.model_info is not None:
                 return asdict(self.detector_logic.model_info)
             return {"status": "No model loaded"}
 
@@ -274,7 +283,7 @@ class DetectorNode(Node):
             '''upload an image with detections'''
 
             detection_data = data.get('detections', {})
-            if detection_data and self.detector_logic.is_initialized:
+            if detection_data and self.detector_logic.model_info is not None:
                 try:
                     image_metadata = from_dict(data_class=ImageMetadata, data=detection_data)
                 except Exception as e:
@@ -323,7 +332,7 @@ class DetectorNode(Node):
                 self.log.debug('not checking for updates; no target model selected')
                 return
 
-            if self.detector_logic.is_initialized:
+            if self.detector_logic.model_info is not None:
                 current_version = self.detector_logic.model_info.version
             else:
                 current_version = None
@@ -391,9 +400,9 @@ class DetectorNode(Node):
             self.log.info('Status sync failed: not connected')
             raise Exception('Status sync failed: not connected')
 
-        try:
+        if self.detector_logic.model_info is not None:
             current_model = self.detector_logic.model_info.version
-        except Exception:
+        else:
             current_model = None
 
         target_model_version = self.target_model.version if self.target_model else None

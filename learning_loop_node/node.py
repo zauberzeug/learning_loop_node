@@ -74,6 +74,7 @@ class Node(FastAPI):
         self.repeat_loop_lock = asyncio.Lock()
 
         self.previous_state: Optional[str] = None
+        self.repeat_loop_cycle_sec = 5
 
     def log_status_on_change(self, current_state_str: str, full_status: Any):
         if self.previous_state != current_state_str:
@@ -146,7 +147,7 @@ class Node(FastAPI):
             except Exception:
                 self.log.exception('error in repeat loop')
 
-            await asyncio.sleep(5)
+            await asyncio.sleep(self.repeat_loop_cycle_sec)
 
     async def _ensure_sio_connection(self):
         if self.socket_connection_broken or self._sio_client is None or not self.sio_client.connected:

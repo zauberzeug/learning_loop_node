@@ -56,7 +56,7 @@ async def test_detector_node():
 
     detector = MockDetector(model_format='mocked')
     node = DetectorNode(name='test', detector=detector)
-    detector._model_info = model_info  # pylint: disable=protected-access
+    detector.model_info = model_info  # pylint: disable=protected-access
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)

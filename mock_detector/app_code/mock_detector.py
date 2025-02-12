@@ -8,10 +8,6 @@ class MockDetector(DetectorLogic):
     def __init__(self, model_format) -> None:
         super().__init__(model_format=model_format)
 
-    @property
-    def is_initialized(self) -> bool:
-        return True
-
     def init(self) -> None:
         pass
 
