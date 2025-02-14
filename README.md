@@ -23,8 +23,8 @@ You can configure connection to our Learning Loop by specifying the following en
 | LOOP_USERNAME            | USERNAME     | Learning Loop user name                                      | all besides Detector      |
 | LOOP_PASSWORD            | PASSWORD     | Learning Loop password                                       | all besides Detector      |
 | LOOP_SSL_CERT_PATH       | -            | Path to the SSL certificate                                  | all (opt.)                |
-| LOOP_ORGANIZATION        | ORGANIZATION | Organization name                                            | Detector                  |
-| LOOP_PROJECT             | PROJECT      | Project name                                                 | Detector (opt.)           |
+| LOOP_ORGANIZATION        | ORGANIZATION | Organization ID                                              | Detector                  |
+| LOOP_PROJECT             | PROJECT      | Project ID                                                   | Detector (opt.)           |
 | MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           |
 | MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           |
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            |
@@ -32,6 +32,8 @@ You can configure connection to our Learning Loop by specifying the following en
 | KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            |
 | TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)            |
 | USE_BACKDOOR_CONTROLS    | -            | Always enable backdoor controls (set to 1)                   | Trainer / Detector (opt.) |
+
+Note that organization and project IDs are always lower case and may differ from the names in the Learning Loop which can have uppercase letters.
 
 #### Testing
 
