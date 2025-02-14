@@ -427,16 +427,23 @@ class DetectorNode(Node):
         self.log_status_on_change(status.state or 'None', status)
 
         # NOTE: sending organization and project is no longer required!
-        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        try:
+            response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        except TimeoutError:
+            self.socket_connection_broken = True
+            self.log.exception('TimeoutError for sending status update (will try to reconnect):')
+            raise Exception('Status update failed due to timeout') from None
+
         if not response:
             self.socket_connection_broken = True
-            return
+            self.log.error('Status update failed (will try to reconnect): %s', response)
+            raise Exception('Status update failed: Did not receive a response from the learning loop')
 
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
             self.socket_connection_broken = True
-            self.log.error('Statusupdate failed: %s', response)
-            raise Exception(f'Statusupdate failed: {response}')
+            self.log.error('Status update failed (will try to reconnect): %s', response)
+            raise Exception(f'Status update failed. Response from learning loop: {response}')
 
         assert socket_response.payload is not None
 
