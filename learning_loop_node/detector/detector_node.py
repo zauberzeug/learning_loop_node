@@ -344,16 +344,21 @@ class DetectorNode(Node):
                 with step_into(GLOBALS.data_folder):
                     model_symlink = 'model'
                     target_model_folder = f'models/{self.target_model.version}'
-                    if not os.path.exists(target_model_folder):
-                        os.makedirs(target_model_folder)
-                        await self.data_exchanger.download_model(target_model_folder,
-                                                                 Context(organization=self.organization,
-                                                                         project=self.project),
-                                                                 self.target_model.id,
-                                                                 self.detector_logic.model_format)
-                        self.log.info('Downloaded model %s', self.target_model.version)
-                    else:
+                    if os.path.exists(target_model_folder) and len(os.listdir(target_model_folder)) > 0:
                         self.log.info('No need to download model %s (already exists)', self.target_model.version)
+                    else:
+                        os.makedirs(target_model_folder, exist_ok=True)
+                        try:
+                            await self.data_exchanger.download_model(target_model_folder,
+                                                                     Context(organization=self.organization,
+                                                                             project=self.project),
+                                                                     self.target_model.id,
+                                                                     self.detector_logic.model_format)
+                            self.log.info('Downloaded model %s', self.target_model.version)
+                        except Exception:
+                            self.log.exception('Could not download model %s', self.target_model.version)
+                            shutil.rmtree(target_model_folder, ignore_errors=True)
+                            return
                     try:
                         os.unlink(model_symlink)
                         os.remove(model_symlink)
@@ -422,16 +427,23 @@ class DetectorNode(Node):
         self.log_status_on_change(status.state or 'None', status)
 
         # NOTE: sending organization and project is no longer required!
-        response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        try:
+            response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+        except TimeoutError:
+            self.socket_connection_broken = True
+            self.log.exception('TimeoutError for sending status update (will try to reconnect):')
+            raise Exception('Status update failed due to timeout') from None
+
         if not response:
             self.socket_connection_broken = True
-            return
+            self.log.error('Status update failed (will try to reconnect): %s', response)
+            raise Exception('Status update failed: Did not receive a response from the learning loop')
 
         socket_response = from_dict(data_class=SocketResponse, data=response)
         if not socket_response.success:
             self.socket_connection_broken = True
-            self.log.error('Statusupdate failed: %s', response)
-            raise Exception(f'Statusupdate failed: {response}')
+            self.log.error('Status update failed (will try to reconnect): %s', response)
+            raise Exception(f'Status update failed. Response from learning loop: {response}')
 
         assert socket_response.payload is not None
 

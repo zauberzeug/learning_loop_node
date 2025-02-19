@@ -143,7 +143,7 @@ class DataExchanger():
         logging.info('Downloading model data for uuid %s from the loop to %s..', model_uuid, target_folder)
 
         path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{model_format}/file'
-        response = await self.loop_communicator.get(path, requires_login=False)
+        response = await self.loop_communicator.get(path, requires_login=False, timeout=60*10)
         if response.status_code != 200:
             decoded_content = response.content.decode('utf-8')
             logging.error('could not download loop/%s: %s, content: %s', path,
