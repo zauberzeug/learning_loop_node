@@ -148,7 +148,7 @@ class Outbox():
 
         try:
             async with aiohttp.ClientSession() as session:
-                response = await session.post(self.target_uri, data=data, timeout=self.UPLOAD_TIMEOUT_S)
+                response = await session.post(self.target_uri, data=data, timeout=aiohttp.ClientTimeout(total=self.UPLOAD_TIMEOUT_S))
         except Exception:
             self.log.exception('Could not upload images')
             return
@@ -176,6 +176,9 @@ class Outbox():
             self.log.exception('Broken content in batch. Splitting and retrying')
             await self._upload_batch(items[:len(items)//2])
             await self._upload_batch(items[len(items)//2:])
+        elif response.status == 429:
+            self.log.error('Too many requests: %s', response.content)
+            await asyncio.sleep(5)
         else:
             self.log.error('Could not upload images: %s', response.content)
 
