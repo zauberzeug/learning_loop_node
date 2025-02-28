@@ -61,7 +61,7 @@ async def test_outbox_upload_is_successful(test_outbox: Outbox):
 async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
     invalid_bytes = b'invalid jpg'
     test_outbox.save(invalid_bytes)
-    assert len(test_outbox.get_data_files()) == 0
+    assert len(test_outbox.get_upload_folders()) == 0
 
 
 # ------------------------------ Helper functions --------------------------------------
@@ -90,7 +90,7 @@ def get_test_image_binary():
 
 async def wait_for_outbox_count(outbox: Outbox, count: int, timeout: int = 10) -> bool:
     for _ in range(timeout):
-        if len(outbox.get_data_files()) == count:
+        if len(outbox.get_upload_folders()) == count:
             return True
         await asyncio.sleep(1)
     return False

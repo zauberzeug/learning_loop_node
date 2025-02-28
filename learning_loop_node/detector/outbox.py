@@ -42,6 +42,8 @@ class Outbox():
         self.log.info('Outbox initialized with target_uri: %s', self.target_uri)
 
         self.BATCH_SIZE = 20
+        self.MAX_UPLOAD_LENGTH = 1000  # only affects the `upload_folders` list
+        self.UPLOAD_INTERVAL_S = 5
         self.UPLOAD_TIMEOUT_S = 30
 
         self.shutdown_event: SyncEvent = Event()
@@ -49,12 +51,18 @@ class Outbox():
 
         self.upload_counter = 0
 
+        self.priority_upload_folders: List[str] = []
+        self.upload_folders: List[str] = []
+
+        self.upload_folders = self.get_all_data_files()  # make sure to upload all existing images (e.g. after a restart)
+
     def save(self,
              image: bytes,
              image_metadata: Optional[ImageMetadata] = None,
              tags: Optional[List[str]] = None,
              source: Optional[str] = None,
-             creation_date: Optional[str] = None) -> None:
+             creation_date: Optional[str] = None,
+             upload_priority: bool = False) -> None:
 
         if not self._is_valid_jpg(image):
             self.log.error('Invalid jpg image')
@@ -89,6 +97,23 @@ class Outbox():
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
 
+        if upload_priority:
+            self.priority_upload_folders.append(self.path + '/' + identifier)
+        else:
+            self.upload_folders.insert(0, self.path + '/' + identifier)
+
+        # Cut off the upload list if it gets too long
+        if len(self.upload_folders) > self.MAX_UPLOAD_LENGTH:
+            items_to_drop = self.upload_folders[self.MAX_UPLOAD_LENGTH:]
+            self.log.info('Dropping %s images from upload list', len(items_to_drop))
+            try:
+                for item in items_to_drop:
+                    shutil.rmtree(item)
+                    self.log.debug('Deleted %s', item)
+                self.upload_folders = self.upload_folders[:self.MAX_UPLOAD_LENGTH]
+            except Exception:
+                self.log.exception('Failed to cut upload list')
+
     def _is_valid_isoformat(self, date: Optional[str]) -> bool:
         if date is None:
             return False
@@ -98,8 +123,11 @@ class Outbox():
         except Exception:
             return False
 
-    def get_data_files(self) -> List[str]:
+    def get_all_data_files(self) -> List[str]:
         return glob(f'{self.path}/*')
+
+    def get_upload_folders(self) -> List[str]:
+        return self.priority_upload_folders + self.upload_folders
 
     def ensure_continuous_upload(self) -> None:
         self.log.debug('start_continuous_upload')
@@ -115,26 +143,31 @@ class Outbox():
         assert self.shutdown_event is not None
         while not self.shutdown_event.is_set():
             await self.upload()
-            await asyncio.sleep(5)
+            await asyncio.sleep(self.UPLOAD_INTERVAL_S)
         self.log.info('continuous upload ended')
 
     async def upload(self) -> None:
-        items = self.get_data_files()
+        items = self.get_upload_folders()
         if not items:
             self.log.debug('No images found to upload')
             return
 
         self.log.info('Found %s images to upload', len(items))
-        for i in range(0, len(items), self.BATCH_SIZE):
-            batch_items = items[i:i+self.BATCH_SIZE]
-            if self.shutdown_event.is_set():
-                break
-            try:
-                await self._upload_batch(batch_items)
-            except Exception:
-                self.log.exception('Could not upload files')
+        # NOTE (for reviewer):
+        # I changed the behaviour from trying to clear the outbox in each upload cycle to uploading the first BS images in each 5-sec cycle
+        # This simplifies the code and has the advantage that newer images or manual uploads are uploaded earlier
+
+        batch_items = items[:self.BATCH_SIZE]
+        try:
+            await self._upload_batch(batch_items)
+        except Exception:
+            self.log.exception('Could not upload files')
 
     async def _upload_batch(self, items: List[str]) -> None:
+        """
+        Uploads a batch of images to the server.
+        :param items: List of folders to upload (each folder contains an image and a metadata file)
+        """
 
         # NOTE: keys are not relevant for the server, but using a fixed key like 'files'
         # results in a post failure on the first run of the test in a docker environment (WTF)
@@ -176,8 +209,7 @@ class Outbox():
             await self._upload_batch(items[:len(items)//2])
             await self._upload_batch(items[len(items)//2:])
         elif response.status == 429:
-            self.log.error('Too many requests: %s', response.content)
-            await asyncio.sleep(5)
+            self.log.warning('Too many requests: %s', response.content)
         else:
             self.log.error('Could not upload images: %s', response.content)
 

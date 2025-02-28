@@ -298,13 +298,13 @@ class DetectorNode(Node):
 
             source = data.get('source', None)
             creation_date = data.get('creation_date', None)
-
+            upload_priority = data.get('upload_priority', False)
             self.log.debug('running upload via socketio. tags: %s, source: %s, creation_date: %s',
                            tags, source, creation_date)
 
             loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], image_metadata, tags, source, creation_date)
+                await loop.run_in_executor(None, self.outbox.save, data['image'], image_metadata, tags, source, creation_date, upload_priority)
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
@@ -514,10 +514,10 @@ class DetectorNode(Node):
             self.log.error('unknown autoupload value %s', autoupload)
         return detections
 
-    async def upload_images(self, images: List[bytes], source: Optional[str], creation_date: Optional[str]):
+    async def upload_images(self, images: List[bytes], source: Optional[str], creation_date: Optional[str], upload_priority: bool = False):
         loop = asyncio.get_event_loop()
         for image in images:
-            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'], source, creation_date)
+            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'], source, creation_date, upload_priority)
 
     def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):
