@@ -26,5 +26,5 @@ async def upload_image(request: Request,
     """
     raw_files = [await file.read() for file in files]
     node: DetectorNode = request.app
-    await node.upload_images(raw_files, source, creation_date, upload_priority=upload_priority)
+    await node.upload_images(images=raw_files, source=source, creation_date=creation_date, upload_priority=upload_priority)
     return 200, "OK"
