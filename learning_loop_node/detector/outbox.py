@@ -208,8 +208,10 @@ class Outbox():
 
         if response.status == 200:
             self.upload_counter += len(items)
+            self.log.debug('Uploaded %s images', len(items))
             for item in items:
                 self._clear_item(item)
+            self.log.debug('Cleared %s images', len(items))
             return
 
         if response.status == 422:
