@@ -56,6 +56,8 @@ class Outbox():
 
         self.upload_folders = self.get_all_data_files()  # make sure to upload all existing images (e.g. after a restart)
 
+        self._session = aiohttp.ClientSession()
+
     def save(self,
              image: bytes,
              image_metadata: Optional[ImageMetadata] = None,
@@ -96,6 +98,7 @@ class Outbox():
             os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
         else:
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
+            return
 
         if upload_priority:
             self.priority_upload_folders.append(self.path + '/' + identifier)
@@ -106,13 +109,15 @@ class Outbox():
         if len(self.upload_folders) > self.MAX_UPLOAD_LENGTH:
             items_to_drop = self.upload_folders[self.MAX_UPLOAD_LENGTH:]
             self.log.info('Dropping %s images from upload list', len(items_to_drop))
-            try:
-                for item in items_to_drop:
-                    shutil.rmtree(item)
-                    self.log.debug('Deleted %s', item)
-                self.upload_folders = self.upload_folders[:self.MAX_UPLOAD_LENGTH]
-            except Exception:
-                self.log.exception('Failed to cut upload list')
+            self.upload_folders = self.upload_folders[:self.MAX_UPLOAD_LENGTH]
+
+            for item in items_to_drop:
+                try:
+                    if os.path.exists(item):
+                        shutil.rmtree(item)
+                        self.log.debug('Deleted %s', item)
+                except Exception:
+                    self.log.exception('Failed to delete %s', item)
 
     def _is_valid_isoformat(self, date: Optional[str]) -> bool:
         if date is None:
@@ -163,6 +168,17 @@ class Outbox():
         except Exception:
             self.log.exception('Could not upload files')
 
+    def _clear_item(self, item: str) -> None:
+        if item in self.upload_folders:
+            self.upload_folders.remove(item)
+        if item in self.priority_upload_folders:
+            self.priority_upload_folders.remove(item)
+        try:
+            shutil.rmtree(item, ignore_errors=True)
+            self.log.debug('Deleted %s', item)
+        except Exception:
+            self.log.exception('Failed to delete %s', item)
+
     async def _upload_batch(self, items: List[str]) -> None:
         """
         Uploads a batch of images to the server.
@@ -174,13 +190,19 @@ class Outbox():
 
         data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
         for item in items:
+            if not os.path.exists(item):
+                self._clear_item(item)
+                continue
             identifier = os.path.basename(item)
             data.append(('files', open(f'{item}/image_{identifier}.json', 'r')))
             data.append(('files', open(f'{item}/image_{identifier}.jpg', 'rb')))
 
         try:
-            async with aiohttp.ClientSession() as session:
-                response = await session.post(self.target_uri, data=data, timeout=aiohttp.ClientTimeout(total=self.UPLOAD_TIMEOUT_S))
+            response = await self._session.post(
+                self.target_uri,
+                data=data,
+                timeout=aiohttp.ClientTimeout(total=self.UPLOAD_TIMEOUT_S)
+            )
         except Exception:
             self.log.exception('Could not upload images')
             return
@@ -192,17 +214,14 @@ class Outbox():
         if response.status == 200:
             self.upload_counter += len(items)
             for item in items:
-                try:
-                    shutil.rmtree(item)
-                    self.log.debug('Deleted %s', item)
-                except Exception:
-                    self.log.exception('Failed to delete %s', item)
+                self._clear_item(item)
+
             self.log.info('Uploaded %s images successfully', len(items))
 
         elif response.status == 422:
             if len(items) == 1:
                 self.log.error('Broken content in image: %s\n Skipping.', items[0])
-                shutil.rmtree(items[0], ignore_errors=True)
+                self._clear_item(items[0])
                 return
 
             self.log.exception('Broken content in batch. Splitting and retrying')

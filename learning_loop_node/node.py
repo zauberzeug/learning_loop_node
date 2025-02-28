@@ -55,6 +55,7 @@ class Node(FastAPI):
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
         self.startup_datetime = datetime.now()
+        self._session: Optional[aiohttp.ClientSession] = None
         self._sio_client: Optional[AsyncClient] = None
         self.status = NodeStatus(id=self.uuid, name=self.name)
 
@@ -125,8 +126,8 @@ class Node(FastAPI):
     async def _on_shutdown(self):
         self.log.info('received "shutdown" lifecycle-event')
         await self.loop_communicator.shutdown()
-        if self._sio_client is not None:
-            await self._sio_client.disconnect()
+        if self._session:
+            await self._session.close()
         self.log.info('successfully disconnected from loop.')
         await self.on_shutdown()
 
@@ -184,17 +185,9 @@ class Node(FastAPI):
         cookies = self.loop_communicator.get_cookies()
         self.log.debug('HTTP Cookies: %s\n', cookies)
 
-        if self._sio_client is not None:
-            try:
-                await self.sio_client.disconnect()
-                self.log.info('disconnected from loop via sio')
-                # NOTE: without waiting for the disconnect event, we might disconnect the next connection too early
-                await asyncio.wait_for(self.DISCONNECTED_FROM_LOOP.wait(), timeout=5)
-            except asyncio.TimeoutError:
-                self.log.warning(
-                    'Did not receive disconnect event from loop within 5 seconds.\nContinuing with new connection...')
-            except Exception as e:
-                self.log.warning('Could not disconnect from loop via sio: %s.\nIgnoring...', e)
+        if self._session:
+            await self._session.close()
+            self._session = None
             self._sio_client = None
 
         connector = None
@@ -205,12 +198,19 @@ class Node(FastAPI):
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             connector = TCPConnector(ssl=ssl_context)
 
+        self._session = aiohttp.ClientSession(connector=connector)
+
         if self.needs_login:
-            self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
-                cookies=cookies, connector=connector))
+            self._sio_client = AsyncClient(
+                request_timeout=20,
+                http_session=self._session,
+                cookies=cookies
+            )
         else:
-            self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
-                connector=connector))
+            self._sio_client = AsyncClient(
+                request_timeout=20,
+                http_session=self._session
+            )
 
         # pylint: disable=protected-access
         self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
