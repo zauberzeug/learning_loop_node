@@ -54,8 +54,7 @@ class Outbox():
              image_metadata: Optional[ImageMetadata] = None,
              tags: Optional[List[str]] = None,
              source: Optional[str] = None,
-             creation_date: Optional[str] = None
-             ) -> None:
+             creation_date: Optional[str] = None) -> None:
 
         if not self._is_valid_jpg(image):
             self.log.error('Invalid jpg image')
@@ -99,10 +98,10 @@ class Outbox():
         except Exception:
             return False
 
-    def get_data_files(self):
+    def get_data_files(self) -> List[str]:
         return glob(f'{self.path}/*')
 
-    def ensure_continuous_upload(self):
+    def ensure_continuous_upload(self) -> None:
         self.log.debug('start_continuous_upload')
         if self._upload_process_alive():
             self.log.debug('Upload thread already running')
@@ -111,7 +110,7 @@ class Outbox():
         self.shutdown_event.clear()
         self.upload_task = asyncio.create_task(self._continuous_upload())
 
-    async def _continuous_upload(self):
+    async def _continuous_upload(self) -> None:
         self.log.info('continuous upload started')
         assert self.shutdown_event is not None
         while not self.shutdown_event.is_set():
@@ -119,7 +118,7 @@ class Outbox():
             await asyncio.sleep(5)
         self.log.info('continuous upload ended')
 
-    async def upload(self):
+    async def upload(self) -> None:
         items = self.get_data_files()
         if not items:
             self.log.debug('No images found to upload')
@@ -135,7 +134,7 @@ class Outbox():
             except Exception:
                 self.log.exception('Could not upload files')
 
-    async def _upload_batch(self, items: List[str]):
+    async def _upload_batch(self, items: List[str]) -> None:
 
         # NOTE: keys are not relevant for the server, but using a fixed key like 'files'
         # results in a post failure on the first run of the test in a docker environment (WTF)
