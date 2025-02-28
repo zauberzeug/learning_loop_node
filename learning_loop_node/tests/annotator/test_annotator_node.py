@@ -7,7 +7,14 @@ from fastapi.encoders import jsonable_encoder
 
 from ...annotation.annotator_logic import AnnotatorLogic
 from ...annotation.annotator_node import AnnotatorNode
-from ...data_classes import AnnotationData, Category, Context, Point, ToolOutput, UserInput
+from ...data_classes import (
+    AnnotationData,
+    Category,
+    Context,
+    Point,
+    ToolOutput,
+    UserInput,
+)
 from ...enums import AnnotationEventType, CategoryType
 
 
@@ -37,7 +44,8 @@ def default_user_input() -> UserInput:
 
 
 @pytest.mark.asyncio
-async def test_image_download(setup_test_project):  # pylint: disable=unused-argument
+@pytest.mark.usefixtures('setup_test_project')
+async def test_image_download():
     image_folder = '/tmp/learning_loop_lib_data/zauberzeug/pytest_nodelib_annotator/images'
 
     assert os.path.exists(image_folder) is False or len(os.listdir(image_folder)) == 0
