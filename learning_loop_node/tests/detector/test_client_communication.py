@@ -84,7 +84,7 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     with open(test_image_path, 'rb') as f:
         image_bytes = f.read()
     result = await sio_client.call('upload', {'image': image_bytes})
-    assert result is None
+    assert result.get('status') == 'OK'
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
 
