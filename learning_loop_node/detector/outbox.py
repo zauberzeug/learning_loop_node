@@ -13,7 +13,7 @@ from io import BufferedReader, TextIOWrapper
 from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
 from threading import Lock
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
 import PIL
@@ -23,7 +23,9 @@ from fastapi.encoders import jsonable_encoder
 from ..data_classes import ImageMetadata
 from ..enums import OutboxMode
 from ..globals import GLOBALS
-from ..helpers import environment_reader
+from ..helpers import environment_reader, run
+
+T = TypeVar('T')
 
 
 class Outbox():
@@ -57,20 +59,18 @@ class Outbox():
         self.upload_folders: deque[str] = deque()
         self.folders_lock = Lock()
 
-        # Load existing files into upload queue
-        with self.folders_lock:
-            for file in self.get_all_data_files():
-                self.upload_folders.append(file)
+        for file in self.get_all_data_files():
+            self.upload_folders.append(file)
 
-    def save(self,
-             image: bytes,
-             image_metadata: Optional[ImageMetadata] = None,
-             tags: Optional[List[str]] = None,
-             source: Optional[str] = None,
-             creation_date: Optional[str] = None,
-             upload_priority: bool = False) -> None:
+    async def save(self,
+                   image: bytes,
+                   image_metadata: Optional[ImageMetadata] = None,
+                   tags: Optional[List[str]] = None,
+                   source: Optional[str] = None,
+                   creation_date: Optional[str] = None,
+                   upload_priority: bool = False) -> None:
 
-        if not self._is_valid_jpg(image):
+        if not await run.io_bound(self._is_valid_jpg, image):
             self.log.error('Invalid jpg image')
             return
 
@@ -79,9 +79,30 @@ class Outbox():
         if not tags:
             tags = []
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
-        if os.path.exists(self.path + '/' + identifier):
-            self.log.error('Directory with identifier %s already exists', identifier)
+
+        try:
+            await run.io_bound(self.save_files_to_disk, identifier, image, image_metadata, tags, source, creation_date)
+        except Exception as e:
+            self.log.error('Failed to save files for image %s: %s', identifier, e)
             return
+
+        if upload_priority:
+            self.priority_upload_folders.append(self.path + '/' + identifier)
+        else:
+            self.upload_folders.appendleft(self.path + '/' + identifier)
+
+        await self._trim_upload_queue()
+
+    async def save_files_to_disk(self,
+                                 identifier: str,
+                                 image: bytes,
+                                 image_metadata: ImageMetadata,
+                                 tags: List[str],
+                                 source: Optional[str],
+                                 creation_date: Optional[str]) -> None:
+        if os.path.exists(self.path + '/' + identifier):
+            raise FileExistsError(f'Directory with identifier {identifier} already exists')
+
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
         image_metadata.tags = tags
         if self._is_valid_isoformat(creation_date):
@@ -90,6 +111,7 @@ class Outbox():
             image_metadata.created = identifier
 
         image_metadata.source = source or 'unknown'
+
         os.makedirs(tmp, exist_ok=True)
 
         with open(tmp + f'/image_{identifier}.json', 'w') as f:
@@ -98,32 +120,34 @@ class Outbox():
         with open(tmp + f'/image_{identifier}.jpg', 'wb') as f:
             f.write(image)
 
-        if os.path.exists(tmp):
-            os.rename(tmp, self.path + '/' + identifier)  # NOTE rename is atomic so upload can run in parallel
-        else:
+        if not os.path.exists(tmp):
             self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
-            return
+            raise FileNotFoundError(f'Could not rename {tmp} to {self.path + "/" + identifier}')
+        os.rename(tmp, self.path + '/' + identifier)
 
-        with self.folders_lock:
-            if upload_priority:
-                self.priority_upload_folders.append(self.path + '/' + identifier)
-            else:
-                self.upload_folders.appendleft(self.path + '/' + identifier)
-
-        self._trim_upload_queue()
-
-    def _trim_upload_queue(self) -> None:
+    async def _trim_upload_queue(self) -> None:
         if len(self.upload_folders) > self.MAX_UPLOAD_LENGTH:
             excess = len(self.upload_folders) - self.MAX_UPLOAD_LENGTH
             self.log.info('Dropping %s images from upload list', excess)
+
+            folders_to_delete = []
             for _ in range(excess):
                 if self.upload_folders:
                     try:
-                        item = self.upload_folders.pop()
-                        shutil.rmtree(item)
-                        self.log.debug('Deleted %s', item)
+                        folder = self.upload_folders.pop()
+                        folders_to_delete.append(folder)
                     except Exception:
-                        self.log.exception('Failed to delete %s', item)
+                        self.log.exception('Failed to get item from upload_folders')
+
+            await run.io_bound(self.delete_folders, folders_to_delete)
+
+    def delete_folders(self, folders_to_delete: List[str]) -> None:
+        for folder in folders_to_delete:
+            try:
+                shutil.rmtree(folder)
+                self.log.debug('Deleted %s', folder)
+            except Exception:
+                self.log.exception('Failed to delete %s', folder)
 
     def _is_valid_isoformat(self, date: Optional[str]) -> bool:
         if date is None:
@@ -175,13 +199,13 @@ class Outbox():
         except Exception:
             self.log.exception('Could not upload files')
 
-    def _clear_item(self, item: str) -> None:
-        if item in self.upload_folders:
-            self.upload_folders.remove(item)
-        if item in self.priority_upload_folders:
-            self.priority_upload_folders.remove(item)
+    async def _clear_item(self, item: str) -> None:
         try:
-            shutil.rmtree(item, ignore_errors=True)
+            if item in self.upload_folders:
+                self.upload_folders.remove(item)
+            if item in self.priority_upload_folders:
+                self.priority_upload_folders.remove(item)
+            await run.io_bound(shutil.rmtree, item, ignore_errors=True)
             self.log.debug('Deleted %s', item)
         except Exception:
             self.log.exception('Failed to delete %s', item)
@@ -192,13 +216,10 @@ class Outbox():
         :param items: List of folders to upload (each folder contains an image and a metadata file)
         """
 
-        # NOTE: keys are not relevant for the server, but using a fixed key like 'files'
-        # results in a post failure on the first run of the test in a docker environment (WTF)
-
         data: List[Tuple[str, Union[TextIOWrapper, BufferedReader]]] = []
         for item in items:
             if not os.path.exists(item):
-                self._clear_item(item)
+                await self._clear_item(item)
                 continue
             identifier = os.path.basename(item)
             data.append(('files', open(f'{item}/image_{identifier}.json', 'r')))
@@ -219,14 +240,14 @@ class Outbox():
             self.upload_counter += len(items)
             self.log.debug('Uploaded %s images', len(items))
             for item in items:
-                self._clear_item(item)
+                await self._clear_item(item)
             self.log.debug('Cleared %s images', len(items))
             return
 
         if response.status == 422:
             if len(items) == 1:
                 self.log.error('Broken content in image: %s\n Skipping.', items[0])
-                self._clear_item(items[0])
+                await self._clear_item(items[0])
                 return
 
             self.log.exception('Broken content in batch. Splitting and retrying')

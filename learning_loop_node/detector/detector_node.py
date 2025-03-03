@@ -1,14 +1,12 @@
 import asyncio
 import contextlib
-import math
 import os
 import shutil
 import subprocess
 import sys
 from dataclasses import asdict
 from datetime import datetime
-from threading import Thread
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 import numpy as np
 import socketio
@@ -30,7 +28,7 @@ from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
-from ..helpers import environment_reader
+from ..helpers import background_tasks, environment_reader, run
 from ..node import Node
 from .detector_logic import DetectorLogic
 from .exceptions import NodeNeedsRestartError
@@ -227,7 +225,7 @@ class DetectorNode(Node):
         async def detect(sid, data: Dict) -> Dict:
             try:
                 det = await self.get_detections(
-                    raw_image=np.frombuffer(data['image'], np.uint8),
+                    raw_image=cast(bytes, np.frombuffer(data['image'], np.uint8)),
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
@@ -480,7 +478,7 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self,
-                             raw_image: np.ndarray,
+                             raw_image: bytes,
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
@@ -492,8 +490,7 @@ class DetectorNode(Node):
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
-        loop = asyncio.get_event_loop()
-        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
+        detections = await run.io_bound(self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
         self.detection_lock.release()
 
         fix_shape_detections(detections)
@@ -501,11 +498,12 @@ class DetectorNode(Node):
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
         self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
-        if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
-            Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags, source, creation_date)).start()
+        autoupload = autoupload or 'filtered'
+        if autoupload == 'filtered' and camera_id is not None:
+            background_tasks.create(self.relevance_filter.may_upload_detections(
+                detections, camera_id, raw_image, tags, source, creation_date))
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source, creation_date)).start()
+            background_tasks.create(self.outbox.save(raw_image, detections, tags, source, creation_date))
         elif autoupload == 'disabled':
             pass
         else:
@@ -531,9 +529,8 @@ class DetectorNode(Node):
 
         tags.append('picked_by_system')
 
-        loop = asyncio.get_event_loop()
         for image in images:
-            await loop.run_in_executor(None, self.outbox.save, image, image_metadata, tags, source, creation_date, upload_priority)
+            await self.outbox.save(image, image_metadata, tags, source, creation_date, upload_priority)
 
     def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):

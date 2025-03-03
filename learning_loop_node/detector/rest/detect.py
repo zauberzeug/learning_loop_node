@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
 from fastapi import APIRouter, File, Header, Request, UploadFile
@@ -42,7 +42,7 @@ async def http_detect(
 
     try:
         app: 'DetectorNode' = request.app
-        detections = await app.get_detections(raw_image=np_image,
+        detections = await app.get_detections(raw_image=cast(bytes, np_image),
                                               camera_id=camera_id or mac or None,
                                               tags=tags.split(',') if tags else [],
                                               source=source,
