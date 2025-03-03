@@ -93,13 +93,13 @@ class Outbox():
 
         await self._trim_upload_queue()
 
-    async def save_files_to_disk(self,
-                                 identifier: str,
-                                 image: bytes,
-                                 image_metadata: ImageMetadata,
-                                 tags: List[str],
-                                 source: Optional[str],
-                                 creation_date: Optional[str]) -> None:
+    def save_files_to_disk(self,
+                           identifier: str,
+                           image: bytes,
+                           image_metadata: ImageMetadata,
+                           tags: List[str],
+                           source: Optional[str],
+                           creation_date: Optional[str]) -> None:
         if os.path.exists(self.path + '/' + identifier):
             raise FileExistsError(f'Directory with identifier {identifier} already exists')
 
