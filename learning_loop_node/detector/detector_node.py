@@ -501,7 +501,8 @@ class DetectorNode(Node):
         autoupload = autoupload or 'filtered'
         if autoupload == 'filtered' and camera_id is not None:
             background_tasks.create(self.relevance_filter.may_upload_detections(
-                detections, camera_id, raw_image, tags, source, creation_date))
+                detections, camera_id, raw_image, tags, source, creation_date
+            ))
         elif autoupload == 'all':
             background_tasks.create(self.outbox.save(raw_image, detections, tags, source, creation_date))
         elif autoupload == 'disabled':

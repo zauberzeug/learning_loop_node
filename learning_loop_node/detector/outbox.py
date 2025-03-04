@@ -59,7 +59,7 @@ class Outbox():
         self.upload_folders: deque[str] = deque()
         self.folders_lock = Lock()
 
-        for file in self.get_all_data_files():
+        for file in glob(f'{self.path}/*'):
             self.upload_folders.append(file)
 
     async def save(self,
@@ -81,7 +81,7 @@ class Outbox():
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
 
         try:
-            await run.io_bound(self.save_files_to_disk, identifier, image, image_metadata, tags, source, creation_date)
+            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, tags, source, creation_date)
         except Exception as e:
             self.log.error('Failed to save files for image %s: %s', identifier, e)
             return
@@ -93,13 +93,13 @@ class Outbox():
 
         await self._trim_upload_queue()
 
-    def save_files_to_disk(self,
-                           identifier: str,
-                           image: bytes,
-                           image_metadata: ImageMetadata,
-                           tags: List[str],
-                           source: Optional[str],
-                           creation_date: Optional[str]) -> None:
+    def _save_files_to_disk(self,
+                            identifier: str,
+                            image: bytes,
+                            image_metadata: ImageMetadata,
+                            tags: List[str],
+                            source: Optional[str],
+                            creation_date: Optional[str]) -> None:
         if os.path.exists(self.path + '/' + identifier):
             raise FileExistsError(f'Directory with identifier {identifier} already exists')
 
@@ -139,9 +139,9 @@ class Outbox():
                     except Exception:
                         self.log.exception('Failed to get item from upload_folders')
 
-            await run.io_bound(self.delete_folders, folders_to_delete)
+            await run.io_bound(self._delete_folders, folders_to_delete)
 
-    def delete_folders(self, folders_to_delete: List[str]) -> None:
+    def _delete_folders(self, folders_to_delete: List[str]) -> None:
         for folder in folders_to_delete:
             try:
                 shutil.rmtree(folder)
@@ -157,9 +157,6 @@ class Outbox():
             return True
         except Exception:
             return False
-
-    def get_all_data_files(self) -> List[str]:
-        return glob(f'{self.path}/*')
 
     def get_upload_folders(self) -> List[str]:
         with self.folders_lock:
