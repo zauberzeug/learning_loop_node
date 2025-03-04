@@ -65,6 +65,9 @@ The detector also has a sio **upload endpoint** that can be used to upload image
 - `image`: the image data in jpg format
 - `tags`: a list of strings. If not provided the tag is `picked_by_system`
 - `detections`: a dictionary representing the detections. UUIDs for the classes are automatically determined based on the category names. This field is optional. If not provided, no detections are uploaded.
+- `source`: optional source identifier for the image
+- `creation_date`: optional creation date for the image
+- `upload_priority`: boolean flag to prioritize the upload (defaults to False)
 
 The endpoint returns None if the upload was successful and an error message otherwise.
 
@@ -147,58 +150,52 @@ Upload a model with
 The model should now be available for the format 'format_a'
 `curl "https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_a"`
 
-````
-
+```json
 {
-"models": [
-{
-"id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
-"version": "4.0",
-"formats": [
-"format_a"
-],
-"created": "2021-06-01T06:28:21.289092",
-"comment": "uploaded at 2021-06-01 06:28:21.288442",
-...
+  "models": [
+    {
+    "id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
+    "version": "4.0",
+    "formats": [
+      "format_a"
+    ],
+    "created": "2021-06-01T06:28:21.289092",
+    "comment": "uploaded at 2021-06-01 06:28:21.288442",
+    ...
+    }
+  ]
 }
-]
-}
-
 ```
 
 but not in the format_b
 `curl "https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_b"`
 
-```
-
+```json
 {
-"models": []
+  "models": []
 }
-
 ```
 
 Connect the Node to the Learning Loop by simply starting the container.
 After a short time the converted model should be available as well.
 `curl https://learning-loop.ai/api/zauberzeug/projects/demo/models?format=format_b`
 
-```
-
+```json
 {
-"models": [
-{
-"id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
-"version": "4.0",
-"formats": [
-"format_a",
-"format_b",
-],
-"created": "2021-06-01T06:28:21.289092",
-"comment": "uploaded at 2021-06-01 06:28:21.288442",
-...
+  "models": [
+  {
+  "id": "3c20d807-f71c-40dc-a996-8a8968aa5431",
+    "version": "4.0",
+    "formats": [
+      "format_a",
+      "format_b",
+    ],
+    "created": "2021-06-01T06:28:21.289092",
+    "comment": "uploaded at 2021-06-01 06:28:21.288442",
+    ...
+  }
+  ]
 }
-]
-}
-
 ```
 
 ## About Models (the currency between Nodes)
@@ -217,5 +214,3 @@ After a short time the converted model should be available as well.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
   - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, ` resolution_x`` resolution_y ` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
-```
-````
