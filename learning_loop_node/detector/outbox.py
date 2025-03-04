@@ -68,7 +68,9 @@ class Outbox():
         self.upload_folders: deque[str] = deque()
         self.folders_lock = Lock()
 
-        for file in glob(f'{self.path}/*'):
+        for file in glob(f'{self.path}/priority/*'):
+            self.priority_upload_folders.append(file)
+        for file in glob(f'{self.path}/normal/*'):
             self.upload_folders.append(file)
 
     async def save(self,
@@ -90,15 +92,15 @@ class Outbox():
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
 
         try:
-            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, tags, source, creation_date)
+            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, tags, source, creation_date, upload_priority)
         except Exception as e:
             self.log.error('Failed to save files for image %s: %s', identifier, e)
             return
 
         if upload_priority:
-            self.priority_upload_folders.append(self.path + '/' + identifier)
+            self.priority_upload_folders.append(f'{self.path}/priority/{identifier}')
         else:
-            self.upload_folders.appendleft(self.path + '/' + identifier)
+            self.upload_folders.appendleft(f'{self.path}/normal/{identifier}')
 
         await self._trim_upload_queue()
 
@@ -108,8 +110,11 @@ class Outbox():
                             image_metadata: ImageMetadata,
                             tags: List[str],
                             source: Optional[str],
-                            creation_date: Optional[str]) -> None:
-        if os.path.exists(self.path + '/' + identifier):
+                            creation_date: Optional[str],
+                            upload_priority: bool) -> None:
+        subpath = 'priority' if upload_priority else 'normal'
+        full_path = f'{self.path}/{subpath}/{identifier}'
+        if os.path.exists(full_path):
             raise FileExistsError(f'Directory with identifier {identifier} already exists')
 
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
@@ -130,9 +135,9 @@ class Outbox():
             f.write(image)
 
         if not os.path.exists(tmp):
-            self.log.error('Could not rename %s to %s', tmp, self.path + '/' + identifier)
-            raise FileNotFoundError(f'Could not rename {tmp} to {self.path + "/" + identifier}')
-        os.rename(tmp, self.path + '/' + identifier)
+            self.log.error('Could not rename %s to %s', tmp, full_path)
+            raise FileNotFoundError(f'Could not rename {tmp} to {full_path}')
+        os.rename(tmp, full_path)
 
     async def _trim_upload_queue(self) -> None:
         if len(self.upload_folders) > self.MAX_UPLOAD_LENGTH:
