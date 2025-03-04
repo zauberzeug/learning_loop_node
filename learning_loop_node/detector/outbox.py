@@ -29,6 +29,15 @@ T = TypeVar('T')
 
 
 class Outbox():
+    """
+    Outbox is a class that handles the uploading of images to the learning loop.
+    It uploads images from an internal queue (lifo) in batches of 20 every 5 seconds.
+    It handles upload failures by splitting the upload into two smaller batches until the problematic image is identified - and removed.
+    Any image can be saved to the normal or the priority queue.
+    Images in the priority queue are uploaded first.
+    The total queue length is limited to 1000 images.
+    """
+
     def __init__(self) -> None:
         self.log = logging.getLogger()
         self.path = f'{GLOBALS.data_folder}/outbox'
@@ -186,9 +195,6 @@ class Outbox():
             return
 
         self.log.info('Found %s images to upload', len(items))
-        # NOTE (for reviewer):
-        # I changed the behaviour from trying to clear the outbox in each upload cycle to uploading the first BS images in each 5-sec cycle
-        # This simplifies the code and has the advantage that newer images or manual uploads are uploaded earlier
 
         batch_items = items[:self.BATCH_SIZE]
         try:
