@@ -42,6 +42,8 @@ class Outbox():
         self.log = logging.getLogger()
         self.path = f'{GLOBALS.data_folder}/outbox'
         os.makedirs(self.path, exist_ok=True)
+        os.makedirs(f'{self.path}/priority', exist_ok=True)
+        os.makedirs(f'{self.path}/normal', exist_ok=True)
 
         self.log = logging.getLogger()
         host = environment_reader.host()
