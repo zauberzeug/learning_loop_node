@@ -6,8 +6,6 @@ import shutil
 import pytest
 from PIL import Image
 
-from ...data_classes import ImageMetadata
-from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
 
