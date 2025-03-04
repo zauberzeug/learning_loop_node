@@ -24,10 +24,11 @@ l_conf_point_det = PointDetection(category_name='point', x=100, y=100,
       ['uncertain', 'unexpected_observations_count']),
      (ImageMetadata(box_detections=[h_conf_box_det], point_detections=[l_conf_point_det]),
       ['uncertain'])])
-def test_unexpected_observations_count(detections: ImageMetadata, reason: List[str]):
+@pytest.mark.asyncio
+async def test_unexpected_observations_count(detections: ImageMetadata, reason: List[str]):
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
     outbox = Outbox()
 
-    r_filter = RelevanceFilter(outbox)
-    assert r_filter.may_upload_detections(detections, raw_image=b'', cam_id='0:0:0:0', tags=[]) == reason
+    relevance_filter = RelevanceFilter(outbox)
+    assert await relevance_filter.may_upload_detections(detections, raw_image=b'', cam_id='0:0:0:0', tags=[]) == reason
