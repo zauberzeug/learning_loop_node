@@ -225,7 +225,7 @@ class DetectorNode(Node):
         async def detect(sid, data: Dict) -> Dict:
             try:
                 det = await self.get_detections(
-                    raw_image=cast(bytes, np.frombuffer(data['image'], np.uint8)),
+                    raw_image=data['image'],
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
