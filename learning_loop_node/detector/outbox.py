@@ -238,6 +238,7 @@ class Outbox():
         try:
             async with aiohttp.ClientSession() as session:
                 response = await session.post(self.target_uri, data=data, timeout=aiohttp.ClientTimeout(total=self.UPLOAD_TIMEOUT_S))
+                await response.read()
         except Exception:
             self.log.exception('Could not upload images')
             return
