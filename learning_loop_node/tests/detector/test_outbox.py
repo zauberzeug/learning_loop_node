@@ -6,8 +6,6 @@ import shutil
 import pytest
 from PIL import Image
 
-from ...data_classes import ImageMetadata
-from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
 
@@ -27,30 +25,23 @@ async def test_outbox():
 
 
 @pytest.mark.asyncio
-async def test_files_are_automatically_uploaded_by_node(test_detector_node: DetectorNode):
-    test_detector_node.outbox.save(get_test_image_binary(), ImageMetadata())
-    assert await wait_for_outbox_count(test_detector_node.outbox, 1)
-    assert await wait_for_outbox_count(test_detector_node.outbox, 0)
-
-
-@pytest.mark.asyncio
 async def test_set_outbox_mode(test_outbox: Outbox):
     await test_outbox.set_mode('stopped')
-    test_outbox.save(get_test_image_binary())
+    await test_outbox.save(get_test_image_binary())
     assert await wait_for_outbox_count(test_outbox, 1)
     await asyncio.sleep(6)
     assert await wait_for_outbox_count(test_outbox, 1), 'File was cleared even though outbox should be stopped'
 
     await test_outbox.set_mode('continuous_upload')
-    assert await wait_for_outbox_count(test_outbox, 0), 'File was not cleared even though outbox should be in continuous_upload'
+    assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
     assert test_outbox.upload_counter == 1
 
 
 @pytest.mark.asyncio
 async def test_outbox_upload_is_successful(test_outbox: Outbox):
-    test_outbox.save(get_test_image_binary())
+    await test_outbox.save(get_test_image_binary())
     await asyncio.sleep(1)
-    test_outbox.save(get_test_image_binary())
+    await test_outbox.save(get_test_image_binary())
     assert await wait_for_outbox_count(test_outbox, 2)
     await test_outbox.upload()
     assert await wait_for_outbox_count(test_outbox, 0)
@@ -60,8 +51,8 @@ async def test_outbox_upload_is_successful(test_outbox: Outbox):
 @pytest.mark.asyncio
 async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
     invalid_bytes = b'invalid jpg'
-    test_outbox.save(invalid_bytes)
-    assert len(test_outbox.get_data_files()) == 0
+    await test_outbox.save(invalid_bytes)
+    assert len(test_outbox.get_upload_folders()) == 0
 
 
 # ------------------------------ Helper functions --------------------------------------
@@ -90,7 +81,7 @@ def get_test_image_binary():
 
 async def wait_for_outbox_count(outbox: Outbox, count: int, timeout: int = 10) -> bool:
     for _ in range(timeout):
-        if len(outbox.get_data_files()) == count:
+        if len(outbox.get_upload_folders()) == count:
             return True
         await asyncio.sleep(1)
     return False

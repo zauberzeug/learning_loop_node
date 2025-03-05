@@ -11,14 +11,16 @@ class RelevanceFilter():
         self.cam_histories: Dict[str, CamObservationHistory] = {}
         self.outbox: Outbox = outbox
 
-    def may_upload_detections(self,
-                              image_metadata: ImageMetadata,
-                              cam_id: str,
-                              raw_image: bytes,
-                              tags: List[str],
-                              source: Optional[str] = None,
-                              creation_date: Optional[str] = None
-                              ) -> List[str]:
+    async def may_upload_detections(self,
+                                    image_metadata: ImageMetadata,
+                                    cam_id: str,
+                                    raw_image: bytes,
+                                    tags: List[str],
+                                    source: Optional[str] = None,
+                                    creation_date: Optional[str] = None) -> List[str]:
+        """Check if the detection should be uploaded to the outbox.
+        If so, upload it and return the list of causes for the upload.
+        """
         for group in self.cam_histories.values():
             group.forget_old_detections()
 
@@ -30,5 +32,5 @@ class RelevanceFilter():
         if len(causes) > 0:
             tags = tags if tags is not None else []
             tags.extend(causes)
-            self.outbox.save(raw_image, image_metadata, tags, source, creation_date)
+            await self.outbox.save(raw_image, image_metadata, tags, source, creation_date)
         return causes

@@ -2,8 +2,6 @@ import logging
 from abc import abstractmethod
 from typing import List, Optional
 
-import numpy as np
-
 from ..data_classes import ImageMetadata, ModelInformation
 from ..globals import GLOBALS
 from .exceptions import NodeNeedsRestartError
@@ -44,13 +42,13 @@ class DetectorLogic():
     def init(self):
         """Called when a (new) model was loaded. Initialize the model. Model information available via `self.model_info`"""
 
-    def evaluate_with_all_info(self, image: np.ndarray, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None) -> ImageMetadata:  # pylint: disable=unused-argument
+    def evaluate_with_all_info(self, image: bytes, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None) -> ImageMetadata:  # pylint: disable=unused-argument
         """Called by the detector node when an image should be evaluated (REST or SocketIO).
         Tags, source come from the caller and may be used in this function. 
         By default, this function simply calls `evaluate`"""
         return self.evaluate(image)
 
     @abstractmethod
-    def evaluate(self, image: np.ndarray) -> ImageMetadata:
+    def evaluate(self, image: bytes) -> ImageMetadata:
         """Evaluate the image and return the detections.
         The object should return empty detections if it is not initialized"""

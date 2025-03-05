@@ -1,14 +1,12 @@
 import asyncio
 import contextlib
-import math
 import os
 import shutil
 import subprocess
 import sys
 from dataclasses import asdict
 from datetime import datetime
-from threading import Thread
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, cast
 
 import numpy as np
 import socketio
@@ -30,7 +28,7 @@ from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
-from ..helpers import environment_reader
+from ..helpers import background_tasks, environment_reader, run
 from ..node import Node
 from .detector_logic import DetectorLogic
 from .exceptions import NodeNeedsRestartError
@@ -227,7 +225,7 @@ class DetectorNode(Node):
         async def detect(sid, data: Dict) -> Dict:
             try:
                 det = await self.get_detections(
-                    raw_image=np.frombuffer(data['image'], np.uint8),
+                    raw_image=data['image'],
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
@@ -279,9 +277,10 @@ class DetectorNode(Node):
                 return {'error': str(e)}
 
         @self.sio.event
-        async def upload(sid, data: Dict) -> Optional[Dict]:
-            '''upload an image with detections'''
+        async def upload(sid, data: Dict) -> Dict:
+            """Upload an image with detections"""
 
+            self.log.debug('Processing upload via socketio.')
             detection_data = data.get('detections', {})
             if detection_data and self.detector_logic.model_info is not None:
                 try:
@@ -293,22 +292,19 @@ class DetectorNode(Node):
             else:
                 image_metadata = ImageMetadata()
 
-            tags = data.get('tags', [])
-            tags.append('picked_by_system')
-
-            source = data.get('source', None)
-            creation_date = data.get('creation_date', None)
-
-            self.log.debug('running upload via socketio. tags: %s, source: %s, creation_date: %s',
-                           tags, source, creation_date)
-
-            loop = asyncio.get_event_loop()
             try:
-                await loop.run_in_executor(None, self.outbox.save, data['image'], image_metadata, tags, source, creation_date)
+                await self.upload_images(
+                    images=[data['image']],
+                    image_metadata=image_metadata,
+                    tags=data.get('tags', []),
+                    source=data.get('source', None),
+                    creation_date=data.get('creation_date', None),
+                    upload_priority=data.get('upload_priority', False)
+                )
             except Exception as e:
                 self.log.exception('could not upload via socketio')
                 return {'error': str(e)}
-            return None
+            return {'status': 'OK'}
 
         @self.sio.event
         def connect(sid, environ, auth) -> None:
@@ -469,7 +465,7 @@ class DetectorNode(Node):
             self.log.warning('Operation mode set to %s, but sync failed: %s', mode, e)
 
     def reload(self, reason: str):
-        '''provide a cause for the reload'''
+        """provide a cause for the reload"""
 
         self.log.info('########## reloading app because %s', reason)
         if os.path.isfile('/app/app_code/restart/restart.py'):
@@ -482,7 +478,7 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self,
-                             raw_image: np.ndarray,
+                             raw_image: bytes,
                              camera_id: Optional[str],
                              tags: List[str],
                              source: Optional[str] = None,
@@ -494,8 +490,7 @@ class DetectorNode(Node):
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
-        loop = asyncio.get_event_loop()
-        detections = await loop.run_in_executor(None, self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
+        detections = await run.io_bound(self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
         self.detection_lock.release()
 
         fix_shape_detections(detections)
@@ -503,21 +498,40 @@ class DetectorNode(Node):
         n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
         self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
-        if autoupload is None or autoupload == 'filtered':  # NOTE default is filtered
-            Thread(target=self.relevance_filter.may_upload_detections,
-                   args=(detections, camera_id, raw_image, tags, source, creation_date)).start()
+        autoupload = autoupload or 'filtered'
+        if autoupload == 'filtered' and camera_id is not None:
+            background_tasks.create(self.relevance_filter.may_upload_detections(
+                detections, camera_id, raw_image, tags, source, creation_date
+            ))
         elif autoupload == 'all':
-            Thread(target=self.outbox.save, args=(raw_image, detections, tags, source, creation_date)).start()
+            background_tasks.create(self.outbox.save(raw_image, detections, tags, source, creation_date))
         elif autoupload == 'disabled':
             pass
         else:
             self.log.error('unknown autoupload value %s', autoupload)
         return detections
 
-    async def upload_images(self, images: List[bytes], source: Optional[str], creation_date: Optional[str]):
-        loop = asyncio.get_event_loop()
+    async def upload_images(
+            self, *,
+            images: List[bytes],
+            image_metadata: Optional[ImageMetadata] = None,
+            tags: Optional[List[str]] = None,
+            source: Optional[str],
+            creation_date: Optional[str],
+            upload_priority: bool = False
+    ) -> None:
+        """Save images to the outbox using an asyncio executor.
+        Used by SIO and REST upload endpoints."""
+
+        if image_metadata is None:
+            image_metadata = ImageMetadata()
+        if tags is None:
+            tags = []
+
+        tags.append('picked_by_system')
+
         for image in images:
-            await loop.run_in_executor(None, self.outbox.save, image, ImageMetadata(), ['picked_by_system'], source, creation_date)
+            await self.outbox.save(image, image_metadata, tags, source, creation_date, upload_priority)
 
     def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):

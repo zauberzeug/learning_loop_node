@@ -1,7 +1,6 @@
 import logging
 from typing import TYPE_CHECKING, Optional
 
-import numpy as np
 from fastapi import APIRouter, File, Header, Request, UploadFile
 
 from ...data_classes.image_metadata import ImageMetadata
@@ -35,14 +34,15 @@ async def http_detect(
 
     """
     try:
-        np_image = np.fromfile(file.file, np.uint8)
+        # Read file directly to bytes instead of using numpy
+        file_bytes = file.file.read()
     except Exception as exc:
         logging.exception('Error during reading of image %s.', file.filename)
         raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
 
     try:
         app: 'DetectorNode' = request.app
-        detections = await app.get_detections(raw_image=np_image,
+        detections = await app.get_detections(raw_image=file_bytes,
                                               camera_id=camera_id or mac or None,
                                               tags=tags.split(',') if tags else [],
                                               source=source,

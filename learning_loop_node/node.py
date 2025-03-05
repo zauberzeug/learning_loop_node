@@ -76,6 +76,8 @@ class Node(FastAPI):
         self.previous_state: Optional[str] = None
         self.repeat_loop_cycle_sec = 5
 
+        self._client_session: Optional[aiohttp.ClientSession] = None
+
     def log_status_on_change(self, current_state_str: str, full_status: Any):
         if self.previous_state != current_state_str:
             self.previous_state = current_state_str
@@ -127,6 +129,8 @@ class Node(FastAPI):
         await self.loop_communicator.shutdown()
         if self._sio_client is not None:
             await self._sio_client.disconnect()
+        if self._client_session is not None:
+            await self._client_session.close()
         self.log.info('successfully disconnected from loop.')
         await self.on_shutdown()
 
@@ -205,12 +209,15 @@ class Node(FastAPI):
             ssl_context.verify_mode = ssl.CERT_REQUIRED
             connector = TCPConnector(ssl=ssl_context)
 
+        if self._client_session is not None:
+            await self._client_session.close()
+
         if self.needs_login:
-            self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
-                cookies=cookies, connector=connector))
+            self._client_session = aiohttp.ClientSession(cookies=cookies, connector=connector)
         else:
-            self._sio_client = AsyncClient(request_timeout=20, http_session=aiohttp.ClientSession(
-                connector=connector))
+            self._client_session = aiohttp.ClientSession(connector=connector)
+
+        self._sio_client = AsyncClient(request_timeout=20, http_session=self._client_session)
 
         # pylint: disable=protected-access
         self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
