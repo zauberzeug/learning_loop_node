@@ -78,7 +78,7 @@ class TrainerLogicGeneric(ABC):
         return self._training
 
     @property
-    def hyperparameters(self) -> dict[str, Any]:
+    def hyperparameters(self) -> Dict[str, Any]:
         assert self._training is not None, 'Training should have data'
         return self._training.hyperparameters
 
