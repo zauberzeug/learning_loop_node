@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from ..enums import TrainerState
 from ..helpers.misc import create_image_folder, create_training_folder
+
 # pylint: disable=no-name-in-module
 from .general import Category, Context
 
@@ -52,7 +53,7 @@ class Training():
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
 
     categories: List[Category]
-    hyperparameters: dict
+    hyperparameters: dict[str, Any]
 
     training_number: int
     training_state: str

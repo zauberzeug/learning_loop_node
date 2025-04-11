@@ -7,7 +7,7 @@ from glob import glob
 from http import HTTPStatus
 from io import BytesIO
 from time import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import aiofiles  # type: ignore
 
@@ -68,7 +68,7 @@ class DataExchanger():
         assert response.status_code == 200, response
         return (response.json())['image_ids']
 
-    async def download_images_data(self, image_uuids: List[str], chunk_size: int = 100) -> List[Dict]:
+    async def download_images_data(self, image_uuids: List[str], chunk_size: int = 100) -> List[Dict[str, Any]]:
         """Download image annotations, tags, set and other information for the given image uuids."""
         logging.info('Fetching annotations, tags, sets, etc. for %s images..', len(image_uuids))
 
@@ -78,7 +78,7 @@ class DataExchanger():
             return []
 
         progress_factor = 0.5 / num_image_ids  # first 50% of progress is for downloading data
-        images_data: List[Dict] = []
+        images_data: List[Dict[str, Any]] = []
         for i in range(0, num_image_ids, chunk_size):
             self.progress = i * progress_factor
             chunk_ids = image_uuids[i:i+chunk_size]
