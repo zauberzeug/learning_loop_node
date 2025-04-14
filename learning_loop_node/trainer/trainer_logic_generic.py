@@ -6,13 +6,25 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict
-from typing import TYPE_CHECKING, Callable, Coroutine, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
 
-from ..data_classes import Context, Errors, PretrainedModel, Training, TrainingOut, TrainingStateData, TrainingStatus
+from ..data_classes import (
+    Context,
+    Errors,
+    PretrainedModel,
+    Training,
+    TrainingOut,
+    TrainingStateData,
+    TrainingStatus,
+)
 from ..enums import TrainerState
-from ..helpers.misc import create_project_folder, delete_all_training_folders, is_valid_uuid4
+from ..helpers.misc import (
+    create_project_folder,
+    delete_all_training_folders,
+    is_valid_uuid4,
+)
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
@@ -66,7 +78,7 @@ class TrainerLogicGeneric(ABC):
         return self._training
 
     @property
-    def hyperparameters(self) -> dict:
+    def hyperparameters(self) -> Dict[str, Any]:
         assert self._training is not None, 'Training should have data'
         return self._training.hyperparameters
 

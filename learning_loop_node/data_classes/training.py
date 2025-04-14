@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from ..enums import TrainerState
 from ..helpers.misc import create_image_folder, create_training_folder
+
 # pylint: disable=no-name-in-module
 from .general import Category, Context
 
@@ -52,7 +53,7 @@ class Training():
     training_folder: str  # f'{project_folder}/trainings/{trainings_id}'
 
     categories: List[Category]
-    hyperparameters: dict
+    hyperparameters: Dict[str, Any]
 
     training_number: int
     training_state: str
@@ -63,7 +64,7 @@ class Training():
     base_model_uuid: Optional[str] = None  # model uuid to continue training (is loaded from loop)
 
     # NOTE: these are set later after the model has been uploaded
-    image_data: Optional[List[dict]] = None
+    image_data: Optional[List[Dict]] = None
     skipped_image_count: Optional[int] = None
     model_uuid_for_detecting: Optional[str] = None  # Model uuid to load from the loop after training and upload
 
