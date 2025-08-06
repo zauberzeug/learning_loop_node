@@ -60,6 +60,8 @@ You can additionally provide the following camera parameters:
 - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled` (example curl parameter `-H 'autoupload: all'`)
 - `camera-id`: a string which groups images for submission together (example curl parameter `-H 'camera-id: front_cam'`)
 
+To use the socketio interface, the caller needs to connect to the detector node's socketio server and emit the `detect` or `batch_detect` event with the image data and image metadata. Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
+
 The detector also has a sio **upload endpoint** that can be used to upload images and detections to the learning loop. The function receives a json dictionary, with the following entries:
 
 - `image`: the image data in jpg format

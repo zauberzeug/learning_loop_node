@@ -6,24 +6,15 @@ import subprocess
 import sys
 from dataclasses import asdict
 from datetime import datetime
-from typing import Dict, List, Optional, cast
+from typing import Dict, List, Optional
 
-import numpy as np
 import socketio
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import (
-    AboutResponse,
-    Category,
-    Context,
-    DetectionStatus,
-    ImageMetadata,
-    ModelInformation,
-    ModelVersionResponse,
-    Shape,
-)
+from ..data_classes import (AboutResponse, Category, Context, DetectionStatus, ImageMetadata, ImagesMetadata,
+                            ModelInformation, ModelVersionResponse, Shape)
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
@@ -238,8 +229,29 @@ class DetectorNode(Node):
                 return detection_dict
             except Exception as e:
                 self.log.exception('could not detect via socketio')
-                with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
-                    f.write(data['image'])
+                # with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
+                #     f.write(data['image'])
+                return {'error': str(e)}
+
+        @self.sio.event
+        async def batch_detect(sid, data: Dict) -> Dict:
+            try:
+                det = await self.get_batch_detections(
+                    raw_images=data['images'],
+                    tags=data.get('tags', []),
+                    camera_id=data.get('camera-id', None) or data.get('mac', None),
+                    source=data.get('source', None),
+                    autoupload=data.get('autoupload', None),
+                    creation_date=data.get('creation_date', None)
+                )
+                if det is None:
+                    return {'error': 'no model loaded'}
+                detection_dict = jsonable_encoder(asdict(det))
+                return detection_dict
+            except Exception as e:
+                self.log.exception('could not detect via socketio')
+                # with open('/tmp/bad_img_from_socket_io.jpg', 'wb') as f:
+                #     f.write(data['image'])
                 return {'error': str(e)}
 
         @self.sio.event
@@ -479,13 +491,13 @@ class DetectorNode(Node):
 
     async def get_detections(self,
                              raw_image: bytes,
-                             camera_id: Optional[str],
                              tags: List[str],
+                             camera_id: Optional[str] = None,
                              source: Optional[str] = None,
                              autoupload: Optional[str] = None,
                              creation_date: Optional[str] = None) -> ImageMetadata:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
-        This function infers the detections from the image, cares about uploading to the loop and returns the detections as a dictionary.
+        This function infers the detections from the image, cares about uploading to the loop and returns the detections as ImageMetadata object.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
 
@@ -510,6 +522,39 @@ class DetectorNode(Node):
         else:
             self.log.error('unknown autoupload value %s', autoupload)
         return detections
+
+    async def get_batch_detections(self,
+                                   raw_images: List[bytes],
+                                   tags: List[str],
+                                   camera_id: Optional[str] = None,
+                                   source: Optional[str] = None,
+                                   autoupload: Optional[str] = None,
+                                   creation_date: Optional[str] = None) -> ImagesMetadata:
+        """ Processing function for the detector node when a a batch inference is requested via SocketIO.
+        This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata."""
+
+        await self.detection_lock.acquire()
+        all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images)
+        self.detection_lock.release()
+
+        for detections, raw_image in zip(all_detections.items, raw_images):
+            fix_shape_detections(detections)
+            n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
+            n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
+            self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
+
+            autoupload = autoupload or 'filtered'
+            if autoupload == 'filtered' and camera_id is not None:
+                background_tasks.create(self.relevance_filter.may_upload_detections(
+                    detections, camera_id, raw_image, tags, source, creation_date
+                ))
+            elif autoupload == 'all':
+                background_tasks.create(self.outbox.save(raw_image, detections, tags, source, creation_date))
+            elif autoupload == 'disabled':
+                pass
+            else:
+                self.log.error('unknown autoupload value %s', autoupload)
+        return all_detections
 
     async def upload_images(
             self, *,

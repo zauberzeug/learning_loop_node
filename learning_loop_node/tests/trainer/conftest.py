@@ -35,7 +35,7 @@ async def test_initialized_trainer_node():
                                                 'training_number': 0,
                                                 'model_variant': '',
                                                 'hyperparameters': {
-                                   'resolution': 800,
+                                   'resolution': 832,
                                    'fliplr': 0.5,
                                    'flipud': 0.5}
     })
@@ -58,7 +58,7 @@ async def test_initialized_trainer():
                                                 'training_number': 0,
                                                 'model_variant': '',
                                                 'hyperparameters': {
-                                   'resolution': 800,
+                                   'resolution': 832,
                                    'fliplr': 0.5,
                                    'flipud': 0.5}
     })

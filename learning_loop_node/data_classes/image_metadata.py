@@ -35,3 +35,8 @@ class ImageMetadata():
 
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
+
+
+@dataclass(**KWONLY_SLOTS)
+class ImagesMetadata():
+    items: List[ImageMetadata] = field(default_factory=list, metadata={'description': 'List of image metadata'})
