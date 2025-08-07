@@ -2,7 +2,7 @@ import logging
 from abc import abstractmethod
 from typing import List, Optional
 
-from ..data_classes import ImageMetadata, ModelInformation
+from ..data_classes import ImageMetadata, ImagesMetadata, ModelInformation
 from ..globals import GLOBALS
 from .exceptions import NodeNeedsRestartError
 
@@ -51,4 +51,9 @@ class DetectorLogic():
     @abstractmethod
     def evaluate(self, image: bytes) -> ImageMetadata:
         """Evaluate the image and return the detections.
+        The object should return empty detections if it is not initialized"""
+
+    @abstractmethod
+    def batch_evaluate(self, images: List[bytes]) -> ImagesMetadata:
+        """Evaluate a batch of images and return the detections.
         The object should return empty detections if it is not initialized"""

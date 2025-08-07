@@ -27,7 +27,7 @@ async def test_all():
                'training_number': 0,
                'model_variant': '',
                'hyperparameters': {
-                   'resolution': 800,
+                   'resolution': 832,
                    'fliplr': 0.5,
                    'flipud': 0.5}
                }

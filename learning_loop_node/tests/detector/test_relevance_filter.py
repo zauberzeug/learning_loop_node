@@ -30,10 +30,10 @@ async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autouplo
     assert test_detector_node.outbox.path.startswith('/tmp')
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
-    image = np.fromfile(file=test_image_path, dtype=np.uint8)
-    _ = await test_detector_node.get_detections(image, '00:.....', tags=[], autoupload=autoupload)
+    image = bytes(np.fromfile(file=test_image_path, dtype=np.uint8))
+    _ = await test_detector_node.get_detections(image, tags=[], camera_id='00:.....', autoupload=autoupload)
     # NOTE adding second images with identical detections
-    _ = await test_detector_node.get_detections(image, '00:.....', tags=[], autoupload=autoupload)
+    _ = await test_detector_node.get_detections(image, tags=[], camera_id='00:.....', autoupload=autoupload)
     await asyncio.sleep(.5)  # files are stored asynchronously
 
     assert len(get_outbox_files(test_detector_node.outbox)) == expected_file_count, \
