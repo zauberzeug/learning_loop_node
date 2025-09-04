@@ -37,7 +37,7 @@ async def _debug_logging(request: Request) -> str:
 @router.put("/socketio")
 async def _socketio(request: Request) -> str:
     '''
-    Enable or disable the socketio connection to the learning loop.
+    Enable or disable the socketio connection and repeat loop to the learning loop.
     Not intended to be used outside of testing.
 
     Example Usage
@@ -47,11 +47,9 @@ async def _socketio(request: Request) -> str:
     state = str(await request.body(), 'utf-8')
     node: 'Node' = request.app
 
-    if not node.sio_client:
-        raise HTTPException(status_code=400, detail='Node has no socketio client')
-
     if state == 'off':
-        await node.sio_client.disconnect()
+        if node.sio_client:
+            await node.sio_client.disconnect()
         node.set_skip_repeat_loop(True)  # Prevent auto-reconnection
         return 'off'
     if state == 'on':
