@@ -1,7 +1,9 @@
 
 import asyncio
 
-from pytest_mock import MockerFixture  # pip install pytest-mock
+from pytest_mock import (  # pip install pytest-mock # pylint: disable=import-error # type: ignore
+    MockerFixture,
+)
 
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic

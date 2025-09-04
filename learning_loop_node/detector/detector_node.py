@@ -46,7 +46,7 @@ from .rest import upload as rest_upload
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
-        super().__init__(name, uuid, 'detector', False)
+        super().__init__(name, uuid=uuid, node_type='detector', needs_login=False, needs_sio=False)
         self.detector_logic = detector
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()

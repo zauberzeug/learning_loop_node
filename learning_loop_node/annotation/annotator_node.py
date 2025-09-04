@@ -18,7 +18,7 @@ from .annotator_logic import AnnotatorLogic
 class AnnotatorNode(Node):
 
     def __init__(self, name: str, annotator_logic: AnnotatorLogic, uuid: Optional[str] = None):
-        super().__init__(name, uuid, 'annotation_node')
+        super().__init__(name, uuid=uuid, node_type='annotation_node')
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)

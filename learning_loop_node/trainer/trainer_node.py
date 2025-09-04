@@ -16,7 +16,7 @@ from .trainer_logic_generic import TrainerLogicGeneric
 class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogicGeneric, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
-        super().__init__(name, uuid, 'trainer')
+        super().__init__(name, uuid=uuid, node_type='trainer')
         trainer_logic._node = self
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
