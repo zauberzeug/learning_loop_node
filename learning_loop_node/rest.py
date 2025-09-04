@@ -47,11 +47,11 @@ async def _socketio(request: Request) -> str:
     state = str(await request.body(), 'utf-8')
     node: 'Node' = request.app
 
-    if not node._sio_client:
+    if not node.sio_client:
         raise HTTPException(status_code=400, detail='Node has no socketio client')
 
     if state == 'off':
-        await node._sio_client.disconnect()
+        await node.sio_client.disconnect()
         node.set_skip_repeat_loop(True)  # Prevent auto-reconnection
         return 'off'
     if state == 'on':

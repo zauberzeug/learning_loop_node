@@ -59,7 +59,7 @@ class Node(FastAPI):
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
         self.startup_datetime = datetime.now()
-        self._sio_client: Optional[AsyncClient] = None
+        self.sio_client: Optional[AsyncClient] = None
         self.status = NodeStatus(id=self.uuid, name=self.name)
 
         self.sio_headers = {'organization': self.loop_communicator.organization,
@@ -125,8 +125,8 @@ class Node(FastAPI):
     async def _on_shutdown(self):
         self.log.info('received "shutdown" lifecycle-event')
         await self.loop_communicator.shutdown()
-        if self._sio_client is not None:
-            await self._sio_client.disconnect()
+        if self.sio_client is not None:
+            await self.sio_client.disconnect()
         if self._client_session is not None:
             await self._client_session.close()
         self.log.info('successfully disconnected from loop.')
@@ -152,7 +152,7 @@ class Node(FastAPI):
             await asyncio.sleep(self.repeat_loop_cycle_sec)
 
     async def _ensure_sio_connection(self):
-        if self.socket_connection_broken or self._sio_client is None or not self._sio_client.connected:
+        if self.socket_connection_broken or self.sio_client is None or not self.sio_client.connected:
             self.log.info('Reconnecting to loop via sio due to %s',
                           'broken connection' if self.socket_connection_broken else 'no connection')
             await self.reconnect_to_loop()
@@ -186,9 +186,9 @@ class Node(FastAPI):
         cookies = self.loop_communicator.get_cookies()
         self.log.debug('HTTP Cookies: %s\n', cookies)
 
-        if self._sio_client is not None:
+        if self.sio_client is not None:
             try:
-                await self._sio_client.disconnect()
+                await self.sio_client.disconnect()
                 self.log.info('disconnected from loop via sio')
                 # NOTE: without waiting for the disconnect event, we might disconnect the next connection too early
                 await asyncio.wait_for(self.DISCONNECTED_FROM_LOOP.wait(), timeout=5)
@@ -197,7 +197,7 @@ class Node(FastAPI):
                     'Did not receive disconnect event from loop within 5 seconds.\nContinuing with new connection...')
             except Exception as e:
                 self.log.warning('Could not disconnect from loop via sio: %s.\nIgnoring...', e)
-            self._sio_client = None
+            self.sio_client = None
 
         connector = None
         if self.loop_communicator.ssl_cert_path:
@@ -215,36 +215,36 @@ class Node(FastAPI):
         else:
             self._client_session = aiohttp.ClientSession(connector=connector)
 
-        self._sio_client = AsyncClient(request_timeout=20, http_session=self._client_session)
+        self.sio_client = AsyncClient(request_timeout=20, http_session=self._client_session)
 
         # pylint: disable=protected-access
-        self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
+        self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
 
-        @self._sio_client.event
+        @self.sio_client.event
         async def connect():
             self.log.info('received "connect" via sio from loop.')
             self.CONNECTED_TO_LOOP.set()
             self.DISCONNECTED_FROM_LOOP.clear()
 
-        @self._sio_client.event
+        @self.sio_client.event
         async def disconnect():
             self.log.info('received "disconnect" via sio from loop.')
             self.DISCONNECTED_FROM_LOOP.set()
             self.CONNECTED_TO_LOOP.clear()
 
-        @self._sio_client.event
+        @self.sio_client.event
         async def restart():
             self.log.info('received "restart" via sio from loop -> restarting node.')
             sys.exit(0)
 
-        self.register_sio_events(self._sio_client)
+        self.register_sio_events(self.sio_client)
         try:
-            await self._sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
+            await self.sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
         except Exception as e:
             self.log.exception('Could not connect socketio client to loop')
             raise NodeConnectionError('Could not connect socketio client to loop') from e
 
-        if not self._sio_client.connected:
+        if not self.sio_client.connected:
             self.log.exception('Could not connect socketio client to loop')
             raise NodeConnectionError('Could not connect socketio client to loop')
 

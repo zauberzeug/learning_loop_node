@@ -369,7 +369,7 @@ class TrainerLogicGeneric(ABC):
         """Syncronizes the training with the Learning Loop via the update_training endpoint.
         NOTE: This stage sets the errors explicitly because it may be used inside the training stage.
         """
-        if not self.node._sio_client or not self.node._sio_client.connected:
+        if not self.node.sio_client or not self.node.sio_client.connected:
             raise ConnectionError('SocketIO client is not connected')
 
         error_key = 'sync_confusion_matrix'
@@ -385,7 +385,7 @@ class TrainerLogicGeneric(ABC):
                                            best_epoch=new_best_model.epoch)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
 
-                result = await self.node._sio_client.call('update_training', (
+                result = await self.node.sio_client.call('update_training', (
                     self.training.context.organization, self.training.context.project, jsonable_encoder(new_training)))
                 if isinstance(result,  dict) and result['success']:
                     logger.info('successfully updated training %s', asdict(new_training))

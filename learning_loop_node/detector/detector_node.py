@@ -418,7 +418,7 @@ class DetectorNode(Node):
             Exception: If the communication with the Learning Loop failed.
         """
 
-        if not self._sio_client or not self._sio_client.connected:
+        if not self.sio_client or not self.sio_client.connected:
             self.log.info('Status sync failed: not connected')
             raise Exception('Status sync failed: not connected')
 
@@ -445,7 +445,7 @@ class DetectorNode(Node):
 
         # NOTE: sending organization and project is no longer required!
         try:
-            response = await self._sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+            response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         except TimeoutError:
             self.socket_connection_broken = True
             self.log.exception('TimeoutError for sending status update (will try to reconnect):')
