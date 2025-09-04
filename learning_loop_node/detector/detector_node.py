@@ -72,7 +72,8 @@ class DetectorNode(Node):
         self.target_model: Optional[ModelInformation] = None
         self.loop_deployment_target: Optional[ModelInformation] = None
 
-        self._regular_status_sync_cycles: int = 1  # sync status every 6 cycles (6*10s = 1min)
+        self._regular_status_sync_cycles: int = int(os.environ.get('SYNC_CYCLES', '6'))
+        """sync status every 6 cycles (6*10s = 1min)"""
         self._repeat_cycles_to_next_sync: int = 0
 
         self.include_router(rest_detect.router, tags=["detect"])

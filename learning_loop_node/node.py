@@ -4,9 +4,9 @@ from .helpers import log_conf  # pylint: disable=unused-import
 
 # isort: split
 # pylint: disable=wrong-import-order,ungrouped-imports
-
 import asyncio
 import logging
+import os
 import ssl
 import sys
 from abc import abstractmethod
@@ -73,7 +73,7 @@ class Node(FastAPI):
 
         self.repeat_task: Any = None
         self.socket_connection_broken = False
-        self._skip_repeat_loop = False
+        self._skip_repeat_loop = os.environ.get('SKIP_REPEAT_ON_START', '0') in ('True', 'true', '1')
 
         self.include_router(router)
 
