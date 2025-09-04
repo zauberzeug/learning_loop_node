@@ -37,6 +37,16 @@ async def test_outbox_upload_is_successful(test_outbox: Outbox):
     assert await wait_for_outbox_count(test_outbox, 0)
     assert test_outbox.upload_counter == 2
 
+    await test_outbox.set_mode('stopped')
+    await test_outbox.save(get_test_image_binary())
+    assert await wait_for_outbox_count(test_outbox, 1)
+    await asyncio.sleep(6)
+    assert await wait_for_outbox_count(test_outbox, 1), 'File was cleared even though outbox should be stopped'
+
+    await test_outbox.set_mode('continuous_upload')
+    assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
+    assert test_outbox.upload_counter == 3
+
 
 @pytest.mark.asyncio
 async def test_set_outbox_mode(test_outbox: Outbox):
