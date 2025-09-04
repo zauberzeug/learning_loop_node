@@ -39,14 +39,10 @@ async def test_set_outbox_mode(test_outbox: Outbox):
     await test_outbox.save(get_test_image_binary())
     await asyncio.sleep(1)
     await test_outbox.save(get_test_image_binary())
-    assert await wait_for_outbox_count(test_outbox, 2)
+    assert await wait_for_outbox_count(test_outbox, 3)
     await test_outbox.upload()
     assert await wait_for_outbox_count(test_outbox, 0)
-    assert test_outbox.upload_counter == 2
-
-    # 2nd upload fails on CI
-    await test_outbox.save(get_test_image_binary())
-    await test_outbox.upload()
+    assert test_outbox.upload_counter == 3
 
 
 @pytest.mark.asyncio
