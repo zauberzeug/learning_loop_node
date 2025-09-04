@@ -43,8 +43,10 @@ async def test_outbox_upload_is_successful(test_outbox: Outbox):
     await asyncio.sleep(1)
     await test_outbox.save(get_test_image_binary())
     assert await wait_for_outbox_count(test_outbox, 2)
-    await asyncio.sleep(1)
-    await test_outbox.upload()
+    await test_outbox.set_mode('continuous_upload')
+    await asyncio.sleep(6)
+    # await asyncio.sleep(1)
+    # await test_outbox.upload()
     assert await wait_for_outbox_count(test_outbox, 0)
     assert test_outbox.upload_counter == 2
 
@@ -59,14 +61,13 @@ async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
 # ------------------------------ Helper functions --------------------------------------
 
 
-def get_test_image_binary():
-    img = Image.new('RGB', (60, 30), color=(73, 109, 137))
+def get_test_image_binary() -> bytes:
+    img = Image.new('RGB', (600, 300), color=(73, 109, 137))
     # convert img to jpg binary
 
     img_byte_arr = io.BytesIO()
     img.save(img_byte_arr, format='JPEG')
-    img_byte_arr = img_byte_arr.getvalue()
-    return img_byte_arr
+    return img_byte_arr.getvalue()
 
     # return img.tobytes() # NOT WORKING
 
