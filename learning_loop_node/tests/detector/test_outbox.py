@@ -36,11 +36,13 @@ async def test_set_outbox_mode(test_outbox: Outbox):
     assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
     assert test_outbox.upload_counter == 1
 
+    await test_outbox.set_mode('stopped')
+    await test_outbox.save(get_test_image_binary())
     await test_outbox.save(get_test_image_binary())
     await asyncio.sleep(1)
-    await test_outbox.save(get_test_image_binary())
-    assert await wait_for_outbox_count(test_outbox, 3)
-    await test_outbox.upload()
+    assert await wait_for_outbox_count(test_outbox, 2)
+    await test_outbox.set_mode('continuous_upload')
+    # await test_outbox.upload()
     assert await wait_for_outbox_count(test_outbox, 0)
     assert test_outbox.upload_counter == 3
 
