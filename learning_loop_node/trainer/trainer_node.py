@@ -52,7 +52,8 @@ class TrainerNode(Node):
             self.check_idle_timeout()
         except exceptions.TimeoutError:
             self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
-            await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
+            if self._sio_client:
+                await self._sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
         except Exception:
             self.log.exception('could not send status. Exception:')
 
@@ -76,14 +77,14 @@ class TrainerNode(Node):
             return True
 
     async def send_status(self):
-        if not self.sio_client.connected:
+        if not self._sio_client or not self._sio_client.connected:
             self.log.debug('cannot send status - not connected to the Learning Loop')
             return
 
         status = self.trainer_logic.generate_status_for_loop(self.uuid, self.name)
         self.log_status_on_change(status.state or 'None', status.short_str())
 
-        result = await self.sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
+        result = await self._sio_client.call('update_trainer', jsonable_encoder(asdict(status)), timeout=30)
         if isinstance(result, Dict) and not result['success']:
             self.socket_connection_broken = True
             self.log.error('Error when sending status update: Response from loop was:\n %s', result)

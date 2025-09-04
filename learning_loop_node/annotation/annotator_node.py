@@ -35,6 +35,9 @@ class AnnotatorNode(Node):
             return self.tool.logout_user(sid)
 
     async def _handle_user_input(self, user_input_dict: Dict) -> str:
+        if not self._sio_client or not self._sio_client.connected:
+            raise ConnectionError('SocketIO client is not connected')
+
         user_input = from_dict(data_class=UserInput, data=user_input_dict)
 
         if user_input.data.key_up == 'Escape':
@@ -50,9 +53,9 @@ class AnnotatorNode(Node):
             raise
 
         if tool_result.annotation:
-            await self.sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
-                                                                          user_input.data.context.project,
-                                                                          jsonable_encoder(asdict(tool_result.annotation))), timeout=30)
+            await self._sio_client.call('update_segmentation_annotation', (user_input.data.context.organization,
+                                                                           user_input.data.context.project,
+                                                                           jsonable_encoder(asdict(tool_result.annotation))), timeout=30)
         return tool_result.svg
 
     def reset_history(self, frontend_id: str) -> None:
@@ -66,6 +69,9 @@ class AnnotatorNode(Node):
 
     async def send_status(self):
 
+        if not self._sio_client or not self._sio_client.connected:
+            raise ConnectionError('SocketIO client is not connected')
+
         status = AnnotationNodeStatus(
             id=self.uuid,
             name=self.name,
@@ -76,7 +82,7 @@ class AnnotatorNode(Node):
         self.log_status_on_change(status.state.value if status.state else 'None', status)
 
         try:
-            result = await self.sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
+            result = await self._sio_client.call('update_annotation_node', jsonable_encoder(asdict(status)), timeout=10)
         except Exception:
             self.socket_connection_broken = True
             self.log.exception('Error for updating:')

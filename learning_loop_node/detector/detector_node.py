@@ -13,8 +13,17 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import (AboutResponse, Category, Context, DetectionStatus, ImageMetadata, ImagesMetadata,
-                            ModelInformation, ModelVersionResponse, Shape)
+from ..data_classes import (
+    AboutResponse,
+    Category,
+    Context,
+    DetectionStatus,
+    ImageMetadata,
+    ImagesMetadata,
+    ModelInformation,
+    ModelVersionResponse,
+    Shape,
+)
 from ..data_classes.socket_response import SocketResponse
 from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
@@ -409,7 +418,7 @@ class DetectorNode(Node):
             Exception: If the communication with the Learning Loop failed.
         """
 
-        if not self.sio_client.connected:
+        if not self._sio_client or not self._sio_client.connected:
             self.log.info('Status sync failed: not connected')
             raise Exception('Status sync failed: not connected')
 
@@ -436,7 +445,7 @@ class DetectorNode(Node):
 
         # NOTE: sending organization and project is no longer required!
         try:
-            response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
+            response = await self._sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
         except TimeoutError:
             self.socket_connection_broken = True
             self.log.exception('TimeoutError for sending status update (will try to reconnect):')

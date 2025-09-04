@@ -1,4 +1,4 @@
-FROM zauberzeug/nicegui:1.2.13
+FROM zauberzeug/nicegui:2.23.3
 
 RUN apt-get update && \
     apt-get install -y \
