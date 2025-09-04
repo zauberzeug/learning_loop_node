@@ -13,7 +13,6 @@ from ...globals import GLOBALS
 
 
 @pytest.fixture()
-@pytest.mark.asyncio
 async def test_outbox():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
@@ -23,6 +22,38 @@ async def test_outbox():
     yield test_outbox
     await test_outbox.set_mode('stopped')
     shutil.rmtree(test_outbox.path, ignore_errors=True)
+
+
+@pytest.mark.asyncio
+async def test_set_outbox_mode(test_outbox: Outbox):
+    await test_outbox.set_mode('stopped')
+    await test_outbox.save(get_test_image_binary())
+    assert await wait_for_outbox_count(test_outbox, 1)
+    await asyncio.sleep(6)
+    assert await wait_for_outbox_count(test_outbox, 1), 'File was cleared even though outbox should be stopped'
+
+    await test_outbox.set_mode('continuous_upload')
+    assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
+    assert test_outbox.upload_counter == 1
+
+    await test_outbox.save(get_test_image_binary())
+    await asyncio.sleep(1)
+    await test_outbox.save(get_test_image_binary())
+    assert await wait_for_outbox_count(test_outbox, 2)
+    await test_outbox.upload()
+    assert await wait_for_outbox_count(test_outbox, 0)
+    assert test_outbox.upload_counter == 2
+
+    # 2nd upload fails on CI
+    await test_outbox.save(get_test_image_binary())
+    await test_outbox.upload()
+
+
+@pytest.mark.asyncio
+async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
+    invalid_bytes = b'invalid jpg'
+    await test_outbox.save(invalid_bytes)
+    assert len(test_outbox.get_upload_folders()) == 0
 
 
 @pytest.mark.asyncio
@@ -38,26 +69,6 @@ async def test_outbox_upload_is_successful(test_outbox: Outbox):
     # 2nd upload fails on CI
     await test_outbox.save(get_test_image_binary())
     await test_outbox.upload()
-
-
-@pytest.mark.asyncio
-async def test_set_outbox_mode(test_outbox: Outbox):
-    await test_outbox.set_mode('stopped')
-    await test_outbox.save(get_test_image_binary())
-    assert await wait_for_outbox_count(test_outbox, 1)
-    await asyncio.sleep(6)
-    assert await wait_for_outbox_count(test_outbox, 1), 'File was cleared even though outbox should be stopped'
-
-    await test_outbox.set_mode('continuous_upload')
-    assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
-    assert test_outbox.upload_counter == 1
-
-
-@pytest.mark.asyncio
-async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
-    invalid_bytes = b'invalid jpg'
-    await test_outbox.save(invalid_bytes)
-    assert len(test_outbox.get_upload_folders()) == 0
 
 
 # ------------------------------ Helper functions --------------------------------------
