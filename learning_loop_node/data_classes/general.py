@@ -148,8 +148,8 @@ class NodeState(str, Enum):
 class NodeStatus():
     id: str
     name: str
-    state: Optional[NodeState] = NodeState.Online
-    uptime: Optional[int] = 0
+    state: NodeState = NodeState.Online
+    uptime: int = 0
     errors: Dict = field(default_factory=dict)
     capabilities: List[str] = field(default_factory=list)
 
@@ -175,14 +175,13 @@ class AnnotationNodeStatus(NodeStatus):
 
 
 @dataclass(**KWONLY_SLOTS)
-class DetectionStatus():
-    id: str
+class DetectorStatus():
+    uuid: str
     name: str
+    state: NodeState
+    uptime: int
     model_format: str
-
-    state: Optional[NodeState] = None
-    errors: Optional[Dict] = None
-    uptime: Optional[int] = None
-    current_model: Optional[str] = None
-    target_model: Optional[str] = None
-    operation_mode: Optional[str] = None
+    current_model: Optional[str]
+    target_model: Optional[str]
+    errors: Dict
+    operation_mode: str
