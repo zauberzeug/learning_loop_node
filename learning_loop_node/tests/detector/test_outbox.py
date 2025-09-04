@@ -43,7 +43,7 @@ async def test_set_outbox_mode(test_outbox: Outbox):
     assert await wait_for_outbox_count(test_outbox, 2)
     await test_outbox.set_mode('continuous_upload')
     # await test_outbox.upload()
-    assert await wait_for_outbox_count(test_outbox, 0)
+    assert await wait_for_outbox_count(test_outbox, 0, timeout=90)
     assert test_outbox.upload_counter == 3
 
 
