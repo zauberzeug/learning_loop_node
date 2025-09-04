@@ -43,6 +43,7 @@ async def test_outbox_upload_is_successful(test_outbox: Outbox):
     await asyncio.sleep(1)
     await test_outbox.save(get_test_image_binary())
     assert await wait_for_outbox_count(test_outbox, 2)
+    await asyncio.sleep(1)
     await test_outbox.upload()
     assert await wait_for_outbox_count(test_outbox, 0)
     assert test_outbox.upload_counter == 2
