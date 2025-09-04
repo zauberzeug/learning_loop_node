@@ -10,6 +10,9 @@ RUN apt-get update && \
 
 WORKDIR /app/
 
+# delete everything in /app
+RUN rm -rf /app/*
+
 RUN python3 -m pip install --upgrade pip
 
 # We use Poetry for dependency management (recommended way to install it)
