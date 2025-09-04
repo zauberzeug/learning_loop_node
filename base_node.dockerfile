@@ -29,3 +29,6 @@ RUN if [ "$INSTALL_DEV" = 'true' ]; then poetry install -vvv --no-root; else poe
 
 # while development this will be mounted but in deployment we need the latest code baked into the image
 ADD ./learning_loop_node /usr/local/lib/python3.11/site-packages/learning_loop_node
+
+# Overwrite the entrypoint to bash
+ENTRYPOINT ["/bin/bash"]
