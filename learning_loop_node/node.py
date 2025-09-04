@@ -172,7 +172,7 @@ class Node(FastAPI):
 
     async def reconnect_to_loop(self) -> None:
         """Initialize the loop communicator, log in if needed and reconnect to the loop via socket.io."""
-        if self._needs_sio:
+        if not self._needs_sio:
             return
         self.init_loop_communicator()
         await self.loop_communicator.backend_ready(timeout=5)
