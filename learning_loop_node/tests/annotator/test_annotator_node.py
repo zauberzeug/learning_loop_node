@@ -46,12 +46,15 @@ def default_user_input() -> UserInput:
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('setup_test_project')
 async def test_image_download():
+    # pylint: disable=protected-access
+
     image_folder = '/tmp/learning_loop_lib_data/zauberzeug/pytest_nodelib_annotator/images'
 
     assert os.path.exists(image_folder) is False or len(os.listdir(image_folder)) == 0
 
     node = AnnotatorNode(name="", uuid="", annotator_logic=MockedAnnotatatorLogic())
     user_input = default_user_input()
-    _ = await node._handle_user_input(jsonable_encoder(asdict(user_input)))  # pylint: disable=protected-access
+    await node._ensure_sio_connection()  # This is required as the node is not "started"
+    _ = await node._handle_user_input(jsonable_encoder(asdict(user_input)))
 
     assert os.path.exists(image_folder) is True and len(os.listdir(image_folder)) == 1

@@ -13,9 +13,17 @@ from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient
 
-from ..data_classes import (AboutResponse, Category, Context, DetectionStatus, ImageMetadata, ImagesMetadata,
-                            ModelInformation, ModelVersionResponse, Shape)
-from ..data_classes.socket_response import SocketResponse
+from ..data_classes import (
+    AboutResponse,
+    Category,
+    Context,
+    DetectorStatus,
+    ImageMetadata,
+    ImagesMetadata,
+    ModelInformation,
+    ModelVersionResponse,
+    Shape,
+)
 from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
@@ -37,7 +45,7 @@ from .rest import upload as rest_upload
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
-        super().__init__(name, uuid, 'detector', False)
+        super().__init__(name, uuid=uuid, node_type='detector', needs_login=False, needs_sio=False)
         self.detector_logic = detector
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
@@ -64,6 +72,10 @@ class DetectorNode(Node):
         self.target_model: Optional[ModelInformation] = None
         self.loop_deployment_target: Optional[ModelInformation] = None
 
+        self._regular_status_sync_cycles: int = int(os.environ.get('SYNC_CYCLES', '6'))
+        """sync status every 6 cycles (6*10s = 1min)"""
+        self._repeat_cycles_to_next_sync: int = 0
+
         self.include_router(rest_detect.router, tags=["detect"])
         self.include_router(rest_upload.router, prefix="")
         self.include_router(rest_mode.router, tags=["operation_mode"])
@@ -74,7 +86,7 @@ class DetectorNode(Node):
         if use_backdoor_controls or os.environ.get('USE_BACKDOOR_CONTROLS', '0').lower() in ('1', 'true'):
             self.include_router(backdoor_controls.router)
 
-        self.setup_sio_server()
+        self._setup_sio_server()
 
     def get_about_response(self) -> AboutResponse:
         return AboutResponse(
@@ -190,13 +202,7 @@ class DetectorNode(Node):
         except Exception:
             self.log.exception("error during 'shutdown'")
 
-    async def on_repeat(self) -> None:
-        try:
-            await self._check_for_update()
-        except Exception:
-            self.log.exception("error during '_check_for_update'")
-
-    def setup_sio_server(self) -> None:
+    def _setup_sio_server(self) -> None:
         """The DetectorNode acts as a SocketIO server. This method sets up the server and defines the event handlers."""
         # pylint: disable=unused-argument
 
@@ -322,96 +328,22 @@ class DetectorNode(Node):
         def connect(sid, environ, auth) -> None:
             self.connected_clients.append(sid)
 
-    async def _check_for_update(self) -> None:
+# ================================== Repeat Cycle, sync and model updates ==================================
+
+    async def on_repeat(self) -> None:
+        """Implementation of the repeat cycle. This method is called every 10 seconds.
+        To avoid too many requests, the status is only synced every 6 cycles (1 minute)."""
         try:
-            self.log.debug('Current operation mode is %s', self.operation_mode)
-            try:
-                await self.sync_status_with_learning_loop()
-            except Exception:
-                self.log.exception('Sync with learning loop failed (could not check for updates):')
-                return
+            self._repeat_cycles_to_next_sync -= 1
+            if self._repeat_cycles_to_next_sync <= 0:
+                self._repeat_cycles_to_next_sync = self._regular_status_sync_cycles
+                await self._sync_status_with_loop()
+            await self._update_model_if_required()
+        except Exception:
+            self.log.exception("error during '_check_for_update'")
 
-            if self.operation_mode != OperationMode.Idle:
-                self.log.debug('not checking for updates; operation mode is %s', self.operation_mode)
-                return
-
-            self.status.reset_error('update_model')
-            if self.target_model is None:
-                self.log.debug('not checking for updates; no target model selected')
-                return
-
-            if self.detector_logic.model_info is not None:
-                current_version = self.detector_logic.model_info.version
-            else:
-                current_version = None
-
-            if current_version != self.target_model.version:
-                self.log.info('Current model "%s" needs to be updated to %s',
-                              current_version or "-", self.target_model.version)
-
-                with step_into(GLOBALS.data_folder):
-                    model_symlink = 'model'
-                    target_model_folder = f'models/{self.target_model.version}'
-                    if os.path.exists(target_model_folder) and len(os.listdir(target_model_folder)) > 0:
-                        self.log.info('No need to download model %s (already exists)', self.target_model.version)
-                    else:
-                        os.makedirs(target_model_folder, exist_ok=True)
-                        try:
-                            await self.data_exchanger.download_model(target_model_folder,
-                                                                     Context(organization=self.organization,
-                                                                             project=self.project),
-                                                                     self.target_model.id,
-                                                                     self.detector_logic.model_format)
-                            self.log.info('Downloaded model %s', self.target_model.version)
-                        except Exception:
-                            self.log.exception('Could not download model %s', self.target_model.version)
-                            shutil.rmtree(target_model_folder, ignore_errors=True)
-                            return
-                    try:
-                        os.unlink(model_symlink)
-                        os.remove(model_symlink)
-                    except Exception:
-                        pass
-                    os.symlink(target_model_folder, model_symlink)
-                    self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
-
-                    try:
-                        self.detector_logic.load_model_info_and_init_model()
-                    except NodeNeedsRestartError:
-                        self.log.error('Node needs restart')
-                        sys.exit(0)
-                    except Exception:
-                        self.log.exception('Could not load model, will retry download on next check')
-                        shutil.rmtree(target_model_folder, ignore_errors=True)
-                        return
-                    try:
-                        await self.sync_status_with_learning_loop()
-                    except Exception:
-                        pass
-                    # self.reload(reason='new model installed')
-
-        except Exception as e:
-            self.log.exception('check_for_update failed')
-            msg = e.cause if isinstance(e, DownloadError) else str(e)
-            self.status.set_error('update_model', f'Could not update model: {msg}')
-            try:
-                await self.sync_status_with_learning_loop()
-            except Exception:
-                pass
-
-    async def sync_status_with_learning_loop(self) -> None:
-        """Sync status of the detector with the Learning Loop.
-        The Learning Loop will respond with the model info of the deployment target.
-        If version_control is set to FollowLoop, the detector will update the target_model.
-        Return if the communication was successful.
-
-        Raises:
-            Exception: If the communication with the Learning Loop failed.
-        """
-
-        if not self.sio_client.connected:
-            self.log.info('Status sync failed: not connected')
-            raise Exception('Status sync failed: not connected')
+    async def _sync_status_with_loop(self) -> None:
+        """Sync status of the detector with the Learning Loop."""
 
         if self.detector_logic.model_info is not None:
             current_model = self.detector_logic.model_info.version
@@ -420,8 +352,8 @@ class DetectorNode(Node):
 
         target_model_version = self.target_model.version if self.target_model else None
 
-        status = DetectionStatus(
-            id=self.uuid,
+        status = DetectorStatus(
+            uuid=self.uuid,
             name=self.name,
             state=self.status.state,
             errors=self.status.errors,
@@ -432,49 +364,128 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log_status_on_change(status.state or 'None', status)
+        self.log_status_on_change(status.state, status)
 
-        # NOTE: sending organization and project is no longer required!
         try:
-            response = await self.sio_client.call('update_detector', (self.organization, self.project, jsonable_encoder(asdict(status))))
-        except TimeoutError:
-            self.socket_connection_broken = True
-            self.log.exception('TimeoutError for sending status update (will try to reconnect):')
-            raise Exception('Status update failed due to timeout') from None
+            response = await self.loop_communicator.post(
+                f'/{self.organization}/projects/{self.project}/detectors', json=jsonable_encoder(asdict(status)))
+        except Exception:
+            self.log.warning('Exception while trying to sync status with loop')
 
-        if not response:
-            self.socket_connection_broken = True
-            self.log.error('Status update failed (will try to reconnect): %s', response)
-            raise Exception('Status update failed: Did not receive a response from the learning loop')
+        if response.status_code != 200:
+            self.log.warning('Status update failed: %s', str(response))
 
-        socket_response = from_dict(data_class=SocketResponse, data=response)
-        if not socket_response.success:
-            self.socket_connection_broken = True
-            self.log.error('Status update failed (will try to reconnect): %s', response)
-            raise Exception(f'Status update failed. Response from learning loop: {response}')
+    async def _update_model_if_required(self) -> None:
+        """Check if a new model is available and update if necessary.
+        The Learning Loop will respond with the model info of the deployment target.
+        If version_control is set to FollowLoop or the chosen target model is not used, 
+        the detector will update the target_model."""
+        try:
+            if self.operation_mode != OperationMode.Idle:
+                self.log.debug('not checking for updates; operation mode is %s', self.operation_mode)
+                return
 
-        assert socket_response.payload is not None
+            await self._check_for_new_deployment_target()
 
-        deployment_target_model_id = socket_response.payload['target_model_id']
-        deployment_target_model_version = socket_response.payload['target_model_version']
+            self.status.reset_error('update_model')
+            if self.target_model is None:
+                self.log.debug('not running any updates; target model is None')
+                return
+
+            current_version = self.detector_logic.model_info.version \
+                if self.detector_logic.model_info is not None else None
+
+            if current_version != self.target_model.version:
+                self.log.info('Updating model from %s to %s',
+                              current_version or "-", self.target_model.version)
+                await self._update_model(self.target_model)
+
+        except Exception as e:
+            self.log.exception('check_for_update failed')
+            msg = e.cause if isinstance(e, DownloadError) else str(e)
+            self.status.set_error('update_model', f'Could not update model: {msg}')
+            await self._sync_status_with_loop()
+
+    async def _check_for_new_deployment_target(self) -> None:
+        """Ask the learning loop for the current deployment target and update self.loop_deployment_target.
+        If version_control is set to FollowLoop, also update target_model."""
+        try:
+            response = await self.loop_communicator.get(
+                f'/{self.organization}/projects/{self.project}/deployment/target')
+        except Exception:
+            self.log.warning('Exception while trying to check for new deployment target')
+            return
+
+        if response.status_code != 200:
+            self.log.warning('Failed to check for new deployment target: %s', str(response))
+            return
+
+        response_data = response.json()
+
+        deployment_target_uuid = response_data['model_uuid']
+        deployment_target_version = response_data['version']
         self.loop_deployment_target = ModelInformation(organization=self.organization, project=self.project,
                                                        host="", categories=[],
-                                                       id=deployment_target_model_id,
-                                                       version=deployment_target_model_version)
+                                                       id=deployment_target_uuid,
+                                                       version=deployment_target_version)
 
         if (self.version_control == VersionMode.FollowLoop and
                 self.target_model != self.loop_deployment_target):
-            old_target_model_version = self.target_model.version if self.target_model else None
+            previous_version = self.target_model.version if self.target_model else None
             self.target_model = self.loop_deployment_target
-            self.log.info('After sending status. Target_model changed from %s to %s',
-                          old_target_model_version, self.target_model.version)
+            self.log.info('Deployment target changed from %s to %s',
+                          previous_version, self.target_model.version)
+
+    async def _update_model(self, target_model: ModelInformation) -> None:
+        """Download and install the target model.
+        On failure, the target_model will be set to None which will trigger a retry on the next check."""
+
+        with step_into(GLOBALS.data_folder):
+            target_model_folder = f'models/{target_model.version}'
+            if os.path.exists(target_model_folder) and len(os.listdir(target_model_folder)) > 0:
+                self.log.info('No need to download model. %s (already exists)', target_model.version)
+            else:
+                os.makedirs(target_model_folder, exist_ok=True)
+                try:
+                    await self.data_exchanger.download_model(target_model_folder,
+                                                             Context(organization=self.organization,
+                                                                     project=self.project),
+                                                             target_model.id, self.detector_logic.model_format)
+                    self.log.info('Downloaded model %s', target_model.version)
+                except Exception:
+                    self.log.exception('Could not download model %s', target_model.version)
+                    shutil.rmtree(target_model_folder, ignore_errors=True)
+                    self.target_model = None
+                    return
+
+            model_symlink = 'model'
+            try:
+                os.unlink(model_symlink)
+                os.remove(model_symlink)
+            except Exception:
+                pass
+            os.symlink(target_model_folder, model_symlink)
+            self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
+
+            try:
+                self.detector_logic.load_model_info_and_init_model()
+            except NodeNeedsRestartError:
+                self.log.error('Node needs restart')
+                sys.exit(0)
+            except Exception:
+                self.log.exception('Could not load model, will retry download on next check')
+                shutil.rmtree(target_model_folder, ignore_errors=True)
+                self.target_model = None
+                return
+
+            await self._sync_status_with_loop()
+            # self.reload(reason='new model installed')
+
+# ================================== API Implementations ==================================
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
-        try:
-            await self.sync_status_with_learning_loop()
-        except Exception as e:
-            self.log.warning('Operation mode set to %s, but sync failed: %s', mode, e)
+        await self._sync_status_with_loop()
 
     def reload(self, reason: str):
         """provide a cause for the reload"""

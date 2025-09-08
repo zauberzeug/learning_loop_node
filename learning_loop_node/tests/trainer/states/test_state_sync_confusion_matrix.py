@@ -1,7 +1,9 @@
 
 import asyncio
 
-from pytest_mock import MockerFixture  # pip install pytest-mock
+from pytest_mock import (  # pip install pytest-mock # pylint: disable=import-error # type: ignore
+    MockerFixture,
+)
 
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
@@ -54,6 +56,7 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
 async def test_unsynced_model_available__sio_not_connected(test_initialized_trainer_node: TrainerNode):
     trainer = test_initialized_trainer_node.trainer_logic
     assert isinstance(trainer, TestingTrainerLogic)
+    assert test_initialized_trainer_node.sio_client is not None
 
     await test_initialized_trainer_node.sio_client.disconnect()
     test_initialized_trainer_node.set_skip_repeat_loop(True)

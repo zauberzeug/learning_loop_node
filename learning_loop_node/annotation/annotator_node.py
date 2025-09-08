@@ -18,7 +18,7 @@ from .annotator_logic import AnnotatorLogic
 class AnnotatorNode(Node):
 
     def __init__(self, name: str, annotator_logic: AnnotatorLogic, uuid: Optional[str] = None):
-        super().__init__(name, uuid, 'annotation_node')
+        super().__init__(name, uuid=uuid, node_type='annotation_node')
         self.tool = annotator_logic
         self.histories: Dict = {}
         annotator_logic.init(self)
@@ -35,6 +35,9 @@ class AnnotatorNode(Node):
             return self.tool.logout_user(sid)
 
     async def _handle_user_input(self, user_input_dict: Dict) -> str:
+        if not self.sio_client or not self.sio_client.connected:
+            raise ConnectionError('SocketIO client is not connected')
+
         user_input = from_dict(data_class=UserInput, data=user_input_dict)
 
         if user_input.data.key_up == 'Escape':
@@ -65,6 +68,9 @@ class AnnotatorNode(Node):
         return self.histories.setdefault(frontend_id, self.tool.create_empty_history())
 
     async def send_status(self):
+
+        if not self.sio_client or not self.sio_client.connected:
+            raise ConnectionError('SocketIO client is not connected')
 
         status = AnnotationNodeStatus(
             id=self.uuid,

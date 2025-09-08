@@ -189,7 +189,7 @@ class Outbox():
 
     async def _continuous_upload(self) -> None:
         self.log.info('continuous upload started')
-        assert self.shutdown_event is not None
+        assert self.shutdown_event is not None, 'shutdown_event is None'
         while not self.shutdown_event.is_set():
             await self.upload()
             await asyncio.sleep(self.UPLOAD_INTERVAL_S)
@@ -287,7 +287,7 @@ class Outbox():
             return True
 
         try:
-            assert self.shutdown_event is not None
+            assert self.shutdown_event is not None, 'shutdown_event is None'
             self.shutdown_event.set()
             await asyncio.wait_for(self.upload_task, timeout=self.UPLOAD_TIMEOUT_S + 1)
         except asyncio.TimeoutError:

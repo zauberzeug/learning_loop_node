@@ -16,7 +16,7 @@ from .trainer_logic_generic import TrainerLogicGeneric
 class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogicGeneric, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
-        super().__init__(name, uuid, 'trainer')
+        super().__init__(name, uuid=uuid, node_type='trainer')
         trainer_logic._node = self
         self.trainer_logic = trainer_logic
         self.last_training_io = LastTrainingIO(self.uuid)
@@ -52,7 +52,8 @@ class TrainerNode(Node):
             self.check_idle_timeout()
         except exceptions.TimeoutError:
             self.log.warning('timeout when sending status to learning loop, reconnecting sio_client')
-            await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
+            if self.sio_client:
+                await self.sio_client.disconnect()  # NOTE: reconnect happens in node._on_repeat
         except Exception:
             self.log.exception('could not send status. Exception:')
 
@@ -76,7 +77,7 @@ class TrainerNode(Node):
             return True
 
     async def send_status(self):
-        if not self.sio_client.connected:
+        if not self.sio_client or not self.sio_client.connected:
             self.log.debug('cannot send status - not connected to the Learning Loop')
             return
 

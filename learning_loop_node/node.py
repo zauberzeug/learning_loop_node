@@ -4,9 +4,9 @@ from .helpers import log_conf  # pylint: disable=unused-import
 
 # isort: split
 # pylint: disable=wrong-import-order,ungrouped-imports
-
 import asyncio
 import logging
+import os
 import ssl
 import sys
 from abc import abstractmethod
@@ -32,7 +32,12 @@ class NodeConnectionError(Exception):
 
 class Node(FastAPI):
 
-    def __init__(self, name: str, uuid: Optional[str] = None, node_type: str = 'node', needs_login: bool = True):
+    def __init__(self,
+                 name: str, *,
+                 uuid: Optional[str] = None,
+                 node_type: str = 'node',
+                 needs_login: bool = True,
+                 needs_sio: bool = True) -> None:
         """Base class for all nodes. A node is a process that communicates with the zauberzeug learning loop.
         This class provides the basic functionality to connect to the learning loop via socket.io and to exchange data.
 
@@ -42,6 +47,7 @@ class Node(FastAPI):
                 and stored in f'{GLOBALS.data_folder}/uuids.json'. 
                 From the second run, the uuid is recovered based on the name of the node.
             needs_login (bool): If True, the node will try to login to the learning loop.
+            needs_sio (bool): If True, the node will try to establish and keep a socket.io connection to the loop.
         """
 
         super().__init__(lifespan=self.lifespan)
@@ -49,13 +55,16 @@ class Node(FastAPI):
         self.name = name
         self.uuid = uuid or read_or_create_uuid(self.name)
         self.needs_login = needs_login
+        self._needs_sio = needs_sio
+        if needs_sio and not needs_login:
+            raise ValueError('A node that needs sio must also need login')
 
         self.log = logging.getLogger('Node')
         self.init_loop_communicator()
         self.data_exchanger = DataExchanger(None, self.loop_communicator)
 
         self.startup_datetime = datetime.now()
-        self._sio_client: Optional[AsyncClient] = None
+        self.sio_client: Optional[AsyncClient] = None
         self.status = NodeStatus(id=self.uuid, name=self.name)
 
         self.sio_headers = {'organization': self.loop_communicator.organization,
@@ -64,7 +73,7 @@ class Node(FastAPI):
 
         self.repeat_task: Any = None
         self.socket_connection_broken = False
-        self._skip_repeat_loop = False
+        self._skip_repeat_loop = os.environ.get('SKIP_REPEAT_ON_START', '0') in ('True', 'true', '1')
 
         self.include_router(router)
 
@@ -78,22 +87,17 @@ class Node(FastAPI):
 
         self._client_session: Optional[aiohttp.ClientSession] = None
 
-    def log_status_on_change(self, current_state_str: str, full_status: Any):
+    def log_status_on_change(self, current_state_str: str, full_status: Any) -> None:
         if self.previous_state != current_state_str:
             self.previous_state = current_state_str
             self.log.info('Status changed to %s', full_status)
         else:
             self.log.debug('sending status %s', full_status)
 
-    def init_loop_communicator(self):
+    def init_loop_communicator(self) -> None:
+        """Initialize the loop communicator and set the websocket url."""
         self.loop_communicator = LoopCommunicator()
         self.websocket_url = self.loop_communicator.websocket_url()
-
-    @property
-    def sio_client(self) -> AsyncClient:
-        if self._sio_client is None:
-            raise Exception('sio_client not yet initialized')
-        return self._sio_client
 
     # --------------------------------------------------- APPLICATION LIFECYCLE ---------------------------------------------------
     @asynccontextmanager
@@ -114,7 +118,7 @@ class Node(FastAPI):
                 except asyncio.CancelledError:
                     pass
 
-    async def _on_startup(self):
+    async def _on_startup(self) -> None:
         self.log.info('received "startup" lifecycle-event - connecting to loop')
         try:
             await self.reconnect_to_loop()
@@ -124,17 +128,22 @@ class Node(FastAPI):
         await self.on_startup()
         self.log.info('successfully finished on_startup')
 
-    async def _on_shutdown(self):
+    async def _on_shutdown(self) -> None:
         self.log.info('received "shutdown" lifecycle-event')
         await self.loop_communicator.shutdown()
-        if self._sio_client is not None:
-            await self._sio_client.disconnect()
+        if self.sio_client is not None:
+            await self.sio_client.disconnect()
         if self._client_session is not None:
             await self._client_session.close()
         self.log.info('successfully disconnected from loop.')
         await self.on_shutdown()
 
     async def repeat_loop(self) -> None:
+        """Executed every `repeat_loop_cycle_sec` seconds.
+        Triggers the abstract method `on_repeat` which should be implemented by the subclass.
+        If `needs_sio` is True, it ensures that the socket.io connection is established before calling on_repeat.
+        """
+
         while True:
             if self._skip_repeat_loop:
                 self.log.debug('node is muted, skipping repeat loop')
@@ -142,7 +151,8 @@ class Node(FastAPI):
                 continue
             try:
                 async with self.repeat_loop_lock:
-                    await self._ensure_sio_connection()
+                    if self._needs_sio:
+                        await self._ensure_sio_connection()
                     await self.on_repeat()
             except asyncio.CancelledError:
                 return
@@ -153,14 +163,17 @@ class Node(FastAPI):
 
             await asyncio.sleep(self.repeat_loop_cycle_sec)
 
-    async def _ensure_sio_connection(self):
-        if self.socket_connection_broken or self._sio_client is None or not self.sio_client.connected:
+    async def _ensure_sio_connection(self) -> None:
+        """Call reconnect_to_loop if the socket.io connection is broken or not established."""
+        if self.socket_connection_broken or self.sio_client is None or not self.sio_client.connected:
             self.log.info('Reconnecting to loop via sio due to %s',
                           'broken connection' if self.socket_connection_broken else 'no connection')
             await self.reconnect_to_loop()
 
-    async def reconnect_to_loop(self):
+    async def reconnect_to_loop(self) -> None:
         """Initialize the loop communicator, log in if needed and reconnect to the loop via socket.io."""
+        if not self._needs_sio:
+            return
         self.init_loop_communicator()
         await self.loop_communicator.backend_ready(timeout=5)
         if self.needs_login:
@@ -174,13 +187,13 @@ class Node(FastAPI):
 
         self.socket_connection_broken = False
 
-    def set_skip_repeat_loop(self, value: bool):
+    def set_skip_repeat_loop(self, value: bool) -> None:
         self._skip_repeat_loop = value
         self.log.info('node is muted: %s', value)
 
     # --------------------------------------------------- SOCKET.IO ---------------------------------------------------
 
-    async def _reconnect_socketio(self):
+    async def _reconnect_socketio(self) -> None:
         """Create a socket.io client, connect it to the learning loop and register its events.
         The current client is disconnected and deleted if it already exists."""
 
@@ -188,7 +201,7 @@ class Node(FastAPI):
         cookies = self.loop_communicator.get_cookies()
         self.log.debug('HTTP Cookies: %s\n', cookies)
 
-        if self._sio_client is not None:
+        if self.sio_client is not None:
             try:
                 await self.sio_client.disconnect()
                 self.log.info('disconnected from loop via sio')
@@ -199,7 +212,7 @@ class Node(FastAPI):
                     'Did not receive disconnect event from loop within 5 seconds.\nContinuing with new connection...')
             except Exception as e:
                 self.log.warning('Could not disconnect from loop via sio: %s.\nIgnoring...', e)
-            self._sio_client = None
+            self.sio_client = None
 
         connector = None
         if self.loop_communicator.ssl_cert_path:
@@ -217,55 +230,55 @@ class Node(FastAPI):
         else:
             self._client_session = aiohttp.ClientSession(connector=connector)
 
-        self._sio_client = AsyncClient(request_timeout=20, http_session=self._client_session)
+        self.sio_client = AsyncClient(request_timeout=20, http_session=self._client_session)
 
         # pylint: disable=protected-access
-        self._sio_client._trigger_event = ensure_socket_response(self._sio_client._trigger_event)
+        self.sio_client._trigger_event = ensure_socket_response(self.sio_client._trigger_event)
 
-        @self._sio_client.event
+        @self.sio_client.event
         async def connect():
             self.log.info('received "connect" via sio from loop.')
             self.CONNECTED_TO_LOOP.set()
             self.DISCONNECTED_FROM_LOOP.clear()
 
-        @self._sio_client.event
+        @self.sio_client.event
         async def disconnect():
             self.log.info('received "disconnect" via sio from loop.')
             self.DISCONNECTED_FROM_LOOP.set()
             self.CONNECTED_TO_LOOP.clear()
 
-        @self._sio_client.event
+        @self.sio_client.event
         async def restart():
             self.log.info('received "restart" via sio from loop -> restarting node.')
             sys.exit(0)
 
-        self.register_sio_events(self._sio_client)
+        self.register_sio_events(self.sio_client)
         try:
-            await self._sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
+            await self.sio_client.connect(f"{self.websocket_url}", headers=self.sio_headers, socketio_path="/ws/socket.io")
         except Exception as e:
             self.log.exception('Could not connect socketio client to loop')
             raise NodeConnectionError('Could not connect socketio client to loop') from e
 
-        if not self._sio_client.connected:
+        if not self.sio_client.connected:
             self.log.exception('Could not connect socketio client to loop')
             raise NodeConnectionError('Could not connect socketio client to loop')
 
     # --------------------------------------------------- ABSTRACT METHODS ---------------------------------------------------
 
     @abstractmethod
-    async def on_startup(self):
+    async def on_startup(self) -> None:
         """This method is called when the node is started.
         Note: In this method the sio connection is not yet established!"""
 
     @abstractmethod
-    async def on_shutdown(self):
+    async def on_shutdown(self) -> None:
         """This method is called when the node is shut down."""
 
     @abstractmethod
-    async def on_repeat(self):
+    async def on_repeat(self) -> None:
         """This method is called every 10 seconds."""
 
     @abstractmethod
-    def register_sio_events(self, sio_client: AsyncClient):
+    def register_sio_events(self, sio_client: AsyncClient) -> None:
         """Register (additional) socket.io events for the communication with the learning loop.
         The events: connect, disconnect and restart are already registered and should not be overwritten."""

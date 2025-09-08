@@ -1,4 +1,4 @@
-FROM zauberzeug/nicegui:1.2.13
+FROM zauberzeug/nicegui:2.23.3
 
 RUN apt-get update && \
     apt-get install -y \
@@ -9,6 +9,9 @@ RUN apt-get update && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/
+
+# delete everything in /app
+RUN rm -rf /app/*
 
 RUN python3 -m pip install --upgrade pip
 
@@ -29,3 +32,6 @@ RUN if [ "$INSTALL_DEV" = 'true' ]; then poetry install -vvv --no-root; else poe
 
 # while development this will be mounted but in deployment we need the latest code baked into the image
 ADD ./learning_loop_node /usr/local/lib/python3.11/site-packages/learning_loop_node
+
+# Overwrite the entrypoint to bash
+ENTRYPOINT ["/bin/bash"]

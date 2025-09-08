@@ -369,6 +369,9 @@ class TrainerLogicGeneric(ABC):
         """Syncronizes the training with the Learning Loop via the update_training endpoint.
         NOTE: This stage sets the errors explicitly because it may be used inside the training stage.
         """
+        if not self.node.sio_client or not self.node.sio_client.connected:
+            raise ConnectionError('SocketIO client is not connected')
+
         error_key = 'sync_confusion_matrix'
         try:
             new_best_model = self._get_new_best_training_state()

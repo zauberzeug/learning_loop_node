@@ -38,6 +38,15 @@ def should_have_segmentations(request) -> bool:
     return should_have_seg
 
 
+@pytest.fixture(scope="session", name="event_loop")
+def fixture_event_loop():
+    """Overrides pytest default function scoped event loop"""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
+
+
 @pytest.fixture()
 async def test_detector_node():
     """Initializes and runs a detector testnode. Note that the running instance and the one the function returns are not the same instances!"""
