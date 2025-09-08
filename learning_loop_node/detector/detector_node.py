@@ -331,22 +331,19 @@ class DetectorNode(Node):
 # ================================== Repeat Cycle, sync and model updates ==================================
 
     async def on_repeat(self) -> None:
-        """Implementation of the repeat cycle. This method is called every 10 seconds."""
+        """Implementation of the repeat cycle. This method is called every 10 seconds.
+        To avoid too many requests, the status is only synced every 6 cycles (1 minute)."""
         try:
-            await self._sync_status_with_loop()
+            self._repeat_cycles_to_next_sync -= 1
+            if self._repeat_cycles_to_next_sync <= 0:
+                self._repeat_cycles_to_next_sync = self._regular_status_sync_cycles
+                await self._sync_status_with_loop()
             await self._update_model_if_required()
         except Exception:
             self.log.exception("error during '_check_for_update'")
 
-    async def _sync_status_with_loop(self, force=False) -> None:
-        """Sync status of the detector with the Learning Loop.
-        To avoid too many requests, the status is only synced every 6 cycles (1 minute) unless force is True."""
-
-        if not force:
-            self._repeat_cycles_to_next_sync -= 1
-            if self._repeat_cycles_to_next_sync > 0:
-                return
-            self._repeat_cycles_to_next_sync = self._regular_status_sync_cycles
+    async def _sync_status_with_loop(self) -> None:
+        """Sync status of the detector with the Learning Loop."""
 
         if self.detector_logic.model_info is not None:
             current_model = self.detector_logic.model_info.version
@@ -407,7 +404,7 @@ class DetectorNode(Node):
             self.log.exception('check_for_update failed')
             msg = e.cause if isinstance(e, DownloadError) else str(e)
             self.status.set_error('update_model', f'Could not update model: {msg}')
-            await self._sync_status_with_loop(force=True)
+            await self._sync_status_with_loop()
 
     async def _check_for_new_deployment_target(self) -> None:
         """Ask the learning loop for the current deployment target and update self.loop_deployment_target.
@@ -481,14 +478,14 @@ class DetectorNode(Node):
                 self.target_model = None
                 return
 
-            await self._sync_status_with_loop(force=True)
+            await self._sync_status_with_loop()
             # self.reload(reason='new model installed')
 
 # ================================== API Implementations ==================================
 
     async def set_operation_mode(self, mode: OperationMode):
         self.operation_mode = mode
-        await self._sync_status_with_loop(force=True)
+        await self._sync_status_with_loop()
 
     def reload(self, reason: str):
         """provide a cause for the reload"""
