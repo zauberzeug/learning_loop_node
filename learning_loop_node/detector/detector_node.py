@@ -399,7 +399,7 @@ class DetectorNode(Node):
                 if self.detector_logic.model_info is not None else None
 
             if current_version != self.target_model.version:
-                self.log.info('Model is beeing updated from %s to %s',
+                self.log.info('Updating model from %s to %s',
                               current_version or "-", self.target_model.version)
                 await self._update_model(self.target_model)
 
