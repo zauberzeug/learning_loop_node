@@ -364,7 +364,7 @@ class DetectorNode(Node):
             model_format=self.detector_logic.model_format,
         )
 
-        self.log_status_on_change(status.state or 'None', status)
+        self.log_status_on_change(status.state, status)
 
         try:
             response = await self.loop_communicator.post(
