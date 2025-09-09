@@ -8,7 +8,8 @@ from httpx import Cookies, Timeout
 
 from .helpers import environment_reader
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('loop_communication')
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 SLEEP_TIME_ON_429 = 5
 MAX_RETRIES_ON_429 = 20
@@ -37,9 +38,9 @@ class LoopCommunicator():
         host: str = environment_reader.host(default='learning-loop.ai')
         self.ssl_cert_path = environment_reader.ssl_certificate_path()
         if self.ssl_cert_path:
-            logging.info('Using SSL certificate at %s', self.ssl_cert_path)
+            logger.info('Using SSL certificate at %s', self.ssl_cert_path)
         else:
-            logging.info('No SSL certificate path set')
+            logger.info('No SSL certificate path set')
         self.host: str = host
         self.username: str = environment_reader.username()
         self.password: str = environment_reader.password()
@@ -52,7 +53,7 @@ class LoopCommunicator():
         else:
             self.async_client = httpx.AsyncClient(base_url=self.base_url, timeout=Timeout(60.0))
 
-        logging.info('Loop interface initialized with base_url: %s / user: %s', self.base_url, self.username)
+        logger.info('Loop interface initialized with base_url: %s / user: %s', self.base_url, self.username)
 
     def websocket_url(self) -> str:
         return f'ws{"s" if "learning-loop.ai" in self.host else ""}://' + self.host
@@ -65,7 +66,7 @@ class LoopCommunicator():
             self.async_client.cookies.clear()
             response = await self.async_client.post('/api/login', data={'username': self.username, 'password': self.password})
             if response.status_code != 200:
-                logging.info('Login failed with response: %s', response)
+                logger.info('Login failed with response: %s', response)
                 raise LoopCommunicationException('Login failed with response: ' + str(response))
             self.async_client.cookies.update(response.cookies)
 
@@ -74,7 +75,7 @@ class LoopCommunicator():
 
         response = await self.async_client.post('/api/logout')
         if response.status_code != 200:
-            logging.info('Logout failed with response: %s', response)
+            logger.info('Logout failed with response: %s', response)
             raise LoopCommunicationException('Logout failed with response: ' + str(response))
         self.async_client.cookies.clear()
 
@@ -90,12 +91,12 @@ class LoopCommunicator():
         start_time = time.time()
         while True:
             try:
-                logging.info('Checking if backend is ready')
+                logger.info('Checking if backend is ready')
                 response = await self.get('/status', requires_login=False)
                 if response.status_code == 200:
                     return True
             except Exception:
-                logging.info('backend not ready yet.')
+                logger.info('backend not ready yet.')
             if timeout is not None and time.time() + 10 - start_time > timeout:
                 raise TimeoutError('Backend not ready within timeout')
             await asyncio.sleep(10)
