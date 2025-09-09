@@ -78,9 +78,6 @@ class Outbox():
     async def save(self,
                    image: bytes,
                    image_metadata: Optional[ImageMetadata] = None,
-                   tags: Optional[List[str]] = None,
-                   source: Optional[str] = None,
-                   creation_date: Optional[str] = None,
                    upload_priority: bool = False) -> None:
 
         if not await run.io_bound(self._is_valid_jpg, image):
@@ -89,12 +86,11 @@ class Outbox():
 
         if image_metadata is None:
             image_metadata = ImageMetadata()
-        if not tags:
-            tags = []
+
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
 
         try:
-            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, tags, source, creation_date, upload_priority)
+            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, upload_priority)
         except Exception as e:
             self.log.error('Failed to save files for image %s: %s', identifier, e)
             return
@@ -110,9 +106,6 @@ class Outbox():
                             identifier: str,
                             image: bytes,
                             image_metadata: ImageMetadata,
-                            tags: List[str],
-                            source: Optional[str],
-                            creation_date: Optional[str],
                             upload_priority: bool) -> None:
         subpath = 'priority' if upload_priority else 'normal'
         full_path = f'{self.path}/{subpath}/{identifier}'
@@ -120,14 +113,6 @@ class Outbox():
             raise FileExistsError(f'Directory with identifier {identifier} already exists')
 
         tmp = f'{GLOBALS.data_folder}/tmp/{identifier}'
-        image_metadata.tags = tags
-        if self._is_valid_isoformat(creation_date):
-            image_metadata.created = creation_date
-        else:
-            image_metadata.created = identifier
-
-        image_metadata.source = source or 'unknown'
-
         os.makedirs(tmp, exist_ok=True)
 
         with open(tmp + f'/image_{identifier}.json', 'w') as f:
@@ -139,6 +124,7 @@ class Outbox():
         if not os.path.exists(tmp):
             self.log.error('Could not rename %s to %s', tmp, full_path)
             raise FileNotFoundError(f'Could not rename {tmp} to {full_path}')
+
         os.rename(tmp, full_path)
 
     async def _trim_upload_queue(self) -> None:

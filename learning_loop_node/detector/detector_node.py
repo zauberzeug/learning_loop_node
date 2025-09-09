@@ -226,7 +226,7 @@ class DetectorNode(Node):
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
-                    autoupload=data.get('autoupload', None),
+                    autoupload=data.get('autoupload', 'filtered'),
                     creation_date=data.get('creation_date', None)
                 )
                 if det is None:
@@ -247,7 +247,7 @@ class DetectorNode(Node):
                     tags=data.get('tags', []),
                     camera_id=data.get('camera-id', None) or data.get('mac', None),
                     source=data.get('source', None),
-                    autoupload=data.get('autoupload', None),
+                    autoupload=data.get('autoupload', 'filtered'),
                     creation_date=data.get('creation_date', None)
                 )
                 if det is None:
@@ -296,27 +296,22 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def upload(sid, data: Dict) -> Dict:
-            """Upload an image with detections"""
-
+            """Upload a single image with metadata to the learning loop."""
             self.log.debug('Processing upload via socketio.')
-            detection_data = data.get('detections', {})
-            if detection_data and self.detector_logic.model_info is not None:
+
+            metadata = data.get('metadata', None)
+            if metadata and self.detector_logic.model_info is not None:
                 try:
-                    image_metadata = from_dict(data_class=ImageMetadata, data=detection_data)
+                    image_metadata = from_dict(data_class=ImageMetadata, data=metadata)
                 except Exception as e:
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
                 image_metadata = self.add_category_id_to_detections(self.detector_logic.model_info, image_metadata)
-            else:
-                image_metadata = ImageMetadata()
 
             try:
                 await self.upload_images(
                     images=[data['image']],
-                    image_metadata=image_metadata,
-                    tags=data.get('tags', []),
-                    source=data.get('source', None),
-                    creation_date=data.get('creation_date', None),
+                    images_metadata=ImagesMetadata(items=[image_metadata]) if metadata else None,
                     upload_priority=data.get('upload_priority', False)
                 )
             except Exception as e:
@@ -506,7 +501,7 @@ class DetectorNode(Node):
                              *,
                              camera_id: Optional[str] = None,
                              source: Optional[str] = None,
-                             autoupload: Optional[str] = None,
+                             autoupload: str = 'filtered',
                              creation_date: Optional[str] = None) -> ImageMetadata:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as ImageMetadata object.
@@ -514,26 +509,24 @@ class DetectorNode(Node):
         It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
-        detections = await run.io_bound(self.detector_logic.evaluate_with_all_info, raw_image, tags, source, creation_date)
+        metadata = await run.io_bound(self.detector_logic.evaluate, raw_image, tags, source, creation_date)
         self.detection_lock.release()
 
-        fix_shape_detections(detections)
-        n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
-        n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
+        fix_shape_detections(metadata)
+        n_bo, n_cl = len(metadata.box_detections), len(metadata.classification_detections)
+        n_po, n_se = len(metadata.point_detections), len(metadata.segmentation_detections)
         self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
-        autoupload = autoupload or 'filtered'
-        if autoupload == 'filtered' and camera_id is not None:
-            background_tasks.create(self.relevance_filter.may_upload_detections(
-                detections, camera_id, raw_image, tags, source, creation_date
-            ))
+        if autoupload == 'filtered':
+            camera_id = camera_id or 'unknown'
+            background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, raw_image))
         elif autoupload == 'all':
-            background_tasks.create(self.outbox.save(raw_image, detections, tags, source, creation_date))
+            background_tasks.create(self.outbox.save(raw_image, metadata))
         elif autoupload == 'disabled':
             pass
         else:
             self.log.error('unknown autoupload value %s', autoupload)
-        return detections
+        return metadata
 
     async def get_batch_detections(self,
                                    raw_images: List[bytes],
@@ -541,13 +534,13 @@ class DetectorNode(Node):
                                    *,
                                    camera_id: Optional[str] = None,
                                    source: Optional[str] = None,
-                                   autoupload: Optional[str] = None,
+                                   autoupload: str = 'filtered',
                                    creation_date: Optional[str] = None) -> ImagesMetadata:
         """ Processing function for the detector node when a a batch inference is requested via SocketIO.
         This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata."""
 
         await self.detection_lock.acquire()
-        all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images)
+        all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images, tags, source=source, creation_date=creation_date)
         self.detection_lock.release()
 
         for detections, raw_image in zip(all_detections.items, raw_images):
@@ -558,11 +551,10 @@ class DetectorNode(Node):
 
             autoupload = autoupload or 'filtered'
             if autoupload == 'filtered' and camera_id is not None:
-                background_tasks.create(self.relevance_filter.may_upload_detections(
-                    detections, camera_id, raw_image, tags, source, creation_date
-                ))
+                camera_id = camera_id or 'unknown'
+                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, raw_image))
             elif autoupload == 'all':
-                background_tasks.create(self.outbox.save(raw_image, detections, tags, source, creation_date))
+                background_tasks.create(self.outbox.save(raw_image, detections))
             elif autoupload == 'disabled':
                 pass
             else:
@@ -572,24 +564,19 @@ class DetectorNode(Node):
     async def upload_images(
             self, *,
             images: List[bytes],
-            image_metadata: Optional[ImageMetadata] = None,
-            tags: Optional[List[str]] = None,
-            source: Optional[str],
-            creation_date: Optional[str],
+            images_metadata: Optional[ImagesMetadata] = None,
             upload_priority: bool = False
     ) -> None:
         """Save images to the outbox using an asyncio executor.
         Used by SIO and REST upload endpoints."""
 
-        if image_metadata is None:
-            image_metadata = ImageMetadata()
-        if tags is None:
-            tags = []
+        if images_metadata is not None and len(images_metadata.items) != len(images):
+            raise Exception('Number of images and number of metadata items do not match')
 
-        tags.append('picked_by_system')
-
-        for image in images:
-            await self.outbox.save(image, image_metadata, tags, source, creation_date, upload_priority)
+        for i, image in enumerate(images):
+            image_metadata = images_metadata.items[i] if images_metadata else ImageMetadata()
+            image_metadata.tags.append('picked_by_system')
+            await self.outbox.save(image, image_metadata, upload_priority)
 
     def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         def find_category_id_by_name(categories: List[Category], category_name: str):

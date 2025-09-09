@@ -4,7 +4,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
 
-from .detections import BoxDetection, ClassificationDetection, PointDetection, SegmentationDetection
+from .annotations import BoxAnnotation, ClassificationAnnotation, PointAnnotation
+from .detections import (
+    BoxDetection,
+    ClassificationDetection,
+    PointDetection,
+    SegmentationDetection,
+)
 
 # pylint: disable=too-many-instance-attributes
 
@@ -25,6 +31,14 @@ class ImageMetadata():
         'description': 'List of segmentation detections'})
     classification_detections: List[ClassificationDetection] = field(default_factory=list, metadata={
         'description': 'List of classification detections'})
+
+    box_annotations: List[BoxAnnotation] = field(default_factory=list, metadata={
+        'description': 'List of box annotations'})
+    point_annotations: List[PointAnnotation] = field(default_factory=list, metadata={
+        'description': 'List of point annotations'})
+    classification_annotation: Optional[ClassificationAnnotation] = field(default=None, metadata={
+        'description': 'Classification annotation'})
+
     tags: List[str] = field(default_factory=list, metadata={
         'description': 'List of tags'})
 

@@ -16,7 +16,6 @@ async def http_detect(
     request: Request,
     file: UploadFile = File(..., description='The image file to run detection on'),
     camera_id: Optional[str] = Header(None, description='The camera id (used by learning loop)'),
-    mac: Optional[str] = Header(None, description='The camera mac address (used by learning loop)'),
     tags: Optional[str] = Header(None, description='Tags to add to the image (used by learning loop)'),
     source: Optional[str] = Header(None, description='The source of the image (used by learning loop)'),
     autoupload: Optional[str] = Header(None, description='Mode to decide whether to upload the image to the learning loop',
@@ -43,7 +42,7 @@ async def http_detect(
     try:
         app: 'DetectorNode' = request.app
         detections = await app.get_detections(raw_image=file_bytes,
-                                              camera_id=camera_id or mac or None,
+                                              camera_id=camera_id or None,
                                               tags=tags.split(',') if tags else [],
                                               source=source,
                                               autoupload=autoupload,

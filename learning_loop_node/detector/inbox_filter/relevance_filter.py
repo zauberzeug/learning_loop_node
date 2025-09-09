@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from ...data_classes.image_metadata import ImageMetadata
 from ..outbox import Outbox
@@ -14,10 +14,7 @@ class RelevanceFilter():
     async def may_upload_detections(self,
                                     image_metadata: ImageMetadata,
                                     cam_id: str,
-                                    raw_image: bytes,
-                                    tags: List[str],
-                                    source: Optional[str] = None,
-                                    creation_date: Optional[str] = None) -> List[str]:
+                                    raw_image: bytes) -> List[str]:
         """Check if the detection should be uploaded to the outbox.
         If so, upload it and return the list of causes for the upload.
         """
@@ -30,7 +27,6 @@ class RelevanceFilter():
         if len(image_metadata) >= 80:
             causes.append('unexpected_observations_count')
         if len(causes) > 0:
-            tags = tags if tags is not None else []
-            tags.extend(causes)
-            await self.outbox.save(raw_image, image_metadata, tags, source, creation_date)
+            image_metadata.tags.extend(causes)
+            await self.outbox.save(raw_image, image_metadata)
         return causes
