@@ -29,6 +29,6 @@ class TestingDetectorLogic(DetectorLogic):
     def batch_evaluate(self,
                        images: List[bytes],
                        tags: List[str],
-                       source: str | None = None,
-                       creation_date: str | None = None) -> ImagesMetadata:
+                       source: Optional[str] = None,
+                       creation_date: Optional[str] = None) -> ImagesMetadata:
         raise NotImplementedError()
