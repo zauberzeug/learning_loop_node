@@ -223,7 +223,7 @@ class DetectorNode(Node):
             try:
                 det = await self.get_detections(
                     raw_image=data['image'],
-                    camera_id=data.get('camera-id', None) or data.get('mac', None),
+                    camera_id=data.get('camera-id', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
@@ -245,7 +245,7 @@ class DetectorNode(Node):
                 det = await self.get_batch_detections(
                     raw_images=data['images'],
                     tags=data.get('tags', []),
-                    camera_id=data.get('camera-id', None) or data.get('mac', None),
+                    camera_id=data.get('camera-id', None),
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
                     creation_date=data.get('creation_date', None)
@@ -296,7 +296,12 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def upload(sid, data: Dict) -> Dict:
-            """Upload a single image with metadata to the learning loop."""
+            """Upload a single image with metadata to the learning loop.
+
+            The data dict must contain:
+            - image: The image bytes to upload
+            - metadata: The metadata for the image (optional)
+            """
             self.log.debug('Processing upload via socketio.')
 
             metadata = data.get('metadata', None)
