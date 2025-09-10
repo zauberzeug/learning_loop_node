@@ -13,7 +13,7 @@ file_path = os.path.abspath(__file__)
 test_image_path = os.path.join(os.path.dirname(file_path), 'test.jpg')
 
 
-@pytest.mark.parametrize('autoupload, expected_file_count', [(None, 2), ('all', 4)])
+@pytest.mark.parametrize('autoupload, expected_file_count', [('filtered', 2), ('all', 4)])
 async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autoupload, expected_file_count):
     """Test if filtering is used by the node. In particular, when upload is filtered, the identical detections should not be uploaded twice.
     Note thatt we have to mock the dummy detections to only return a point and a box detection."""

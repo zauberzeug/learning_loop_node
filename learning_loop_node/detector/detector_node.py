@@ -506,7 +506,7 @@ class DetectorNode(Node):
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as ImageMetadata object.
         Note: raw_image is a numpy array of type uint8, but not in the correct shape!
-        It can be converted e.g. using cv2.imdecode(raw_image, cv2.IMREAD_COLOR)"""
+        It can be converted e.g. using cv2.imdecode(np.frombuffer(image, np.uint8), cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
         metadata = await run.io_bound(self.detector_logic.evaluate, raw_image, tags, source, creation_date)
@@ -614,9 +614,9 @@ def step_into(new_dir):
         os.chdir(previous_dir)
 
 
-def fix_shape_detections(detections: ImageMetadata):
+def fix_shape_detections(metadata: ImageMetadata):
     # TODO This is a quick fix.. check how loop upload detections deals with this
-    for seg_detection in detections.segmentation_detections:
+    for seg_detection in metadata.segmentation_detections:
         if isinstance(seg_detection.shape, Shape):
             points = ','.join([str(value) for p in seg_detection.shape.points for _,
                                value in asdict(p).items()])

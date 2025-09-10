@@ -2,7 +2,7 @@ import asyncio
 
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
-from ...test_helper import get_dummy_detections
+from ...test_helper import get_dummy_dets
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
@@ -16,7 +16,8 @@ def trainer_has_detecting_error(trainer: TrainerLogic):
 async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state='train_model_uploaded',
-                                model_uuid_for_detecting='00000000-0000-0000-0000-000000000011')  # NOTE: this is the hard coded model uuid for zauberzeug/demo (model version 1.1)
+                                # NOTE: this is the hard coded model uuid for zauberzeug/demo (model version 1.1)
+                                model_uuid_for_detecting='00000000-0000-0000-0000-000000000011')
 
     _ = asyncio.get_running_loop().create_task(
         trainer._perform_state('detecting', TrainerState.Detecting, TrainerState.Detected, trainer._do_detections))
@@ -70,7 +71,7 @@ def test_save_load_detections(test_initialized_trainer: TestingTrainerLogic):
     create_active_training_file(trainer)
     trainer._init_from_last_training()
 
-    detections = [get_dummy_detections(), get_dummy_detections()]
+    detections = [get_dummy_dets(), get_dummy_dets()]
 
     trainer.active_training_io.save_detections(detections)
     assert trainer.active_training_io.detections_exist()
