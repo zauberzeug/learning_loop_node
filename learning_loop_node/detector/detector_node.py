@@ -549,8 +549,7 @@ class DetectorNode(Node):
             n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
             self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
-            autoupload = autoupload or 'filtered'
-            if autoupload == 'filtered' and camera_id is not None:
+            if autoupload == 'filtered':
                 camera_id = camera_id or 'unknown'
                 background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, raw_image))
             elif autoupload == 'all':
