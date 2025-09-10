@@ -16,12 +16,10 @@ class BoxAnnotation():
     y: int = field(metadata={'description': 'Y coordinate (top to bottom)'})
     width: int = field(metadata={'description': 'Width'})
     height: int = field(metadata={'description': 'Height'})
-    model_name: str = field(metadata={'description': 'Model name'})
-    confidence: float = field(metadata={'description': 'Confidence'})
     category_id: Optional[str] = field(default=None, metadata={'description': 'Category UUID'})
 
     def __str__(self):
-        return f'x:{int(self.x)} y: {int(self.y)}, w: {int(self.width)} h: {int(self.height)} c: {self.confidence:.2f} -> {self.category_name}'
+        return f'x:{int(self.x)} y: {int(self.y)}, w: {int(self.width)} h: {int(self.height)} -> {self.category_name}'
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -31,20 +29,16 @@ class PointAnnotation():
     category_name: str = field(metadata={'description': 'Category name'})
     x: float = field(metadata={'description': 'X coordinate (right)'})
     y: float = field(metadata={'description': 'Y coordinate (down)'})
-    model_name: str = field(metadata={'description': 'Model name'})
-    confidence: float = field(metadata={'description': 'Confidence'})
     category_id: Optional[str] = field(default=None, metadata={'description': 'Category UUID'})
 
     def __str__(self):
-        return f'x:{int(self.x)} y: {int(self.y)}, c: {self.confidence:.2f} -> {self.category_name}'
+        return f'x:{int(self.x)} y: {int(self.y)}, -> {self.category_name}'
 
 
 @dataclass(**KWONLY_SLOTS)
 class ClassificationAnnotation():
     category_name: str = field(metadata={'description': 'Category name'})
-    model_name: str = field(metadata={'description': 'Model name'})
-    confidence: float = field(metadata={'description': 'Confidence'})
     category_id: Optional[str] = field(default=None, metadata={'description': 'Category UUID'})
 
     def __str__(self):
-        return f'c: {self.confidence:.2f} -> {self.category_name}'
+        return f'-> {self.category_name}'
