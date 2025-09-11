@@ -305,13 +305,16 @@ class DetectorNode(Node):
             self.log.debug('Processing upload via socketio.')
 
             metadata = data.get('metadata', None)
-            if metadata and self.detector_logic.model_info is not None:
+            if metadata:
                 try:
                     image_metadata = from_dict(data_class=ImageMetadata, data=metadata)
                 except Exception as e:
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
-                image_metadata = self.add_category_id_to_detections(self.detector_logic.model_info, image_metadata)
+                if self.detector_logic.model_info is not None:
+                    image_metadata = self.add_category_id_to_detections(self.detector_logic.model_info, image_metadata)
+            else:
+                image_metadata = ImageMetadata()
 
             try:
                 await self.upload_images(
