@@ -509,7 +509,7 @@ class DetectorNode(Node):
                              *,
                              camera_id: Optional[str] = None,
                              source: Optional[str] = None,
-                             autoupload: str,
+                             autoupload: Literal['filtered', 'all', 'disabled'],
                              creation_date: Optional[str] = None) -> ImageMetadata:
         """ Main processing function for the detector node when an image is received via REST or SocketIO.
         This function infers the detections from the image, cares about uploading to the loop and returns the detections as ImageMetadata object.

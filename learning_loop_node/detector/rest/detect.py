@@ -1,5 +1,5 @@
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Literal, Optional
 
 from fastapi import APIRouter, File, Header, Request, UploadFile
 
@@ -18,8 +18,8 @@ async def http_detect(
     camera_id: Optional[str] = Header(None, description='The camera id (used by learning loop)'),
     tags: Optional[str] = Header(None, description='Tags to add to the image (used by learning loop)'),
     source: Optional[str] = Header(None, description='The source of the image (used by learning loop)'),
-    autoupload: Optional[str] = Header(None, description='Mode to decide whether to upload the image to the learning loop',
-                                       examples=['filtered', 'all', 'disabled']),
+    autoupload: Optional[Literal['filtered', 'all', 'disabled']] = Header(None, description='Mode to decide whether to upload the image to the learning loop',
+                                                                          examples=['filtered', 'all', 'disabled']),
     creation_date: Optional[str] = Header(None, description='The creation date of the image (used by learning loop)')
 ):
     """
