@@ -45,7 +45,7 @@ async def http_detect(
                                               camera_id=camera_id or None,
                                               tags=tags.split(',') if tags else [],
                                               source=source,
-                                              autoupload=autoupload,
+                                              autoupload=autoupload or 'filtered',
                                               creation_date=creation_date)
     except Exception as exc:
         logging.exception('Error during detection of image %s.', file.filename)
