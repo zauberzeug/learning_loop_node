@@ -390,6 +390,9 @@ class TrainerLogicGeneric(ABC):
                 if isinstance(result,  dict) and result['success']:
                     logger.info('successfully updated training %s', asdict(new_training))
                     self._on_metrics_published(new_best_model)
+                elif isinstance(result,  dict) and result.get('error_msg', '').contains('No training found for trainer'):
+                    logger.error('Training not found for trainer (probably aborted).')
+                    raise CriticalError('Training not found for trainer (probably aborted).')
                 else:
                     raise Exception(f'Error for update_training: Response from loop was : {result}')
         except Exception as e:
