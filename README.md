@@ -59,7 +59,7 @@ Via **REST** you may provide the following parameters:
 
 Example usage:
 
-`curl --request POST -F 'file=@test.jpg'  -H 'autoupload: all' -H 'camera-id: front_cam' localhost:8004/detect`
+`curl --request POST -F 'file=@test.jpg' -H 'autoupload: all' -H 'camera-id: front_cam' localhost:8004/detect`
 
 To use the **SocketIO** inference EPs, the caller needs to connect to the detector node's SocketIO server and emit the `detect` or `batch_detect` event with the image data and image metadata.
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
@@ -152,7 +152,7 @@ A Conveter Node converts models from one format into another.
 
 ...
 
-#### Test operability
+### Test operability
 
 Assumend there is a Converter Node which converts models of format 'format_a' into 'format_b'.
 Upload a model with
