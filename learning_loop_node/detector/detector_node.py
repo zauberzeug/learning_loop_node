@@ -575,10 +575,16 @@ class DetectorNode(Node):
             upload_priority: bool = False
     ) -> None:
         """Save images to the outbox using an asyncio executor.
-        Used by SIO and REST upload endpoints."""
+        Used by SIO and REST upload endpoints.
 
-        if images_metadata is not None and len(images_metadata.items) != len(images):
-            raise Exception('Number of images and number of metadata items do not match')
+        :param images: List of images to upload
+        :param images_metadata: Optional metadata for all images
+        :param upload_priority: Whether to upload the images with priority
+        :raises ValueError: If the number of images and number of metadata items do not match
+        """
+
+        if images_metadata and len(images_metadata.items) != len(images):
+            raise ValueError('Number of images and number of metadata items do not match')
 
         for i, image in enumerate(images):
             image_metadata = images_metadata.items[i] if images_metadata else ImageMetadata()
