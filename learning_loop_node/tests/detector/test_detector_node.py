@@ -1,3 +1,5 @@
+from typing import List, Literal, Tuple
+
 import numpy as np
 import pytest
 
@@ -15,11 +17,11 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     save_args = []
 
-    def mock_filtered_upload(*args, **kwargs):  # pylint: disable=unused-argument
+    async def mock_filtered_upload(*args, **kwargs):  # pylint: disable=unused-argument
         nonlocal filtered_upload_called
         filtered_upload_called = True
 
-    def mock_save(*args, **kwargs):
+    async def mock_save(*args, **kwargs):
         nonlocal save_called
         nonlocal save_args
         save_called = True
@@ -30,7 +32,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     monkeypatch.setattr(detector_node.outbox, "save", mock_save)
 
     # Test cases
-    test_cases = [
+    test_cases: List[Tuple[Literal['filtered', 'all', 'disabled'], bool, bool]] = [
         ("filtered", True, False),
         ("all", False, True),
         ("disabled", False, False),
