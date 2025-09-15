@@ -1,5 +1,10 @@
 import logging
-from typing import TYPE_CHECKING, Literal, Optional
+from typing import TYPE_CHECKING, Optional
+
+try:
+    from typing import Literal
+except ImportError:  # Python <= 3.8
+    from typing_extensions import Literal  # type: ignore
 
 from fastapi import APIRouter, File, Header, Request, UploadFile
 

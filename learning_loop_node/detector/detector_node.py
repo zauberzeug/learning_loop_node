@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 
 try:
     from typing import Literal
-except ImportError:  # Python < 3.8
+except ImportError:  # Python <= 3.8
     from typing_extensions import Literal  # type: ignore
 
 import socketio
