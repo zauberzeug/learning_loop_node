@@ -3,6 +3,7 @@ from typing import List, Literal, Tuple
 import numpy as np
 import pytest
 
+from learning_loop_node.detector import detector_node as detector_node_module
 from learning_loop_node.detector.detector_node import DetectorNode
 
 
@@ -17,9 +18,10 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     save_args = []
 
-    async def mock_filtered_upload(*args, **kwargs):  # pylint: disable=unused-argument
+    async def mock_filtered_upload(*args, **kwargs) -> List[str]:  # pylint: disable=unused-argument
         nonlocal filtered_upload_called
         filtered_upload_called = True
+        return []
 
     async def mock_save(*args, **kwargs):
         nonlocal save_called
@@ -28,8 +30,13 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
         save_args = (args, kwargs)
 
     monkeypatch.setattr(detector_node.relevance_filter, "may_upload_detections", mock_filtered_upload)
-    # NOTE: this raises TypeError: object NoneType can't be used in 'await' expression because the original save method is async
     monkeypatch.setattr(detector_node.outbox, "save", mock_save)
+
+    created_tasks = []
+
+    def mock_create_task(coroutine, *args, **kwargs):
+        created_tasks.append(coroutine)
+    monkeypatch.setattr(detector_node_module.background_tasks, "create", mock_create_task)
 
     # Test cases
     test_cases: List[Tuple[Literal['filtered', 'all', 'disabled'], bool, bool]] = [
@@ -46,6 +53,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     for autoupload, expect_filtered, expect_all in test_cases:
         filtered_upload_called = False
         save_called = False
+        created_tasks.clear()
 
         result = await detector_node.get_detections(
             raw_image=raw_image,
@@ -55,6 +63,9 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
             creation_date="2024-01-01T00:00:00",
             autoupload=autoupload
         )
+
+        for task in created_tasks:
+            await task
 
         # Check if detections were processed
         assert result is not None
