@@ -2,7 +2,7 @@ import asyncio
 
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
-from ...test_helper import get_dummy_dets
+from ...test_helper import get_dummy_detections
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
@@ -71,7 +71,7 @@ def test_save_load_detections(test_initialized_trainer: TestingTrainerLogic):
     create_active_training_file(trainer)
     trainer._init_from_last_training()
 
-    detections = [get_dummy_dets(), get_dummy_dets()]
+    detections = [get_dummy_detections(), get_dummy_detections()]
 
     trainer.active_training_io.save_detections(detections)
     assert trainer.active_training_io.detections_exist()

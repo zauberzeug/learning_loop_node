@@ -7,7 +7,7 @@ from ....data_classes import BoxDetection, Context, Detections
 from ....enums import TrainerState
 from ....loop_communication import LoopCommunicator
 from ....trainer.trainer_logic import TrainerLogic
-from ...test_helper import get_dummy_dets
+from ...test_helper import get_dummy_detections
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
@@ -123,7 +123,7 @@ async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTra
     create_active_training_file(trainer, training_state=TrainerState.Detected, context=Context(
         organization='zauberzeug', project='some_bad_project'))
     trainer._init_from_last_training()
-    trainer.active_training_io.save_detections([get_dummy_dets()])
+    trainer.active_training_io.save_detections([get_dummy_detections()])
 
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
