@@ -30,7 +30,7 @@ async def http_detect(
     """
     Single image example:
 
-        curl --request POST -F 'file=@test.jpg' localhost:8004/detect -H 'autoupload: all' -H 'camera-id: front_cam' -H 'source: test' -H 'tags: test,test2'
+        curl --request POST -F 'file=@test.jpg' localhost:8004/detect -H 'autoupload: all' -H 'camera_id: front_cam' -H 'source: test' -H 'tags: test,test2'
 
     Multiple images example:
 

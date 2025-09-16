@@ -228,7 +228,7 @@ class DetectorNode(Node):
             try:
                 det = await self.get_detections(
                     raw_image=data['image'],
-                    camera_id=data.get('camera-id', None),
+                    camera_id=data.get('camera_id', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
@@ -250,7 +250,7 @@ class DetectorNode(Node):
                 det = await self.get_batch_detections(
                     raw_images=data['images'],
                     tags=data.get('tags', []),
-                    camera_id=data.get('camera-id', None),
+                    camera_id=data.get('camera_id', None),
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
                     creation_date=data.get('creation_date', None)

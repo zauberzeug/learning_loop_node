@@ -51,7 +51,7 @@ Images can be send to the detector node via socketio or rest.
 Via **REST** you may provide the following parameters:
 
 - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled`
-- `camera-id`: a camera identifier (string) used to improve the autoupload filtering
+- `camera_id`: a camera identifier (string) used to improve the autoupload filtering
 - `tags`: comma separated list of tags to add to the image in the learning loop
 - `source`: optional source identifier (str) for the image (e.g. a robot id)
 - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled`
@@ -59,7 +59,7 @@ Via **REST** you may provide the following parameters:
 
 Example usage:
 
-`curl --request POST -F 'file=@test.jpg' -H 'autoupload: all' -H 'camera-id: front_cam' localhost:8004/detect`
+`curl --request POST -F 'file=@test.jpg' -H 'autoupload: all' -H 'camera_id: front_cam' localhost:8004/detect`
 
 To use the **SocketIO** inference EPs, the caller needs to connect to the detector node's SocketIO server and emit the `detect` or `batch_detect` event with the image data and image metadata.
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
