@@ -21,7 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""inspired from https://quantlane.com/blog/ensure-asyncio-task-exceptions-get-logged/"""
 from __future__ import annotations
 
 import asyncio
