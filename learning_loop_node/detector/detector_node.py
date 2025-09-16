@@ -522,7 +522,10 @@ class DetectorNode(Node):
         It can be converted e.g. using cv2.imdecode(np.frombuffer(image, np.uint8), cv2.IMREAD_COLOR)"""
 
         await self.detection_lock.acquire()
-        metadata = await run.io_bound(self.detector_logic.evaluate, raw_image, tags, source, creation_date)
+        metadata = await run.io_bound(self.detector_logic.evaluate, raw_image)
+        metadata.tags.extend(tags)
+        metadata.source = source
+        metadata.created = creation_date
         self.detection_lock.release()
 
         fix_shape_detections(metadata)
@@ -552,7 +555,7 @@ class DetectorNode(Node):
         This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata."""
 
         await self.detection_lock.acquire()
-        all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images, tags, source=source, creation_date=creation_date)
+        all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images)
         self.detection_lock.release()
 
         for detections, raw_image in zip(all_detections.items, raw_images):

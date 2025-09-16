@@ -137,10 +137,7 @@ class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
                                          x=0, y=0, width=10, height=10,
                                          model_name="mock", )])
 
-    def evaluate(self, image: bytes, tags: List[str], source: Optional[str] = None, creation_date: Optional[str] = None):
-        self.image_metadata.tags = tags
-        self.image_metadata.source = source
-        self.image_metadata.created = creation_date
+    def evaluate(self, image: bytes) -> ImageMetadata:
         return self.image_metadata
 
 
