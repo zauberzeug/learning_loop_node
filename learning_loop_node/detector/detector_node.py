@@ -531,7 +531,6 @@ class DetectorNode(Node):
         self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
         if autoupload == 'filtered':
-            camera_id = camera_id or 'unknown'
             background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, raw_image))
         elif autoupload == 'all':
             background_tasks.create(self.outbox.save(raw_image, metadata))
@@ -563,7 +562,6 @@ class DetectorNode(Node):
             self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
             if autoupload == 'filtered':
-                camera_id = camera_id or 'unknown'
                 background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, raw_image))
             elif autoupload == 'all':
                 background_tasks.create(self.outbox.save(raw_image, detections))
