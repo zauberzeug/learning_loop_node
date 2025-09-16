@@ -9,10 +9,6 @@ import numpy as np
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
 
-def current_datetime():
-    return datetime.now().isoformat(sep='_', timespec='milliseconds')
-
-
 @dataclass(**KWONLY_SLOTS)
 class BoxDetection():
     """Coordinates according to COCO format. x,y is the top left corner of the box.
@@ -25,7 +21,7 @@ class BoxDetection():
     height: int = field(metadata={'description': 'Height'})
     model_name: str = field(metadata={'description': 'Model name'})
     confidence: float = field(metadata={'description': 'Confidence'})
-    category_id: Optional[str] = field(default=None, metadata={'description': 'Category ID'})
+    category_id: Optional[str] = field(default=None, metadata={'description': 'Category UUID'})
 
     def intersection_over_union(self, other_detection: 'BoxDetection') -> float:
         # https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
@@ -59,7 +55,7 @@ class PointDetection():
     y: float = field(metadata={'description': 'Y coordinate (down)'})
     model_name: str = field(metadata={'description': 'Model name'})
     confidence: float = field(metadata={'description': 'Confidence'})
-    category_id: Optional[str] = field(default=None, metadata={'description': 'Category ID'})
+    category_id: Optional[str] = field(default=None, metadata={'description': 'Category UUID'})
 
     def distance(self, other: 'PointDetection') -> float:
         return np.sqrt((other.x - self.x)**2 + (other.y - self.y)**2)
@@ -73,7 +69,7 @@ class ClassificationDetection():
     category_name: str = field(metadata={'description': 'Category name'})
     model_name: str = field(metadata={'description': 'Model name'})
     confidence: float = field(metadata={'description': 'Confidence'})
-    category_id: Optional[str] = field(default=None, metadata={'description': 'Category ID'})
+    category_id: Optional[str] = field(default=None, metadata={'description': 'Category UUID'})
 
     def __str__(self):
         return f'c: {self.confidence:.2f} -> {self.category_name}'

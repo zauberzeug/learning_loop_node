@@ -1,13 +1,16 @@
+from typing import List, Literal, Tuple
+
 import numpy as np
 import pytest
 
+from learning_loop_node.detector import detector_node as detector_node_module
 from learning_loop_node.detector.detector_node import DetectorNode
 
 
 @pytest.mark.asyncio
 async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     # Mock raw image data
-    raw_image = np.zeros((100, 100, 3), dtype=np.uint8)
+    raw_image = np.zeros((100, 100, 3), dtype=np.uint8).tobytes()
 
     # Mock relevance_filter and outbox
     filtered_upload_called = False
@@ -15,11 +18,12 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     save_args = []
 
-    def mock_filtered_upload(*args, **kwargs):  # pylint: disable=unused-argument
+    async def mock_filtered_upload(*args, **kwargs) -> List[str]:  # pylint: disable=unused-argument
         nonlocal filtered_upload_called
         filtered_upload_called = True
+        return []
 
-    def mock_save(*args, **kwargs):
+    async def mock_save(*args, **kwargs):
         nonlocal save_called
         nonlocal save_args
         save_called = True
@@ -28,9 +32,14 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     monkeypatch.setattr(detector_node.relevance_filter, "may_upload_detections", mock_filtered_upload)
     monkeypatch.setattr(detector_node.outbox, "save", mock_save)
 
+    created_tasks = []
+
+    def mock_create_task(coroutine, *args, **kwargs):
+        created_tasks.append(coroutine)
+    monkeypatch.setattr(detector_node_module.background_tasks, "create", mock_create_task)
+
     # Test cases
-    test_cases = [
-        (None, True, False),
+    test_cases: List[Tuple[Literal['filtered', 'all', 'disabled'], bool, bool]] = [
         ("filtered", True, False),
         ("all", False, True),
         ("disabled", False, False),
@@ -39,14 +48,12 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     expected_save_args = {
         'image': raw_image,
         'detections': detector_node.detector_logic.image_metadata,  # type: ignore
-        'tags': ['test_tag'],
-        'source': 'test_source',
-        'creation_date': '2024-01-01T00:00:00',
     }
 
     for autoupload, expect_filtered, expect_all in test_cases:
         filtered_upload_called = False
         save_called = False
+        created_tasks.clear()
 
         result = await detector_node.get_detections(
             raw_image=raw_image,
@@ -56,6 +63,9 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
             creation_date="2024-01-01T00:00:00",
             autoupload=autoupload
         )
+
+        for task in created_tasks:
+            await task
 
         # Check if detections were processed
         assert result is not None

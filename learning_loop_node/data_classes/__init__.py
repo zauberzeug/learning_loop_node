@@ -1,4 +1,9 @@
-from .annotations import AnnotationData, SegmentationAnnotation, ToolOutput, UserInput
+from .annotation_data import (
+    AnnotationData,
+    SegmentationAnnotation,
+    ToolOutput,
+    UserInput,
+)
 from .detections import (
     BoxDetection,
     ClassificationDetection,

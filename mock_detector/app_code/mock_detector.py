@@ -1,6 +1,6 @@
-from typing import Any
+from typing import List
 
-from learning_loop_node.data_classes import ImageMetadata
+from learning_loop_node.data_classes import ImageMetadata, ImagesMetadata
 from learning_loop_node.detector.detector_logic import DetectorLogic
 
 
@@ -11,5 +11,8 @@ class MockDetector(DetectorLogic):
     def init(self) -> None:
         pass
 
-    def evaluate(self, image: Any) -> ImageMetadata:
+    def evaluate(self, image: bytes) -> ImageMetadata:
         return ImageMetadata()
+
+    def batch_evaluate(self, images: List[bytes]) -> ImagesMetadata:
+        raise NotImplementedError()

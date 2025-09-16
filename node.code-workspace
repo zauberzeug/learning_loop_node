@@ -7,10 +7,10 @@
   "settings": {
     "window.title": "### NODE LIBRARY ### ${activeEditorShort}${separator}${rootName} ### NODE LIBRARY ###",
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#eee5ca",
+      "titleBar.activeBackground": "#858467",
       "titleBar.activeForeground": "#FFFFFF",
-      "statusBar.background": "#eee5ca",
-      "activityBar.background": "#eee5ca",
+      "statusBar.background": "#858467",
+      "activityBar.background": "#858467",
       "activityBar.foreground": "#FFFFFF"
     }
   },
