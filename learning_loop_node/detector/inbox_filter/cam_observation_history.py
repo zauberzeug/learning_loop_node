@@ -1,8 +1,14 @@
 import os
 from typing import List, Union
 
-from ...data_classes import (BoxDetection, ClassificationDetection, ImageMetadata, Observation, PointDetection,
-                             SegmentationDetection)
+from ...data_classes import (
+    BoxDetection,
+    ClassificationDetection,
+    ImageMetadata,
+    Observation,
+    PointDetection,
+    SegmentationDetection,
+)
 
 
 class CamObservationHistory:
@@ -10,6 +16,8 @@ class CamObservationHistory:
         self.reset_time = 3600
         self.recent_observations: List[Observation] = []
         self.iou_threshold = 0.5
+        self.min_uncertain_threshold = float(os.environ.get('MIN_UNCERTAIN_THRESHOLD', '0.3'))
+        self.max_uncertain_threshold = float(os.environ.get('MAX_UNCERTAIN_THRESHOLD', '0.6'))
 
     def forget_old_detections(self) -> None:
         self.recent_observations = [detection
@@ -25,7 +33,8 @@ class CamObservationHistory:
                 continue
             if isinstance(detection, ClassificationDetection):
                 # self.recent_observations.append(Observation(detection))
-                causes.add('classification_detection')
+                if self.min_uncertain_threshold <= detection.confidence <= self.max_uncertain_threshold:
+                    causes.add('uncertain')
                 continue
 
             assert isinstance(detection, (BoxDetection, PointDetection)), f"Unknown detection type: {type(detection)}"
@@ -37,7 +46,7 @@ class CamObservationHistory:
                 continue
 
             self.recent_observations.append(Observation(detection))
-            if float(os.environ.get('MIN_UNCERTAIN_THRESHOLD', '0.3')) <= detection.confidence <= float(os.environ.get('MAX_UNCERTAIN_THRESHOLD', '0.6')):
+            if self.min_uncertain_threshold <= detection.confidence <= self.max_uncertain_threshold:
                 causes.add('uncertain')
 
         return list(causes)
