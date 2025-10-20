@@ -18,7 +18,7 @@ async def setup_test_project():  # pylint: disable=redefined-outer-name
     try:
         await loop_communicator.delete("/zauberzeug/projects/pytest_nodelib_annotator?keep_images=true", timeout=10)
     except Exception:
-        logging.warning("Failed to delete project pytest_nodelib_annotator")
+        logging.exception("Failed to delete project pytest_nodelib_annotator")
         sys.exit(1)
     await asyncio.sleep(1)
     project_conf = {

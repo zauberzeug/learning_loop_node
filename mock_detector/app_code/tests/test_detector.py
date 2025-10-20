@@ -1,3 +1,5 @@
+import numpy as np
+from PIL import Image
 import asyncio
 import os
 
@@ -30,10 +32,9 @@ def test_assert_data_folder_for_tests():
 
 @pytest.mark.usefixtures('test_detector_node')
 async def test_sio_detect(sio):
-    with open(test_image_path, 'rb') as f:
-        image_bytes = f.read()
+    image = np.array(Image.open(test_image_path))
 
-    response = await sio.call('detect', {'image': image_bytes})
+    response = await sio.call('detect', {'image_bytes': image.tobytes(), 'image_shape': image.shape, 'image_dtype': str(image.dtype)})
     assert response['box_detections'] == []
     assert response['point_detections'] == []
     assert response['segmentation_detections'] == []

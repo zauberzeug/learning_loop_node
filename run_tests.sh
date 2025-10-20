@@ -1,4 +1,4 @@
-!#/bin/bash
+#!/bin/bash
 # shell script to run all tests
 
 # source local .env
