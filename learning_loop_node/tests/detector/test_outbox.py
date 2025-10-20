@@ -61,14 +61,6 @@ async def test_set_outbox_mode(test_outbox: Outbox):
     assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
     assert test_outbox.upload_counter == 1
 
-
-@pytest.mark.asyncio
-async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
-    invalid_bytes = b'invalid jpg'
-    await test_outbox.save(invalid_bytes)
-    assert len(test_outbox.get_upload_folders()) == 0
-
-
 # ------------------------------ Helper functions --------------------------------------
 
 

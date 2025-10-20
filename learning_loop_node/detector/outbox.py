@@ -85,11 +85,6 @@ class Outbox():
         PIL.Image.fromarray(image).save(buffer, format="JPEG")
         jpg_bytes = buffer.getvalue()
 
-        # TODO remove
-        if not await run.io_bound(self._is_valid_jpg, jpg_bytes):
-            self.log.error('Invalid jpg image')
-            return
-
         if image_metadata is None:
             image_metadata = ImageMetadata()
 
