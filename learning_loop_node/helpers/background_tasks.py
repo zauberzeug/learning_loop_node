@@ -25,14 +25,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Awaitable, Dict, Set
+from typing import Coroutine, Dict, Set
 
 running_tasks: Set[asyncio.Task] = set()
 lazy_tasks_running: Dict[str, asyncio.Task] = {}
-lazy_tasks_waiting: Dict[str, Awaitable] = {}
+lazy_tasks_waiting: Dict[str, Coroutine] = {}
 
 
-def create(coroutine: Awaitable, *, name: str = 'unnamed task') -> asyncio.Task:
+def create(coroutine: Coroutine, *, name: str = 'unnamed task') -> asyncio.Task:
     """Wraps a loop.create_task call and ensures there is an exception handler added to the task.
 
     If the task raises an exception, it is logged and handled by the global exception handlers.
@@ -48,7 +48,7 @@ def create(coroutine: Awaitable, *, name: str = 'unnamed task') -> asyncio.Task:
     return task
 
 
-def create_lazy(coroutine: Awaitable, *, name: str) -> None:
+def create_lazy(coroutine: Coroutine, *, name: str) -> None:
     """Wraps a create call and ensures a second task with the same name is delayed until the first one is done.
 
     If a third task with the same name is created while the first one is still running, the second one is discarded.

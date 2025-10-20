@@ -1,5 +1,9 @@
 import logging
+from io import BytesIO
 from typing import TYPE_CHECKING, Optional
+
+import numpy as np
+from PIL import Image
 
 try:
     from typing import Literal
@@ -35,23 +39,25 @@ async def http_detect(
     Multiple images example:
 
         for i in `seq 1 10`; do time curl --request POST -F 'file=@test.jpg' localhost:8004/detect; done
-
     """
+    node: 'DetectorNode' = request.app
+
     try:
         # Read file directly to bytes instead of using numpy
-        file_bytes = file.file.read()
+        file_bytes = await file.read()
     except Exception as exc:
         logging.exception('Error during reading of image %s.', file.filename)
         raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
 
     try:
-        app: 'DetectorNode' = request.app
-        detections = await app.get_detections(raw_image=file_bytes,
-                                              camera_id=camera_id or None,
-                                              tags=tags.split(',') if tags else [],
-                                              source=source,
-                                              autoupload=autoupload or 'filtered',
-                                              creation_date=creation_date)
+        pil_image = Image.open(BytesIO(file_bytes))
+        image = np.array(pil_image)
+        detections = await node.get_detections(image=image,
+                                               camera_id=camera_id or None,
+                                               tags=tags.split(',') if tags else [],
+                                               source=source,
+                                               autoupload=autoupload or 'filtered',
+                                               creation_date=creation_date)
     except Exception as exc:
         logging.exception('Error during detection of image %s.', file.filename)
         raise Exception(f'Error during detection of image {file.filename}.') from exc

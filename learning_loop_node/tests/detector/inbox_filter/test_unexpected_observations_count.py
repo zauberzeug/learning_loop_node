@@ -1,3 +1,4 @@
+import numpy as np
 import os
 from typing import List
 
@@ -31,4 +32,4 @@ async def test_unexpected_observations_count(metadata: ImageMetadata, reason: Li
     outbox = Outbox()
 
     relevance_filter = RelevanceFilter(outbox)
-    assert await relevance_filter.may_upload_detections(metadata, raw_image=b'', cam_id='0:0:0:0') == reason
+    assert await relevance_filter.may_upload_detections(metadata, image=np.zeros((300, 600, 3), dtype=np.uint8), cam_id='0:0:0:0') == reason

@@ -9,13 +9,14 @@ from collections import deque
 from dataclasses import asdict
 from datetime import datetime
 from glob import glob
-from io import BufferedReader, TextIOWrapper
+from io import BufferedReader, BytesIO, TextIOWrapper
 from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
 from threading import Lock
 from typing import List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
+import numpy as np
 import PIL
 import PIL.Image  # type: ignore
 from fastapi.encoders import jsonable_encoder
@@ -76,11 +77,16 @@ class Outbox():
             self.upload_folders.append(file)
 
     async def save(self,
-                   image: bytes,
+                   image: np.ndarray,
                    image_metadata: Optional[ImageMetadata] = None,
                    upload_priority: bool = False) -> None:
 
-        if not await run.io_bound(self._is_valid_jpg, image):
+        buffer = BytesIO()
+        PIL.Image.fromarray(image).save(buffer, format="JPEG")
+        jpg_bytes = buffer.getvalue()
+
+        # TODO remove
+        if not await run.io_bound(self._is_valid_jpg, jpg_bytes):
             self.log.error('Invalid jpg image')
             return
 
@@ -90,7 +96,7 @@ class Outbox():
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
 
         try:
-            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, upload_priority)
+            await run.io_bound(self._save_files_to_disk, identifier, jpg_bytes, image_metadata, upload_priority)
         except Exception as e:
             self.log.error('Failed to save files for image %s: %s', identifier, e)
             return

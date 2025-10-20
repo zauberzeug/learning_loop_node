@@ -8,6 +8,8 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, List, Optional
 
+import numpy as np
+
 try:
     from typing import Literal
 except ImportError:  # Python <= 3.8
@@ -226,8 +228,15 @@ class DetectorNode(Node):
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
             try:
+                image = np.frombuffer(data['image_bytes'], dtype=data['image_dtype'])\
+                    .reshape(data['image_shape'], order='C')
+            except Exception:
+                self.log.exception('could not parse image from socketio')
+                return {'error': 'could not parse image from data'}
+
+            try:
                 det = await self.get_detections(
-                    raw_image=data['image'],
+                    image=image,
                     camera_id=data.get('camera_id', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
@@ -247,8 +256,18 @@ class DetectorNode(Node):
         @self.sio.event
         async def batch_detect(sid, data: Dict) -> Dict:
             try:
+                images_bytes = data['images_bytes']
+                images_dtype = data['images_dtype']
+                images_shape = data['images_shape']
+                images = [np.frombuffer(image_bytes, dtype=images_dtype)
+                          .reshape(images_shape, order='C') for image_bytes in images_bytes]
+            except Exception:
+                self.log.exception('could not parse images from socketio')
+                return {'error': 'could not parse images from data'}
+
+            try:
                 det = await self.get_batch_detections(
-                    raw_images=data['images'],
+                    images=images,
                     tags=data.get('tags', []),
                     camera_id=data.get('camera_id', None),
                     source=data.get('source', None),
@@ -322,8 +341,15 @@ class DetectorNode(Node):
                 image_metadata = ImageMetadata()
 
             try:
+                image = np.frombuffer(data['image_bytes'], dtype=data['image_dtype'])\
+                    .reshape(data['image_shape'], order='C')
+            except Exception:
+                self.log.exception('could not parse image from socketio')
+                return {'error': 'could not parse image from data'}
+
+            try:
                 await self.upload_images(
-                    images=[data['image']],
+                    images=[image],
                     images_metadata=ImagesMetadata(items=[image_metadata]) if metadata else None,
                     upload_priority=data.get('upload_priority', False)
                 )
@@ -509,7 +535,7 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self,
-                             raw_image: bytes,
+                             image: np.ndarray,
                              tags: List[str],
                              *,
                              camera_id: Optional[str] = None,
@@ -523,7 +549,7 @@ class DetectorNode(Node):
 
         await self.detection_lock.acquire()
         try:
-            metadata = await run.io_bound(self.detector_logic.evaluate, raw_image)
+            metadata = await run.io_bound(self.detector_logic.evaluate, image)
         finally:
             self.detection_lock.release()
 
@@ -537,9 +563,9 @@ class DetectorNode(Node):
         self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
         if autoupload == 'filtered':
-            background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, raw_image))
+            background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, image))
         elif autoupload == 'all':
-            background_tasks.create(self.outbox.save(raw_image, metadata))
+            background_tasks.create(self.outbox.save(image, metadata))
         elif autoupload == 'disabled':
             pass
         else:
@@ -547,7 +573,7 @@ class DetectorNode(Node):
         return metadata
 
     async def get_batch_detections(self,
-                                   raw_images: List[bytes],
+                                   images: List[np.ndarray],
                                    tags: List[str],
                                    *,
                                    camera_id: Optional[str] = None,
@@ -559,7 +585,7 @@ class DetectorNode(Node):
 
         await self.detection_lock.acquire()
         try:
-            all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images)
+            all_detections = await run.io_bound(self.detector_logic.batch_evaluate, images)
         finally:
             self.detection_lock.release()
 
@@ -568,16 +594,16 @@ class DetectorNode(Node):
             metadata.source = source
             metadata.created = creation_date
 
-        for detections, raw_image in zip(all_detections.items, raw_images):
+        for detections, image in zip(all_detections.items, images):
             fix_shape_detections(detections)
             n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
             n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
             self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
             if autoupload == 'filtered':
-                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, raw_image))
+                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, image))
             elif autoupload == 'all':
-                background_tasks.create(self.outbox.save(raw_image, detections))
+                background_tasks.create(self.outbox.save(image, detections))
             elif autoupload == 'disabled':
                 pass
             else:
@@ -586,7 +612,7 @@ class DetectorNode(Node):
 
     async def upload_images(
             self, *,
-            images: List[bytes],
+            images: List[np.ndarray],
             images_metadata: Optional[ImagesMetadata] = None,
             upload_priority: bool = False
     ) -> None:

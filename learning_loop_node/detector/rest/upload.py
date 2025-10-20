@@ -1,6 +1,9 @@
+from io import BytesIO
 from typing import TYPE_CHECKING, List, Optional
 
+import numpy as np
 from fastapi import APIRouter, File, Query, Request, UploadFile
+from PIL import Image
 
 from ...data_classes.image_metadata import ImageMetadata, ImagesMetadata
 
@@ -26,15 +29,19 @@ async def upload_image(request: Request,
 
         curl -X POST -F 'files=@test.jpg' "http://localhost:/upload?source=test&creation_date=2024-01-01T00:00:00&upload_priority=true"
     """
-    raw_files = [await file.read() for file in files]
+    node: 'DetectorNode' = request.app
+
+    files_bytes = [await file.read() for file in files]
     image_metadatas = []
-    for _ in files:
+    images = []
+    for file_bytes in files_bytes:
+        pil_image = Image.open(BytesIO(file_bytes))
+        images.append(np.array(pil_image))
         image_metadatas.append(ImageMetadata(source=source, created=creation_date))
 
     images_metadata = ImagesMetadata(items=image_metadatas)
 
-    node: DetectorNode = request.app
-    await node.upload_images(images=raw_files,
+    await node.upload_images(images=images,
                              images_metadata=images_metadata,
                              upload_priority=upload_priority)
     return 200, "OK"

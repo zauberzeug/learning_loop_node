@@ -2,6 +2,8 @@ import logging
 from abc import abstractmethod
 from typing import List, Optional
 
+import numpy as np
+
 from ..data_classes import ImageMetadata, ImagesMetadata, ModelInformation
 from ..globals import GLOBALS
 from .exceptions import NodeNeedsRestartError
@@ -43,7 +45,7 @@ class DetectorLogic():
         """Called when a (new) model was loaded. Initialize the model. Model information available via `self.model_info`"""
 
     @abstractmethod
-    def evaluate(self, image: bytes) -> ImageMetadata:  # pylint: disable=unused-argument
+    def evaluate(self, image: np.ndarray) -> ImageMetadata:
         """Evaluate the image and return the detections.
 
         Called by the detector node when an image should be evaluated (REST or SocketIO).
@@ -52,8 +54,9 @@ class DetectorLogic():
         The function should return empty metadata if the detector is not initialized."""
 
     @abstractmethod
-    def batch_evaluate(self, images: List[bytes]) -> ImagesMetadata:
+    def batch_evaluate(self, images: List[np.ndarray]) -> ImagesMetadata:
         """Evaluate a batch of images and return the detections.
+
         The resulting detections per image should be stored in the ImagesMetadata.
         Tags stored in the ImagesMetadata will be uploaded to the learning loop.
         The function should return empty metadata if the detector is not initialized."""

@@ -10,7 +10,7 @@ from learning_loop_node.detector.detector_node import DetectorNode
 @pytest.mark.asyncio
 async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     # Mock raw image data
-    raw_image = np.zeros((100, 100, 3), dtype=np.uint8).tobytes()
+    np_image = np.zeros((100, 100, 3), dtype=np.uint8)
 
     # Mock relevance_filter and outbox
     filtered_upload_called = False
@@ -46,7 +46,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
     ]
 
     expected_save_args = {
-        'image': raw_image,
+        'image': np_image,
         'detections': detector_node.detector_logic.image_metadata,  # type: ignore
     }
 
@@ -56,7 +56,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
         created_tasks.clear()
 
         result = await detector_node.get_detections(
-            raw_image=raw_image,
+            image=np_image,
             camera_id="test_camera",
             tags=["test_tag"],
             source="test_source",
