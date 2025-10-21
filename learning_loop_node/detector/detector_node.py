@@ -373,6 +373,7 @@ class DetectorNode(Node):
         )
 
         self.log_status_on_change(status.state, status)
+        response = None
 
         try:
             response = await self.loop_communicator.post(
