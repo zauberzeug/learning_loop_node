@@ -399,6 +399,7 @@ class DetectorNode(Node):
         )
 
         self.log_status_on_change(status.state, status)
+        response = None
 
         try:
             response = await self.loop_communicator.post(
@@ -406,8 +407,8 @@ class DetectorNode(Node):
         except Exception:
             self.log.warning('Exception while trying to sync status with loop')
 
-        if response.status_code != 200:
-            self.log.warning('Status update failed: %s', str(response))
+        if not response or not response.is_success:
+            self.log.warning('Status update failed. Response: "%s"', response)
 
     async def _update_model_if_required(self) -> None:
         """Check if a new model is available and update if necessary.
