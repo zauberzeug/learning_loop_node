@@ -10,7 +10,7 @@ import sys
 from dataclasses import asdict
 from glob import glob
 from time import perf_counter
-from typing import Any, Coroutine, List, Optional, Tuple, TypeVar
+from typing import Any, Coroutine, Dict, List, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -221,3 +221,18 @@ def numpy_array_to_jpg_bytes(image_array: np.ndarray) -> bytes:
     Image.fromarray(image_array).save(buffer, format="JPEG")
     jpg_bytes = buffer.getvalue()
     return jpg_bytes
+
+
+def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
+    """Convert image dict to numpy array.
+
+    The image dict should have the following keys:
+    - data: bytes of the image
+    - dtype: data type of the image
+    - shape: shape of the image
+    """
+
+    image_bytes = image_data['image_bytes']
+    image_dtype = image_data['image_dtype']
+    image_shape = image_data['image_shape']
+    return np.frombuffer(image_bytes, dtype=image_dtype).reshape(image_shape, order='C')

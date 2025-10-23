@@ -35,6 +35,7 @@ from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
 from ..helpers import background_tasks, environment_reader, run
+from ..helpers.misc import numpy_image_from_dict
 from ..node import Node
 from .detector_logic import DetectorLogic
 from .exceptions import NodeNeedsRestartError
@@ -228,8 +229,7 @@ class DetectorNode(Node):
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
             try:
-                image = np.frombuffer(data['image_bytes'], dtype=data['image_dtype'])\
-                    .reshape(data['image_shape'], order='C')
+                image = numpy_image_from_dict(data['image'])
             except Exception:
                 self.log.exception('could not parse image from socketio')
                 return {'error': 'could not parse image from data'}
@@ -256,11 +256,8 @@ class DetectorNode(Node):
         @self.sio.event
         async def batch_detect(sid, data: Dict) -> Dict:
             try:
-                images_bytes = data['images_bytes']
-                images_dtype = data['images_dtype']
-                images_shape = data['images_shape']
-                images = [np.frombuffer(image_bytes, dtype=images_dtype)
-                          .reshape(images_shape, order='C') for image_bytes in images_bytes]
+                images_data = data['images']
+                images = [numpy_image_from_dict(image) for image in images_data]
             except Exception:
                 self.log.exception('could not parse images from socketio')
                 return {'error': 'could not parse images from data'}
