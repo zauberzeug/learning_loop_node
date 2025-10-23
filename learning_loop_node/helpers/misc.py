@@ -224,15 +224,16 @@ def numpy_array_to_jpg_bytes(image_array: np.ndarray) -> bytes:
 
 
 def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
-    """Convert image dict to numpy array.
+    """
+    Convert image dict to numpy array.
 
-    The image dict should have the following keys:
-    - data: bytes of the image
+    The image_data dict should have the following keys:
+    - bytes: bytes of the image
     - dtype: data type of the image
     - shape: shape of the image
     """
 
-    image_bytes = image_data['image_bytes']
-    image_dtype = image_data['image_dtype']
-    image_shape = image_data['image_shape']
+    image_bytes = image_data['bytes']
+    image_dtype = image_data['dtype']
+    image_shape = image_data['shape']
     return np.frombuffer(image_bytes, dtype=image_dtype).reshape(image_shape, order='C')

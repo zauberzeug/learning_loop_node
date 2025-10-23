@@ -228,6 +228,19 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
+            """Detect objects in a single image sent via SocketIO.
+
+            The data dict must contain:
+            - image: The image data as dictionary:
+              - bytes: bytes of the ndarray
+              - dtype: data type of the ndarray
+              - shape: shape of the ndarray
+            - camera_id: Optional camera ID
+            - tags: Optional list of tags
+            - source: Optional source string
+            - autoupload: 'filtered', 'all' or 'disabled'
+            - creation_date: Optional creation date in isoformat string
+            """
             try:
                 image = numpy_image_from_dict(data['image'])
             except Exception:
@@ -255,6 +268,12 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def batch_detect(sid, data: Dict) -> Dict:
+            """
+            Detect objects in a batch of images sent via SocketIO.
+
+            Data dict follows the schema of the detect endpoint, 
+            but 'images' is a list of image dicts.
+            """
             try:
                 images_data = data['images']
                 images = [numpy_image_from_dict(image) for image in images_data]
@@ -539,10 +558,13 @@ class DetectorNode(Node):
                              source: Optional[str] = None,
                              autoupload: Literal['filtered', 'all', 'disabled'],
                              creation_date: Optional[str] = None) -> ImageMetadata:
-        """ Main processing function for the detector node when an image is received via REST or SocketIO.
-        This function infers the detections from the image, cares about uploading to the loop and returns the detections as ImageMetadata object.
-        Note: raw_image is a numpy array of type uint8, but not in the correct shape!
-        It can be converted e.g. using cv2.imdecode(np.frombuffer(image, np.uint8), cv2.IMREAD_COLOR)"""
+        """
+        Main processing function for the detector node.
+
+        Used when an image is received via REST or SocketIO.
+        This function infers the detections from the image, 
+        cares about uploading to the loop and returns the detections as ImageMetadata object.
+        """
 
         await self.detection_lock.acquire()
         try:
@@ -577,8 +599,11 @@ class DetectorNode(Node):
                                    source: Optional[str] = None,
                                    autoupload: str = 'filtered',
                                    creation_date: Optional[str] = None) -> ImagesMetadata:
-        """ Processing function for the detector node when a a batch inference is requested via SocketIO.
-        This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata."""
+        """
+        Processing function for the detector node when a a batch inference is requested via SocketIO.
+
+        This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata.
+        """
 
         await self.detection_lock.acquire()
         try:

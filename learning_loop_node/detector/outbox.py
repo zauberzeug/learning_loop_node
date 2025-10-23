@@ -83,7 +83,8 @@ class Outbox():
                    upload_priority: bool = False) -> None:
         """
         Save an image and its metadata to disk. 
-        Image is picked up by the continuous upload process.
+
+        The data will be picked up by the continuous upload process.
         """
 
         jpg_bytes = numpy_array_to_jpg_bytes(image)
