@@ -230,7 +230,7 @@ class DetectorNode(Node):
         async def detect(sid, data: Dict) -> Dict:
             """Detect objects in a single image sent via SocketIO.
 
-            The data dict must contain:
+            The data dict has the following schema:
             - image: The image data as dictionary:
               - bytes: bytes of the ndarray
               - dtype: data type of the ndarray
@@ -238,7 +238,7 @@ class DetectorNode(Node):
             - camera_id: Optional camera ID
             - tags: Optional list of tags
             - source: Optional source string
-            - autoupload: 'filtered', 'all' or 'disabled'
+            - autoupload: Optional 'filtered', 'all' or 'disabled' (default: 'filtered')
             - creation_date: Optional creation date in isoformat string
             """
             try:

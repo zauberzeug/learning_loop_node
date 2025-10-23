@@ -228,9 +228,9 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     Convert image dict to numpy array.
 
     The image_data dict should have the following keys:
-    - bytes: bytes of the image
-    - dtype: data type of the image
-    - shape: shape of the image
+    - bytes: bytes of the image in C order (row-major)
+    - dtype: data type of the pixel values
+    - shape: shape of the image (height, width, channels)
     """
 
     image_bytes = image_data['bytes']
