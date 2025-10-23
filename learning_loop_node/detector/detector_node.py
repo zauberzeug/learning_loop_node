@@ -320,7 +320,7 @@ class DetectorNode(Node):
             """Upload a single image with metadata to the learning loop.
 
             The data dict must contain:
-            - image: The image bytes to upload
+            - image: The image data
             - metadata: The metadata for the image (optional)
             """
             self.log.debug('Processing upload via socketio.')
@@ -338,8 +338,7 @@ class DetectorNode(Node):
                 image_metadata = ImageMetadata()
 
             try:
-                image = np.frombuffer(data['image_bytes'], dtype=data['image_dtype'])\
-                    .reshape(data['image_shape'], order='C')
+                image = numpy_image_from_dict(data['image'])
             except Exception:
                 self.log.exception('could not parse image from socketio')
                 return {'error': 'could not parse image from data'}
