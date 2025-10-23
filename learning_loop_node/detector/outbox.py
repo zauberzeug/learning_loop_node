@@ -109,7 +109,7 @@ class Outbox():
 
     def _save_files_to_disk(self,
                             identifier: str,
-                            image: bytes,
+                            jpeg_image: bytes,
                             image_metadata: ImageMetadata,
                             upload_priority: bool) -> None:
         subpath = 'priority' if upload_priority else 'normal'
@@ -124,7 +124,7 @@ class Outbox():
             json.dump(jsonable_encoder(asdict(image_metadata)), f)
 
         with open(tmp + f'/image_{identifier}.jpg', 'wb') as f:
-            f.write(image)
+            f.write(jpeg_image)
 
         if not os.path.exists(tmp):
             self.log.error('Could not rename %s to %s', tmp, full_path)
