@@ -28,7 +28,7 @@ async def test_sio_detect(test_detector_node, sio_client):
     image = np.array(Image.open(test_image_path))
 
     await asyncio.sleep(5)
-    result = await sio_client.call('detect', {'image_bytes': image.tobytes(order='C'), 'image_shape': image.shape, 'image_dtype': str(image.dtype)})
+    result = await sio_client.call('detect', {'image': {'bytes': image.tobytes(order='C'), 'shape': image.shape, 'dtype': str(image.dtype)}})
     assert len(result['box_detections']) == 1
     assert result['box_detections'][0]['category_name'] == 'some_category_name'
     assert result['box_detections'][0]['category_id'] == 'some_id'
@@ -83,7 +83,7 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
     image = np.array(Image.open(test_image_path))
-    result = await sio_client.call('upload', {'image_bytes': image.tobytes(), 'image_shape': image.shape, 'image_dtype': str(image.dtype)})
+    result = await sio_client.call('upload', {'image': {'bytes': image.tobytes(), 'shape': image.shape, 'dtype': str(image.dtype)}})
     assert result.get('status') == 'OK'
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
