@@ -1,4 +1,3 @@
-import numpy as np
 import asyncio
 import logging
 import multiprocessing
@@ -9,6 +8,7 @@ from glob import glob
 from multiprocessing import Process, log_to_stderr
 from typing import AsyncGenerator
 
+import numpy as np
 import pytest
 import socketio
 import uvicorn

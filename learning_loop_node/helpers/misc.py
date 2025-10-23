@@ -1,6 +1,7 @@
 """original copied from https://quantlane.com/blog/ensure-asyncio-task-exceptions-get-logged/"""
 import asyncio
 import functools
+import io
 import json
 import logging
 import os
@@ -12,7 +13,9 @@ from time import perf_counter
 from typing import Any, Coroutine, List, Optional, Tuple, TypeVar
 from uuid import UUID, uuid4
 
+import numpy as np
 import pynvml
+from PIL import Image
 
 from ..data_classes.general import Context
 from ..data_classes.socket_response import SocketResponse
@@ -204,3 +207,17 @@ def create_training_folder(project_folder: str, trainings_id: str) -> str:
     training_folder = f'{project_folder}/trainings/{trainings_id}'
     os.makedirs(training_folder, exist_ok=True)
     return training_folder
+
+
+def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
+    """Convert jpg bytes to numpy array."""
+    image = Image.open(io.BytesIO(jpg_bytes))
+    return np.array(image)
+
+
+def numpy_array_to_jpg_bytes(image_array: np.ndarray) -> bytes:
+    """Convert jpg bytes to numpy array."""
+    buffer = io.BytesIO()
+    Image.fromarray(image_array).save(buffer, format="JPEG")
+    jpg_bytes = buffer.getvalue()
+    return jpg_bytes

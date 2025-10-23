@@ -9,7 +9,7 @@ from collections import deque
 from dataclasses import asdict
 from datetime import datetime
 from glob import glob
-from io import BufferedReader, BytesIO, TextIOWrapper
+from io import BufferedReader, TextIOWrapper
 from multiprocessing import Event
 from multiprocessing.synchronize import Event as SyncEvent
 from threading import Lock
@@ -25,6 +25,7 @@ from ..data_classes import ImageMetadata
 from ..enums import OutboxMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader, run
+from ..helpers.misc import numpy_array_to_jpg_bytes
 
 T = TypeVar('T')
 
@@ -80,10 +81,12 @@ class Outbox():
                    image: np.ndarray,
                    image_metadata: Optional[ImageMetadata] = None,
                    upload_priority: bool = False) -> None:
+        """
+        Save an image and its metadata to disk. 
+        Image is picked up by the continuous upload process.
+        """
 
-        buffer = BytesIO()
-        PIL.Image.fromarray(image).save(buffer, format="JPEG")
-        jpg_bytes = buffer.getvalue()
+        jpg_bytes = numpy_array_to_jpg_bytes(image)
 
         if image_metadata is None:
             image_metadata = ImageMetadata()

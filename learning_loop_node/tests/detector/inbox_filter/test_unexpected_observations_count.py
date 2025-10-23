@@ -1,7 +1,7 @@
-import numpy as np
 import os
 from typing import List
 
+import numpy as np
 import pytest
 
 from ....data_classes.image_metadata import BoxDetection, ImageMetadata, PointDetection

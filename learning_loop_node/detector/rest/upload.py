@@ -1,11 +1,9 @@
-from io import BytesIO
 from typing import TYPE_CHECKING, List, Optional
 
-import numpy as np
 from fastapi import APIRouter, File, Query, Request, UploadFile
-from PIL import Image
 
 from ...data_classes.image_metadata import ImageMetadata, ImagesMetadata
+from ...helpers.misc import jpg_bytes_to_numpy_array
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -35,8 +33,7 @@ async def upload_image(request: Request,
     image_metadatas = []
     images = []
     for file_bytes in files_bytes:
-        pil_image = Image.open(BytesIO(file_bytes))
-        images.append(np.array(pil_image))
+        images.append(jpg_bytes_to_numpy_array(file_bytes))
         image_metadatas.append(ImageMetadata(source=source, created=creation_date))
 
     images_metadata = ImagesMetadata(items=image_metadatas)
