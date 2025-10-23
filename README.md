@@ -50,9 +50,8 @@ Detector Nodes are normally deployed on edge devices like robots or machinery bu
 Images can be send to the detector node via socketio or rest.
 Via **REST** you may provide the following parameters:
 
-- `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled`
 - `camera_id`: a camera identifier (string) used to improve the autoupload filtering
-- `tags`: comma separated list of tags to add to the image in the learning loop
+- `tags`: comma separated list of tags to add to the image in the learning loop to add to the image in the learning loop
 - `source`: optional source identifier (str) for the image (e.g. a robot id)
 - `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled`
 - `creation_date`: optional creation date (str) for the image in isoformat (e.g. `2023-01-30T12:34:56`)
@@ -61,7 +60,22 @@ Example usage:
 
 `curl --request POST -F 'file=@test.jpg' -H 'autoupload: all' -H 'camera_id: front_cam' localhost:8004/detect`
 
-To use the **SocketIO** inference EPs, the caller needs to connect to the detector node's SocketIO server and emit the `detect` or `batch_detect` event with the image data and image metadata.
+To use the **SocketIO** inference EPs, the caller needs to connect to the detector node's SocketIO server and emit the `detect` or `batch_detect` event with the image data and image metadata. The `detect` endpoint receives a dictionary, with the following entries:
+
+- `image`: The image data as dictionary with the following keys:
+  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
+  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
+  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+- `camera_id`: optional camera identifier (string) used to improve the autoupload filtering
+- `tags`: optional list of tags to add to the image in the learning loop
+- `source`: optional source string
+- `autoupload`: configures auto-submission to the learning loop; `filtered` (default), `all`, `disabled`
+- `creation_date`: optional creation date (str) for the image in isoformat (e.g. `2023-01-30T12:34:56`)
+
+The `batch_detect` endpoint receives a dictionary, with the same entries as the `detect` endpoint, except that the `image` entry is replaced by:
+
+- `images`: List of image data dictionaries, each with the same structure as the `image` entry in the `detect` endpoint
+
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
 
 ### Upload API
@@ -76,12 +90,14 @@ Example:
 
 `curl -X POST -F 'files=@test.jpg' "http://localhost:/upload"`
 
-The detector also has a **SocketIO** upload endpoint that can be used to upload images and detections to the learning loop. The function receives a json dictionary, with the following entries:
+The detector also has a **SocketIO** upload endpoint that can be used to upload images and detections to the learning loop. The function receives a dictionary, with the following entries:
 
-- `image`: the image data in jpg format
-
+- `image`: the image data as dictionary with the following keys:
+  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
+  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
+  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
 - `metadata`: a dictionary representing the image metadata. If metadata contains detections and/or annotations, UUIDs for the classes are automatically determined based on the category names. Metadata should follow the schema of the `ImageMetadata` data class.
-- `upload_priority`: boolean flag to prioritize the upload (defaults to False)
+- `upload_priority`: Optional boolean flag to prioritize the upload (defaults to False)
 
 The endpoint returns None if the upload was successful and an error message otherwise.
 

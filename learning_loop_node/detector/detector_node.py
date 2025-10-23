@@ -339,8 +339,12 @@ class DetectorNode(Node):
             """Upload a single image with metadata to the learning loop.
 
             The data dict must contain:
-            - image: The image data
+            - image: The image data as dictionary with the following keys:
+                - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
+                - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
+                - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
             - metadata: The metadata for the image (optional)
+            - upload_priority: Whether to upload with priority (optional)
             """
             self.log.debug('Processing upload via socketio.')
 
