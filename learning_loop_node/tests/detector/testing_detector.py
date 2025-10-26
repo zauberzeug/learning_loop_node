@@ -1,6 +1,8 @@
 import logging
 from typing import List
 
+import numpy as np
+
 from learning_loop_node.data_classes import ImagesMetadata
 
 from ...data_classes import ImageMetadata
@@ -18,9 +20,9 @@ class TestingDetectorLogic(DetectorLogic):
     def init(self) -> None:
         pass
 
-    def evaluate(self, image: bytes) -> ImageMetadata:
+    def evaluate(self, image: np.ndarray) -> ImageMetadata:
         logging.info('evaluating')
         return self.det_to_return
 
-    def batch_evaluate(self, images: List[bytes]) -> ImagesMetadata:
+    def batch_evaluate(self, images: List[np.ndarray]) -> ImagesMetadata:
         raise NotImplementedError()

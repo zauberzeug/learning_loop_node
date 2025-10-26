@@ -8,6 +8,8 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, List, Optional
 
+import numpy as np
+
 try:
     from typing import Literal
 except ImportError:  # Python <= 3.8
@@ -33,6 +35,7 @@ from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
 from ..helpers import background_tasks, environment_reader, run
+from ..helpers.misc import numpy_image_from_dict
 from ..node import Node
 from .detector_logic import DetectorLogic
 from .exceptions import NodeNeedsRestartError
@@ -225,9 +228,28 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def detect(sid, data: Dict) -> Dict:
+            """Detect objects in a single image sent via SocketIO.
+
+            The data dict has the following schema:
+            - image: The image data as dictionary:
+              - bytes: bytes of the ndarray
+              - dtype: data type of the ndarray
+              - shape: shape of the ndarray
+            - camera_id: Optional camera ID
+            - tags: Optional list of tags
+            - source: Optional source string
+            - autoupload: Optional 'filtered', 'all' or 'disabled' (default: 'filtered')
+            - creation_date: Optional creation date in isoformat string
+            """
+            try:
+                image = numpy_image_from_dict(data['image'])
+            except Exception:
+                self.log.exception('could not parse image from socketio')
+                return {'error': 'could not parse image from data'}
+
             try:
                 det = await self.get_detections(
-                    raw_image=data['image'],
+                    image=image,
                     camera_id=data.get('camera_id', None),
                     tags=data.get('tags', []),
                     source=data.get('source', None),
@@ -246,9 +268,22 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def batch_detect(sid, data: Dict) -> Dict:
+            """
+            Detect objects in a batch of images sent via SocketIO.
+
+            Data dict follows the schema of the detect endpoint, 
+            but 'images' is a list of image dicts.
+            """
+            try:
+                images_data = data['images']
+                images = [numpy_image_from_dict(image) for image in images_data]
+            except Exception:
+                self.log.exception('could not parse images from socketio')
+                return {'error': 'could not parse images from data'}
+
             try:
                 det = await self.get_batch_detections(
-                    raw_images=data['images'],
+                    images=images,
                     tags=data.get('tags', []),
                     camera_id=data.get('camera_id', None),
                     source=data.get('source', None),
@@ -304,8 +339,12 @@ class DetectorNode(Node):
             """Upload a single image with metadata to the learning loop.
 
             The data dict must contain:
-            - image: The image bytes to upload
+            - image: The image data as dictionary with the following keys:
+                - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
+                - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
+                - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
             - metadata: The metadata for the image (optional)
+            - upload_priority: Whether to upload with priority (optional)
             """
             self.log.debug('Processing upload via socketio.')
 
@@ -322,8 +361,14 @@ class DetectorNode(Node):
                 image_metadata = ImageMetadata()
 
             try:
+                image = numpy_image_from_dict(data['image'])
+            except Exception:
+                self.log.exception('could not parse image from socketio')
+                return {'error': 'could not parse image from data'}
+
+            try:
                 await self.upload_images(
-                    images=[data['image']],
+                    images=[image],
                     images_metadata=ImagesMetadata(items=[image_metadata]) if metadata else None,
                     upload_priority=data.get('upload_priority', False)
                 )
@@ -510,21 +555,24 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self,
-                             raw_image: bytes,
+                             image: np.ndarray,
                              tags: List[str],
                              *,
                              camera_id: Optional[str] = None,
                              source: Optional[str] = None,
                              autoupload: Literal['filtered', 'all', 'disabled'],
                              creation_date: Optional[str] = None) -> ImageMetadata:
-        """ Main processing function for the detector node when an image is received via REST or SocketIO.
-        This function infers the detections from the image, cares about uploading to the loop and returns the detections as ImageMetadata object.
-        Note: raw_image is a numpy array of type uint8, but not in the correct shape!
-        It can be converted e.g. using cv2.imdecode(np.frombuffer(image, np.uint8), cv2.IMREAD_COLOR)"""
+        """
+        Main processing function for the detector node.
+
+        Used when an image is received via REST or SocketIO.
+        This function infers the detections from the image, 
+        cares about uploading to the loop and returns the detections as ImageMetadata object.
+        """
 
         await self.detection_lock.acquire()
         try:
-            metadata = await run.io_bound(self.detector_logic.evaluate, raw_image)
+            metadata = await run.io_bound(self.detector_logic.evaluate, image)
         finally:
             self.detection_lock.release()
 
@@ -538,9 +586,9 @@ class DetectorNode(Node):
         self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
         if autoupload == 'filtered':
-            background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, raw_image))
+            background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, image))
         elif autoupload == 'all':
-            background_tasks.create(self.outbox.save(raw_image, metadata))
+            background_tasks.create(self.outbox.save(image, metadata))
         elif autoupload == 'disabled':
             pass
         else:
@@ -548,19 +596,22 @@ class DetectorNode(Node):
         return metadata
 
     async def get_batch_detections(self,
-                                   raw_images: List[bytes],
+                                   images: List[np.ndarray],
                                    tags: List[str],
                                    *,
                                    camera_id: Optional[str] = None,
                                    source: Optional[str] = None,
                                    autoupload: str = 'filtered',
                                    creation_date: Optional[str] = None) -> ImagesMetadata:
-        """ Processing function for the detector node when a a batch inference is requested via SocketIO.
-        This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata."""
+        """
+        Processing function for the detector node when a a batch inference is requested via SocketIO.
+
+        This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata.
+        """
 
         await self.detection_lock.acquire()
         try:
-            all_detections = await run.io_bound(self.detector_logic.batch_evaluate, raw_images)
+            all_detections = await run.io_bound(self.detector_logic.batch_evaluate, images)
         finally:
             self.detection_lock.release()
 
@@ -569,16 +620,16 @@ class DetectorNode(Node):
             metadata.source = source
             metadata.created = creation_date
 
-        for detections, raw_image in zip(all_detections.items, raw_images):
+        for detections, image in zip(all_detections.items, images):
             fix_shape_detections(detections)
             n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
             n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
             self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
             if autoupload == 'filtered':
-                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, raw_image))
+                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, image))
             elif autoupload == 'all':
-                background_tasks.create(self.outbox.save(raw_image, detections))
+                background_tasks.create(self.outbox.save(image, detections))
             elif autoupload == 'disabled':
                 pass
             else:
@@ -587,7 +638,7 @@ class DetectorNode(Node):
 
     async def upload_images(
             self, *,
-            images: List[bytes],
+            images: List[np.ndarray],
             images_metadata: Optional[ImagesMetadata] = None,
             upload_priority: bool = False
     ) -> None:

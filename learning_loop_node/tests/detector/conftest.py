@@ -6,7 +6,7 @@ import shutil
 import socket
 from glob import glob
 from multiprocessing import Process, log_to_stderr
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator
 
 import numpy as np
 import pytest
@@ -137,7 +137,7 @@ class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
                                          x=0, y=0, width=10, height=10,
                                          model_name="mock", )])
 
-    def evaluate(self, image: bytes) -> ImageMetadata:
+    def evaluate(self, image: np.ndarray) -> ImageMetadata:
         return self.image_metadata
 
 

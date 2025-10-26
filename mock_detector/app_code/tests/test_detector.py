@@ -1,7 +1,9 @@
 import asyncio
 import os
 
+import numpy as np
 import pytest
+from PIL import Image
 
 from learning_loop_node.globals import GLOBALS
 
@@ -30,10 +32,9 @@ def test_assert_data_folder_for_tests():
 
 @pytest.mark.usefixtures('test_detector_node')
 async def test_sio_detect(sio):
-    with open(test_image_path, 'rb') as f:
-        image_bytes = f.read()
+    image = np.array(Image.open(test_image_path))
 
-    response = await sio.call('detect', {'image': image_bytes})
+    response = await sio.call('detect', {'image': {'bytes': image.tobytes(), 'shape': image.shape, 'dtype': str(image.dtype)}})
     assert response['box_detections'] == []
     assert response['point_detections'] == []
     assert response['segmentation_detections'] == []

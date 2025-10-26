@@ -16,6 +16,7 @@ from threading import Lock
 from typing import List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
+import numpy as np
 import PIL
 import PIL.Image  # type: ignore
 from fastapi.encoders import jsonable_encoder
@@ -24,6 +25,7 @@ from ..data_classes import ImageMetadata
 from ..enums import OutboxMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader, run
+from ..helpers.misc import numpy_array_to_jpg_bytes
 
 T = TypeVar('T')
 
@@ -76,13 +78,16 @@ class Outbox():
             self.upload_folders.append(file)
 
     async def save(self,
-                   image: bytes,
+                   image: np.ndarray,
                    image_metadata: Optional[ImageMetadata] = None,
                    upload_priority: bool = False) -> None:
+        """
+        Save an image and its metadata to disk. 
 
-        if not await run.io_bound(self._is_valid_jpg, image):
-            self.log.error('Invalid jpg image')
-            return
+        The data will be picked up by the continuous upload process.
+        """
+
+        jpg_bytes = numpy_array_to_jpg_bytes(image)
 
         if image_metadata is None:
             image_metadata = ImageMetadata()
@@ -90,7 +95,7 @@ class Outbox():
         identifier = datetime.now().isoformat(sep='_', timespec='microseconds')
 
         try:
-            await run.io_bound(self._save_files_to_disk, identifier, image, image_metadata, upload_priority)
+            await run.io_bound(self._save_files_to_disk, identifier, jpg_bytes, image_metadata, upload_priority)
         except Exception as e:
             self.log.error('Failed to save files for image %s: %s', identifier, e)
             return
@@ -104,7 +109,7 @@ class Outbox():
 
     def _save_files_to_disk(self,
                             identifier: str,
-                            image: bytes,
+                            jpeg_image: bytes,
                             image_metadata: ImageMetadata,
                             upload_priority: bool) -> None:
         subpath = 'priority' if upload_priority else 'normal'
@@ -119,7 +124,7 @@ class Outbox():
             json.dump(jsonable_encoder(asdict(image_metadata)), f)
 
         with open(tmp + f'/image_{identifier}.jpg', 'wb') as f:
-            f.write(image)
+            f.write(jpeg_image)
 
         if not os.path.exists(tmp):
             self.log.error('Could not rename %s to %s', tmp, full_path)

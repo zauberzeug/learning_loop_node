@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from fastapi import APIRouter, File, Query, Request, UploadFile
 
 from ...data_classes.image_metadata import ImageMetadata, ImagesMetadata
+from ...helpers.misc import jpg_bytes_to_numpy_array
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -26,15 +27,18 @@ async def upload_image(request: Request,
 
         curl -X POST -F 'files=@test.jpg' "http://localhost:/upload?source=test&creation_date=2024-01-01T00:00:00&upload_priority=true"
     """
-    raw_files = [await file.read() for file in files]
+    node: 'DetectorNode' = request.app
+
+    files_bytes = [await file.read() for file in files]
     image_metadatas = []
-    for _ in files:
+    images = []
+    for file_bytes in files_bytes:
+        images.append(jpg_bytes_to_numpy_array(file_bytes))
         image_metadatas.append(ImageMetadata(source=source, created=creation_date))
 
     images_metadata = ImagesMetadata(items=image_metadatas)
 
-    node: DetectorNode = request.app
-    await node.upload_images(images=raw_files,
+    await node.upload_images(images=images,
                              images_metadata=images_metadata,
                              upload_priority=upload_priority)
     return 200, "OK"

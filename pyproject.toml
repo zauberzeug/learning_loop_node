@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "learning_loop_node"
-version = "0.1.0"
+version = "0.18.0"
 description = "Python Library for Nodes which connect to the Zauberzeug Learning Loop"
 authors = ["Zauberzeug GmbH <info@zauberzeug.com>"]
 license = "MIT"
@@ -29,7 +29,7 @@ tqdm = "^4.63.0"
 pytest-mock = "3.6.1"
 pynvml = "^11.4.1"
 aiohttp = "^3.8.4"
-httpx = "^0.24.1"
+httpx = "^0.28.1"
 dacite = "^1.8.1"
 
 [tool.poetry.group.dev.dependencies]

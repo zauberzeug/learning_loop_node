@@ -2,8 +2,10 @@ import asyncio
 import json
 import os
 
+import numpy as np
 import pytest
 import requests  # type: ignore
+from PIL import Image
 
 from ...data_classes import ModelInformation
 from ...detector.detector_node import DetectorNode
@@ -23,11 +25,10 @@ async def test_detector_path(test_detector_node: DetectorNode):
 
 
 async def test_sio_detect(test_detector_node, sio_client):
-    with open(test_image_path, 'rb') as f:
-        image_bytes = f.read()
+    image = np.array(Image.open(test_image_path))
 
     await asyncio.sleep(5)
-    result = await sio_client.call('detect', {'image': image_bytes})
+    result = await sio_client.call('detect', {'image': {'bytes': image.tobytes(order='C'), 'shape': image.shape, 'dtype': str(image.dtype)}})
     assert len(result['box_detections']) == 1
     assert result['box_detections'][0]['category_name'] == 'some_category_name'
     assert result['box_detections'][0]['category_id'] == 'some_id'
@@ -81,9 +82,8 @@ def test_rest_upload(test_detector_node: DetectorNode):
 async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
-    with open(test_image_path, 'rb') as f:
-        image_bytes = f.read()
-    result = await sio_client.call('upload', {'image': image_bytes})
+    image = np.array(Image.open(test_image_path))
+    result = await sio_client.call('upload', {'image': {'bytes': image.tobytes(), 'shape': image.shape, 'dtype': str(image.dtype)}})
     assert result.get('status') == 'OK'
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 

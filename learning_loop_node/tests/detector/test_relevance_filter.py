@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import pytest
+from PIL import Image
 
 from ...data_classes import BoxDetection, ImageMetadata, PointDetection
 from ...detector.detector_node import DetectorNode
@@ -30,7 +31,9 @@ async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autouplo
     assert test_detector_node.outbox.path.startswith('/tmp')
     assert len(get_outbox_files(test_detector_node.outbox)) == 0
 
-    image = bytes(np.fromfile(file=test_image_path, dtype=np.uint8))
+    pil_image = Image.open(test_image_path)
+    image = np.array(pil_image)
+
     _ = await test_detector_node.get_detections(image, tags=[], camera_id='00:.....', autoupload=autoupload)
     # NOTE adding second images with identical detections
     _ = await test_detector_node.get_detections(image, tags=[], camera_id='00:.....', autoupload=autoupload)

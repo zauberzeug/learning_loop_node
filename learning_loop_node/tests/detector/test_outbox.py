@@ -1,8 +1,8 @@
 import asyncio
-import io
 import os
 import shutil
 
+import numpy as np
 import pytest
 from PIL import Image
 
@@ -34,12 +34,12 @@ async def fix_upload_bug():
     test_outbox = Outbox()
 
     await test_outbox.set_mode('continuous_upload')
-    await test_outbox.save(get_test_image_binary())
+    await test_outbox.save(get_test_image())
     await asyncio.sleep(6)
     assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
     assert test_outbox.upload_counter == 1
 
-    await test_outbox.save(get_test_image_binary())
+    await test_outbox.save(get_test_image())
     await asyncio.sleep(6)
     # assert await wait_for_outbox_count(test_outbox, 0, timeout=90), 'File was not cleared even though outbox should be in continuous_upload'
     # assert test_outbox.upload_counter == 2
@@ -51,7 +51,7 @@ async def fix_upload_bug():
 @pytest.mark.asyncio
 async def test_set_outbox_mode(test_outbox: Outbox):
     await test_outbox.set_mode('stopped')
-    await test_outbox.save(get_test_image_binary())
+    await test_outbox.save(get_test_image())
     assert await wait_for_outbox_count(test_outbox, 1)
     await asyncio.sleep(6)
     assert await wait_for_outbox_count(test_outbox, 1), 'File was cleared even though outbox should be stopped'
@@ -60,35 +60,13 @@ async def test_set_outbox_mode(test_outbox: Outbox):
     assert await wait_for_outbox_count(test_outbox, 0, timeout=15), 'File was not cleared even though outbox should be in continuous_upload'
     assert test_outbox.upload_counter == 1
 
-
-@pytest.mark.asyncio
-async def test_invalid_jpg_is_not_saved(test_outbox: Outbox):
-    invalid_bytes = b'invalid jpg'
-    await test_outbox.save(invalid_bytes)
-    assert len(test_outbox.get_upload_folders()) == 0
-
-
 # ------------------------------ Helper functions --------------------------------------
 
 
-def get_test_image_binary() -> bytes:
-    img = Image.new('RGB', (600, 300), color=(73, 109, 137))
-    # convert img to jpg binary
-
-    img_byte_arr = io.BytesIO()
-    img.save(img_byte_arr, format='JPEG')
-    return img_byte_arr.getvalue()
-
-    # return img.tobytes() # NOT WORKING
-
-    # img.save('/tmp/image.jpg')
-    # with open('/tmp/image.jpg', 'rb') as f:
-    #     data = f.read()
-
-    # return data
-
-    # img = np.ones((300, 300, 3), np.uint8)*255 # NOT WORKING
-    # return img.tobytes()
+def get_test_image() -> np.ndarray:
+    img = Image.new('RGB', (600, 300), color=(73, 109, 137))  # type: ignore
+    # convert img to np array
+    return np.array(img)
 
 
 async def wait_for_outbox_count(outbox: Outbox, count: int, timeout: int = 10) -> bool:
