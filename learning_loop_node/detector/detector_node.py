@@ -190,13 +190,13 @@ class DetectorNode(Node):
 
         # simulate startup
         await self.detector_logic.soft_reload()
-        self.detector_logic.load_model_info_and_init_model()
+        await self._load_model_info_and_init_model()
         self.operation_mode = OperationMode.Idle
 
     async def on_startup(self) -> None:
         try:
             self.outbox.ensure_continuous_upload()
-            self.detector_logic.load_model_info_and_init_model()
+            await self._load_model_info_and_init_model()
         except Exception:
             self.log.exception("error during 'startup'")
         self.operation_mode = OperationMode.Idle
@@ -522,7 +522,7 @@ class DetectorNode(Node):
             self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
 
             try:
-                self.detector_logic.load_model_info_and_init_model()
+                await self._load_model_info_and_init_model()
             except NodeNeedsRestartError:
                 self.log.error('Node needs restart')
                 sys.exit(0)
@@ -534,6 +534,10 @@ class DetectorNode(Node):
 
             await self._sync_status_with_loop()
             # self.reload(reason='new model installed')
+
+    async def _load_model_info_and_init_model(self) -> None:
+        async with self.detection_lock:
+            self.detector_logic.load_model_info_and_init_model()
 
 # ================================== API Implementations ==================================
 
@@ -570,11 +574,8 @@ class DetectorNode(Node):
         cares about uploading to the loop and returns the detections as ImageMetadata object.
         """
 
-        await self.detection_lock.acquire()
-        try:
+        async with self.detection_lock:
             metadata = await run.io_bound(self.detector_logic.evaluate, image)
-        finally:
-            self.detection_lock.release()
 
         metadata.tags.extend(tags)
         metadata.source = source
@@ -606,14 +607,12 @@ class DetectorNode(Node):
         """
         Processing function for the detector node when a a batch inference is requested via SocketIO.
 
-        This function infers the detections from all images, cares about uploading to the loop and returns the detections as a list of ImageMetadata.
+        This function infers the detections from all images, 
+        cares about uploading to the loop and returns the detections as a list of ImageMetadata.
         """
 
-        await self.detection_lock.acquire()
-        try:
+        async with self.detection_lock:
             all_detections = await run.io_bound(self.detector_logic.batch_evaluate, images)
-        finally:
-            self.detection_lock.release()
 
         for metadata in all_detections.items:
             metadata.tags.extend(tags)
