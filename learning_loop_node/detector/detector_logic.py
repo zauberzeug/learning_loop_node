@@ -21,6 +21,12 @@ class DetectorLogic():
         self.model_info = None
 
     def load_model_info_and_init_model(self):
+        """
+        Load model information from disk and initialize the model.
+
+        The detector node uses a lock to make sure that this is not called 
+        concurrently with evaluate() or batch_evaluate(). 
+        """
         logging.info('Loading model from %s', GLOBALS.data_folder)
         self.model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
         if self.model_info is None:
@@ -42,21 +48,32 @@ class DetectorLogic():
 
     @abstractmethod
     def init(self):
-        """Called when a (new) model was loaded. Initialize the model. Model information available via `self.model_info`"""
+        """
+        Initialize the model.
+
+        Called when a (new) model was loaded. 
+        Model information available via `self.model_info`
+        The detector node uses a lock to make sure that this is not called
+        concurrently with evaluate() or batch_evaluate(). 
+        """
 
     @abstractmethod
     def evaluate(self, image: np.ndarray) -> ImageMetadata:
-        """Evaluate the image and return the detections.
+        """
+        Evaluate the image and return the detections.
 
         Called by the detector node when an image should be evaluated (REST or SocketIO).
         The resulting detections should be stored in the ImageMetadata.
         Tags stored in the ImageMetadata will be uploaded to the learning loop.
-        The function should return empty metadata if the detector is not initialized."""
+        The function should return empty metadata if the detector is not initialized.
+        """
 
     @abstractmethod
     def batch_evaluate(self, images: List[np.ndarray]) -> ImagesMetadata:
-        """Evaluate a batch of images and return the detections.
+        """
+        Evaluate a batch of images and return the detections.
 
         The resulting detections per image should be stored in the ImagesMetadata.
         Tags stored in the ImagesMetadata will be uploaded to the learning loop.
-        The function should return empty metadata if the detector is not initialized."""
+        The function should return empty metadata if the detector is not initialized.
+        """
