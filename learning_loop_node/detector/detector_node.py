@@ -217,7 +217,7 @@ class DetectorNode(Node):
         # Initialize the Socket.IO server with 20MB buffer size
         self.sio = socketio.AsyncServer(
             async_mode='asgi',
-            max_http_buffer_size=64 * 1024 * 1024,  # 64MB
+            max_http_buffer_size=64 * 1024 * 1024,  # 64 MiB
         )
         # Initialize and mount the ASGI app
         self.sio_app = socketio.ASGIApp(self.sio, socketio_path='/socket.io')
