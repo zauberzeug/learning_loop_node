@@ -6,14 +6,9 @@ import subprocess
 import sys
 from dataclasses import asdict
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 import numpy as np
-
-try:
-    from typing import Literal
-except ImportError:  # Python <= 3.8
-    from typing_extensions import Literal  # type: ignore
 
 import socketio
 from dacite import from_dict
