@@ -21,8 +21,14 @@ COPY uv.lock ./
 
 # Allow installing dev dependencies to run tests, can be disbaled by setting --build-arg INSTALL_DEV=false
 ARG INSTALL_DEV=true
-RUN echo "INSTALL_DEV is set to $INSTALL_DEV"
-RUN if [ "$INSTALL_DEV" = 'true' ]; then uv sync --system --extra dev --frozen; else uv sync --system --frozen; fi
+RUN echo "INSTALL_DEV is set to $INSTALL_DEV" && \
+    if [ "$INSTALL_DEV" = 'true' ]; then \
+      uv export --frozen --extra dev --format requirements.txt --no-emit-project -o /tmp/requirements.txt; \
+    else \
+      uv export --frozen --format requirements.txt --no-emit-project -o /tmp/requirements.txt; \
+    fi && \
+    uv pip install --system --requirement /tmp/requirements.txt && \
+    rm -f /tmp/requirements.txt
 
 
 # while development this will be mounted but in deployment we need the latest code baked into the image
