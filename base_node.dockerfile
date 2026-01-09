@@ -13,21 +13,16 @@ WORKDIR /app/
 # delete everything in /app
 RUN rm -rf /app/*
 
-RUN python3 -m pip install --upgrade pip
-
-# We use Poetry for dependency management (recommended way to install it)
-RUN curl -sSL https://install.python-poetry.org | python3 - && \
-    cd /usr/local/bin && \
-    ln -s ~/.local/bin/poetry && \
-    poetry config virtualenvs.create false
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install uv
 
 COPY pyproject.toml ./
+COPY uv.lock ./
 
 # Allow installing dev dependencies to run tests, can be disbaled by setting --build-arg INSTALL_DEV=false
 ARG INSTALL_DEV=true
 RUN echo "INSTALL_DEV is set to $INSTALL_DEV"
-#RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install -vvv --no-root ; else poetry install -vvv --no-root --no-dev ; fi"
-RUN if [ "$INSTALL_DEV" = 'true' ]; then poetry install -vvv --no-root; else poetry install -vvv --no-root --no-dev; fi
+RUN if [ "$INSTALL_DEV" = 'true' ]; then uv sync --system --extra dev --frozen; else uv sync --system --frozen; fi
 
 
 # while development this will be mounted but in deployment we need the latest code baked into the image

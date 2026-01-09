@@ -12,21 +12,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: set up Poetry
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: "1.5.0"
+      - name: set up uv
+        uses: astral-sh/setup-uv@v3
       - name: get version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> "$GITHUB_OUTPUT"
       - name: set version
-        run: poetry version ${{ steps.get_version.outputs.VERSION }}
+        run: uv version "${{ steps.get_version.outputs.VERSION }}"
       - name: publish
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
-        run: poetry publish --build
+        run: |
+          uv build
+          uv publish --token "${{ secrets.PYPI_API_TOKEN }}" dist/*
