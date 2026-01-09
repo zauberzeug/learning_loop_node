@@ -3,7 +3,7 @@ name = "learning_loop_node"
 version = "0.18.0"
 description = "Python Library for Nodes which connect to the Zauberzeug Learning Loop"
 authors = [{ name = "Zauberzeug GmbH", email = "info@zauberzeug.com" }]
-license = "MIT"
+license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
