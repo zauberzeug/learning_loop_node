@@ -855,7 +855,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", specifier = ">=0.7.0,<0.8.0" },
-    { name = "aiohttp", specifier = ">=3.11.0,<4.0.0" },
+    { name = "aiohttp", specifier = ">=3.13.3,<4.0.0" },
     { name = "async-generator", specifier = ">=1.10,<2.0.0" },
     { name = "autopep8", marker = "extra == 'dev'", specifier = ">=2.0.2,<3.0.0" },
     { name = "dacite", specifier = ">=1.8.1,<2.0.0" },
