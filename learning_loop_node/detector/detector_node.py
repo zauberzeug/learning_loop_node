@@ -215,7 +215,7 @@ class DetectorNode(Node):
             max_http_buffer_size=64 * 1024 * 1024,  # 64 MiB
         )
         # Initialize and mount the ASGI app
-        self.sio_app = socketio.ASGIApp(self.sio, socketio_path='/socket.io')
+        self.sio_app = socketio.ASGIApp(self.sio, socketio_path='/ws/socket.io')
         self.mount('/ws', self.sio_app)
         # Register event handlers
 
