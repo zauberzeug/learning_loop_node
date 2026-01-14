@@ -3,101 +3,95 @@ name: Run Tests
 on: [push]
 
 jobs:
-  pytest_3_8:
+  pytest_3_9:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.8"
-      - name: set up Poetry
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: "1.5.0"
+          python-version: "3.9"
+      - name: set up uv
+        uses: astral-sh/setup-uv@v3
       - name: install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install libcurl4-openssl-dev libssl-dev jpeginfo
       - name: install dependencies
         run: |
-          poetry config virtualenvs.create false --local
-          poetry install
+          uv sync --extra dev --frozen
       - name: test_general
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          pytest "learning_loop_node/tests/general" -v
+          uv run pytest "learning_loop_node/tests/general" -v
       - name: test_detector
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          pytest learning_loop_node/tests/detector -v
+          uv run pytest learning_loop_node/tests/detector -v
       - name: test_mock_detector
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          pytest mock_detector -v
+          uv run pytest mock_detector -v
 
   pytest_3_11:
     needs:
-      - pytest_3_8
+      - pytest_3_9
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: set up Poetry
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: "1.5.0"
+      - name: set up uv
+        uses: astral-sh/setup-uv@v3
       - name: install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install libcurl4-openssl-dev libssl-dev jpeginfo
       - name: install dependencies
         run: |
-          poetry config virtualenvs.create false --local
-          poetry install
+          uv sync --extra dev --frozen
       - name: test_annotator
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          pytest learning_loop_node/tests/annotator -v
+          uv run pytest learning_loop_node/tests/annotator -v
       - name: test_trainer
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          pytest learning_loop_node/tests/trainer -v
+          uv run pytest learning_loop_node/tests/trainer -v
       - name: test_mock_trainer
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          pytest mock_trainer -v
+          uv run pytest mock_trainer -v
 
   slack:
     needs:
-      - pytest_3_8
+      - pytest_3_9
       - pytest_3_11
     if: always() # also execute when pytest fails
     runs-on: ubuntu-latest
