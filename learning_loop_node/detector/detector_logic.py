@@ -38,10 +38,11 @@ class DetectorLogic():
             self.init()
             logging.info('Successfully loaded model %s', self.model_info)
             self._remaining_init_attempts = 2
-        except Exception:
+        except Exception as e:
             self._remaining_init_attempts -= 1
+            logging.error('Could not init model %s. Retries left: %s. Error: %s',
+                          self.model_info, self._remaining_init_attempts, e)
             self.model_info = None
-            logging.error('Could not init model %s. Retries left: %s', self.model_info, self._remaining_init_attempts)
             if self._remaining_init_attempts == 0:
                 raise NodeNeedsRestartError('Could not init model') from None
             raise
