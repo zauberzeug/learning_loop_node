@@ -41,9 +41,10 @@ dev = [
 [project.urls]
 Repository = "https://github.com/zauberzeug/learning_loop_node"
 
-[build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["learning_loop_node", "learning_loop_node.*"]
+exclude = ["learning_loop_node.tests*", "learning_loop_node.examples*"]
 
 [tool.mypy]
 ignore_missing_imports = true
