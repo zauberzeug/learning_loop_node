@@ -173,7 +173,7 @@ class ActiveTrainingIO:
         response = await self.loop_communicator.post(
             f'/{context.organization}/projects/{context.project}/detections', json=detections_json)
         if response.status_code != 200:
-            msg = f'could not upload detections. {str(response)}'
+            msg = f'could not upload detections. HTTP {response.status_code}: {response.text}'
             logging.error(msg)
             raise Exception(msg)
 
