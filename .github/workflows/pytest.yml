@@ -29,21 +29,21 @@ jobs:
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          uv run pytest "learning_loop_node/tests/general" -v
+          uv run python -m pytest "learning_loop_node/tests/general" -v
       - name: test_detector
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          uv run pytest learning_loop_node/tests/detector -v
+          uv run python -m pytest learning_loop_node/tests/detector -v
       - name: test_mock_detector
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          uv run pytest mock_detector -v
+          uv run python -m pytest mock_detector -v
 
   pytest_3_13:
     needs:
@@ -73,21 +73,21 @@ jobs:
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          uv run pytest learning_loop_node/tests/annotator -v
+          uv run python -m pytest learning_loop_node/tests/annotator -v
       - name: test_trainer
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          uv run pytest learning_loop_node/tests/trainer -v
+          uv run python -m pytest learning_loop_node/tests/trainer -v
       - name: test_mock_trainer
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: |
-          uv run pytest mock_trainer -v
+          uv run python -m pytest mock_trainer -v
 
   slack:
     needs:
