@@ -60,11 +60,22 @@ def _handle_task_result(task: asyncio.Task,
 
 
 def get_free_memory_mb() -> float:  # NOTE used by yolov5
-    pynvml.nvmlInit()
-    h = pynvml.nvmlDeviceGetHandleByIndex(0)
-    info = pynvml.nvmlDeviceGetMemoryInfo(h)
-    free = float(info.free) / 1024 / 1024
-    return free
+    """
+    Get the free memory available to the graphics card (index 0) in MB.
+    If VRAM information is unavailable, for example if the system shares ram
+    between CPU and GPU, the available RAM is returned instead.
+    """
+    try:
+        pynvml.nvmlInit()
+
+        h = pynvml.nvmlDeviceGetHandleByIndex(0)
+        info = pynvml.nvmlDeviceGetMemoryInfo(h)
+        free_mb = float(info.free) / 1024 / 1024
+    except pynvml.nvml.NVMLError:
+        logger = logging.getLogger(__name__)
+        logger.warning('Could not get GPU memory info, returning free CPU memory instead')
+        free_mb = float(os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_AVPHYS_PAGES')) / 1024 / 1024
+    return free_mb
 
 
 async def is_valid_image(filename: str, check_jpeg: bool) -> bool:
