@@ -3,7 +3,7 @@ name: Run Tests
 on: [push]
 
 jobs:
-  pytest_3_9:
+  pytest_3_10:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -13,7 +13,7 @@ jobs:
       - name: set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.10"
       - name: set up uv
         uses: astral-sh/setup-uv@v3
       - name: install test dependencies
@@ -45,9 +45,9 @@ jobs:
         run: |
           uv run pytest mock_detector -v
 
-  pytest_3_11:
+  pytest_3_13:
     needs:
-      - pytest_3_9
+      - pytest_3_10
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -57,7 +57,7 @@ jobs:
       - name: set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
       - name: set up uv
         uses: astral-sh/setup-uv@v3
       - name: install test dependencies
@@ -91,8 +91,8 @@ jobs:
 
   slack:
     needs:
-      - pytest_3_9
-      - pytest_3_11
+      - pytest_3_10
+      - pytest_3_13
     if: always() # also execute when pytest fails
     runs-on: ubuntu-latest
     steps:
