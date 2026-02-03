@@ -5,7 +5,7 @@ description = "Python Library for Nodes which connect to the Zauberzeug Learning
 authors = [{ name = "Zauberzeug GmbH", email = "info@zauberzeug.com" }]
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "fastapi>=0.128,<1.0",
     "uvicorn[standard]>=0.22.0,<0.23.0",
@@ -17,7 +17,7 @@ dependencies = [
     "aiofiles>=0.7.0,<0.8.0",
     "async_generator>=1.10,<2.0.0",
     "pytest-watch>=4.2.0,<5.0.0",
-    "python-multipart>=0.0.18,<0.0.19",
+    "python-multipart>=0.0.22",
     "psutil>=5.8.0,<6.0.0",
     "numpy>=2.0,<3.0",
     "Pillow>=11.0.0,<12.0.0",
