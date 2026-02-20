@@ -1,6 +1,6 @@
 [project]
 name = "learning_loop_node"
-version = "0.18.0"
+version = "0.18.6"
 description = "Python Library for Nodes which connect to the Zauberzeug Learning Loop"
 authors = [{ name = "Zauberzeug GmbH", email = "info@zauberzeug.com" }]
 license = { text = "MIT" }
