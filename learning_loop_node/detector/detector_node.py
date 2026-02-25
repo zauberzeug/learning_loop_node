@@ -1,10 +1,11 @@
 import asyncio
 import contextlib
+import logging
 import os
 import shutil
 import subprocess
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Dict, List, Literal, Optional
 
@@ -32,7 +33,7 @@ from ..globals import GLOBALS
 from ..helpers import background_tasks, environment_reader, run
 from ..helpers.misc import numpy_image_from_dict
 from ..node import Node
-from .detector_logic import DetectorLogic
+from .detector_logic import DetectorLogic, DetectorLogicFactory
 from .exceptions import NodeNeedsRestartError
 from .inbox_filter.relevance_filter import RelevanceFilter
 from .outbox import Outbox
@@ -45,11 +46,20 @@ from .rest import outbox_mode as rest_outbox_mode
 from .rest import upload as rest_upload
 
 
+@dataclass
+class _ActiveDetector:
+    logic: DetectorLogic
+    model_info: ModelInformation
+
+
 class DetectorNode(Node):
 
-    def __init__(self, name: str, detector: DetectorLogic, uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
+    def __init__(self, name: str, detector_factory: DetectorLogicFactory,
+                 uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
         super().__init__(name, uuid=uuid, node_type='detector', needs_login=False, needs_sio=False)
-        self.detector_logic = detector
+        self._detector_factory = detector_factory
+        self._detector: Optional[_ActiveDetector] = None
+        self._remaining_init_attempts: int = 2
         self.organization = environment_reader.organization()
         self.project = environment_reader.project()
         assert self.organization and self.project, 'Detector node needs an organization and an project'
@@ -95,13 +105,13 @@ class DetectorNode(Node):
         return AboutResponse(
             operation_mode=self.operation_mode.value,
             state=self.status.state,
-            model_info=self.detector_logic.model_info,  # pylint: disable=protected-access
+            model_info=self._detector.model_info if self._detector else None,
             target_model=self.target_model.version if self.target_model else None,
             version_control=self.version_control.value
         )
 
     def get_model_version_response(self) -> ModelVersionResponse:
-        current_version = self.detector_logic.model_info.version if self.detector_logic.model_info is not None else 'None'  # pylint: disable=protected-access
+        current_version = self._detector.model_info.version if self._detector else 'None'
         target_version = self.target_model.version if self.target_model is not None else 'None'
         loop_version = self.loop_deployment_target.version if self.loop_deployment_target is not None else 'None'
 
@@ -183,15 +193,10 @@ class DetectorNode(Node):
         self.socket_connection_broken = True
         await self.on_startup()
 
-        # simulate startup
-        await self.detector_logic.soft_reload()
-        await self._load_model_info_and_init_model()
-        self.operation_mode = OperationMode.Idle
-
     async def on_startup(self) -> None:
         try:
             self.outbox.ensure_continuous_upload()
-            await self._load_model_info_and_init_model()
+            await self._build_and_swap_detector()
         except Exception:
             self.log.exception("error during 'startup'")
         self.operation_mode = OperationMode.Idle
@@ -297,8 +302,8 @@ class DetectorNode(Node):
 
         @self.sio.event
         async def info(sid) -> Dict:
-            if self.detector_logic.model_info is not None:
-                return asdict(self.detector_logic.model_info)
+            if self._detector is not None:
+                return asdict(self._detector.model_info)
             return {"status": "No model loaded"}
 
         @self.sio.event
@@ -350,8 +355,8 @@ class DetectorNode(Node):
                 except Exception as e:
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
-                if self.detector_logic.model_info is not None:
-                    image_metadata = self.add_category_id_to_detections(self.detector_logic.model_info, image_metadata)
+                if self._detector is not None:
+                    image_metadata = self.add_category_id_to_detections(self._detector.model_info, image_metadata)
             else:
                 image_metadata = ImageMetadata()
 
@@ -393,11 +398,7 @@ class DetectorNode(Node):
     async def _sync_status_with_loop(self) -> None:
         """Sync status of the detector with the Learning Loop."""
 
-        if self.detector_logic.model_info is not None:
-            current_model = self.detector_logic.model_info.version
-        else:
-            current_model = None
-
+        current_model = self._detector.model_info.version if self._detector else None
         target_model_version = self.target_model.version if self.target_model else None
 
         status = DetectorStatus(
@@ -409,7 +410,7 @@ class DetectorNode(Node):
             operation_mode=self.operation_mode,
             current_model=current_model,
             target_model=target_model_version,
-            model_format=self.detector_logic.model_format,
+            model_format=self._detector_factory.model_format,
         )
 
         self.log_status_on_change(status.state, status)
@@ -441,8 +442,7 @@ class DetectorNode(Node):
                 self.log.debug('not running any updates; target model is None')
                 return
 
-            current_version = self.detector_logic.model_info.version \
-                if self.detector_logic.model_info is not None else None
+            current_version = self._detector.model_info.version if self._detector else None
 
             if current_version != self.target_model.version:
                 self.log.info('Updating model from %s to %s',
@@ -499,7 +499,7 @@ class DetectorNode(Node):
                     await self.data_exchanger.download_model(target_model_folder,
                                                              Context(organization=self.organization,
                                                                      project=self.project),
-                                                             target_model.id, self.detector_logic.model_format)
+                                                             target_model.id, self._detector_factory.model_format)
                     self.log.info('Downloaded model %s', target_model.version)
                 except Exception:
                     self.log.exception('Could not download model %s', target_model.version)
@@ -517,12 +517,12 @@ class DetectorNode(Node):
             self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
 
             try:
-                await self._load_model_info_and_init_model()
+                await self._build_and_swap_detector()
             except NodeNeedsRestartError:
                 self.log.error('Node needs restart')
                 sys.exit(0)
             except Exception:
-                self.log.exception('Could not load model, will retry download on next check')
+                self.log.exception('Could not build detector, will retry download on next check')
                 shutil.rmtree(target_model_folder, ignore_errors=True)
                 self.target_model = None
                 return
@@ -530,9 +530,27 @@ class DetectorNode(Node):
             await self._sync_status_with_loop()
             # self.reload(reason='new model installed')
 
-    async def _load_model_info_and_init_model(self) -> None:
-        async with self.detection_lock:
-            self.detector_logic.load_model_info_and_init_model()
+    async def _build_and_swap_detector(self) -> None:
+        """Load ModelInformation from disk, build a new DetectorLogic via the factory,
+        then atomically swap self._detector when ready.
+        The old detector continues to serve requests until the swap."""
+        logging.info('Loading model from %s', GLOBALS.data_folder)
+        model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
+        if model_info is None:
+            logging.info('No model found at %s/model', GLOBALS.data_folder)
+            return
+        try:
+            new_detector = await self._detector_factory.build(model_info)
+            logging.info('Successfully built detector for model %s', model_info)
+            self._remaining_init_attempts = 2
+        except Exception as e:
+            self._remaining_init_attempts -= 1
+            logging.error('Could not build detector for model %s. Retries left: %s. Error: %s',
+                          model_info, self._remaining_init_attempts, e)
+            if self._remaining_init_attempts == 0:
+                raise NodeNeedsRestartError('Could not build detector') from None
+            raise
+        self._detector = _ActiveDetector(new_detector, model_info)
 
 # ================================== API Implementations ==================================
 
@@ -560,17 +578,21 @@ class DetectorNode(Node):
                              camera_id: Optional[str] = None,
                              source: Optional[str] = None,
                              autoupload: Literal['filtered', 'all', 'disabled'],
-                             creation_date: Optional[str] = None) -> ImageMetadata:
+                             creation_date: Optional[str] = None) -> Optional[ImageMetadata]:
         """
         Main processing function for the detector node.
 
         Used when an image is received via REST or SocketIO.
-        This function infers the detections from the image, 
+        This function infers the detections from the image,
         cares about uploading to the loop and returns the detections as ImageMetadata object.
+        Returns None if no model is loaded.
         """
+        detector = self._detector
+        if detector is None:
+            return None
 
         async with self.detection_lock:
-            metadata = await run.io_bound(self.detector_logic.evaluate, image)
+            metadata = await run.io_bound(detector.logic.evaluate, image)
 
         metadata.tags.extend(tags)
         metadata.source = source
@@ -598,16 +620,20 @@ class DetectorNode(Node):
                                    camera_id: Optional[str] = None,
                                    source: Optional[str] = None,
                                    autoupload: str = 'filtered',
-                                   creation_date: Optional[str] = None) -> ImagesMetadata:
+                                   creation_date: Optional[str] = None) -> Optional[ImagesMetadata]:
         """
-        Processing function for the detector node when a a batch inference is requested via SocketIO.
+        Processing function for the detector node when a batch inference is requested via SocketIO.
 
-        This function infers the detections from all images, 
+        This function infers the detections from all images,
         cares about uploading to the loop and returns the detections as a list of ImageMetadata.
+        Returns None if no model is loaded.
         """
+        detector = self._detector
+        if detector is None:
+            return None
 
         async with self.detection_lock:
-            all_detections = await run.io_bound(self.detector_logic.batch_evaluate, images)
+            all_detections = await run.io_bound(detector.logic.batch_evaluate, images)
 
         for metadata in all_detections.items:
             metadata.tags.extend(tags)
