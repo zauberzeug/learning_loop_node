@@ -1,9 +1,12 @@
 import asyncio
+import contextlib
+import json
 import logging
 import multiprocessing
 import os
 import shutil
 import socket
+from dataclasses import asdict
 from glob import glob
 from multiprocessing import Process, log_to_stderr
 from typing import AsyncGenerator
@@ -13,13 +16,13 @@ import pytest
 import socketio
 import uvicorn
 
-from learning_loop_node.data_classes import BoxDetection, ImageMetadata
+from learning_loop_node.data_classes import BoxDetection, ImageMetadata, ModelInformation
 from learning_loop_node.detector.detector_logic import DetectorLogic
 
 from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
-from .testing_detector import TestingDetectorLogic
+from .testing_detector import TestingDetectorFactory
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,6 +30,18 @@ logging.basicConfig(level=logging.INFO)
 log_to_stderr(logging.INFO)
 
 detector_port = GLOBALS.detector_port
+
+@contextlib.contextmanager
+def dummy_model_on_disk():
+    """Write a minimal model.json mirroring production layout: models/<version>/ + model symlink."""
+    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project='demo', version='1.0')
+    version_path = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
+    os.makedirs(version_path, exist_ok=True)
+    with open(os.path.join(version_path, 'model.json'), 'w') as f:
+        json.dump(asdict(model_info), f)
+    symlink_path = os.path.join(GLOBALS.data_folder, 'model')
+    os.symlink(version_path, symlink_path)
+    yield
 
 
 def should_have_segmentations(request) -> bool:
@@ -54,8 +69,9 @@ async def test_detector_node():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
 
-    detector = TestingDetectorLogic()
-    node = DetectorNode(name='test', detector=detector)
+    with dummy_model_on_disk():
+        node = DetectorNode(name='test', detector_factory=TestingDetectorFactory())
+        await node._build_and_swap_detector()
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)
@@ -128,8 +144,8 @@ def get_outbox_files(outbox: Outbox):
 
 
 class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
-    def __init__(self):
-        super().__init__('mock')
+
+    def __init__(self, model_info: ModelInformation):
         self.image_metadata = ImageMetadata(
             box_detections=[BoxDetection(category_name="test",
                                          category_id="1",
@@ -141,11 +157,21 @@ class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
         return self.image_metadata
 
 
+class MockDetectorFactory:
+    model_format = 'mock'
+
+    async def build(self, model_info: ModelInformation) -> MockDetectorLogic:
+        return MockDetectorLogic(model_info)
+
+
 @pytest.fixture
-def detector_node():
-    os.environ['LOOP_ORGANIZATION'] = 'test_organization'
-    os.environ['LOOP_PROJECT'] = 'test_project'
-    return DetectorNode(name="test_node", detector=MockDetectorLogic())
+async def detector_node():
+    os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
+    os.environ['LOOP_PROJECT'] = 'demo'
+    with dummy_model_on_disk():
+        node = DetectorNode(name="test_node", detector_factory=MockDetectorFactory())
+        await node._build_and_swap_detector()
+    return node
 
 # ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
 

@@ -1,9 +1,11 @@
 import asyncio
+import json
 import logging
 import multiprocessing
 import os
 import shutil
 import socket
+from dataclasses import asdict
 from multiprocessing import Process
 from typing import AsyncGenerator
 
@@ -15,7 +17,7 @@ from learning_loop_node.data_classes import Category, ModelInformation
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
 
-from ..mock_detector import MockDetector
+from ..mock_detector import MockDetectorFactory
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,9 +56,13 @@ async def test_detector_node():
                     Category(id='some_id_2', name='some_category_name_2'),
                     Category(id='some_id_3', name='some_category_name_3')])
 
-    detector = MockDetector(model_format='mocked')
-    node = DetectorNode(name='test', detector=detector)
-    detector.model_info = model_info  # pylint: disable=protected-access
+    version_path = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
+    os.makedirs(version_path, exist_ok=True)
+    with open(os.path.join(version_path, 'model.json'), 'w') as f:
+        json.dump(asdict(model_info), f)
+    os.symlink(version_path, os.path.join(GLOBALS.data_folder, 'model'))
+
+    node = DetectorNode(name='test', detector_factory=MockDetectorFactory())
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)
