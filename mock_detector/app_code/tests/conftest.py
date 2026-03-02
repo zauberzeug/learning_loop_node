@@ -51,16 +51,16 @@ async def test_detector_node():
     os.environ['LOOP_PROJECT'] = 'demo'
 
     model_info = ModelInformation(
-        id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='1',
+        id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='0.0',
         categories=[Category(id='some_id_1', name='some_category_name_1'),
                     Category(id='some_id_2', name='some_category_name_2'),
                     Category(id='some_id_3', name='some_category_name_3')])
 
-    version_path = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
-    os.makedirs(version_path, exist_ok=True)
-    with open(os.path.join(version_path, 'model.json'), 'w') as f:
+    model_dir = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
+    os.makedirs(model_dir, exist_ok=True)
+    with open(os.path.join(model_dir, 'model.json'), 'w') as f:
         json.dump(asdict(model_info), f)
-    os.symlink(version_path, os.path.join(GLOBALS.data_folder, 'model'))
+    os.symlink(model_dir, os.path.join(GLOBALS.data_folder, 'current_model'))
 
     node = DetectorNode(name='test', detector_factory=MockDetectorFactory())
     await port_is(free=True)

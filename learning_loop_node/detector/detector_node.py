@@ -196,7 +196,9 @@ class DetectorNode(Node):
     async def on_startup(self) -> None:
         try:
             self.outbox.ensure_continuous_upload()
-            await self._build_and_swap_detector()
+            current_model_dir = self._current_model_symlink()
+            if current_model_dir and os.path.isdir(current_model_dir):
+                await self._build_and_swap_detector(current_model_dir)
         except Exception:
             self.log.exception("error during 'startup'")
         self.operation_mode = OperationMode.Idle
@@ -271,7 +273,7 @@ class DetectorNode(Node):
             """
             Detect objects in a batch of images sent via SocketIO.
 
-            Data dict follows the schema of the detect endpoint, 
+            Data dict follows the schema of the detect endpoint,
             but 'images' is a list of image dicts.
             """
             try:
@@ -428,7 +430,7 @@ class DetectorNode(Node):
     async def _update_model_if_required(self) -> None:
         """Check if a new model is available and update if necessary.
         The Learning Loop will respond with the model info of the deployment target.
-        If version_control is set to FollowLoop or the chosen target model is not used, 
+        If version_control is set to FollowLoop or the chosen target model is not used,
         the detector will update the target_model."""
         try:
             if self.operation_mode != OperationMode.Idle:
@@ -507,17 +509,8 @@ class DetectorNode(Node):
                     self.target_model = None
                     return
 
-            model_symlink = 'model'
             try:
-                os.unlink(model_symlink)
-                os.remove(model_symlink)
-            except Exception:
-                pass
-            os.symlink(target_model_folder, model_symlink)
-            self.log.info('Updated symlink for model to %s', os.readlink(model_symlink))
-
-            try:
-                await self._build_and_swap_detector()
+                await self._build_and_swap_detector(target_model_folder)
             except NodeNeedsRestartError:
                 self.log.error('Node needs restart')
                 sys.exit(0)
@@ -527,17 +520,17 @@ class DetectorNode(Node):
                 self.target_model = None
                 return
 
+            self._update_current_model_symlink(target_model_folder)
             await self._sync_status_with_loop()
-            # self.reload(reason='new model installed')
 
-    async def _build_and_swap_detector(self) -> None:
-        """Load ModelInformation from disk, build a new DetectorLogic via the factory,
+    async def _build_and_swap_detector(self, model_dir: str) -> None:
+        """Load ModelInformation from model_dir, build a new DetectorLogic via the factory,
         then atomically swap self._detector when ready.
         The old detector continues to serve requests until the swap."""
-        logging.info('Loading model from %s', GLOBALS.data_folder)
-        model_info = ModelInformation.load_from_disk(f'{GLOBALS.data_folder}/model')
+        logging.info('Loading model from %s', model_dir)
+        model_info = ModelInformation.load_from_disk(model_dir)
         if model_info is None:
-            logging.info('No model found at %s/model', GLOBALS.data_folder)
+            logging.warning('No model.json found in %s', model_dir)
             return
         try:
             new_detector = await self._detector_factory.build(model_info)
@@ -551,6 +544,22 @@ class DetectorNode(Node):
                 raise NodeNeedsRestartError('Could not build detector') from None
             raise
         self._detector = _ActiveDetector(new_detector, model_info)
+
+    @staticmethod
+    def _current_model_symlink() -> Optional[str]:
+        """Return the absolute path the current_model symlink points to, or None."""
+        link = os.path.join(GLOBALS.data_folder, 'current_model')
+        if os.path.islink(link):
+            return os.path.realpath(link)
+        return None
+
+    @staticmethod
+    def _update_current_model_symlink(model_dir: str) -> None:
+        """Atomically update the current_model symlink to point to model_dir."""
+        link = os.path.join(GLOBALS.data_folder, 'current_model')
+        tmp_link = link + '.tmp'
+        os.symlink(model_dir, tmp_link)
+        os.rename(tmp_link, link)
 
 # ================================== API Implementations ==================================
 

@@ -33,15 +33,13 @@ detector_port = GLOBALS.detector_port
 
 @contextlib.contextmanager
 def dummy_model_on_disk():
-    """Write a minimal model.json mirroring production layout: models/<version>/ + model symlink."""
-    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project='demo', version='1.0')
-    version_path = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
-    os.makedirs(version_path, exist_ok=True)
-    with open(os.path.join(version_path, 'model.json'), 'w') as f:
+    """Write a minimal model.json into a temporary model directory. Yields the directory path."""
+    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project='demo', version='0.0')
+    model_dir = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
+    os.makedirs(model_dir, exist_ok=True)
+    with open(os.path.join(model_dir, 'model.json'), 'w') as f:
         json.dump(asdict(model_info), f)
-    symlink_path = os.path.join(GLOBALS.data_folder, 'model')
-    os.symlink(version_path, symlink_path)
-    yield
+    yield model_dir
 
 
 def should_have_segmentations(request) -> bool:
@@ -69,9 +67,10 @@ async def test_detector_node():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
 
-    with dummy_model_on_disk():
+    with dummy_model_on_disk() as model_dir:
+        os.symlink(model_dir, os.path.join(GLOBALS.data_folder, 'current_model'))  # for subprocess on_startup
         node = DetectorNode(name='test', detector_factory=TestingDetectorFactory())
-        await node._build_and_swap_detector()
+        await node._build_and_swap_detector(model_dir)  # for parent-side direct calls
     await port_is(free=True)
 
     multiprocessing.set_start_method('fork', force=True)
@@ -168,9 +167,9 @@ class MockDetectorFactory:
 async def detector_node():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
     os.environ['LOOP_PROJECT'] = 'demo'
-    with dummy_model_on_disk():
+    with dummy_model_on_disk() as model_dir:
         node = DetectorNode(name="test_node", detector_factory=MockDetectorFactory())
-        await node._build_and_swap_detector()
+        await node._build_and_swap_detector(model_dir)
     return node
 
 # ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
