@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from typing import List, Protocol
 
 import numpy as np
@@ -17,14 +16,13 @@ class DetectorLogicFactory(Protocol):
     async def build(self, model_info: ModelInformation) -> 'DetectorLogic': ...
 
 
-class DetectorLogic():
-    """Pure interface for detector implementations.
+class DetectorLogic(Protocol):
+    """Protocol for detector implementations.
 
-    Subclasses receive the ModelInformation via their constructor (called by the
+    Implementations receive the ModelInformation via their constructor (called by the
     DetectorLogic factory in DetectorNode) and are free to store or ignore it.
     """
 
-    @abstractmethod
     def evaluate(self, image: np.ndarray) -> ImageMetadata:
         """Evaluate the image and return the detections.
 
@@ -32,11 +30,12 @@ class DetectorLogic():
         The resulting detections should be stored in the ImageMetadata.
         Tags stored in the ImageMetadata will be uploaded to the learning loop.
         """
+        ...
 
-    @abstractmethod
     def batch_evaluate(self, images: List[np.ndarray]) -> ImagesMetadata:
         """Evaluate a batch of images and return the detections.
 
         The resulting detections per image should be stored in the ImagesMetadata.
         Tags stored in the ImagesMetadata will be uploaded to the learning loop.
         """
+        ...
