@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from ...data_classes import BoxDetection, ImageMetadata, PointDetection
-from ...detector.detector_node import DetectorNode
+from ...detector.detector_node import DetectorNode, _ActiveDetector
 from .conftest import get_outbox_files
 from .testing_detector import TestingDetectorLogic
 
@@ -19,8 +19,9 @@ async def test_filter_is_used_by_node(test_detector_node: DetectorNode, autouplo
     """Test if filtering is used by the node. In particular, when upload is filtered, the identical detections should not be uploaded twice.
     Note thatt we have to mock the dummy detections to only return a point and a box detection."""
 
-    assert isinstance(test_detector_node.detector_logic, TestingDetectorLogic)
-    test_detector_node.detector_logic.det_to_return = ImageMetadata(
+    assert isinstance(test_detector_node._detector, _ActiveDetector)  # pylint: disable=protected-access
+    assert isinstance(test_detector_node._detector.logic, TestingDetectorLogic)  # pylint: disable=protected-access
+    test_detector_node._detector.logic.det_to_return = ImageMetadata(  # pylint: disable=protected-access
         box_detections=[
             BoxDetection(category_name='some_category_name', x=1, y=2, height=3, width=4,
                          model_name='some_model', confidence=.42, category_id='some_id')],

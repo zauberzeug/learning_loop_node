@@ -8,7 +8,7 @@ import requests  # type: ignore
 from PIL import Image
 
 from ...data_classes import ModelInformation
-from ...detector.detector_node import DetectorNode
+from ...detector.detector_node import DetectorNode, _ActiveDetector
 from ...globals import GLOBALS
 from .conftest import get_outbox_files
 from .testing_detector import TestingDetectorLogic
@@ -20,6 +20,8 @@ test_image_path = os.path.join(os.path.dirname(file_path), 'test.jpg')
 @pytest.mark.asyncio
 async def test_detector_path(test_detector_node: DetectorNode):
     assert test_detector_node.outbox.path.startswith('/tmp')
+    assert isinstance(test_detector_node._detector, _ActiveDetector)  # pylint: disable=protected-access
+    assert isinstance(test_detector_node._detector.logic, TestingDetectorLogic)  # pylint: disable=protected-access
 
 # pylint: disable=unused-argument
 
@@ -51,7 +53,6 @@ def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     image = {('file', open(test_image_path, 'rb'))}
     headers = {grouping_key: '0:0:0:0', 'tags':  'some_tag'}
 
-    assert isinstance(test_detector_node.detector_logic, TestingDetectorLogic)
     response = requests.post(f'http://localhost:{GLOBALS.detector_port}/detect',
                              files=image, headers=headers, timeout=30)
     assert response.status_code == 200
