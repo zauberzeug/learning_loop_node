@@ -11,7 +11,8 @@ class DetectorLogicFactory(Protocol):
     The factory controls how the detector is constructed — implementations
     can build synchronously or offload heavy work to a thread pool.
     """
-    model_format: str
+    @property
+    def model_format(self) -> str: ...
 
     async def build(self, model_info: ModelInformation) -> 'DetectorLogic': ...
 
