@@ -16,7 +16,7 @@ import pytest
 import socketio
 import uvicorn
 
-from learning_loop_node.data_classes import BoxDetection, ImageMetadata, ModelInformation
+from learning_loop_node.data_classes import BoxDetection, ImageMetadata, ImagesMetadata, ModelInformation
 from learning_loop_node.detector.detector_logic import DetectorLogic
 
 from ...detector.detector_node import DetectorNode
@@ -142,7 +142,7 @@ def get_outbox_files(outbox: Outbox):
     return [file for file in files if os.path.isfile(file)]
 
 
-class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
+class MockDetectorLogic(DetectorLogic):
 
     def __init__(self, model_info: ModelInformation):
         self.image_metadata = ImageMetadata(
@@ -154,6 +154,9 @@ class MockDetectorLogic(DetectorLogic):  # pylint: disable=abstract-method
 
     def evaluate(self, image: np.ndarray) -> ImageMetadata:
         return self.image_metadata
+
+    def batch_evaluate(self, images: list[np.ndarray]) -> ImagesMetadata:
+        raise NotImplementedError()
 
 
 class MockDetectorFactory:
