@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import gc
 import logging
+import sys
 import os
 import shutil
 import subprocess
@@ -442,8 +443,8 @@ class DetectorNode(Node):
                 return
 
             match self._detector:
-                case _ActiveDetector() as d:
-                    current_version = d.model_info.version
+                case _ActiveDetector(model_info=info):
+                    current_version = info.version
                 case _Updating():
                     self.log.debug('not checking for updates; model update already in progress')
                     return
@@ -541,9 +542,16 @@ class DetectorNode(Node):
             return
 
         if self._exclusive_model_build and isinstance(self._detector, _ActiveDetector):
-            async with self.detection_lock:  # wait for in-flight detections to finish
+            async with self.detection_lock:
+                old_logic = self._detector.logic
                 self._detector = _Updating(version=model_info.version)
-            gc.collect()
+
+                # Ensure that we actually delete the old DetectorLogic here to
+                # free resources before building a new detector.
+                refcount = sys.getrefcount(old_logic)  # 2 = old_logic local + getrefcount arg
+                assert refcount == 2, f'expected 2 refs to old detector logic, got {refcount}'
+                del old_logic
+                gc.collect()
 
         try:
             new_detector = await self._detector_factory.build(model_info)
