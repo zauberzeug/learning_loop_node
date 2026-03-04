@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import gc
 import logging
 import os
 import shutil
@@ -542,6 +543,7 @@ class DetectorNode(Node):
         if self._exclusive_model_build and isinstance(self._detector, _ActiveDetector):
             async with self.detection_lock:  # wait for in-flight detections to finish
                 self._detector = _Updating(version=model_info.version)
+            gc.collect()
 
         try:
             new_detector = await self._detector_factory.build(model_info)
