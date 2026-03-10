@@ -203,7 +203,7 @@ class Node(FastAPI):
 
         if self.sio_client is not None:
             try:
-                await self.sio_client.disconnect()
+                await self.sio_client.shutdown()
                 self.log.info('disconnected from loop via sio')
                 # NOTE: without waiting for the disconnect event, we might disconnect the next connection too early
                 await asyncio.wait_for(self.DISCONNECTED_FROM_LOOP.wait(), timeout=5)
