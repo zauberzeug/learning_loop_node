@@ -27,6 +27,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | LOOP_PROJECT             | PROJECT      | Project ID                                                   | Detector (opt.)           |
 | MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           |
 | MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           |
+| EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 0)      | Detector (opt.)           |
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            |
 | RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)            |
 | KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            |

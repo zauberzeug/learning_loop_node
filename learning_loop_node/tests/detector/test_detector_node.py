@@ -47,7 +47,7 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 
     expected_save_args = {
         'image': np_image,
-        'detections': detector_node.detector_logic.image_metadata,  # type: ignore
+        'detections': detector_node._detector.logic.image_metadata,  # type: ignore
     }
 
     for autoupload, expect_filtered, expect_all in test_cases:
