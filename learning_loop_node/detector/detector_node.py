@@ -351,7 +351,7 @@ class DetectorNode(Node):
                     self.log.exception('could not parse detections')
                     return {'error': str(e)}
                 try:
-                    detector = unwrap_detector(self._detector)
+                    detector = _unwrap_detector(self._detector)
                     image_metadata = self.add_category_id_to_detections(detector.model_info, image_metadata)
                 except DetectorUnavailableError as e:
                     self.log.warning('Cannot add category IDs: %s', e)
@@ -616,10 +616,10 @@ class DetectorNode(Node):
         Used when an image is received via REST or SocketIO.
         This function infers the detections from the image,
         cares about uploading to the loop and returns the detections as ImageMetadata object.
-        Returns None if no model is loaded.
+        Raises exception if no model is loaded.
         """
         async with self.detection_lock:
-            detector = unwrap_detector(self._detector)
+            detector = _unwrap_detector(self._detector)
             metadata = await run.io_bound(detector.logic.evaluate, image)
 
         metadata.tags.extend(tags)
@@ -654,10 +654,10 @@ class DetectorNode(Node):
 
         This function infers the detections from all images,
         cares about uploading to the loop and returns the detections as a list of ImageMetadata.
-        Returns None if no model is loaded.
+        Raises exception if no model is loaded.
         """
         async with self.detection_lock:
-            detector = unwrap_detector(self._detector)
+            detector = _unwrap_detector(self._detector)
             all_detections = await run.io_bound(detector.logic.batch_evaluate, images)
 
         for metadata in all_detections.items:
@@ -754,7 +754,7 @@ class DetectorUnavailableError(Exception):
     pass
 
 
-def unwrap_detector(state: '_DetectorState') -> _ActiveDetector:
+def _unwrap_detector(state: '_DetectorState') -> _ActiveDetector:
     """Return the active detector or raise DetectorUnavailableError."""
     match state:
         case _ActiveDetector() as d:
