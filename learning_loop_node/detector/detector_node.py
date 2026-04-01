@@ -294,8 +294,8 @@ class DetectorNode(Node):
         @self.sio.event
         async def info(sid) -> Dict:
             match self._detector:
-                case _ActiveDetector() as d:
-                    return asdict(d.model_info)
+                case _ActiveDetector(model_info=info):
+                    return asdict(info)
                 case _Updating() as u:
                     return {"status": f"Updating model to version {u.version}"}
                 case _Initializing():
