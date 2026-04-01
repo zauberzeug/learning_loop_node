@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 import gc
 import logging
-import sys
 import os
 import shutil
 import subprocess
@@ -12,7 +11,6 @@ from datetime import datetime
 from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
-
 import socketio
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
