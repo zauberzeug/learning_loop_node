@@ -17,22 +17,22 @@ To start a node you have to implement the logic by inheriting from the correspon
 
 You can configure connection to our Learning Loop by specifying the following environment variables before starting:
 
-| Name                     | Alias        | Purpose                                                      | Required by               |
-| ------------------------ | ------------ | ------------------------------------------------------------ | ------------------------- |
-| LOOP_HOST                | HOST         | Learning Loop address (e.g. learning-loop.ai)                | all                       |
-| LOOP_USERNAME            | USERNAME     | Learning Loop user name                                      | all besides Detector      |
-| LOOP_PASSWORD            | PASSWORD     | Learning Loop password                                       | all besides Detector      |
-| LOOP_SSL_CERT_PATH       | -            | Path to the SSL certificate                                  | all (opt.)                |
-| LOOP_ORGANIZATION        | ORGANIZATION | Organization ID                                              | Detector                  |
-| LOOP_PROJECT             | PROJECT      | Project ID                                                   | Detector (opt.)           |
-| MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           |
-| MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           |
-| EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 0)      | Detector (opt.)           |
-| INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            |
-| RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)            |
-| KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            |
-| TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)            |
-| USE_BACKDOOR_CONTROLS    | -            | Always enable backdoor controls (set to 1)                   | Trainer / Detector (opt.) |
+| Name                     | Alias        | Purpose                                                      | Required by               | Default      |
+| ------------------------ | ------------ | ------------------------------------------------------------ | ------------------------- | ------------ |
+| LOOP_HOST                | HOST         | Learning Loop address (e.g. learning-loop.ai)                | all                       | -            |
+| LOOP_USERNAME            | USERNAME     | Learning Loop user name                                      | all besides Detector      | -            |
+| LOOP_PASSWORD            | PASSWORD     | Learning Loop password                                       | all besides Detector      | -            |
+| LOOP_SSL_CERT_PATH       | -            | Path to the SSL certificate                                  | all (opt.)                | -            |
+| LOOP_ORGANIZATION        | ORGANIZATION | Organization ID                                              | Detector                  | -            |
+| LOOP_PROJECT             | PROJECT      | Project ID                                                   | Detector                  | -            |
+| MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           | 0.3          |
+| MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           | 0.6          |
+| EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 1)      | Detector (opt.)           | 0            |
+| INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            | 10           |
+| RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)            | 0            |
+| KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            | 0            |
+| TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)            | 0 (disabled) |
+| USE_BACKDOOR_CONTROLS    | -            | Always enable backdoor controls (set to 1)                   | Trainer / Detector (opt.) | 0            |
 
 Note that organization and project IDs are always lower case and may differ from the names in the Learning Loop which can have uppercase letters.
 
@@ -239,5 +239,5 @@ After a short time the converted model should be available as well.
   - `id`: the model UUID (currently not needed by anyone, since host, org, project, version clearly identify the model)
   - `format`: the format e.g. yolo, tkdnn, yolor etc.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
-  - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, ` resolution_x`` resolution_y ` would also be conceivable or `resolutions` to give a list of possible resolutions)
+  - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, `resolution_x`` resolution_y` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
