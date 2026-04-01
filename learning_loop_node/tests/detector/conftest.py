@@ -9,7 +9,7 @@ import socket
 from dataclasses import asdict
 from glob import glob
 from multiprocessing import Process, log_to_stderr
-from typing import AsyncGenerator
+from typing import AsyncGenerator, final
 
 import numpy as np
 import pytest
@@ -30,6 +30,7 @@ logging.basicConfig(level=logging.INFO)
 log_to_stderr(logging.INFO)
 
 detector_port = GLOBALS.detector_port
+
 
 @contextlib.contextmanager
 def dummy_model_on_disk():
@@ -142,6 +143,7 @@ def get_outbox_files(outbox: Outbox):
     return [file for file in files if os.path.isfile(file)]
 
 
+@final
 class MockDetectorLogic(DetectorLogic):
 
     def __init__(self, model_info: ModelInformation):
@@ -159,6 +161,7 @@ class MockDetectorLogic(DetectorLogic):
         raise NotImplementedError()
 
 
+@final
 class MockDetectorFactory:
     model_format = 'mock'
 
