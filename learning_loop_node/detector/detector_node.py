@@ -538,7 +538,7 @@ class DetectorNode(Node):
         model_info = ModelInformation.load_from_disk(os.path.abspath(model_dir))
         if model_info is None:
             logging.warning('No model.json found in %s', model_dir)
-            return
+            raise Exception('model.json not found')
 
         if self._exclusive_model_build and isinstance(self._detector, _ActiveDetector):
             async with self.detection_lock:
