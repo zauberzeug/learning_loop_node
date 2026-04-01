@@ -191,7 +191,7 @@ class DetectorNode(Node):
     async def on_startup(self) -> None:
         try:
             self.outbox.ensure_continuous_upload()
-            current_model_dir = self._current_model_symlink()
+            current_model_dir = self._current_model_path()
             if current_model_dir and os.path.isdir(current_model_dir):
                 await self._build_and_swap_detector(current_model_dir)
         except Exception:
@@ -568,7 +568,7 @@ class DetectorNode(Node):
         self._detector = _ActiveDetector(new_detector, model_info)
 
     @staticmethod
-    def _current_model_symlink() -> Optional[str]:
+    def _current_model_path() -> Optional[str]:
         """Return the absolute path the current_model symlink points to, or None."""
         link = os.path.join(GLOBALS.data_folder, 'current_model')
         if os.path.islink(link):
