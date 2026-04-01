@@ -532,7 +532,8 @@ class DetectorNode(Node):
         The old detector continues to serve requests until the swap.
 
         If EXCLUSIVE_MODEL_BUILD is set and a detector is active, the old detector is torn down
-        first (freeing e.g. GPU VRAM) and detections are rejected until the new one is ready."""
+        first (freeing e.g. GPU VRAM) and detections are rejected until the new one is ready.
+        """
         logging.info('Loading model from %s', model_dir)
         model_info = ModelInformation.load_from_disk(os.path.abspath(model_dir))
         if model_info is None:
