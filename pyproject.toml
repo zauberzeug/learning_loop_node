@@ -48,3 +48,45 @@ exclude = ["learning_loop_node.tests*", "learning_loop_node.examples*"]
 
 [tool.mypy]
 ignore_missing_imports = true
+
+
+[tool.ruff]
+indent-width = 4
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "I",   # isort
+    "E",   # pycodestyle
+    "W",   # pycodestyle
+    "B",   # bugbear
+    "F",   # pyflakes
+    "UP",  # pyupgrade
+    "RUF", # ruff
+    "PL",  # pylint
+    "NPY201", # NumPy 2.0
+    "Q",   # flake8-quotes
+]
+fixable = [
+    "I",  # isort
+    "RUF022", # `__all__` is not sorted
+    "Q",  # flake8-quotes
+]
+ignore = [
+    "E501", # line too long
+    "E741",
+    "PLR2004", # magic value comparison
+    "Q001",  # multi line quotes
+    "Q002",  # docstring quotes
+    "PLR0911", # too many
+    "PLR0912", # too many
+    "PLR0913", # too many arguments
+    "PLR0915", # too many arguments
+]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+multiline-quotes = "single"
+docstring-quotes = "double"
+avoid-escape = true
