@@ -171,13 +171,23 @@ class DataExchanger():
         logging.info('Downloaded model %s(%s) to %s.', model_uuid, model_format, target_folder)
         return created_files
 
-    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
+    async def upload_model_files(self, context: Context, files: List[str], training_number: Optional[int], mformat: str, model_uuid: Optional[str] = None) -> str:
         """Used by the trainers. Function returns the new model uuid to use for detection.
 
-        :return: The new model uuid.
+        :param model_uuid: If provided, upload directly to the per-model endpoint
+            (``/projects/.../models/{uuid}/{format}/file``). This avoids the implicit
+            ``(training_number, latest)`` lookup on the loop. Fallback to the legacy
+            ``/trainings/{n}/models/latest/{format}/file`` endpoint when ``None`` —
+            required for older loops that don't return ``model_uuid`` from the
+            ``update_training`` ack.
+        :return: The model uuid stored.
         :raise CriticalError: If the upload does not return status code 200.
         """
-        response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
+        if model_uuid:
+            path = f'/{context.organization}/projects/{context.project}/models/{model_uuid}/{mformat}/file'
+        else:
+            path = f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file'
+        response = await self.loop_communicator.put(path, files=files)
         if response.status_code != 200:
             logging.error('Could not upload model for training %s, format %s: %s',
                           training_number, mformat, response.text)

@@ -389,6 +389,12 @@ class TrainerLogicGeneric(ABC):
                     self.training.context.organization, self.training.context.project, jsonable_encoder(new_training)))
                 if isinstance(result,  dict) and result['success']:
                     logger.info('successfully updated training %s', asdict(new_training))
+                    payload = result.get('payload') if isinstance(result.get('payload'), dict) else None
+                    if payload and payload.get('model_uuid'):
+                        # Loop returns the uuid of the Model row the metrics were applied to.
+                        # Use it to address the per-model upload endpoint directly (avoids
+                        # the legacy `(training_number, latest)` lookup on the loop side).
+                        self.training.model_uuid_for_detecting = payload['model_uuid']
                     self._on_metrics_published(new_best_model)
                 else:
                     raise Exception(f'Error for update_training: Response from loop was : {result}')
@@ -431,7 +437,9 @@ class TrainerLogicGeneric(ABC):
             _files = files[file_format] + [self._dump_categories_to_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
-            model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            model_uuid = await self.node.data_exchanger.upload_model_files(
+                context, _files, self.training.training_number, file_format,
+                model_uuid=self.training.model_uuid_for_detecting)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
