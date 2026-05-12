@@ -76,6 +76,15 @@ class TrainerNode(Node):
                 self.log.exception('error in stop_training. Exception:')
             return True
 
+        @sio_client.event
+        async def abort_training():
+            self.log.info('abort_training received. Current state : %s', self.trainer_logic.state)
+            try:
+                await self.trainer_logic.abort()
+            except Exception:
+                self.log.exception('error in abort_training. Exception:')
+            return True
+
     async def send_status(self):
         if not self.sio_client or not self.sio_client.connected:
             self.log.debug('cannot send status - not connected to the Learning Loop')
