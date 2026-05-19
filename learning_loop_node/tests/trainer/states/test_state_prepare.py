@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from ....data_classes import Context
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
@@ -24,7 +26,11 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerL
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
+@pytest.mark.parametrize('halt_method', ['stop', 'abort'])
+async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic, halt_method: str):
+    """In DataDownloading there is no model to save, so stop() and abort()
+    should produce the same outcome (full cleanup). Parametrized to flag any
+    accidental divergence in the future."""
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
     trainer._init_from_last_training()
@@ -32,7 +38,7 @@ async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=1, interval=0.001)
 
-    await trainer.stop()
+    await getattr(trainer, halt_method)()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None  # pylint: disable=protected-access
