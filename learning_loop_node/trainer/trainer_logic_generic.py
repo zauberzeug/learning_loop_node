@@ -487,17 +487,9 @@ class TrainerLogicGeneric(ABC):
     async def abort(self):
         """Abort the training: jump straight to ``ReadyForCleanup`` without running
         any wind-down state (no confusion-matrix sync, no model upload, no detection).
-
-        Differs from :meth:`stop` which lets the state machine progress naturally
-        through sync/upload/detect — i.e. ``stop`` = "wind down nicely and keep the
-        model", ``abort`` = "drop everything now". Used by the loop's abort flow so
-        that the model can be discarded safely on the loop side without a race
-        against a late upload.
         """
         if not self.training_active:
             return
-        if self._training is not None:
-            self.training.training_state = TrainerState.ReadyForCleanup
         if self.training_task:
             logger.info('aborting training task')
             if self.training_task.cancel():
