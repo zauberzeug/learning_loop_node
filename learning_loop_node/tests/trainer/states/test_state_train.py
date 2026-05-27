@@ -52,7 +52,7 @@ async def test_stop_during_training_uploads_model(mocker: MockerFixture, test_in
 
     trainer = test_initialized_trainer
     mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_get_uuid',
-                 return_value='12345678-bobo-7e92-f95f-424242424242')
+                 return_value='12345678-abcd-1234-abcd-123456789abc')
 
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
     trainer._init_from_last_training()
@@ -64,7 +64,7 @@ async def test_stop_during_training_uploads_model(mocker: MockerFixture, test_in
     await trainer.stop()
 
     await condition(lambda: trainer._training is not None
-                    and trainer.training.model_uuid_for_detecting == '12345678-bobo-7e92-f95f-424242424242',
+                    and trainer.training.model_uuid_for_detecting == '12345678-abcd-1234-abcd-123456789abc',
                     timeout=10, interval=0.05)
 
 
@@ -73,7 +73,7 @@ async def test_abort_during_training(mocker: MockerFixture, test_initialized_tra
     is made, the training is cleared, and the on-disk last_training_io is removed."""
     trainer = test_initialized_trainer
     upload_mock = mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_get_uuid',
-                               return_value='12345678-bobo-7e92-f95f-424242424242')
+                               return_value='12345678-abcd-1234-abcd-123456789abc')
 
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
     trainer._init_from_last_training()
