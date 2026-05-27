@@ -470,18 +470,23 @@ class TrainerLogicGeneric(ABC):
         await self.stop()
 
     async def stop(self):
-        """Stops the training process by canceling training task.
+        """Stop the training. Default is to abort.
+        """
+        await self.abort()
+
+    async def abort(self):
+        """Abort the training: cancel the task immediately and discards in-progress model.
         """
         if not self.training_active:
             return
         if self.training_task:
-            logger.info('cancelling training task')
+            logger.info('aborting training task')
             if self.training_task.cancel():
                 try:
                     await self.training_task
                 except asyncio.CancelledError:
                     pass
-                logger.info('cancelled training task')
+                logger.info('aborted training task')
                 self._may_restart()
 
     def _may_restart(self) -> None:

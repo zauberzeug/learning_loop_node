@@ -40,7 +40,7 @@ async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainer
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.Detecting, timeout=5, interval=0.001)
-    await trainer.stop()
+    await trainer.abort()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None

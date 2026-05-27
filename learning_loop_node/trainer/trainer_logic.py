@@ -147,20 +147,12 @@ class TrainerLogic(TrainerLogicGeneric):
     async def stop(self) -> None:
         """If executor is running, stop it. Else cancel training task."""
         print('===============> stop received in trainer_logic.', flush=True)
-
         if not self.training_active:
             return
         if self._executor and self._executor.is_running():
             await self.executor.stop_and_wait()
-        elif self.training_task:
-            logging.info('cancelling training task')
-            if self.training_task.cancel():
-                try:
-                    await self.training_task
-                except asyncio.CancelledError:
-                    pass
-                logging.info('cancelled training task')
-                self._may_restart()
+            return
+        await super().stop()
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
