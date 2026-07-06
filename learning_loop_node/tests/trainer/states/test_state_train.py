@@ -89,6 +89,27 @@ async def test_abort_during_training(mocker: MockerFixture, test_initialized_tra
     assert trainer.node.last_training_io.exists() is False
 
 
+async def test_abort_during_training_kills_executor(test_initialized_trainer: TestingTrainerLogic):
+    """abort() must terminate the training subprocess - a CancelledError must not propagate
+    past _train's cleanup and leave the executor process orphaned."""
+    trainer = test_initialized_trainer
+
+    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    trainer._init_from_last_training()
+    trainer._begin_training_task()
+
+    await condition(lambda: trainer._executor and trainer._executor.is_running(), timeout=1, interval=0.01)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=10, interval=0.01)
+
+    executor = trainer._executor  # keep the reference; _clear_training detaches the training
+    assert executor is not None and executor.is_running()
+
+    await trainer.abort()
+
+    await condition(lambda: not executor.is_running(), timeout=2, interval=0.01)
+    assert not executor.is_running()
+
+
 async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 

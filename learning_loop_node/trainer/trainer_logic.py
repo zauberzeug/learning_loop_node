@@ -79,9 +79,12 @@ class TrainerLogic(TrainerLogicGeneric):
 
         except TrainingError:
             logging.exception('Exception in trainer_logic._train')
-            await self.executor.stop_and_wait()
             self.training.training_state = previous_state
             raise
+        finally:
+            # shield so the subprocess is stopped even when the task is cancelled (e.g. on abort())
+            if self._executor and self._executor.is_running():
+                await asyncio.shield(self.executor.stop_and_wait())
 
     async def _do_detections(self) -> None:
         context = self.training.context
