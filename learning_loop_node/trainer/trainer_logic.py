@@ -82,10 +82,7 @@ class TrainerLogic(TrainerLogicGeneric):
             self.training.training_state = previous_state
             raise
         finally:
-            # Ensure the training subprocess is never left running, regardless of how we leave
-            # this method - in particular on abort(), where a CancelledError would otherwise
-            # propagate past the cleanup and orphan the executor process.
-            # shield so the terminate+wait completes even while the task is being cancelled.
+            # shield so the subprocess is stopped even when the task is cancelled (e.g. on abort())
             if self._executor and self._executor.is_running():
                 await asyncio.shield(self.executor.stop_and_wait())
 
