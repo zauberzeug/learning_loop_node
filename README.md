@@ -104,6 +104,27 @@ The endpoint returns None if the upload was successful and an error message othe
 
 For both ways to upload an image, the tag `picked_by_system` is automatically added to the image metadata.
 
+### Node and model information
+
+The detector has a REST endpoint that reports what the node is currently doing and which model it has loaded:
+
+`curl http://localhost/about`
+
+The response contains:
+
+- `operation_mode`: the current operation mode (`startup`, `idle` or `detecting`)
+- `state`: the state of the node (e.g. `idle`, `online`, `detecting`)
+- `model_info`: information about the loaded model (id, organization, project, version, categories, resolution, model size), or `null` if no model is loaded yet
+- `target_model`: the model version the detector is trying to load, or `null` if none is set
+- `version_control`: the model versioning mode (`follow_loop`, `specific_version` or `pause`)
+
+The same information is available via the socketio event `about`:
+`sio.emit('about')`
+
+Use this endpoint if you need the model uuid or its categories. If you only need the version numbers, use `/model_version` (see below).
+
+All REST endpoints of the node are also listed in the automatically generated API documentation at `http://localhost/docs`.
+
 ### Changing the model versioning mode
 
 The detector can be configured to one of the following behaviors:
@@ -130,6 +151,22 @@ The model versioning configuration can also be changed via a socketio event:
 
 There is also a GET endpoint to fetch the current model versioning configuration:
 `sio.emit('get_model_version')` or `curl http://localhost/model_version`
+
+### Changing the operation mode
+
+The operation mode controls whether the detector may load a new model:
+
+- `startup`: used until the first model is loaded
+- `idle`: the detector checks for and performs model updates
+- `detecting`: the detector runs detections and does not load new models
+
+The mode can be read and changed via a REST endpoint. Example Usage:
+
+- Fetch the current operation mode: `curl http://localhost/operation_mode`
+- Allow model updates: `curl -X PUT -d "idle" http://localhost/operation_mode`
+- Block model updates: `curl -X PUT -d "detecting" http://localhost/operation_mode`
+
+The GET request returns the mode as plain text. The PUT request returns status code 422 if the given value is not one of the three modes above.
 
 ### Changing the outbox mode
 

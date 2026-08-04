@@ -19,7 +19,7 @@ async def put_operation_mode(request: Request):
 
     Example Usage
 
-        curl -X PUT -d "check_for_updates" http://localhost/operation_mode
+        curl -X PUT -d "idle" http://localhost/operation_mode
         curl -X PUT -d "detecting" http://localhost/operation_mode
     '''
 
