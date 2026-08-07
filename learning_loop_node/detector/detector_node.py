@@ -49,11 +49,10 @@ from .rest import upload as rest_upload
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector_factory: DetectorLogicFactory,
-                 uuid: Optional[str] = None, use_backdoor_controls: bool = False,
-                 version: Optional[str] = None) -> None:
+                 uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
         super().__init__(name, uuid=uuid, node_type='detector', needs_login=False, needs_sio=False)
         self._detector_factory = detector_factory
-        self.node_version: Optional[str] = version or os.environ.get('NODE_VERSION')
+        self.node_version: Optional[str] = os.environ.get('NODE_VERSION')
         self._detector: _DetectorState = _Initializing()
         self._exclusive_model_build: bool = os.environ.get('EXCLUSIVE_MODEL_BUILD', '0').lower() in ('1', 'true')
         self._remaining_init_attempts: int = 2
