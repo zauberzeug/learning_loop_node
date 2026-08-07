@@ -185,3 +185,4 @@ class DetectorStatus():
     target_model: Optional[str]
     errors: Dict
     operation_mode: str
+    node_version: Optional[str] = None
