@@ -71,7 +71,7 @@ def get_free_memory_mb() -> float:  # NOTE used by yolov5
         h = pynvml.nvmlDeviceGetHandleByIndex(0)
         info = pynvml.nvmlDeviceGetMemoryInfo(h)
         free_mb = float(info.free) / 1024 / 1024
-    except pynvml.nvml.NVMLError:
+    except pynvml.NVMLError:
         logger = logging.getLogger(__name__)
         logger.warning('Could not get GPU memory info, returning free CPU memory instead')
         free_mb = float(os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_AVPHYS_PAGES')) / 1024 / 1024
