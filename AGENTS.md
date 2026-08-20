@@ -19,6 +19,43 @@ environment variables, the node types and how to write a node against them.
   tests. They are what `loop`'s CI runs against, so they are also the best template for a new node.
 - `demo_segmentation_tool/` — a worked annotator example.
 
+## Architecture
+
+Every node is a `FastAPI` subclass (`node.py`): its lifespan connects to the loop and starts a
+`repeat_loop` that calls the subclass' `on_repeat` every `repeat_loop_cycle_sec` (5 s) — that loop,
+not an event handler, is what drives status reporting, model updates and training continuation.
+Subclasses implement `on_startup`, `on_shutdown`, `on_repeat` and `register_sio_events`.
+
+Two channels lead to the loop and both are needed: `LoopCommunicator` (httpx, login cookies, retry
+on 401/429) for the REST API, and a socket.io *client* for status updates and loop-issued commands.
+`DataExchanger` sits on top of the communicator and moves images and model zips.
+
+- **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
+  (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
+  upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
+  ordinary exception records the error and rewinds to the previous state (retried on the next
+  cycle), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
+  `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
+  restart. The loop starts a training via the `begin_training` sio event. A concrete trainer
+  implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
+  `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
+  trainers that shell out to a training process.
+- **Detector** — the exception to the pattern: constructed with `needs_login=False, needs_sio=False`,
+  so it has no sio client to the loop. It *hosts* a socket.io server for its own clients and polls
+  `/{org}/projects/{project}/deployment/target` over REST in `on_repeat` instead. `_DetectorState`
+  (`_Initializing` / `_Updating` / `_ActiveDetector`) models the model swap: download to
+  `models/<version>`, build a `DetectorLogic` through the factory, then swap atomically so the old
+  model keeps serving until the new one is ready (unless `EXCLUSIVE_MODEL_BUILD` frees VRAM first).
+  `OperationMode` gates whether updates may happen at all. Detections flow through
+  `RelevanceFilter`, which writes selected images to the `Outbox` on disk; a separate upload process
+  drains it.
+- **Annotator** — thin: it forwards the loop frontend's `handle_user_input` events into
+  `AnnotatorLogic` and keeps a per-frontend history.
+
+All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
+(the node uuid is derived from its name and reused across restarts), `models/` plus the
+`current_model` symlink, `outbox/`, and the per-project training folders.
+
 ## Running and testing
 
 The suites talk to a real Learning Loop instance and read their credentials from a local `.env`
@@ -29,6 +66,21 @@ treat their failure as a regression you introduced.
 ./run_tests.sh              # all suites
 ./run_tests.sh <filter>     # passed to pytest as -k
 ```
+
+Each suite carries its own `pytest.ini` (that is where `asyncio_mode = auto` comes from), so always
+run pytest with a path inside one suite — a bare `pytest` from the repository root picks up no
+config and the async tests error out:
+
+```bash
+python -m pytest learning_loop_node/tests/trainer -v                     # one suite
+python -m pytest learning_loop_node/tests/trainer/test_errors.py -v      # one file
+python -m pytest learning_loop_node/tests/trainer -v -k <test_name>      # one test
+```
+
+An autouse fixture repoints `GLOBALS.data_folder` at `/tmp/learning_loop_lib_data` and wipes it
+around every test, so tests never touch `/data`. The `general` suite generates and deletes a real
+`zauberzeug/pytest_nodelib_general` project on the loop; the detector suite starts the node in a
+forked uvicorn process on `GLOBALS.detector_port`.
 
 There is no `.pre-commit-config.yaml` here and no ruff in the project environment, despite what the
 shared Linting section says. Lint with:
