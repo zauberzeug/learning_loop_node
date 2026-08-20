@@ -1,0 +1,93 @@
+"""Run a blocking, CPU-bound generator in its own process without blocking the event loop.
+
+A trainer that trains in-process has a problem: the training must not stall the node, and CUDA
+state must stay out of the node process so a crashed training cannot take the node with it.
+:func:`iterator_cpu_bound` runs the generator in a spawned process and yields what it produces
+through a ``maxsize=1`` queue, so the producer can never run more than one item ahead of the
+bookkeeping that consumes it — which is what lets a trainer alternate between two model files
+and know the one it is copying is not being rewritten.
+
+Exceptions raised inside the process are re-raised in the caller, and the process is killed if
+the caller leaves the context early.
+"""
+from __future__ import annotations
+
+import asyncio
+import multiprocessing
+import queue
+import traceback
+from collections.abc import AsyncGenerator, Callable, Iterator
+from contextlib import asynccontextmanager
+from multiprocessing.queues import Queue as MPQueue
+from typing import Any, ParamSpec, TypeVar
+
+T = TypeVar('T')
+P = ParamSpec('P')
+
+
+class IteratorDone:
+    pass
+
+
+def _iterator_wrapper(
+    it: Callable[..., Iterator[T]],
+    state_queue: MPQueue[T | Exception | IteratorDone],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> None:
+    try:
+        for data in it(*args, **kwargs):
+            state_queue.put(data)
+    except Exception as e:
+        print(traceback.format_exc())
+        state_queue.put(e)
+
+    state_queue.put(IteratorDone())
+
+
+async def _iterator_cpu_bound_inner(
+    it: Callable[P, Iterator[T]],
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> AsyncGenerator[T, None]:
+    state_queue: MPQueue[T | Exception | IteratorDone] = multiprocessing.Queue(maxsize=1)
+    process = multiprocessing.Process(
+        target=_iterator_wrapper,
+        args=(it, state_queue, args, kwargs),
+        name='iterator_cpu_bound',
+    )
+
+    process.start()
+
+    try:
+        while True:
+            try:
+                item = await asyncio.to_thread(state_queue.get, True, 0.5)
+            except queue.Empty:
+                if not process.is_alive():
+                    break
+                continue
+            match item:
+                case IteratorDone():
+                    break
+                case Exception() as e:
+                    raise e
+                case _ as other:
+                    yield other
+    finally:
+        if process.is_alive():
+            process.kill()
+        process.join()
+
+
+@asynccontextmanager
+async def iterator_cpu_bound(
+    it: Callable[P, Iterator[T]],
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> AsyncGenerator[AsyncGenerator[T, None], None]:
+    iterator = _iterator_cpu_bound_inner(it, *args, **kwargs)
+    try:
+        yield iterator
+    finally:
+        await asyncio.shield(iterator.aclose())

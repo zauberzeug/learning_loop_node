@@ -54,6 +54,15 @@ on 401/429) for the REST API, and a socket.io *client* for status updates and lo
 - **Annotator** — thin: it forwards the loop frontend's `handle_user_input` events into
   `AnnotatorLogic` and keeps a per-frontend history.
 
+`trainer/subprocess.py`, `trainer/batch_size.py` and `trainer/metrics.py` hold the parts of a
+trainer that are not framework-specific. `iterator_cpu_bound` runs a training generator in a
+spawned process and yields its progress through a `maxsize=1` queue, so the event loop stays
+responsive, CUDA state stays out of the node process, and the training can never run more than
+one item ahead of the bookkeeping. `find_batch_size` probes for the largest power-of-two batch
+that fits, around a `fits` predicate the trainer supplies — none of it imports torch, so a node
+brings its own way of running a step. `macro_f1` scores the confusion matrix
+`_get_new_best_training_state` returns.
+
 `helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
 configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
 *and* an environment variable from one declaration — `--conf-threshold` reads

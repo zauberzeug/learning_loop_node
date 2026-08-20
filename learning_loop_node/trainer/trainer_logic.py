@@ -178,9 +178,19 @@ class TrainerLogic(TrainerLogicGeneric):
         '''Is called when self.can_resume() returns True.
         One may resume the training on a previously trained model stored by self.on_model_published(basic_model).'''
 
-    @abstractmethod
     def _get_executor_error_from_log(self) -> Optional[str]:
-        '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
+        '''Reports what went wrong to the Learning Loop by reading self.executor's log.
+
+        The default recognises the CUDA failures every trainer hits. Override to add messages a
+        particular training framework produces, and call super() to keep these.'''
+        if self._executor is None:
+            return None
+        for line in self._executor.get_log_by_lines(tail=50):
+            if 'CUDA out of memory' in line:
+                return 'graphics card is out of memory'
+            if 'CUDA error: invalid device ordinal' in line:
+                return 'graphics card not found'
+        return None
 
     @abstractmethod
     async def _detect(self, model_information: ModelInformation, images: List[str], model_folder: str) -> List[Detections]:
