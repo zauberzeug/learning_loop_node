@@ -2,8 +2,8 @@
 
 `learning_loop_node` is the **public Python library** every node uses to talk to the
 [Learning Loop](https://learning-loop.ai). Four node types build on it: Trainer, Detector,
-Annotator and Converter. It is published to PyPI, so its public surface is an API that
-`loop`, `dfine_node`, `yolov5_node` and `classification_node` depend on.
+Annotator and Converter. It is published to PyPI, so its public surface is an API that the
+Learning Loop backend and every node repository depends on — `../yolov5_node` is the public one.
 
 For coding standards see [CONTRIBUTING.md](CONTRIBUTING.md). [README.md](README.md) documents the
 environment variables, the node types and how to write a node against them.
@@ -82,8 +82,7 @@ around every test, so tests never touch `/data`. The `general` suite generates a
 `zauberzeug/pytest_nodelib_general` project on the loop; the detector suite starts the node in a
 forked uvicorn process on `GLOBALS.detector_port`.
 
-There is no `.pre-commit-config.yaml` here and no ruff in the project environment, despite what the
-shared Linting section says. Lint with:
+There is no `.pre-commit-config.yaml` here and no ruff in the project environment. Lint with:
 
 ```bash
 uvx ruff check .
@@ -97,11 +96,10 @@ Compare the count on the files you touched, before and after.
 ## Working in this repository
 
 - **This is a library — declaring a dependency is part of its API.** Before removing or loosening
-  one, grep the consumers (`../loop`, `../dfine_node`, `../yolov5_node`,
-  `../classification_node`) for the package: a consumer that imports it without declaring it
-  inherits it from here and breaks when it goes away.
-- **Renaming or reshaping anything exported** breaks those four repositories. Say so in the pull
-  request and check whether a companion change is needed there.
+  one, grep every consuming repository checked out beside this one for the package: a consumer that
+  imports it without declaring it inherits it from here and breaks when it goes away.
+- **Renaming or reshaping anything exported** breaks those repositories. Say so in the pull request
+  and check whether a companion change is needed there.
 - `../loop` checks this repository out as its `nodes` symlink, so a local change is visible to a
   local loop immediately — but only a released version reaches CI and production.
 - Bump `version` in `pyproject.toml` for a release; the trainer nodes pin the library version in
