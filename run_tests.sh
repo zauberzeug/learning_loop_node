@@ -6,6 +6,7 @@ set -o allexport; source .env; set +o allexport
 # Check if argument is provided
 if [ $# -eq 1 ]; then
     # Run tests with filter
+    python -m pytest learning_loop_node/tests/unit -v -s -k "$1"
     python -m pytest learning_loop_node/tests/annotator -v -s -k "$1"
     python -m pytest learning_loop_node/tests/detector -v -s -k "$1" 
     python -m pytest learning_loop_node/tests/trainer -v -s -k "$1"
@@ -17,6 +18,8 @@ fi
 
 
 # Run the tests
+# unit runs first: it is the only suite that needs no Learning Loop
+python -m pytest learning_loop_node/tests/unit -v
 python -m pytest learning_loop_node/tests/annotator -v
 python -m pytest learning_loop_node/tests/detector -v
 python -m pytest learning_loop_node/tests/trainer -v

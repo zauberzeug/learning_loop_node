@@ -14,7 +14,9 @@ environment variables, the node types and how to write a node against them.
   machinery, `trainer/`, `detector/`, `annotation/` for the per-type base logic, `data_classes/`
   and `enums/` for the wire types, `loop_communication.py` and `data_exchanger.py` for the
   loop-facing HTTP and socket.io traffic.
-- `learning_loop_node/tests/` — `annotator`, `detector`, `trainer` and `general` suites.
+- `learning_loop_node/tests/` — `unit`, `annotator`, `detector`, `trainer` and `general` suites.
+  Only `unit` runs without a Learning Loop; it covers the pure helpers such as
+  `detector/postprocess.py` and `detector/geometry.py`.
 - `mock_trainer/`, `mock_detector/`, `mock_annotator/` — reference implementations with their own
   tests. They are what `loop`'s CI runs against, so they are also the best template for a new node.
 - `demo_segmentation_tool/` — a worked annotator example.
@@ -52,15 +54,30 @@ on 401/429) for the REST API, and a socket.io *client* for status updates and lo
 - **Annotator** — thin: it forwards the loop frontend's `handle_user_input` events into
   `AnnotatorLogic` and keeps a per-frontend history.
 
+`detector/postprocess.py` and `detector/geometry.py` hold the parts of a detector that do *not*
+depend on the model: confidence filtering, per-class NMS, box/point clipping, and turning
+predictions into the loop's dataclasses. A node should import them rather than write its own —
+every node repository had grown its own drifting copy, which is why they live here. Note the two
+containers: `to_image_metadata` builds what a **detector** node reports, `to_detections` what a
+**trainer**'s auto-detection pass reports. Both go through one routine, so the two paths cannot
+drift apart again.
+
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the
 `current_model` symlink, `outbox/`, and the per-project training folders.
 
 ## Running and testing
 
-The suites talk to a real Learning Loop instance and read their credentials from a local `.env`
-(`LOOP_HOST`, `LOOP_USERNAME`, `LOOP_PASSWORD`). Without a reachable loop they cannot pass — do not
-treat their failure as a regression you introduced.
+The `unit` suite is self-contained — no Learning Loop, no credentials, no network — so it is the
+one to run while iterating, and the one CI gates the others on:
+
+```bash
+python -m pytest learning_loop_node/tests/unit -v
+```
+
+Every other suite talks to a real Learning Loop instance and reads its credentials from a local
+`.env` (`LOOP_HOST`, `LOOP_USERNAME`, `LOOP_PASSWORD`). Without a reachable loop those cannot pass —
+do not treat their failure as a regression you introduced.
 
 ```bash
 ./run_tests.sh              # all suites
@@ -91,7 +108,8 @@ uvx ruff check .
 A clean tree already reports several hundred ruff findings, so a clean run is not a reachable goal.
 Compare the count on the files you touched, before and after.
 
-`.github/workflows/pytest.yml` runs the suites, `publish.yml` releases to PyPI on a tagged release.
+`.github/workflows/pytest.yml` runs the suites (the `unit` job first, without secrets),
+`publish.yml` releases to PyPI on a tagged release.
 
 ## Working in this repository
 

@@ -1,0 +1,69 @@
+"""Box and point clipping shared by every detector node.
+
+The loop stores a box as its top-left corner plus a size, so :func:`clip_box` is the form a
+node needs when it hands detections to the loop. Model outputs are not always in that form —
+:func:`clip_box_centered` keeps the centre-based convention explicit instead of letting two
+incompatible functions share one name, which is how the same helper ended up meaning two
+different things in different node repositories.
+"""
+
+
+def clip_box(
+    *,
+    x1: float,
+    y1: float,
+    width: float,
+    height: float,
+    img_width: int,
+    img_height: int,
+) -> tuple[int, int, int, int]:
+    """Clip a top-left-anchored box to the image bounds.
+
+    :param x1: Left edge of the box.
+    :param y1: Top edge of the box.
+    :return: The clipped ``(x1, y1, width, height)`` as ints; the size is never negative.
+    """
+    x2 = x1 + width
+    y2 = y1 + height
+
+    clipped_x1 = round(max(0.0, x1))
+    clipped_y1 = round(max(0.0, y1))
+    clipped_x2 = round(min(float(img_width), x2))
+    clipped_y2 = round(min(float(img_height), y2))
+
+    clipped_width = max(clipped_x2 - clipped_x1, 0)
+    clipped_height = max(clipped_y2 - clipped_y1, 0)
+
+    return clipped_x1, clipped_y1, clipped_width, clipped_height
+
+
+def clip_box_centered(
+    *,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    img_width: int,
+    img_height: int,
+) -> tuple[float, float, float, float]:
+    """Clip a centre-anchored box to the image bounds, keeping it centre-anchored.
+
+    Clipping moves the centre, because only the part of the box inside the image survives.
+
+    :param x: Horizontal centre of the box.
+    :param y: Vertical centre of the box.
+    :return: The clipped ``(x, y, width, height)``, still centre-anchored.
+    """
+    left = max(0.0, x - 0.5 * width)
+    top = max(0.0, y - 0.5 * height)
+    right = min(float(img_width), x + 0.5 * width)
+    bottom = min(float(img_height), y + 0.5 * height)
+
+    return 0.5 * (left + right), 0.5 * (top + bottom), right - left, bottom - top
+
+
+def clip_point(x: float, y: float, img_width: int, img_height: int) -> tuple[float, float]:
+    """Clamp a point into the image bounds."""
+    x = min(max(0, x), img_width)
+    y = min(max(0, y), img_height)
+    return x, y
