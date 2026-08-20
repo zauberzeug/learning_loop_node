@@ -54,6 +54,14 @@ on 401/429) for the REST API, and a socket.io *client* for status updates and lo
 - **Annotator** — thin: it forwards the loop frontend's `handle_user_input` events into
   `AnnotatorLogic` and keeps a per-frontend history.
 
+`helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
+configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
+*and* an environment variable from one declaration — `--conf-threshold` reads
+`CONF_THRESHOLD`. The exception is `--host`/`--port`, which read `NODE_HOST`/`NODE_PORT`: the
+bare `HOST` already means the loop's address, and a node adopting it would hand it to uvicorn
+and fail to bind. A node that used to require a prefix passes `legacy_env_prefix`, and the
+prefixed names keep working with a warning.
+
 `detector/postprocess.py` and `detector/geometry.py` hold the parts of a detector that do *not*
 depend on the model: confidence filtering, per-class NMS, box/point clipping, and turning
 predictions into the loop's dataclasses. A node should import them rather than write its own —

@@ -13,6 +13,7 @@ dependencies = [
     "python-socketio>=5.16.2,<6.0.0",
     "aiofiles>=0.7.0",
     "python-multipart>=0.0.31",
+    "configargparse>=1.7.1",
     "psutil>=5.9.0,<8.0.0",
     "numpy>=2.0,<3.0",
     "Pillow>=12.3.0,<13.0.0",
