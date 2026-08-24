@@ -6,10 +6,8 @@ from dacite import from_dict
 from ....data_classes import BoxDetection, Context, Detections
 from ....enums import TrainerState
 from ....loop_communication import LoopCommunicator
+from ....testing import TestingTrainerLogic, assert_training_state, create_active_training_file, get_dummy_detections
 from ....trainer.trainer_logic import TrainerLogic
-from ...test_helper import get_dummy_detections
-from ..state_helper import assert_training_state, create_active_training_file
-from ..testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
 

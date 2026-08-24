@@ -4,6 +4,7 @@ import asyncio
 import pytest
 
 from learning_loop_node.loop_communication import LoopCommunicator
+from learning_loop_node.testing import assert_not_production_loop
 
 
 @pytest.fixture()
@@ -15,6 +16,7 @@ async def glc():
 
 @pytest.fixture(autouse=True, scope='function')
 async def setup_test_project(glc: LoopCommunicator):
+    assert_not_production_loop()
     await glc.delete("/zauberzeug/projects/pytest_dst?keep_images=true")
     await asyncio.sleep(1)
     project_configuration = {

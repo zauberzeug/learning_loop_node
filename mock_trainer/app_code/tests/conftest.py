@@ -1,10 +1,10 @@
 import asyncio
-import shutil
 
 import pytest
 
-from learning_loop_node.globals import GLOBALS
 from learning_loop_node.loop_communication import LoopCommunicator
+from learning_loop_node.testing import assert_not_production_loop
+from learning_loop_node.testing.fixtures import clear_loggers, data_folder  # noqa: F401
 
 # pylint: disable=redefined-outer-name
 
@@ -18,6 +18,7 @@ async def glc():
 
 @pytest.fixture()
 async def setup_test_project1(glc: LoopCommunicator):
+    assert_not_production_loop()
     await glc.delete("/zauberzeug/projects/pytest_mock_trainer_test1?keep_images=true")
     await asyncio.sleep(1)
     project_configuration = {
@@ -30,16 +31,9 @@ async def setup_test_project1(glc: LoopCommunicator):
     await asyncio.sleep(1)
 
 
-@pytest.fixture(autouse=True, scope='function')
-def data_folder():
-    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-    yield
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-
-
 @pytest.fixture()
 async def setup_test_project2(glc: LoopCommunicator):
+    assert_not_production_loop()
     await glc.delete("/zauberzeug/projects/pytest_mock_trainer_test2?keep_images=true")
     await asyncio.sleep(1)
     project_configuration = {

@@ -3,11 +3,9 @@ from typing import List
 
 import numpy as np
 
-from learning_loop_node.data_classes import ImagesMetadata, ModelInformation
-
-from ...data_classes import ImageMetadata
-from ...detector.detector_logic import DetectorLogic
-from ..test_helper import get_dummy_metadata
+from ..data_classes import ImageMetadata, ImagesMetadata, ModelInformation
+from ..detector.detector_logic import DetectorLogic
+from .detections import get_dummy_metadata
 
 
 class TestingDetectorLogic(DetectorLogic):

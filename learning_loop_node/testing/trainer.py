@@ -2,8 +2,29 @@ import asyncio
 import time
 from typing import Dict, List, Optional
 
-from ...data_classes import Context, Detections, ModelInformation, PretrainedModel, TrainingStateData
-from ...trainer.trainer_logic import TrainerLogic
+from ..data_classes import (
+    Context,
+    Detections,
+    ModelInformation,
+    PretrainedModel,
+    Training,
+    TrainingStateData,
+)
+from ..trainer.trainer_logic import TrainerLogic
+from .helpers import condition, update_attributes
+
+
+def create_active_training_file(trainer: TrainerLogic, **kwargs) -> None:
+    update_attributes(trainer._training, **kwargs)  # pylint: disable=protected-access
+    trainer.node.last_training_io.save(training=trainer.training)
+
+
+async def assert_training_state(training: Training, state: str, timeout: float, interval: float) -> None:
+    try:
+        await condition(lambda: training.training_state == state, timeout=timeout, interval=interval)
+    except TimeoutError as exc:
+        msg = f"Trainer state should be '{state}' after {timeout} seconds, but is {training.training_state}"
+        raise AssertionError(msg) from exc
 
 
 class TestingTrainerLogic(TrainerLogic):
