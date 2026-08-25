@@ -15,12 +15,15 @@ def read_from_env(possible_names: List[str], ignore_errors: bool = True) -> Opti
             return None
         raise ValueError(f'no environment variable set for {possible_names}')
 
-    # Possible error: multiple values are not None and not equal
+    # Possible error: multiple values are not None and not equal.
+    # NOTE returning None here would be worse than picking one: the caller falls back to its
+    # default, and host()'s default is the production loop. `possible_names` is ordered by
+    # preference, so a disagreement resolves to the first name that is set.
     if len(values) > 1 and len(set(values)) > 1:
-        if ignore_errors:
-            logging.warning('different environment variables set for %s: %s', possible_names, values)
-            return None
-        raise ValueError(f'different environment variables set for {possible_names}: {values}')
+        if not ignore_errors:
+            raise ValueError(f'different environment variables set for {possible_names}: {values}')
+        logging.warning('different environment variables set for %s: %s - using %s',
+                        possible_names, values, values[0])
 
     return values[0]
 
