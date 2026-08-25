@@ -5,7 +5,7 @@ from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...globals import GLOBALS
 from ...helpers.misc import create_image_folder, create_project_folder, create_training_folder, delete_corrupt_images
-from .. import test_helper
+from ...testing import get_files_in_folder, get_latest_model_id
 
 # Used by all Nodes
 
@@ -13,11 +13,11 @@ from .. import test_helper
 async def test_download_model(data_exchanger: DataExchanger):
 
     _, _, trainings_folder = create_needed_folders()
-    model_id = await test_helper.get_latest_model_id(project='pytest_nodelib_general')
+    model_id = await get_latest_model_id(project='pytest_nodelib_general')
 
     await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest_nodelib_general'), model_id, 'mocked')
 
-    files = test_helper.get_files_in_folder(GLOBALS.data_folder)
+    files = get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3, str(files)
 
     file_1 = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/file_1.txt'
@@ -43,7 +43,7 @@ async def test_download_images(data_exchanger: DataExchanger):
     _, image_folder, _ = create_needed_folders()
     image_ids = await data_exchanger.fetch_image_uuids()
     await data_exchanger.download_images(image_ids, image_folder)
-    files = test_helper.get_files_in_folder(GLOBALS.data_folder)
+    files = get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3
 
 

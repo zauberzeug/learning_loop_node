@@ -25,6 +25,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# what a node repository needs to use learning_loop_node.testing
+testing = [
+    "pytest>=7.0.0,<10.0.0",
+    "pytest-asyncio>=0.21.1,<0.22.0",
+]
 dev = [
     "pytest-flakefinder>=1.1.0,<2.0.0",
     "pytest-mock>=3.6.1,<4.0.0",

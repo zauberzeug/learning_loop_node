@@ -1,9 +1,7 @@
 from pytest_mock import MockerFixture
 
 from ....enums import TrainerState
-from ...test_helper import condition
-from ..state_helper import assert_training_state, create_active_training_file
-from ..testing_trainer_logic import TestingTrainerLogic
+from ....testing import TestingTrainerLogic, assert_training_state, condition, create_active_training_file
 
 # pylint: disable=protected-access
 

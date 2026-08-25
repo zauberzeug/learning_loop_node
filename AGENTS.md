@@ -14,9 +14,13 @@ environment variables, the node types and how to write a node against them.
   machinery, `trainer/`, `detector/`, `annotation/` for the per-type base logic, `data_classes/`
   and `enums/` for the wire types, `loop_communication.py` and `data_exchanger.py` for the
   loop-facing HTTP and socket.io traffic.
-- `learning_loop_node/tests/` — `unit`, `annotator`, `detector`, `trainer` and `general` suites.
-  Only `unit` runs without a Learning Loop; it covers the pure helpers such as
-  `detector/postprocess.py` and `detector/geometry.py`.
+- `learning_loop_node/testing/` — test helpers that **ship in the wheel**, so a node repository
+  can import them: `TestingTrainerLogic`, `TestingDetectorLogic`, the dummy detections, the
+  `condition` poller and the `fixtures` pytest plugin. Anything reusable belongs here, not in
+  `tests/`.
+- `learning_loop_node/tests/` — the library's own suites (`unit`, `annotator`, `detector`,
+  `trainer`, `general`), excluded from the wheel. Only `unit` runs without a Learning Loop; it
+  covers the pure helpers such as `detector/postprocess.py` and `detector/geometry.py`.
 - `mock_trainer/`, `mock_detector/`, `mock_annotator/` — reference implementations with their own
   tests. They are what `loop`'s CI runs against, so they are also the best template for a new node.
 - `demo_segmentation_tool/` — a worked annotator example.
@@ -112,9 +116,20 @@ python -m pytest learning_loop_node/tests/trainer -v -k <test_name>      # one t
 ```
 
 An autouse fixture repoints `GLOBALS.data_folder` at `/tmp/learning_loop_lib_data` and wipes it
-around every test, so tests never touch `/data`. The `general` suite generates and deletes a real
-`zauberzeug/pytest_nodelib_general` project on the loop; the detector suite starts the node in a
-forked uvicorn process on `GLOBALS.detector_port`.
+around every test, so tests never touch `/data`. It lives in `learning_loop_node/testing/fixtures.py`
+and every suite pulls it in with
+
+```python
+from ...testing.fixtures import clear_loggers, data_folder  # noqa: F401
+```
+
+The `general` suite generates and deletes a real `zauberzeug/pytest_nodelib_general` project on the
+loop; the detector suite starts the node in a forked uvicorn process on `GLOBALS.detector_port`.
+
+Every fixture that creates or deletes a project calls `assert_not_production_loop()` first, and
+`run_tests.sh` refuses to start without `LOOP_HOST`. `LoopCommunicator` defaults to
+`learning-loop.ai` — production — so a forgotten `.env` would otherwise aim those fixtures at real
+customer data. CI is unaffected: the workflows pin `preview.learning-loop.ai`.
 
 There is no `.pre-commit-config.yaml` here and no ruff in the project environment. Lint with:
 

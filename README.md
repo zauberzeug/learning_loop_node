@@ -36,11 +36,49 @@ You can configure connection to our Learning Loop by specifying the following en
 
 Note that organization and project IDs are always lower case and may differ from the names in the Learning Loop which can have uppercase letters.
 
-#### Testing
+#### Testing your own node
 
-We use github actions for CI. Tests can also be executed locally by running
-`LOOP_HOST=XXXXXXXX LOOP_USERNAME=XXXXXXXX LOOP_PASSWORD=XXXXXXXX python -m pytest -v`  
-from learning_loop_node/learning_loop_node
+`learning_loop_node.testing` ships with the library, so a node repository can test itself without
+a Learning Loop:
+
+```bash
+pip install learning_loop_node[testing]
+```
+
+```python
+# tests/conftest.py
+pytest_plugins = ['learning_loop_node.testing.fixtures']
+```
+
+That gives every test an autouse `data_folder` fixture, which repoints `GLOBALS.data_folder` at
+`/tmp/learning_loop_lib_data` and wipes it around each test, so a test never touches `/data`. The
+path is shared, so do not run two such suites at once. The module also provides:
+
+| | |
+| --- | --- |
+| `TestingTrainerLogic` | a `TrainerLogic` that trains a sleeping subprocess — drive the state machine without a framework |
+| `TestingDetectorLogic`, `TestingDetectorFactory` | a detector that returns fixed detections |
+| `get_dummy_detections()`, `get_dummy_metadata()` | one detection of every type |
+| `condition(...)` | await a predicate with a timeout |
+| `assert_training_state(...)`, `create_active_training_file(...)` | drive and assert the trainer state machine |
+| `assert_not_production_loop()` | call this first in any fixture that creates or deletes a project |
+
+`assert_not_production_loop()` matters because `LoopCommunicator` falls back to `learning-loop.ai`
+when neither `LOOP_HOST` nor `HOST` is set — a forgotten `.env` would otherwise point a destructive
+fixture at production.
+
+#### Testing this library
+
+We use github actions for CI. Locally, the `unit` suite needs nothing at all:
+
+```bash
+python -m pytest learning_loop_node/tests/unit -v
+```
+
+The other suites need a reachable Learning Loop and its credentials in a local `.env`
+(`LOOP_HOST`, `LOOP_USERNAME`, `LOOP_PASSWORD`); `./run_tests.sh` runs them all and refuses to
+start without `LOOP_HOST`. Each suite carries its own `pytest.ini`, so always pass a path inside
+one suite — a bare `pytest` from the repository root picks up no config.
 
 ## Detector Node
 

@@ -3,7 +3,6 @@ import json
 import logging
 import multiprocessing
 import os
-import shutil
 import socket
 from dataclasses import asdict
 from multiprocessing import Process
@@ -16,6 +15,7 @@ import uvicorn
 from learning_loop_node.data_classes import Category, ModelInformation
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.testing.fixtures import clear_loggers, data_folder  # noqa: F401
 
 from ..mock_detector import MockDetectorFactory
 
@@ -102,11 +102,3 @@ async def port_is(free: bool):
             return
         await asyncio.sleep(0.5)
     raise Exception(f'port {detector_port} is {"not" if free else ""} free')
-
-
-@pytest.fixture(autouse=True, scope='function')
-def data_folder():
-    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-    yield
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)

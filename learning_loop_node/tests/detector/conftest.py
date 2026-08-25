@@ -4,7 +4,6 @@ import json
 import logging
 import multiprocessing
 import os
-import shutil
 import socket
 from dataclasses import asdict
 from glob import glob
@@ -22,7 +21,8 @@ from learning_loop_node.detector.detector_logic import DetectorLogic
 from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
-from .testing_detector import TestingDetectorFactory
+from ...testing import TestingDetectorFactory
+from ...testing.fixtures import clear_loggers, data_folder  # noqa: F401  pylint: disable=unused-import
 
 logging.basicConfig(level=logging.INFO)
 
@@ -177,29 +177,3 @@ async def detector_node():
         node = DetectorNode(name="test_node", detector_factory=MockDetectorFactory())
         await node._build_and_swap_detector(model_dir)
     return node
-
-# ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
-
-
-@pytest.fixture(autouse=True, scope='session')
-def clear_loggers():
-    """Remove handlers from all loggers"""
-    # see https://github.com/pytest-dev/pytest/issues/5502
-    yield
-
-    loggers = [logging.getLogger()] + list(logging.Logger.manager.loggerDict.values())
-    for logger in loggers:
-        if not isinstance(logger, logging.Logger):
-            continue
-        handlers = getattr(logger, 'handlers', [])
-        for handler in handlers:
-            logger.removeHandler(handler)
-
-
-@pytest.fixture(autouse=True, scope='function')
-def data_folder():
-    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-    os.makedirs(GLOBALS.data_folder, exist_ok=True)
-    yield
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)

@@ -1,6 +1,5 @@
 import logging
 import os
-import shutil
 import socket
 from multiprocessing import log_to_stderr
 
@@ -8,9 +7,9 @@ import icecream
 import pytest
 
 from ...data_classes import Context
-from ...globals import GLOBALS
+from ...testing import TestingTrainerLogic
+from ...testing.fixtures import clear_loggers, data_folder  # noqa: F401  pylint: disable=unused-import
 from ...trainer.trainer_node import TrainerNode
-from .testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
 
@@ -72,30 +71,3 @@ async def test_initialized_trainer():
 def is_port_in_use(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', port)) == 0
-
-
-# ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
-
-
-@pytest.fixture(autouse=True, scope='session')
-def clear_loggers():
-    """Remove handlers from all loggers"""
-    # see https://github.com/pytest-dev/pytest/issues/5502
-    yield
-
-    loggers = [logging.getLogger()] + list(logging.Logger.manager.loggerDict.values())
-    for logger in loggers:
-        if not isinstance(logger, logging.Logger):
-            continue
-        handlers = getattr(logger, 'handlers', [])
-        for handler in handlers:
-            logger.removeHandler(handler)
-
-
-@pytest.fixture(autouse=True, scope='function')
-def data_folder():
-    GLOBALS.data_folder = '/tmp/learning_loop_lib_data'
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)
-    os.makedirs(GLOBALS.data_folder, exist_ok=True)
-    yield
-    shutil.rmtree(GLOBALS.data_folder, ignore_errors=True)

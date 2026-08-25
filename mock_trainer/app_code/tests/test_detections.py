@@ -4,9 +4,10 @@ from glob import glob
 # pylint: disable=protected-access,redefined-outer-name,unused-argument
 import pytest
 from fastapi.encoders import jsonable_encoder
+
 from learning_loop_node.data_classes import Category, Context
 from learning_loop_node.globals import GLOBALS
-from learning_loop_node.tests import test_helper
+from learning_loop_node.testing import get_latest_model_id
 from learning_loop_node.trainer.trainer_node import TrainerNode
 
 from ..mock_trainer_logic import MockTrainerLogic
@@ -17,7 +18,7 @@ async def test_all():
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 
-    latest_model_id = await test_helper.get_latest_model_id(project='pytest_mock_trainer_test1')
+    latest_model_id = await get_latest_model_id(project='pytest_mock_trainer_test1')
 
     trainer = MockTrainerLogic(model_format='mocked')
     node = TrainerNode(name='test', trainer_logic=trainer)

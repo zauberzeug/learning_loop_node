@@ -10,8 +10,8 @@ from PIL import Image
 from ...data_classes import ModelInformation
 from ...detector.detector_node import DetectorNode, _ActiveDetector
 from ...globals import GLOBALS
+from ...testing import TestingDetectorLogic
 from .conftest import get_outbox_files
-from .testing_detector import TestingDetectorLogic
 
 file_path = os.path.abspath(__file__)
 test_image_path = os.path.join(os.path.dirname(file_path), 'test.jpg')

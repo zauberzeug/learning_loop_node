@@ -1,5 +1,4 @@
-from ..state_helper import create_active_training_file
-from ..testing_trainer_logic import TestingTrainerLogic
+from ....testing import TestingTrainerLogic, create_active_training_file
 
 # pylint: disable=protected-access
 
