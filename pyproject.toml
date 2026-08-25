@@ -26,6 +26,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "ruamel.yaml>=0.17,<1.0",  # only for testing merge_into_yaml; not a runtime dependency
     "pytest-flakefinder>=1.1.0,<2.0.0",
     "pytest-mock>=3.6.1,<4.0.0",
     "icecream>=2.1.0,<3.0.0",
