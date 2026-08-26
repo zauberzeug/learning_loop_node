@@ -25,7 +25,7 @@ def node_parser(*, description: str, legacy_env_prefix: str = '') -> configargpa
     """Build the parser for a node, pre-loaded with the settings every node has.
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
-        ``'DFINE_DETECTOR_'``. Prefixed names are still honoured, with a warning, so a
+        ``'MY_DETECTOR_'``. Prefixed names are still honoured, with a warning, so a
         deployment keeps working until it is updated. Leave empty for a node that has always
         read unprefixed names.
     """

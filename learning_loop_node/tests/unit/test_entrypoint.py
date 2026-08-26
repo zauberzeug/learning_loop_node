@@ -2,7 +2,7 @@ import pytest
 
 from ...helpers.entrypoint import node_parser
 
-MANAGED = ('WEIGHT_TYPE', 'DFINE_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT')
+MANAGED = ('WEIGHT_TYPE', 'MY_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT')
 
 
 @pytest.fixture(autouse=True)
@@ -47,25 +47,25 @@ def test_the_bind_address_has_a_name_of_its_own(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_a_node_that_used_a_prefix_still_reads_it(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv('DFINE_DETECTOR_WEIGHT_TYPE', 'FP32')
-    parser = _parser(legacy_env_prefix='DFINE_DETECTOR_')
+    monkeypatch.setenv('MY_DETECTOR_WEIGHT_TYPE', 'FP32')
+    parser = _parser(legacy_env_prefix='MY_DETECTOR_')
     assert parser.parse_args([]).weight_type == 'FP32'
 
 
 def test_the_prefixed_name_warns_which_one_to_use_instead(monkeypatch: pytest.MonkeyPatch,
                                                           caplog: pytest.LogCaptureFixture):
-    monkeypatch.setenv('DFINE_DETECTOR_WEIGHT_TYPE', 'FP32')
-    _parser(legacy_env_prefix='DFINE_DETECTOR_').parse_args([])
-    assert 'DFINE_DETECTOR_WEIGHT_TYPE' in caplog.text
+    monkeypatch.setenv('MY_DETECTOR_WEIGHT_TYPE', 'FP32')
+    _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([])
+    assert 'MY_DETECTOR_WEIGHT_TYPE' in caplog.text
     assert 'WEIGHT_TYPE' in caplog.text
 
 
 def test_the_current_name_wins_over_the_prefixed_one(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv('DFINE_DETECTOR_WEIGHT_TYPE', 'FP32')
+    monkeypatch.setenv('MY_DETECTOR_WEIGHT_TYPE', 'FP32')
     monkeypatch.setenv('WEIGHT_TYPE', 'FP16')
-    assert _parser(legacy_env_prefix='DFINE_DETECTOR_').parse_args([]).weight_type == 'FP16'
+    assert _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([]).weight_type == 'FP16'
 
 
 def test_a_node_without_a_legacy_prefix_ignores_prefixed_names(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv('DFINE_DETECTOR_WEIGHT_TYPE', 'FP32')
+    monkeypatch.setenv('MY_DETECTOR_WEIGHT_TYPE', 'FP32')
     assert _parser().parse_args([]).weight_type == 'FP16'
