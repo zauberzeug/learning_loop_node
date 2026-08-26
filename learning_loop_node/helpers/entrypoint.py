@@ -28,8 +28,10 @@ def node_parser(*, description: str, legacy_env_prefix: str = '') -> configargpa
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
         ``'MY_DETECTOR_'``. Prefixed names are still honoured, with a warning, so a
-        deployment keeps working until it is updated. Leave empty for a node that has always
-        read unprefixed names.
+        deployment keeps working until it is updated. Both spellings are accepted: the prefix
+        on the current environment variable (``MY_DETECTOR_NODE_HOST``) and the prefix on the
+        flag it was originally applied to (``MY_DETECTOR_HOST``). Leave empty for a node that
+        has always read unprefixed names.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',
@@ -70,8 +72,22 @@ class _NodeArgumentParser(configargparse.ArgumentParser):
             return
         for action in self._actions:
             name = getattr(action, 'env_var', None)
-            legacy = self.legacy_env_prefix + name if name else None
-            if not legacy or name in os.environ or legacy not in os.environ:
+            if not name or name in os.environ:
                 continue
-            os.environ[name] = os.environ[legacy]
-            logger.warning('%s is deprecated and will stop being read; set %s instead', legacy, name)
+            for legacy in self._legacy_names(action, name):
+                if legacy not in os.environ:
+                    continue
+                os.environ[name] = os.environ[legacy]
+                logger.warning('%s is deprecated and will stop being read; set %s instead', legacy, name)
+                break
+
+    def _legacy_names(self, action: Action, name: str) -> list[str]:
+        """The prefixed names this setting may still be configured under, preferred first.
+
+        A prefix used to be applied to the *flag*, so the old name of ``--host`` was
+        ``<PREFIX>HOST`` — not ``<PREFIX>NODE_HOST``. Deriving the legacy name from the current
+        ``env_var`` alone therefore misses exactly the settings that were renamed, which is every
+        one whose environment variable is not simply its flag in upper case.
+        """
+        candidates = [self.legacy_env_prefix + name, self.legacy_env_prefix + action.dest.upper()]
+        return list(dict.fromkeys(candidates))

@@ -2,7 +2,8 @@ import pytest
 
 from ...helpers.entrypoint import node_parser
 
-MANAGED = ('WEIGHT_TYPE', 'MY_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT')
+MANAGED = ('WEIGHT_TYPE', 'MY_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT',
+           'MY_DETECTOR_HOST', 'MY_DETECTOR_PORT', 'MY_DETECTOR_NODE_HOST')
 
 
 @pytest.fixture(autouse=True)
@@ -69,3 +70,40 @@ def test_the_current_name_wins_over_the_prefixed_one(monkeypatch: pytest.MonkeyP
 def test_a_node_without_a_legacy_prefix_ignores_prefixed_names(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv('MY_DETECTOR_WEIGHT_TYPE', 'FP32')
     assert _parser().parse_args([]).weight_type == 'FP16'
+
+
+def test_the_bind_address_is_still_read_under_the_name_the_prefix_gave_the_flag(
+        monkeypatch: pytest.MonkeyPatch):
+    """A prefix used to be applied to the flag, so `--host` was `<PREFIX>HOST`, not
+    `<PREFIX>NODE_HOST`. That is the only spelling a deployment can have set."""
+    monkeypatch.setenv('MY_DETECTOR_HOST', '127.0.0.1')
+    monkeypatch.setenv('MY_DETECTOR_PORT', '8099')
+    args = _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([])
+    assert (args.host, args.port) == ('127.0.0.1', 8099)
+
+
+def test_the_renamed_setting_warns_which_name_to_use_instead(monkeypatch: pytest.MonkeyPatch,
+                                                             caplog: pytest.LogCaptureFixture):
+    monkeypatch.setenv('MY_DETECTOR_HOST', '127.0.0.1')
+    _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([])
+    assert 'MY_DETECTOR_HOST' in caplog.text
+    assert 'NODE_HOST' in caplog.text
+
+
+def test_the_prefixed_current_name_is_honoured_too(monkeypatch: pytest.MonkeyPatch):
+    """A node whose prefixed spelling was already the current one keeps working."""
+    monkeypatch.setenv('MY_DETECTOR_NODE_HOST', '10.0.0.1')
+    assert _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([]).host == '10.0.0.1'
+
+
+def test_the_current_name_wins_over_both_prefixed_spellings(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('NODE_HOST', '10.0.0.1')
+    monkeypatch.setenv('MY_DETECTOR_NODE_HOST', '127.0.0.2')
+    monkeypatch.setenv('MY_DETECTOR_HOST', '127.0.0.3')
+    assert _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([]).host == '10.0.0.1'
+
+
+def test_the_loop_own_host_is_not_adopted_by_a_prefixed_node(monkeypatch: pytest.MonkeyPatch):
+    """`HOST` is the loop's address even here: only the *prefixed* spelling is a bind address."""
+    monkeypatch.setenv('HOST', 'preview.learning-loop.ai')
+    assert _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([]).host == '0.0.0.0'
