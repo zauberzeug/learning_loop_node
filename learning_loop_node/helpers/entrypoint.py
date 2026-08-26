@@ -20,6 +20,8 @@ from argparse import Action, Namespace
 import configargparse
 import uvicorn
 
+logger = logging.getLogger(__name__)
+
 
 def node_parser(*, description: str, legacy_env_prefix: str = '') -> configargparse.ArgumentParser:
     """Build the parser for a node, pre-loaded with the settings every node has.
@@ -42,7 +44,7 @@ def run_node(app: str, args: Namespace) -> None:
     :param app: Import string of the node object, conventionally ``'main:node'``.
     """
     reload = os.getenv('UVICORN_RELOAD', 'FALSE').lower() in ('true', '1')
-    logging.info('Uvicorn reload is set to: %s', reload)
+    logger.info('Uvicorn reload is set to: %s', reload)
     uvicorn.run(app, host=args.host, port=args.port, lifespan='on', reload=reload)
 
 
@@ -72,4 +74,4 @@ class _NodeArgumentParser(configargparse.ArgumentParser):
             if not legacy or name in os.environ or legacy not in os.environ:
                 continue
             os.environ[name] = os.environ[legacy]
-            logging.warning('%s is deprecated and will stop being read; set %s instead', legacy, name)
+            logger.warning('%s is deprecated and will stop being read; set %s instead', legacy, name)

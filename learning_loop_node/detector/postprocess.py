@@ -28,6 +28,8 @@ from ..enums import CategoryType
 from .categories import category_by_index
 from .geometry import clip_box, clip_point
 
+logger = logging.getLogger(__name__)
+
 MIN_BOX_SIZE: int = 2
 """Boxes this small are dropped: they carry no usable information and clutter the loop."""
 
@@ -229,8 +231,8 @@ def _append_detections(
                 )
             )
         else:
-            logging.warning('Unsupported category type %s for category %s', category.type, category.name)
+            logger.warning('Unsupported category type %s for category %s', category.type, category.name)
 
     if skipped_detections:
         log_msg = '\n'.join([str(d) for d in skipped_detections])
-        logging.warning('Removed %d small detections from result: \n%s', len(skipped_detections), log_msg)
+        logger.warning('Removed %d small detections from result: \n%s', len(skipped_detections), log_msg)
