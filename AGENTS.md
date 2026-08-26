@@ -14,9 +14,7 @@ environment variables, the node types and how to write a node against them.
   machinery, `trainer/`, `detector/`, `annotation/` for the per-type base logic, `data_classes/`
   and `enums/` for the wire types, `loop_communication.py` and `data_exchanger.py` for the
   loop-facing HTTP and socket.io traffic.
-- `learning_loop_node/tests/` — `unit`, `annotator`, `detector`, `trainer` and `general` suites.
-  Only `unit` runs without a Learning Loop; it covers the pure helpers such as
-  `detector/postprocess.py` and `detector/geometry.py`.
+- `learning_loop_node/tests/` — `annotator`, `detector`, `trainer` and `general` suites.
 - `mock_trainer/`, `mock_detector/`, `mock_annotator/` — reference implementations with their own
   tests. They are what `loop`'s CI runs against, so they are also the best template for a new node.
 - `demo_segmentation_tool/` — a worked annotator example.
@@ -28,9 +26,10 @@ Every node is a `FastAPI` subclass (`node.py`): its lifespan connects to the loo
 not an event handler, is what drives status reporting, model updates and training continuation.
 Subclasses implement `on_startup`, `on_shutdown`, `on_repeat` and `register_sio_events`.
 
-Two channels lead to the loop and both are needed: `LoopCommunicator` (httpx, login cookies, retry
-on 401/429) for the REST API, and a socket.io *client* for status updates and loop-issued commands.
-`DataExchanger` sits on top of the communicator and moves images and model zips.
+Nodes communicate with the loop via one or both of two channels:
+- `LoopCommunicator` (httpx and login cookies) for the REST API
+-  A socket.io client for status updates and loop-issued commands.
+A `DataExchanger` sits on top of the communicator to move images and model zips
 
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
@@ -42,8 +41,8 @@ on 401/429) for the REST API, and a socket.io *client* for status updates and lo
   implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
   `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process.
-- **Detector** — the exception to the pattern: constructed with `needs_login=False, needs_sio=False`,
-  so it has no sio client to the loop. It *hosts* a socket.io server for its own clients and polls
+- **Detector** — Detectors are rolled out on user machines and thus kept very simple -> `needs_login=False, needs_sio=False`. In the loop have few non-destructive capabilities and sio has shown to cause traffic spikes when trying to reconnect on bad connections.
+  It *hosts* a socket.io server for its own clients and polls
   `/{org}/projects/{project}/deployment/target` over REST in `on_repeat` instead. `_DetectorState`
   (`_Initializing` / `_Updating` / `_ActiveDetector`) models the model swap: download to
   `models/<version>`, build a `DetectorLogic` through the factory, then swap atomically so the old
@@ -135,7 +134,5 @@ Compare the count on the files you touched, before and after.
   imports it without declaring it inherits it from here and breaks when it goes away.
 - **Renaming or reshaping anything exported** breaks those repositories. Say so in the pull request
   and check whether a companion change is needed there.
-- `../loop` checks this repository out as its `nodes` symlink, so a local change is visible to a
-  local loop immediately — but only a released version reaches CI and production.
 - Bump `version` in `pyproject.toml` for a release; the trainer nodes pin the library version in
   their image tags (`A.B.C-nlvX.Y.Z`).
