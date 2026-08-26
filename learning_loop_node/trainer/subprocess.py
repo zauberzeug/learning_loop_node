@@ -25,24 +25,17 @@ T = TypeVar('T')
 P = ParamSpec('P')
 
 
-class IteratorDone:
-    pass
-
-
-def _iterator_wrapper(
-    it: Callable[..., Iterator[T]],
-    state_queue: MPQueue[T | Exception | IteratorDone],
-    args: tuple[Any, ...],
-    kwargs: dict[str, Any],
-) -> None:
+@asynccontextmanager
+async def iterator_cpu_bound(
+    it: Callable[P, Iterator[T]],
+    *args: P.args,
+    **kwargs: P.kwargs,
+) -> AsyncGenerator[AsyncGenerator[T, None], None]:
+    iterator = _iterator_cpu_bound_inner(it, *args, **kwargs)
     try:
-        for data in it(*args, **kwargs):
-            state_queue.put(data)
-    except Exception as e:
-        print(traceback.format_exc())
-        state_queue.put(e)
-
-    state_queue.put(IteratorDone())
+        yield iterator
+    finally:
+        await asyncio.shield(iterator.aclose())
 
 
 async def _iterator_cpu_bound_inner(
@@ -80,14 +73,21 @@ async def _iterator_cpu_bound_inner(
         process.join()
 
 
-@asynccontextmanager
-async def iterator_cpu_bound(
-    it: Callable[P, Iterator[T]],
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> AsyncGenerator[AsyncGenerator[T, None], None]:
-    iterator = _iterator_cpu_bound_inner(it, *args, **kwargs)
+def _iterator_wrapper(
+    it: Callable[..., Iterator[T]],
+    state_queue: MPQueue[T | Exception | IteratorDone],
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+) -> None:
     try:
-        yield iterator
-    finally:
-        await asyncio.shield(iterator.aclose())
+        for data in it(*args, **kwargs):
+            state_queue.put(data)
+    except Exception as e:
+        print(traceback.format_exc())
+        state_queue.put(e)
+
+    state_queue.put(IteratorDone())
+
+
+class IteratorDone:
+    pass

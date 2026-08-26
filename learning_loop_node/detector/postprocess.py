@@ -36,24 +36,37 @@ Detection = namedtuple('Detection', 'x y w h category probability')
 into :attr:`ModelInformation.categories`."""
 
 
-def bbox_iou(
-    box1: np.ndarray,
-    box2: np.ndarray,
-) -> np.ndarray:
-    """Compute IoU between box1 (1x4) and box2 (Nx4), both in x1y1x2y2 format."""
-    b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
-    b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
+def post_process(
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    classes: np.ndarray,
+    *,
+    conf_threshold: float,
+    iou_threshold: float,
+    origin_h: int,
+    origin_w: int,
+) -> list[Detection]:
+    """Filter by confidence, run NMS, return a :class:`Detection` list in x/y/w/h form."""
+    mask = scores > conf_threshold
+    boxes = boxes[mask].copy()
+    scores = scores[mask]
+    classes = classes[mask]
 
-    inter_x1 = np.maximum(b1_x1, b2_x1)
-    inter_y1 = np.maximum(b1_y1, b2_y1)
-    inter_x2 = np.minimum(b1_x2, b2_x2)
-    inter_y2 = np.minimum(b1_y2, b2_y2)
+    if len(scores) == 0:
+        return []
 
-    inter_area = np.clip(inter_x2 - inter_x1 + 1, 0, None) * np.clip(inter_y2 - inter_y1 + 1, 0, None)
-    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
-    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
+    boxes, scores, classes = non_max_suppression(
+        boxes, scores, classes,
+        iou_threshold=iou_threshold, origin_h=origin_h, origin_w=origin_w)
 
-    return inter_area / (b1_area + b2_area - inter_area + 1e-16)
+    result = []
+    for j, box in enumerate(boxes):
+        x1, y1, x2, y2 = box
+        w = x2 - x1
+        h = y2 - y1
+        result.append(Detection(int(x1), int(y1), int(w), int(h),
+                                int(classes[j]), round(float(scores[j]), 2)))
+    return result
 
 
 def non_max_suppression(
@@ -99,37 +112,24 @@ def non_max_suppression(
     return boxes[keep_indices], scores[keep_indices], classes[keep_indices]
 
 
-def post_process(
-    boxes: np.ndarray,
-    scores: np.ndarray,
-    classes: np.ndarray,
-    *,
-    conf_threshold: float,
-    iou_threshold: float,
-    origin_h: int,
-    origin_w: int,
-) -> list[Detection]:
-    """Filter by confidence, run NMS, return a :class:`Detection` list in x/y/w/h form."""
-    mask = scores > conf_threshold
-    boxes = boxes[mask].copy()
-    scores = scores[mask]
-    classes = classes[mask]
+def bbox_iou(
+    box1: np.ndarray,
+    box2: np.ndarray,
+) -> np.ndarray:
+    """Compute IoU between box1 (1x4) and box2 (Nx4), both in x1y1x2y2 format."""
+    b1_x1, b1_y1, b1_x2, b1_y2 = box1[:, 0], box1[:, 1], box1[:, 2], box1[:, 3]
+    b2_x1, b2_y1, b2_x2, b2_y2 = box2[:, 0], box2[:, 1], box2[:, 2], box2[:, 3]
 
-    if len(scores) == 0:
-        return []
+    inter_x1 = np.maximum(b1_x1, b2_x1)
+    inter_y1 = np.maximum(b1_y1, b2_y1)
+    inter_x2 = np.minimum(b1_x2, b2_x2)
+    inter_y2 = np.minimum(b1_y2, b2_y2)
 
-    boxes, scores, classes = non_max_suppression(
-        boxes, scores, classes,
-        iou_threshold=iou_threshold, origin_h=origin_h, origin_w=origin_w)
+    inter_area = np.clip(inter_x2 - inter_x1 + 1, 0, None) * np.clip(inter_y2 - inter_y1 + 1, 0, None)
+    b1_area = (b1_x2 - b1_x1 + 1) * (b1_y2 - b1_y1 + 1)
+    b2_area = (b2_x2 - b2_x1 + 1) * (b2_y2 - b2_y1 + 1)
 
-    result = []
-    for j, box in enumerate(boxes):
-        x1, y1, x2, y2 = box
-        w = x2 - x1
-        h = y2 - y1
-        result.append(Detection(int(x1), int(y1), int(w), int(h),
-                                int(classes[j]), round(float(scores[j]), 2)))
-    return result
+    return inter_area / (b1_area + b2_area - inter_area + 1e-16)
 
 
 def detections_from_xyxy(
@@ -149,6 +149,32 @@ def detections_from_xyxy(
     for label, box, score in zip(labels, boxes, scores, strict=True):
         x1, y1, x2, y2 = (round(value) for value in box)
         result.append(Detection(x1, y1, x2 - x1, y2 - y1, int(label), score))
+    return result
+
+
+def to_image_metadata(
+    detections: list[Detection],
+    model_information: ModelInformation,
+    im_height: int,
+    im_width: int,
+) -> ImageMetadata:
+    """Build the container a *detector* node reports from a list of detections."""
+    image_metadata = ImageMetadata()
+    _append_detections(image_metadata, detections, model_information, im_height, im_width)
+    return image_metadata
+
+
+def to_detections(
+    detections: list[Detection],
+    model_information: ModelInformation,
+    im_height: int,
+    im_width: int,
+    *,
+    image_id: str | None = None,
+) -> Detections:
+    """Build the container a *trainer*'s auto-detection pass reports."""
+    result = Detections(image_id=image_id)
+    _append_detections(result, detections, model_information, im_height, im_width)
     return result
 
 
@@ -208,29 +234,3 @@ def _append_detections(
     if skipped_detections:
         log_msg = '\n'.join([str(d) for d in skipped_detections])
         logging.warning('Removed %d small detections from result: \n%s', len(skipped_detections), log_msg)
-
-
-def to_image_metadata(
-    detections: list[Detection],
-    model_information: ModelInformation,
-    im_height: int,
-    im_width: int,
-) -> ImageMetadata:
-    """Build the container a *detector* node reports from a list of detections."""
-    image_metadata = ImageMetadata()
-    _append_detections(image_metadata, detections, model_information, im_height, im_width)
-    return image_metadata
-
-
-def to_detections(
-    detections: list[Detection],
-    model_information: ModelInformation,
-    im_height: int,
-    im_width: int,
-    *,
-    image_id: str | None = None,
-) -> Detections:
-    """Build the container a *trainer*'s auto-detection pass reports."""
-    result = Detections(image_id=image_id)
-    _append_detections(result, detections, model_information, im_height, im_width)
-    return result
