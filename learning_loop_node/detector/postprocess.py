@@ -13,7 +13,7 @@ paths clip and filter identically.
 """
 
 import logging
-from collections import namedtuple
+from typing import NamedTuple
 
 import numpy as np
 
@@ -33,9 +33,17 @@ logger = logging.getLogger(__name__)
 MIN_BOX_SIZE: int = 2
 """Boxes this small are dropped: they carry no usable information and clutter the loop."""
 
-Detection = namedtuple('Detection', 'x y w h category probability')
-"""One surviving prediction. ``x``/``y`` are the top-left corner, ``category`` is an index
-into :attr:`ModelInformation.categories`."""
+
+class Detection(NamedTuple):
+    """One surviving prediction. ``x``/``y`` are the top-left corner, ``category`` is an index
+    into :attr:`ModelInformation.categories`."""
+
+    x: int
+    y: int
+    w: int
+    h: int
+    category: int
+    probability: float
 
 
 def post_process(

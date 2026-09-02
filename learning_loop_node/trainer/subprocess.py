@@ -13,13 +13,15 @@ the caller leaves the context early.
 from __future__ import annotations
 
 import asyncio
+import logging
 import multiprocessing
 import queue
-import traceback
 from collections.abc import AsyncGenerator, Callable, Iterator
 from contextlib import asynccontextmanager
 from multiprocessing.queues import Queue as MPQueue
 from typing import Any, ParamSpec, TypeVar
+
+logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
 P = ParamSpec('P')
@@ -83,7 +85,7 @@ def _iterator_wrapper(
         for data in it(*args, **kwargs):
             state_queue.put(data)
     except Exception as e:
-        print(traceback.format_exc())
+        logger.exception('iterator_cpu_bound child process failed')
         state_queue.put(e)
 
     state_queue.put(IteratorDone())
