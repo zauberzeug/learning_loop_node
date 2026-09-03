@@ -1,14 +1,4 @@
-"""Model-agnostic detection postprocessing.
-
-Every detection node ends up doing the same three things with a model's raw output: drop
-low-confidence predictions, suppress overlapping boxes, and turn what survives into the
-loop's detection dataclasses. None of that depends on the model.
-
-Two containers carry the same detections in this library: a detector node reports
-:class:`~learning_loop_node.data_classes.image_metadata.ImageMetadata`, while a trainer's
-auto-detection pass reports :class:`~learning_loop_node.data_classes.detections.Detections`.
-:func:`to_image_metadata` and :func:`to_detections` build them from the same routine.
-"""
+"""Model-agnostic detection postprocessing."""
 
 import logging
 from typing import NamedTuple
@@ -29,7 +19,6 @@ from .geometry import clip_box, clip_point
 logger = logging.getLogger(__name__)
 
 MIN_BOX_SIZE: int = 2
-"""A box is dropped unless both of its sides exceed this."""
 
 
 class Detection(NamedTuple):
@@ -148,8 +137,7 @@ def detections_from_xyxy(
 ) -> list[Detection]:
     """Convert already-suppressed model output into :class:`Detection` values.
 
-    For nodes whose model (or a torch/ONNX op) has done the suppression already, so only the
-    coordinate conversion is left. Corners are rounded here; :func:`post_process` truncates.
+    Corners are rounded here; :func:`post_process` truncates.
     """
     result = []
     for label, box, score in zip(labels, boxes, scores, strict=True):
