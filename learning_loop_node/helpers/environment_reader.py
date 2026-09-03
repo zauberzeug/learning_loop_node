@@ -6,6 +6,11 @@ logger = logging.getLogger(__name__)
 
 # TODO ignore_errors should default to False, but maybe some tests rely on this behavior
 def read_from_env(possible_names: list[str], ignore_errors: bool = True) -> str | None:
+    """Read the first of ``possible_names`` that is set.
+
+    :param possible_names: In order of preference; on a disagreement the first one set wins.
+    :raises ValueError: If nothing is set or the values disagree, unless ``ignore_errors``.
+    """
     values = [os.environ.get(name, None) for name in possible_names]
     values = list(filter(None, values))
 
@@ -16,15 +21,12 @@ def read_from_env(possible_names: list[str], ignore_errors: bool = True) -> str 
             return None
         raise ValueError(f'no environment variable set for {possible_names}')
 
-    # Possible error: multiple values are not None and not equal.
-    # NOTE returning None here would be worse than picking one: the caller falls back to its
-    # default, and host()'s default is the production loop. `possible_names` is ordered by
-    # preference, so a disagreement resolves to the first name that is set.
+    # Possible error: multiple values are not None and not equal
     if len(values) > 1 and len(set(values)) > 1:
         if not ignore_errors:
             raise ValueError(f'different environment variables set for {possible_names}: {values}')
         logger.warning('different environment variables set for %s: %s - using %s',
-                        possible_names, values, values[0])
+                       possible_names, values, values[0])
 
     return values[0]
 

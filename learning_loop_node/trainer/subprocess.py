@@ -1,11 +1,8 @@
 """Run a blocking, CPU-bound generator in its own process without blocking the event loop.
 
-A trainer that trains in-process has a problem: the training must not stall the node, and CUDA
-state must stay out of the node process so a crashed training cannot take the node with it.
-:func:`iterator_cpu_bound` runs the generator in a spawned process and yields what it produces
-through a ``maxsize=1`` queue, so the producer can never run more than one item ahead of the
-bookkeeping that consumes it — which is what lets a trainer alternate between two model files
-and know the one it is copying is not being rewritten.
+:func:`iterator_cpu_bound` runs the generator in a separate process and yields what it produces
+through a ``maxsize=1`` queue, so the producer never runs more than one item ahead of the
+consumer.
 
 Exceptions raised inside the process are re-raised in the caller, and the process is killed if
 the caller leaves the context early.

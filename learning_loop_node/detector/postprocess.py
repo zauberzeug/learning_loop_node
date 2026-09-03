@@ -2,14 +2,12 @@
 
 Every detection node ends up doing the same three things with a model's raw output: drop
 low-confidence predictions, suppress overlapping boxes, and turn what survives into the
-loop's detection dataclasses. None of that depends on the model, so it lives here rather
-than being re-derived — and re-diverging — in each node repository.
+loop's detection dataclasses. None of that depends on the model.
 
 Two containers carry the same detections in this library: a detector node reports
 :class:`~learning_loop_node.data_classes.image_metadata.ImageMetadata`, while a trainer's
 auto-detection pass reports :class:`~learning_loop_node.data_classes.detections.Detections`.
-:func:`to_image_metadata` and :func:`to_detections` build them from the same routine, so both
-paths clip and filter identically.
+:func:`to_image_metadata` and :func:`to_detections` build them from the same routine.
 """
 
 import logging
@@ -31,7 +29,7 @@ from .geometry import clip_box, clip_point
 logger = logging.getLogger(__name__)
 
 MIN_BOX_SIZE: int = 2
-"""Boxes this small are dropped: they carry no usable information and clutter the loop."""
+"""A box is dropped unless both of its sides exceed this."""
 
 
 class Detection(NamedTuple):
@@ -74,8 +72,8 @@ def post_process(
         x1, y1, x2, y2 = box
         w = x2 - x1
         h = y2 - y1
-        result.append(Detection(int(x1), int(y1), int(w), int(h),
-                                int(classes[j]), round(float(scores[j]), 2)))
+        result.append(Detection(x=int(x1), y=int(y1), w=int(w), h=int(h),
+                                category=int(classes[j]), probability=round(float(scores[j]), 2)))
     return result
 
 
@@ -151,14 +149,13 @@ def detections_from_xyxy(
     """Convert already-suppressed model output into :class:`Detection` values.
 
     For nodes whose model (or a torch/ONNX op) has done the suppression already, so only the
-    coordinate conversion is left. Corners are rounded rather than truncated, which is half a
-    pixel more faithful than :func:`post_process` — that one keeps truncating so its output
-    stays bit-identical to what detectors reported before this module existed.
+    coordinate conversion is left. Corners are rounded here; :func:`post_process` truncates.
     """
     result = []
     for label, box, score in zip(labels, boxes, scores, strict=True):
         x1, y1, x2, y2 = (round(value) for value in box)
-        result.append(Detection(x1, y1, x2 - x1, y2 - y1, int(label), score))
+        result.append(Detection(x=x1, y=y1, w=x2 - x1, h=y2 - y1,
+                                category=int(label), probability=score))
     return result
 
 

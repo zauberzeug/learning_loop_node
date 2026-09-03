@@ -4,13 +4,9 @@ A node entry point always does the same four things: read a handful of settings,
 logic object, construct the node, and hand it to uvicorn. Only the middle two are the node's
 own, so :func:`node_parser` and :func:`run_node` cover the rest.
 
-Settings come from a flag *or* an environment variable, because a node is configured on the
-command line while developing and through the container environment in deployment. One
-declaration gives both: ``--conf-threshold`` reads ``CONF_THRESHOLD``.
-
-``--host`` and ``--port`` are the exception — they read ``NODE_HOST`` and ``NODE_PORT`` rather
-than the names their flags imply, because the bare ``HOST`` already means *the loop's address*
-and a node adopting it would hand it to uvicorn and fail to bind.
+Every setting is a flag *and* an environment variable named after it: ``--conf-threshold``
+reads ``CONF_THRESHOLD``. ``--host`` and ``--port`` are the exception, reading ``NODE_HOST``
+and ``NODE_PORT``: the bare ``HOST`` is the address of the loop.
 """
 
 import logging
@@ -84,10 +80,8 @@ class _NodeArgumentParser(configargparse.ArgumentParser):
     def _legacy_names(self, action: Action, name: str) -> list[str]:
         """The prefixed names this setting may still be configured under, preferred first.
 
-        A prefix used to be applied to the *flag*, so the old name of ``--host`` was
-        ``<PREFIX>HOST`` — not ``<PREFIX>NODE_HOST``. Deriving the legacy name from the current
-        ``env_var`` alone therefore misses exactly the settings that were renamed, which is every
-        one whose environment variable is not simply its flag in upper case.
+        A prefix used to be applied to the *flag*, so the old name of ``--host`` is
+        ``<PREFIX>HOST``, not ``<PREFIX>NODE_HOST``.
         """
         candidates = [self.legacy_env_prefix + name, self.legacy_env_prefix + action.dest.upper()]
         return list(dict.fromkeys(candidates))

@@ -1,9 +1,7 @@
 """Resolving a model's categories from what it emits.
 
 A model reports class indices, or names, and only ``ModelInformation.categories`` gives those
-meaning. Both lookups are the point at which a model and its metadata are checked against each
-other, so both raise rather than skipping quietly: a mismatch here makes every prediction on the
-image suspect, and it is far cheaper to diagnose at the lookup than three layers later.
+meaning.
 """
 
 from ..data_classes import Category, ModelInformation
@@ -11,10 +9,6 @@ from ..data_classes import Category, ModelInformation
 
 def category_by_index(model_information: ModelInformation, index: int) -> Category:
     """Resolve the category a model's class index refers to.
-
-    Models emit class indices, and the order of ``model_information.categories`` is what
-    gives them meaning — so an out-of-range index is a model/metadata mismatch, not a
-    detection to skip quietly.
 
     :raises ValueError: If the index is outside the model's category list.
     """

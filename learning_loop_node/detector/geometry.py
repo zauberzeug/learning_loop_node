@@ -1,10 +1,8 @@
 """Box and point clipping shared by every detector node.
 
-The loop stores a box as its top-left corner plus a size, so :func:`clip_box` is the form a
-node needs when it hands detections to the loop. Model outputs are not always in that form —
-:func:`clip_box_centered` keeps the centre-based convention explicit instead of letting two
-incompatible functions share one name, which is how the same helper ended up meaning two
-different things in different node repositories.
+The loop stores a box as its top-left corner plus a size, which is the form :func:`clip_box`
+produces. :func:`clip_box_centered` is the centre-anchored variant, for model outputs in that
+convention.
 """
 
 
@@ -21,7 +19,7 @@ def clip_box(
 
     :param x1: Left edge of the box.
     :param y1: Top edge of the box.
-    :return: The clipped ``(x1, y1, width, height)`` as ints; the size is never negative.
+    :return: The clipped ``(x1, y1, width, height)``; the size is never negative.
     """
     x2 = x1 + width
     y2 = y1 + height
