@@ -1,8 +1,7 @@
 """Box and point clipping shared by every detector node.
 
 The loop stores a box as its top-left corner plus a size, which is the form :func:`clip_box`
-produces. :func:`clip_box_centered` is the centre-anchored variant, for model outputs in that
-convention.
+produces. Centre-anchored model output converts before clipping.
 """
 
 
@@ -33,31 +32,6 @@ def clip_box(
     clipped_height = max(clipped_y2 - clipped_y1, 0)
 
     return clipped_x1, clipped_y1, clipped_width, clipped_height
-
-
-def clip_box_centered(
-    *,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
-    img_width: int,
-    img_height: int,
-) -> tuple[float, float, float, float]:
-    """Clip a centre-anchored box to the image bounds, keeping it centre-anchored.
-
-    Clipping moves the centre, because only the part of the box inside the image survives.
-
-    :param x: Horizontal centre of the box.
-    :param y: Vertical centre of the box.
-    :return: The clipped ``(x, y, width, height)``, still centre-anchored.
-    """
-    left = max(0.0, x - 0.5 * width)
-    top = max(0.0, y - 0.5 * height)
-    right = min(float(img_width), x + 0.5 * width)
-    bottom = min(float(img_height), y + 0.5 * height)
-
-    return 0.5 * (left + right), 0.5 * (top + bottom), right - left, bottom - top
 
 
 def clip_point(x: float, y: float, img_width: int, img_height: int) -> tuple[float, float]:
