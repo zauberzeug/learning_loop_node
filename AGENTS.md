@@ -62,6 +62,13 @@ that fits, around a `fits` predicate the trainer supplies — none of it imports
 brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
+`trainer/cuda.py` is the one exception to that framework independence: `usable_memory_bytes`
+and `limit_cuda_memory` turn a `--vram-limit-gb` setting into the budget a probe measures
+against and the cap that holds the process to it, and capping an allocator has no NVML
+equivalent. It imports torch, the package does **not** declare it, and only a trainer imports
+the module — so the library keeps working where nothing trains. Its unit test installs a
+stand-in under the name `torch`; whether the cap holds can only be seen on a card.
+
 `helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
 configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
 *and* an environment variable from one declaration — `--conf-threshold` reads
