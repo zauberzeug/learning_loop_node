@@ -3,11 +3,11 @@ import pytest
 
 from ...data_classes import Category, ModelInformation
 from ...detector.postprocess import (
-    Detection,
+    Prediction,
     bbox_iou,
-    detections_from_xyxy,
     non_max_suppression,
     post_process,
+    predictions_from_xyxy,
     to_detections,
     to_image_metadata,
 )
@@ -66,7 +66,12 @@ def test_post_process_drops_predictions_below_the_confidence_threshold():
     boxes = np.array([[10, 10, 60, 60], [100, 100, 150, 150]], dtype=np.float32)
     result = post_process(boxes, np.array([0.9, 0.1], dtype=np.float32), np.array([0, 0]),
                           conf_threshold=0.5, iou_threshold=0.45, origin_h=200, origin_w=200)
-    assert result == [Detection(10, 10, 50, 50, 0, 0.9)]
+    assert len(result) == 1
+    prediction = result[0]
+    assert (prediction.x, prediction.y, prediction.width, prediction.height) == (10, 10, 50, 50)
+    assert prediction.category_index == 0
+    # the model's own float32 score, no longer rounded to two decimals on the way out
+    assert prediction.confidence == pytest.approx(0.9)
 
 
 def test_post_process_on_an_empty_prediction_returns_nothing():
@@ -75,20 +80,20 @@ def test_post_process_on_an_empty_prediction_returns_nothing():
                         conf_threshold=0.5, iou_threshold=0.45, origin_h=10, origin_w=10) == []
 
 
-def test_already_suppressed_output_is_converted_with_rounded_corners():
-    assert detections_from_xyxy(labels=[1.0], boxes=[[10.4, 10.6, 60.4, 60.6]], scores=[0.55]) == \
-        [Detection(10, 11, 50, 50, 1, 0.55)]
+def test_already_suppressed_output_keeps_the_model_s_own_precision():
+    assert predictions_from_xyxy(labels=[1.0], boxes=[[10.4, 10.6, 60.4, 60.6]], scores=[0.55]) == \
+        [Prediction(x=10.4, y=10.6, width=50.0, height=50.0, category_index=1, confidence=0.55)]
 
 
 def test_converting_already_suppressed_output_requires_matching_lengths():
     with pytest.raises(ValueError):
-        detections_from_xyxy(labels=[1.0, 2.0], boxes=[[0.0, 0.0, 1.0, 1.0]], scores=[0.5])
+        predictions_from_xyxy(labels=[1.0, 2.0], boxes=[[0.0, 0.0, 1.0, 1.0]], scores=[0.5])
 
 
 # ---------------------------------------------------------------- building the containers
 
 def test_a_box_category_becomes_a_box_detection():
-    metadata = to_image_metadata([Detection(10, 20, 30, 40, 0, 0.9)], model_information(), 200, 200)
+    metadata = to_image_metadata([Prediction(x=10, y=20, width=30, height=40, category_index=0, confidence=0.9)], model_information(), 200, 200)
     assert len(metadata.point_detections) == 0
     detection = metadata.box_detections[0]
     assert (detection.x, detection.y, detection.width, detection.height) == (10, 20, 30, 40)
@@ -98,7 +103,7 @@ def test_a_box_category_becomes_a_box_detection():
 
 
 def test_a_point_category_becomes_the_centre_of_the_box():
-    metadata = to_image_metadata([Detection(100, 100, 40, 40, 1, 0.7)], model_information(), 200, 200)
+    metadata = to_image_metadata([Prediction(x=100, y=100, width=40, height=40, category_index=1, confidence=0.7)], model_information(), 200, 200)
     assert len(metadata.box_detections) == 0
     detection = metadata.point_detections[0]
     assert (detection.x, detection.y) == (120, 120)
@@ -106,26 +111,26 @@ def test_a_point_category_becomes_the_centre_of_the_box():
 
 
 def test_detections_are_clipped_to_the_image():
-    metadata = to_image_metadata([Detection(-20, -20, 60, 60, 0, 0.5)], model_information(), 200, 200)
+    metadata = to_image_metadata([Prediction(x=-20, y=-20, width=60, height=60, category_index=0, confidence=0.5)], model_information(), 200, 200)
     detection = metadata.box_detections[0]
     assert (detection.x, detection.y, detection.width, detection.height) == (0, 0, 40, 40)
 
 
 @pytest.mark.parametrize('width,height', [(2, 30), (30, 2), (1, 1)])
 def test_boxes_too_small_to_be_useful_are_dropped(width: int, height: int):
-    metadata = to_image_metadata([Detection(5, 5, width, height, 0, 0.5)], model_information(), 200, 200)
+    metadata = to_image_metadata([Prediction(x=5, y=5, width=width, height=height, category_index=0, confidence=0.5)], model_information(), 200, 200)
     assert len(metadata) == 0
 
 
 def test_a_category_type_the_node_cannot_report_is_skipped():
     classification = Category(id='uuid-cls', name='ripe', type=CategoryType.Classification)
-    metadata = to_image_metadata([Detection(10, 10, 30, 30, 0, 0.5)],
+    metadata = to_image_metadata([Prediction(x=10, y=10, width=30, height=30, category_index=0, confidence=0.5)],
                                  model_information(classification), 200, 200)
     assert len(metadata) == 0
 
 
 def test_the_trainer_container_carries_the_image_id():
-    result = to_detections([Detection(10, 20, 30, 40, 0, 0.9)], model_information(), 200, 200,
+    result = to_detections([Prediction(x=10, y=20, width=30, height=40, category_index=0, confidence=0.9)], model_information(), 200, 200,
                            image_id='image-uuid')
     assert result.image_id == 'image-uuid'
     assert len(result.box_detections) == 1
@@ -133,10 +138,10 @@ def test_the_trainer_container_carries_the_image_id():
 
 def test_trainer_and_detector_paths_agree_on_the_same_detections():
     """The whole point of sharing this code: auto-detections and live detections must match."""
-    detections = [Detection(-5, -5, 60, 60, 0, 0.9), Detection(100, 100, 40, 40, 1, 0.7),
-                  Detection(5, 5, 1, 1, 0, 0.5)]
-    metadata = to_image_metadata(detections, model_information(), 200, 200)
-    result = to_detections(detections, model_information(), 200, 200, image_id='image-uuid')
+    predictions = [Prediction(x=-5, y=-5, width=60, height=60, category_index=0, confidence=0.9), Prediction(x=100, y=100, width=40, height=40, category_index=1, confidence=0.7),
+                  Prediction(x=5, y=5, width=1, height=1, category_index=0, confidence=0.5)]
+    metadata = to_image_metadata(predictions, model_information(), 200, 200)
+    result = to_detections(predictions, model_information(), 200, 200, image_id='image-uuid')
 
     assert [(d.x, d.y, d.width, d.height, d.category_id) for d in result.box_detections] == \
         [(d.x, d.y, d.width, d.height, d.category_id) for d in metadata.box_detections]

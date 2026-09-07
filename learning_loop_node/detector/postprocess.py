@@ -1,7 +1,8 @@
 """Model-agnostic detection postprocessing."""
 
 import logging
-from typing import NamedTuple
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -21,16 +22,17 @@ logger = logging.getLogger(__name__)
 MIN_BOX_SIZE: int = 2
 
 
-class Detection(NamedTuple):
-    """One surviving prediction. ``x``/``y`` are the top-left corner, ``category`` is an index
-    into :attr:`ModelInformation.categories`."""
+@dataclass(kw_only=True, slots=True, frozen=True)
+class Prediction:
+    """One surviving prediction in the model's coordinates: top-left corner and size in pixels,
+    unrounded, and the category as an index into :attr:`ModelInformation.categories`."""
 
-    x: int
-    y: int
-    w: int
-    h: int
-    category: int
-    probability: float
+    x: float
+    y: float
+    width: float
+    height: float
+    category_index: int
+    confidence: float
 
 
 def post_process(
@@ -42,8 +44,8 @@ def post_process(
     iou_threshold: float,
     origin_h: int,
     origin_w: int,
-) -> list[Detection]:
-    """Filter by confidence, run NMS, return a :class:`Detection` list in x/y/w/h form."""
+) -> list[Prediction]:
+    """Filter by confidence, run NMS, return what survives."""
     mask = scores > conf_threshold
     boxes = boxes[mask].copy()
     scores = scores[mask]
@@ -56,14 +58,7 @@ def post_process(
         boxes, scores, classes,
         iou_threshold=iou_threshold, origin_h=origin_h, origin_w=origin_w)
 
-    result = []
-    for j, box in enumerate(boxes):
-        x1, y1, x2, y2 = box
-        w = x2 - x1
-        h = y2 - y1
-        result.append(Detection(x=int(x1), y=int(y1), w=int(w), h=int(h),
-                                category=int(classes[j]), probability=round(float(scores[j]), 2)))
-    return result
+    return predictions_from_xyxy(labels=classes, boxes=boxes, scores=scores)
 
 
 def non_max_suppression(
@@ -129,38 +124,36 @@ def bbox_iou(
     return inter_area / (b1_area + b2_area - inter_area + 1e-16)
 
 
-def detections_from_xyxy(
+def predictions_from_xyxy(
     *,
-    labels: list[float],
-    boxes: list[list[float]],
-    scores: list[float],
-) -> list[Detection]:
-    """Convert already-suppressed model output into :class:`Detection` values.
+    labels: Sequence[float],
+    boxes: Sequence[Sequence[float]],
+    scores: Sequence[float],
+) -> list[Prediction]:
+    """Convert xyxy model output into predictions, for models that suppress their own overlaps.
 
-    Corners are rounded here; :func:`post_process` truncates.
+    Corners stay unrounded: :func:`clip_box` rounds once, when the box becomes a
+    :class:`BoxDetection`.
     """
-    result = []
-    for label, box, score in zip(labels, boxes, scores, strict=True):
-        x1, y1, x2, y2 = (round(value) for value in box)
-        result.append(Detection(x=x1, y=y1, w=x2 - x1, h=y2 - y1,
-                                category=int(label), probability=score))
-    return result
+    return [Prediction(x=float(x1), y=float(y1), width=float(x2 - x1), height=float(y2 - y1),
+                       category_index=int(label), confidence=float(score))
+            for label, (x1, y1, x2, y2), score in zip(labels, boxes, scores, strict=True)]
 
 
 def to_image_metadata(
-    detections: list[Detection],
+    predictions: list[Prediction],
     model_information: ModelInformation,
     im_height: int,
     im_width: int,
 ) -> ImageMetadata:
-    """Build the container a *detector* node reports from a list of detections."""
+    """Build the container a *detector* node reports."""
     image_metadata = ImageMetadata()
-    _append_detections(image_metadata, detections, model_information, im_height, im_width)
+    _append_predictions(image_metadata, predictions, model_information, im_height, im_width)
     return image_metadata
 
 
 def to_detections(
-    detections: list[Detection],
+    predictions: list[Prediction],
     model_information: ModelInformation,
     im_height: int,
     im_width: int,
@@ -169,32 +162,31 @@ def to_detections(
 ) -> Detections:
     """Build the container a *trainer*'s auto-detection pass reports."""
     result = Detections(image_id=image_id)
-    _append_detections(result, detections, model_information, im_height, im_width)
+    _append_predictions(result, predictions, model_information, im_height, im_width)
     return result
 
 
-def _append_detections(
+def _append_predictions(
     target: ImageMetadata | Detections,
-    detections: list[Detection],
+    predictions: list[Prediction],
     model_information: ModelInformation,
     im_height: int,
     im_width: int,
 ) -> None:
-    """Resolve each detection's category and append it to ``target``, clipped to the image."""
-    skipped_detections = []
+    """Resolve each prediction's category and append it to ``target``, clipped to the image."""
+    skipped_predictions = []
 
-    for detection in detections:
-        x, y, w, h, category_idx, probability = detection
-        category = category_by_index(model_information, category_idx)
-        if w <= MIN_BOX_SIZE or h <= MIN_BOX_SIZE:
-            skipped_detections.append((category.name, detection))
+    for prediction in predictions:
+        category = category_by_index(model_information, prediction.category_index)
+        if prediction.width <= MIN_BOX_SIZE or prediction.height <= MIN_BOX_SIZE:
+            skipped_predictions.append((category.name, prediction))
             continue
         if category.type == CategoryType.Box:
             clipped_x1, clipped_y1, clipped_w, clipped_h = clip_box(
-                x1=x,
-                y1=y,
-                width=w,
-                height=h,
+                x1=prediction.x,
+                y1=prediction.y,
+                width=prediction.width,
+                height=prediction.height,
                 img_width=im_width,
                 img_height=im_height,
             )
@@ -207,11 +199,11 @@ def _append_detections(
                     height=clipped_h,
                     category_id=category.id,
                     model_name=model_information.version,
-                    confidence=probability,
+                    confidence=prediction.confidence,
                 )
             )
         elif category.type == CategoryType.Point:
-            cx, cy = x + w / 2, y + h / 2
+            cx, cy = prediction.x + prediction.width / 2, prediction.y + prediction.height / 2
             cx, cy = clip_point(cx, cy, im_width, im_height)
             target.point_detections.append(
                 PointDetection(
@@ -220,12 +212,12 @@ def _append_detections(
                     y=cy,
                     category_id=category.id,
                     model_name=model_information.version,
-                    confidence=probability,
+                    confidence=prediction.confidence,
                 )
             )
         else:
             logger.warning('Unsupported category type %s for category %s', category.type, category.name)
 
-    if skipped_detections:
-        log_msg = '\n'.join([str(d) for d in skipped_detections])
-        logger.warning('Removed %d small detections from result: \n%s', len(skipped_detections), log_msg)
+    if skipped_predictions:
+        log_msg = '\n'.join([str(p) for p in skipped_predictions])
+        logger.warning('Removed %d small detections from result: \n%s', len(skipped_predictions), log_msg)
