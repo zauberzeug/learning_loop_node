@@ -1,8 +1,9 @@
 """Run a blocking, CPU-bound generator in its own process without blocking the event loop.
 
-:func:`iterator_cpu_bound` runs the generator in a separate process and yields what it produces
+:func:`iterator_cpu_bound` runs the generator in a spawned process and yields what it produces
 through a ``maxsize=1`` queue, so the producer never runs more than one item ahead of the
-consumer.
+consumer. The context is spawn on every platform, not the local default, so a process that has
+already initialised CUDA is never forked; ``it`` and its arguments must therefore be picklable.
 
 Exceptions raised inside the process are re-raised in the caller, and the process is killed if
 the caller leaves the context early.
@@ -42,8 +43,9 @@ async def _iterator_cpu_bound_inner(
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> AsyncGenerator[T, None]:
-    state_queue: MPQueue[T | Exception | IteratorDone] = multiprocessing.Queue(maxsize=1)
-    process = multiprocessing.Process(
+    ctx = multiprocessing.get_context('spawn')
+    state_queue: MPQueue[T | Exception | IteratorDone] = ctx.Queue(maxsize=1)
+    process = ctx.Process(
         target=_iterator_wrapper,
         args=(it, state_queue, args, kwargs),
         name='iterator_cpu_bound',
