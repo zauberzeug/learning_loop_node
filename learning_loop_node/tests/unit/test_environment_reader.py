@@ -28,7 +28,7 @@ def test_either_name_alone_is_read(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_a_disagreement_resolves_to_the_preferred_name(monkeypatch: pytest.MonkeyPatch):
-    """Returning nothing here would let host() fall back to its default, which is production."""
+    """Returning nothing here would let host() fall back to its default."""
     monkeypatch.setenv('LOOP_HOST', 'preview.learning-loop.ai')
     monkeypatch.setenv('HOST', 'learning-loop.ai')
     assert environment_reader.host(default='learning-loop.ai') == 'preview.learning-loop.ai'

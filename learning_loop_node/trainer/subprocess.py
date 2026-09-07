@@ -1,12 +1,9 @@
 """Run a blocking, CPU-bound generator in its own process without blocking the event loop.
 
-:func:`iterator_cpu_bound` runs the generator in a spawned process and yields what it produces
-through a ``maxsize=1`` queue, so the producer never runs more than one item ahead of the
-consumer. The context is spawn on every platform, not the local default, so a process that has
-already initialised CUDA is never forked; ``it`` and its arguments must therefore be picklable.
-
-Exceptions raised inside the process are re-raised in the caller, and the process is killed if
-the caller leaves the context early.
+The queue has ``maxsize=1``, so the producer never runs more than one item ahead of the consumer.
+The context is spawn on every platform, so ``it`` and its arguments must be picklable and a
+process that already initialised CUDA is never forked. An exception raised inside the process is
+re-raised in the caller, and the process is killed if the caller leaves the context early.
 """
 from __future__ import annotations
 

@@ -13,22 +13,6 @@ from ...trainer.batch_size import (
 )
 
 
-def _recording(capacity: int) -> tuple[Callable[[int], bool], list[int]]:
-    """A `fits` predicate for a machine of `capacity`, plus the sizes it gets asked about."""
-    calls: list[int] = []
-
-    def fits(batch_size: int) -> bool:
-        calls.append(batch_size)
-        return batch_size <= capacity
-
-    return fits, calls
-
-
-def _fits_up_to(capacity: int) -> Callable[[int], bool]:
-    fits, _ = _recording(capacity)
-    return fits
-
-
 def test_the_search_doubles_up_to_the_limit():
     fits, calls = _recording(1024)
     assert find_batch_size(fits, limit=16) == 16
@@ -59,7 +43,6 @@ def test_the_result_is_always_the_largest_power_of_two_that_fits(capacity: int):
 
 
 def test_equal_hardware_yields_an_equal_recipe():
-    """Only powers of two, so two machines of similar size train identically."""
     assert find_batch_size(_fits_up_to(37), limit=512) == find_batch_size(_fits_up_to(39), limit=512)
 
 
@@ -90,7 +73,6 @@ def test_the_dataset_limit_stays_usable_for_a_tiny_set():
 
 
 def test_memory_still_decides_below_the_dataset_limit():
-    """The bound is a ceiling only: a card that fits just 2 keeps training at 2."""
     assert find_batch_size(_fits_up_to(2), limit=dataset_limit(20)) == 2
 
 
@@ -109,10 +91,25 @@ def test_allocation_failures_are_recognised_however_they_surface(message: str):
 
 
 def test_a_real_bug_is_not_mistaken_for_a_full_card():
-    """A trainer catching bare RuntimeError treats every crash as 'too big'; this does not."""
     assert not is_out_of_memory(RuntimeError('shape mismatch in forward pass'))
     assert not is_out_of_memory(ValueError('bad config'))
 
 
 def test_the_host_running_out_of_memory_counts_too():
     assert is_out_of_memory(MemoryError())
+
+
+def _recording(capacity: int) -> tuple[Callable[[int], bool], list[int]]:
+    """A `fits` predicate for a machine of `capacity`, plus the sizes it gets asked about."""
+    calls: list[int] = []
+
+    def fits(batch_size: int) -> bool:
+        calls.append(batch_size)
+        return batch_size <= capacity
+
+    return fits, calls
+
+
+def _fits_up_to(capacity: int) -> Callable[[int], bool]:
+    fits, _ = _recording(capacity)
+    return fits

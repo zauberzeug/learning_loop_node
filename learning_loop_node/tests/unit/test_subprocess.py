@@ -31,7 +31,6 @@ async def test_a_generator_that_yields_nothing_simply_finishes():
 
 
 async def test_a_failure_in_the_process_is_raised_in_the_caller():
-    """Otherwise a crashed training would look like a training that finished."""
     with pytest.raises(RuntimeError, match='the training crashed'):
         async with iterator_cpu_bound(raising_after, 2) as iterator:
             await _collect(iterator)
@@ -51,4 +50,4 @@ async def test_leaving_early_does_not_leave_the_process_running():
         async for item in iterator:
             if item == 2:
                 break
-    # the context manager killed and joined the process; reaching here without hanging is the test
+    # reaching here without hanging is the test

@@ -1,8 +1,4 @@
-"""The boilerplate every node's ``main.py`` repeats.
-
-A node entry point always does the same four things: read a handful of settings, build the
-logic object, construct the node, and hand it to uvicorn. Only the middle two are the node's
-own, so :func:`node_parser` and :func:`run_node` cover the rest.
+"""The boilerplate every node's ``main.py`` repeats: reading the settings, serving the node.
 
 Every setting is a flag *and* an environment variable named after it: ``--conf-threshold``
 reads ``CONF_THRESHOLD``. ``--host`` and ``--port`` are the exception, reading ``NODE_HOST``
@@ -23,11 +19,9 @@ def node_parser(*, description: str, legacy_env_prefix: str = '') -> configargpa
     """Build the parser for a node, pre-loaded with the settings every node has.
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
-        ``'MY_DETECTOR_'``. Prefixed names are still honoured, with a warning, so a
-        deployment keeps working until it is updated. Both spellings are accepted: the prefix
-        on the current environment variable (``MY_DETECTOR_NODE_HOST``) and the prefix on the
-        flag it was originally applied to (``MY_DETECTOR_HOST``). Leave empty for a node that
-        has always read unprefixed names.
+        ``'MY_DETECTOR_'``. Both spellings keep working, with a warning: the prefix on the
+        current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
+        applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',

@@ -1,10 +1,10 @@
 """Tests for the one library module that imports torch.
 
-There is no torch in the dev extra, and no GPU in CI, so a stand-in is installed under the name
-``torch`` before the module is imported. That covers the budgeting arithmetic, the guards and the
-search around a probe -- everything this module decides. Whether the cap actually holds, and what
-a real step costs, is torch's own business and can only be observed on a card.
+There is no torch in the dev extra and no GPU in CI, so a stand-in is installed under the name
+``torch`` before the module is imported. Whether the cap actually holds, and what a real step
+costs, can only be observed on a card.
 """
+from __future__ import annotations
 
 import importlib
 import logging
@@ -15,64 +15,11 @@ from typing import Any
 
 import pytest
 
-from learning_loop_node.trainer.batch_size import MAX_BATCH_SIZE, NO_GPU_BATCH_SIZE
-from learning_loop_node.trainer.exceptions import InsufficientMemoryError
+from ...trainer.batch_size import MAX_BATCH_SIZE, NO_GPU_BATCH_SIZE
+from ...trainer.exceptions import InsufficientMemoryError
 
 MODULE = 'learning_loop_node.trainer.cuda'
 GIB = 1024**3
-
-
-class _FakeTorch:
-    """What the module uses of torch, plus a record of what it asked for."""
-
-    def __init__(self, *, cuda_available: bool, total_gb: float, peak_gb: float) -> None:
-        self.capped: list[tuple[float, int]] = []
-        self.allocated: list[int] = []
-
-        class OutOfMemoryError(RuntimeError):
-            """Torch's own; note the module may not rely on its message."""
-
-        self.OutOfMemoryError = OutOfMemoryError  # named as torch spells it
-        self.module = types.ModuleType('torch')
-        self.module.uint8 = 'uint8'  # type: ignore[attr-defined]
-        self.module.empty = self._empty  # type: ignore[attr-defined]
-        self.module.cuda = types.SimpleNamespace(  # type: ignore[attr-defined]
-            OutOfMemoryError=OutOfMemoryError,
-            is_available=lambda: cuda_available,
-            empty_cache=lambda: self.capped.append((-1.0, -1)),
-            get_device_properties=lambda device: types.SimpleNamespace(total_memory=int(total_gb * GIB)),
-            set_per_process_memory_fraction=lambda fraction, device: self.capped.append((fraction, device)),
-            reset_peak_memory_stats=lambda: None,
-            max_memory_allocated=lambda: int(peak_gb * GIB),
-            synchronize=lambda: None,
-        )
-
-    def _empty(self, count: int, dtype: str, device: str) -> object:
-        assert (dtype, device) == ('uint8', 'cuda')
-        self.allocated.append(count)
-        return object()
-
-
-@pytest.fixture(name='load')
-def load_fixture(monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[Any, _FakeTorch]]:
-    """Import the module against a fake torch; returns it and the stand-in it ran against."""
-    def load(*, cuda_available: bool = True, total_gb: float = 8.0, peak_gb: float = 2.0):
-        fake = _FakeTorch(cuda_available=cuda_available, total_gb=total_gb, peak_gb=peak_gb)
-        monkeypatch.setitem(sys.modules, 'torch', fake.module)
-        monkeypatch.delitem(sys.modules, MODULE, raising=False)
-        return importlib.import_module(MODULE), fake
-
-    yield load
-    sys.modules.pop(MODULE, None)
-
-
-def _fits_up_to(largest: int, fake: _FakeTorch, ran: list[int]) -> Callable[[int], None]:
-    """A step that runs out of memory above ``largest``, recording every size it was asked for."""
-    def run_batch(batch_size: int) -> None:
-        ran.append(batch_size)
-        if batch_size > largest:
-            raise fake.OutOfMemoryError('tried to allocate 20.00 GiB')
-    return run_batch
 
 
 # --- the budget and the cap ---
@@ -89,7 +36,6 @@ def test_a_limit_below_the_card_is_the_budget(load):
 
 
 def test_a_limit_above_the_card_is_clamped_to_it(load):
-    # otherwise the safety margin would be a share of memory that does not exist
     cuda, _ = load(total_gb=8.0)
     assert cuda.usable_memory_bytes(16) == 8 * GIB
 
@@ -97,7 +43,7 @@ def test_a_limit_above_the_card_is_clamped_to_it(load):
 def test_the_cap_is_the_limits_share_of_the_card(load):
     cuda, fake = load(total_gb=8.0)
     cuda.limit_cuda_memory(2)
-    assert fake.capped == [(0.25, 0)]
+    assert fake.capped == [0.25]
 
 
 def test_no_limit_caps_nothing(load):
@@ -114,7 +60,6 @@ def test_nothing_is_capped_without_cuda(load):
 
 
 def test_a_limit_the_card_cannot_reach_warns_instead_of_capping(load, caplog):
-    # capping at a fraction >= 1 would be a no-op that reads as a limit having been applied
     cuda, fake = load(total_gb=8.0)
     with caplog.at_level(logging.WARNING):
         cuda.limit_cuda_memory(8)
@@ -122,10 +67,17 @@ def test_a_limit_the_card_cannot_reach_warns_instead_of_capping(load, caplog):
     assert 'exceeds the card capacity' in caplog.text
 
 
+def test_the_budget_and_the_cap_follow_the_current_device(load):
+    cuda, fake = load(total_gb=8.0)
+    cuda.usable_memory_bytes(2)
+    cuda.limit_cuda_memory(2)
+    assert fake.asked_devices and all(device is None for device in fake.asked_devices)
+
+
 def test_freeing_empties_the_cache(load):
     cuda, fake = load()
     cuda.free_cuda_memory()
-    assert fake.capped == [(-1.0, -1)]
+    assert fake.cache_clears == 1
 
 
 # --- the safety margin ---
@@ -152,7 +104,6 @@ def test_the_probe_keeps_the_largest_size_that_fits(load):
 
 
 def test_the_probe_reserves_the_margin_before_it_measures(load):
-    # a trial that ran against the full card would choose a size the training cannot keep
     cuda, fake = load(total_gb=8.0)
 
     def run_batch(_: int) -> None:
@@ -174,7 +125,6 @@ def test_an_unset_limit_stops_at_the_maximum(load):
 
 
 def test_a_probe_without_a_gpu_does_not_run_the_step(load):
-    """With no card to measure, the fallback caps the batch and never runs the step."""
     cuda, fake = load(cuda_available=False)
     ran: list[int] = []
     assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=32) == NO_GPU_BATCH_SIZE
@@ -222,7 +172,6 @@ def test_torchs_own_error_needs_no_recognisable_message(load):
 
 
 def test_a_failure_that_is_not_about_memory_is_a_bug_and_propagates(load):
-    # a probe that swallows this would report the smallest batch size as the card's fault
     cuda, _ = load()
 
     def run_batch(batch_size: int) -> None:
@@ -249,3 +198,73 @@ def test_only_a_trial_that_ran_out_of_memory_gets_cleaned_up_after(load):
 
     assert [fits(size) for size in (1, 2, 4)] == [True, True, False]
     assert cleaned == [3], 'once, after the third trial'
+
+
+# --- the card that is not there ---
+
+@pytest.fixture(name='load')
+def load_fixture(monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[Any, _FakeTorch]]:
+    """Import the module against a fake torch; returns it and the stand-in it ran against."""
+    def load(*, cuda_available: bool = True, total_gb: float = 8.0, peak_gb: float = 2.0):
+        fake = _FakeTorch(cuda_available=cuda_available, total_gb=total_gb, peak_gb=peak_gb)
+        monkeypatch.setitem(sys.modules, 'torch', fake.module)
+        monkeypatch.delitem(sys.modules, MODULE, raising=False)
+        return importlib.import_module(MODULE), fake
+
+    yield load
+    sys.modules.pop(MODULE, None)
+
+
+def _fits_up_to(largest: int, fake: _FakeTorch, ran: list[int]) -> Callable[[int], None]:
+    """A step that runs out of memory above ``largest``, recording every size it was asked for."""
+    def run_batch(batch_size: int) -> None:
+        ran.append(batch_size)
+        if batch_size > largest:
+            raise fake.OutOfMemoryError('tried to allocate 20.00 GiB')
+    return run_batch
+
+
+class _FakeTorch:
+    """What the module uses of torch, plus a record of what it asked for."""
+
+    def __init__(self, *, cuda_available: bool, total_gb: float, peak_gb: float) -> None:
+        self.capped: list[float] = []
+        self.allocated: list[int] = []
+        self.asked_devices: list[int | None] = []
+        self.cache_clears = 0
+
+        class OutOfMemoryError(RuntimeError):
+            """Torch's own; note the module may not rely on its message."""
+
+        self.OutOfMemoryError = OutOfMemoryError  # named as torch spells it
+        self.module = types.ModuleType('torch')
+        self.module.uint8 = 'uint8'  # type: ignore[attr-defined]
+        self.module.empty = self._empty  # type: ignore[attr-defined]
+        self.module.cuda = types.SimpleNamespace(  # type: ignore[attr-defined]
+            OutOfMemoryError=OutOfMemoryError,
+            is_available=lambda: cuda_available,
+            empty_cache=self._empty_cache,
+            get_device_properties=self._device_properties(total_gb),
+            set_per_process_memory_fraction=self._cap,
+            reset_peak_memory_stats=lambda: None,
+            max_memory_allocated=lambda: int(peak_gb * GIB),
+            synchronize=lambda: None,
+        )
+
+    def _empty(self, count: int, dtype: str, device: str) -> object:
+        assert (dtype, device) == ('uint8', 'cuda')
+        self.allocated.append(count)
+        return object()
+
+    def _empty_cache(self) -> None:
+        self.cache_clears += 1
+
+    def _device_properties(self, total_gb: float) -> Callable[[int | None], Any]:
+        def get_device_properties(device: int | None = None):
+            self.asked_devices.append(device)
+            return types.SimpleNamespace(total_memory=int(total_gb * GIB))
+        return get_device_properties
+
+    def _cap(self, fraction: float, device: int | None = None) -> None:
+        self.asked_devices.append(device)
+        self.capped.append(fraction)

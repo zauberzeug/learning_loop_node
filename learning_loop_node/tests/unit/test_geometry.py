@@ -11,9 +11,7 @@ def test_box_is_clipped_to_the_image_bounds():
 
 
 def test_box_fully_outside_the_image_collapses_to_zero_size():
-    # The corner is only clamped at the lower bound, so it stays at 200 — the zero size is
-    # what marks the box as empty. Detector output cannot reach here, because
-    # non_max_suppression already clips every box into the image.
+    # the corner is clamped at the lower bound only; the zero size is what marks the box empty
     assert clip_box(x1=200, y1=200, width=10, height=10, img_width=100, img_height=100) == (200, 200, 0, 0)
 
 

@@ -19,7 +19,6 @@ def test_category_is_resolved_by_index():
 
 @pytest.mark.parametrize('index', [-1, 2, 99])
 def test_an_index_outside_the_model_categories_is_an_error(index: int):
-    # a mismatch between model and metadata must not be silently skipped
     with pytest.raises(ValueError, match='out of range'):
         category_by_index(model_information(), index)
 

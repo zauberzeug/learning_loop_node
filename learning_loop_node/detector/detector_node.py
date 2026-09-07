@@ -709,8 +709,7 @@ class DetectorNode(Node):
     def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
         """Resolve each detection's category id from its name, in metadata a client uploaded.
 
-        A name the model does not know is the client's error, not a broken model, so it costs
-        that one detection its id rather than the whole upload.
+        A name the model does not know costs that one detection its id, not the whole upload.
         """
         unknown_names: set[str] = set()
 

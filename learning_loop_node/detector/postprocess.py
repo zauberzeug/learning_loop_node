@@ -24,8 +24,8 @@ MIN_BOX_SIZE: int = 2
 
 @dataclass(kw_only=True, slots=True, frozen=True)
 class Prediction:
-    """One surviving prediction in the model's coordinates: top-left corner and size in pixels,
-    unrounded, and the category as an index into :attr:`ModelInformation.categories`."""
+    """One surviving prediction in the model's coordinates: unrounded top-left corner and size
+    in pixels, and the category as an index into :attr:`ModelInformation.categories`."""
 
     x: float
     y: float
@@ -130,11 +130,7 @@ def predictions_from_xyxy(
     boxes: Sequence[Sequence[float]],
     scores: Sequence[float],
 ) -> list[Prediction]:
-    """Convert xyxy model output into predictions, for models that suppress their own overlaps.
-
-    Corners stay unrounded: :func:`clip_box` rounds once, when the box becomes a
-    :class:`BoxDetection`.
-    """
+    """Convert xyxy model output into predictions, for models that suppress their own overlaps."""
     return [Prediction(x=float(x1), y=float(y1), width=float(x2 - x1), height=float(y2 - y1),
                        category_index=int(label), confidence=float(score))
             for label, (x1, y1, x2, y2), score in zip(labels, boxes, scores, strict=True)]

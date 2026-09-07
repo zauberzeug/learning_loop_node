@@ -1,18 +1,12 @@
-"""Scoring a training from the confusion matrix the loop stores.
-
-The loop keeps one ``{'tp': .., 'fp': .., 'fn': ..}`` per category, which is what
-``TrainerLogicGeneric._get_new_best_training_state`` returns.
-"""
+"""Scoring a training from the confusion matrix the loop stores: one
+``{'tp': .., 'fp': .., 'fn': ..}`` per category."""
 
 import statistics
 from collections.abc import Mapping
 
 
 def macro_f1(confusion_matrix: Mapping[str, Mapping[str, int]]) -> float:
-    """The unweighted mean of the per-category F1 scores, as the loop's UI shows it by default.
-
-    Unweighted, so a rare category weighs as much as a frequent one.
-    """
+    """The unweighted mean of the per-category F1 scores, as the loop's UI shows it by default."""
     scores = [category_f1(counts) for counts in confusion_matrix.values()]
     return statistics.mean(scores) if scores else 0.0
 

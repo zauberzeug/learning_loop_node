@@ -17,12 +17,7 @@ BOX = Category(id='uuid-box', name='car', type=CategoryType.Box)
 POINT = Category(id='uuid-point', name='weed', type=CategoryType.Point)
 
 
-def model_information(*categories: Category) -> ModelInformation:
-    return ModelInformation(id='model-uuid', host='localhost', organization='zauberzeug',
-                            project='pytest', version='1.2', categories=list(categories or (BOX, POINT)))
-
-
-# ---------------------------------------------------------------- iou and suppression
+# --- iou and suppression ---
 
 def test_identical_boxes_have_an_iou_of_one():
     box = np.array([[0, 0, 10, 10]], dtype=np.float32)
@@ -60,7 +55,7 @@ def test_suppression_clips_boxes_into_the_image():
     assert list(kept_boxes[0]) == [0, 0, 99, 99]
 
 
-# ---------------------------------------------------------------- post_process
+# --- post_process ---
 
 def test_post_process_drops_predictions_below_the_confidence_threshold():
     boxes = np.array([[10, 10, 60, 60], [100, 100, 150, 150]], dtype=np.float32)
@@ -70,7 +65,7 @@ def test_post_process_drops_predictions_below_the_confidence_threshold():
     prediction = result[0]
     assert (prediction.x, prediction.y, prediction.width, prediction.height) == (10, 10, 50, 50)
     assert prediction.category_index == 0
-    # the model's own float32 score, no longer rounded to two decimals on the way out
+    # the model's own float32 score, not rounded
     assert prediction.confidence == pytest.approx(0.9)
 
 
@@ -90,7 +85,7 @@ def test_converting_already_suppressed_output_requires_matching_lengths():
         predictions_from_xyxy(labels=[1.0, 2.0], boxes=[[0.0, 0.0, 1.0, 1.0]], scores=[0.5])
 
 
-# ---------------------------------------------------------------- building the containers
+# --- building the containers ---
 
 def test_a_box_category_becomes_a_box_detection():
     metadata = to_image_metadata([Prediction(x=10, y=20, width=30, height=40, category_index=0, confidence=0.9)], model_information(), 200, 200)
@@ -137,7 +132,6 @@ def test_the_trainer_container_carries_the_image_id():
 
 
 def test_trainer_and_detector_paths_agree_on_the_same_detections():
-    """The whole point of sharing this code: auto-detections and live detections must match."""
     predictions = [Prediction(x=-5, y=-5, width=60, height=60, category_index=0, confidence=0.9), Prediction(x=100, y=100, width=40, height=40, category_index=1, confidence=0.7),
                   Prediction(x=5, y=5, width=1, height=1, category_index=0, confidence=0.5)]
     metadata = to_image_metadata(predictions, model_information(), 200, 200)
@@ -147,3 +141,8 @@ def test_trainer_and_detector_paths_agree_on_the_same_detections():
         [(d.x, d.y, d.width, d.height, d.category_id) for d in metadata.box_detections]
     assert [(d.x, d.y, d.category_id) for d in result.point_detections] == \
         [(d.x, d.y, d.category_id) for d in metadata.point_detections]
+
+
+def model_information(*categories: Category) -> ModelInformation:
+    return ModelInformation(id='model-uuid', host='localhost', organization='zauberzeug',
+                            project='pytest', version='1.2', categories=list(categories or (BOX, POINT)))

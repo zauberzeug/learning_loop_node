@@ -1,8 +1,4 @@
-"""Resolving a model's categories from what it emits.
-
-A model reports class indices, or names, and only ``ModelInformation.categories`` gives those
-meaning.
-"""
+"""Resolving the class indices or names a model emits against ``ModelInformation.categories``."""
 
 from ..data_classes import Category, ModelInformation
 

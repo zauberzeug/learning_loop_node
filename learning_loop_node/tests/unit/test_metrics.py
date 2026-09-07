@@ -11,7 +11,6 @@ def test_the_score_averages_the_categories_instead_of_pooling_them():
 
 
 def test_a_rare_category_carries_the_same_weight():
-    """A category the model never finds halves the score, however few instances it has."""
     assert macro_f1({'frequent': {'tp': 1000, 'fp': 0, 'fn': 0},
                      'rare': {'tp': 0, 'fp': 0, 'fn': 3}}) == pytest.approx(0.5)
 

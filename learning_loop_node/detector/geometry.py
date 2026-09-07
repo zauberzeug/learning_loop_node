@@ -1,7 +1,7 @@
 """Box and point clipping shared by every detector node.
 
 The loop stores a box as its top-left corner plus a size, which is the form :func:`clip_box`
-produces. Centre-anchored model output converts before clipping.
+takes and produces.
 """
 
 
@@ -16,8 +16,6 @@ def clip_box(
 ) -> tuple[int, int, int, int]:
     """Clip a top-left-anchored box to the image bounds.
 
-    :param x1: Left edge of the box.
-    :param y1: Top edge of the box.
     :return: The clipped ``(x1, y1, width, height)``; the size is never negative.
     """
     x2 = x1 + width
