@@ -102,6 +102,9 @@ The detector also has a **SocketIO** upload endpoint that can be used to upload 
 
 The endpoint returns None if the upload was successful and an error message otherwise.
 
+Besides detections and annotations, the metadata may carry `tags`, `source`, `created` and `state`.
+`state` names the state the image should enter the loop in (e.g. `trash`); when it is omitted the loop applies its own default (`inbox`).
+
 For both ways to upload an image, the tag `picked_by_system` is automatically added to the image metadata.
 
 ### Node and model information

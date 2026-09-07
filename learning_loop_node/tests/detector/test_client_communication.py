@@ -89,6 +89,23 @@ async def test_sio_upload(test_detector_node: DetectorNode, sio_client):
     assert len(get_outbox_files(test_detector_node.outbox)) == 2, 'There should be one image and one .json file.'
 
 
+async def test_sio_upload_with_state(test_detector_node: DetectorNode, sio_client):
+    """The state from the metadata has to reach the json file the outbox uploads to the loop."""
+    assert len(get_outbox_files(test_detector_node.outbox)) == 0
+
+    image = np.array(Image.open(test_image_path))
+    result = await sio_client.call('upload', {
+        'image': {'bytes': image.tobytes(), 'shape': image.shape, 'dtype': str(image.dtype)},
+        'metadata': {'state': 'trash'},
+    })
+    assert result.get('status') == 'OK'
+
+    json_files = [file for file in get_outbox_files(test_detector_node.outbox) if file.endswith('.json')]
+    assert len(json_files) == 1
+    with open(json_files[0]) as f:
+        assert json.load(f)['state'] == 'trash'
+
+
 # NOTE: This test seems to be flaky.
 async def test_about_endpoint(test_detector_node: DetectorNode):
     await asyncio.sleep(16)
