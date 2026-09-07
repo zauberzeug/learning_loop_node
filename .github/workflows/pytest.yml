@@ -6,21 +6,21 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - name: set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - name: set up uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
       - name: install dependencies
-        run: |
-          uv sync --extra dev --frozen
+        # --locked fails on a lockfile that no longer matches pyproject.toml
+        run: uv sync --extra dev --locked --python ${{ matrix.python-version }}
+      - name: check interpreter
+        run: uv run --no-sync python -c "import sys; assert sys.version_info[:2] == tuple(map(int, '${{ matrix.python-version }}'.split('.'))), sys.version"
       - name: test_unit
         # no Learning Loop and no secrets needed, so this suite gates the slow ones
-        run: |
-          uv run python -m pytest learning_loop_node/tests/unit -v
+        run: uv run --no-sync python -m pytest learning_loop_node/tests/unit -v
 
   pytest_3_10:
     needs:
