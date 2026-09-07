@@ -18,7 +18,6 @@ from socketio import AsyncClient
 
 from ..data_classes import (
     AboutResponse,
-    Category,
     Context,
     DetectorStatus,
     ImageMetadata,
@@ -33,6 +32,7 @@ from ..globals import GLOBALS
 from ..helpers import background_tasks, environment_reader, run
 from ..helpers.misc import numpy_image_from_dict
 from ..node import Node
+from .categories import category_by_name
 from .detector_logic import DetectorLogic, DetectorLogicFactory
 from .exceptions import NodeNeedsRestartError
 from .inbox_filter.relevance_filter import RelevanceFilter
@@ -707,26 +707,29 @@ class DetectorNode(Node):
             await self.outbox.save(image, image_metadata, upload_priority)
 
     def add_category_id_to_detections(self, model_info: ModelInformation, image_metadata: ImageMetadata):
-        def find_category_id_by_name(categories: List[Category], category_name: str):
-            category_id = [category.id for category in categories if category.name == category_name]
-            return category_id[0] if category_id else ''
+        """Resolve each detection's category id from its name, in metadata a client uploaded.
 
-        for box_detection in image_metadata.box_detections:
-            category_name = box_detection.category_name
-            category_id = find_category_id_by_name(model_info.categories, category_name)
-            box_detection.category_id = category_id
-        for point_detection in image_metadata.point_detections:
-            category_name = point_detection.category_name
-            category_id = find_category_id_by_name(model_info.categories, category_name)
-            point_detection.category_id = category_id
-        for segmentation_detection in image_metadata.segmentation_detections:
-            category_name = segmentation_detection.category_name
-            category_id = find_category_id_by_name(model_info.categories, category_name)
-            segmentation_detection.category_id = category_id
-        for classification_detection in image_metadata.classification_detections:
-            category_name = classification_detection.category_name
-            category_id = find_category_id_by_name(model_info.categories, category_name)
-            classification_detection.category_id = category_id
+        A name the model does not know is the client's error, not a broken model, so it costs
+        that one detection its id rather than the whole upload.
+        """
+        unknown_names: set[str] = set()
+
+        def category_id_by_name(category_name: str) -> str:
+            try:
+                return category_by_name(model_info, category_name).id
+            except ValueError:
+                unknown_names.add(category_name)
+                return ''
+
+        for detection in (*image_metadata.box_detections,
+                          *image_metadata.point_detections,
+                          *image_metadata.segmentation_detections,
+                          *image_metadata.classification_detections):
+            detection.category_id = category_id_by_name(detection.category_name)
+
+        if unknown_names:
+            self.log.warning('Model %s knows no category named %s', model_info.version,
+                             ', '.join(sorted(unknown_names)))
         return image_metadata
 
     def register_sio_events(self, sio_client: AsyncClient):
