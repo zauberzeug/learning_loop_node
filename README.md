@@ -100,7 +100,7 @@ The detector also has a **SocketIO** upload endpoint that can be used to upload 
 - `metadata`: a dictionary representing the image metadata. If metadata contains detections and/or annotations, UUIDs for the classes are automatically determined based on the category names. Metadata should follow the schema of the `ImageMetadata` data class.
 - `upload_priority`: Optional boolean flag to prioritize the upload (defaults to False)
 
-The endpoint returns None if the upload was successful and an error message otherwise.
+The endpoint returns `{'status': 'OK'}` if the upload was successful and `{'error': '<message>'}` otherwise.
 
 Besides detections and annotations, the metadata may carry `tags`, `source`, `created` and `state`.
 `state` names the state the image should enter the loop in (e.g. `trash`); when it is omitted the loop applies its own default (`inbox`).
