@@ -19,6 +19,9 @@ from .exceptions import InsufficientMemoryError
 
 logger = logging.getLogger(__name__)
 
+MAX_BATCH_SIZE = 1024
+"""Where a search stops when its caller sets no bound of its own."""
+
 NO_GPU_BATCH_SIZE = 8
 """Batch size used when there is no GPU to probe."""
 

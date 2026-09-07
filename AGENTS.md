@@ -62,12 +62,21 @@ that fits, around a `fits` predicate the trainer supplies — none of it imports
 brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
-`trainer/cuda.py` is the one exception to that framework independence: `usable_memory_bytes`
-and `limit_cuda_memory` turn a `--vram-limit-gb` setting into the budget a probe measures
-against and the cap that holds the process to it, and capping an allocator has no NVML
-equivalent. It imports torch, the package does **not** declare it, and only a trainer imports
-the module — so the library keeps working where nothing trains. Its unit test installs a
-stand-in under the name `torch`; whether the cap holds can only be seen on a card.
+`trainer/cuda.py` is the one exception to that framework independence, and holds everything
+about a batch-size probe that torch has to answer. `usable_memory_bytes` and `limit_cuda_memory`
+turn a `--vram-limit-gb` setting into the budget a probe measures against and the cap that holds
+the process to it, and capping an allocator has no NVML equivalent. `probe_batch_size` is the
+whole probe for a node whose measurement is a single call — it resolves the limit, falls back
+without a card, holds the safety margin and runs the search. A node that must build a throwaway
+model first reserves the margin before building it, and so composes the same pieces itself:
+`reserve_margin`, `measured_fits` and `find_batch_size`. `measured_fits` is where an
+out-of-memory failure is told from a bug — both arrive as the same exception types, and a probe
+that confuses them reports the smallest batch size as the card's fault.
+
+It imports torch, the package does **not** declare it, and only a trainer imports the module — so
+the library keeps working where nothing trains. Its unit test installs a stand-in under the name
+`torch`, which covers the arithmetic, the guards and the search; whether the cap holds, and what
+a real step costs, can only be seen on a card.
 
 `helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
 configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
