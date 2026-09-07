@@ -13,8 +13,6 @@ This Python library helps to write Nodes that interact with the Zauberzeug Learn
 
 To start a node you have to implement the logic by inheriting from the corresponding base logic class. We provide samples in the 'mock' folders and recommend to follow that scheme. A complete trainer and detector example can be found [here](https://github.com/zauberzeug/yolov5_node).
 
-**[docs/writing-a-node.md](docs/writing-a-node.md) walks through building a node from an empty repository**: which base class to implement per node type, what the library does for you, the trainer state machine, the trainer-to-detector model contract, and the repository and docker conventions the existing nodes share. The rest of this README documents how to *operate* a node.
-
 #### Environment variables
 
 You can configure connection to our Learning Loop by specifying the following environment variables before starting:
