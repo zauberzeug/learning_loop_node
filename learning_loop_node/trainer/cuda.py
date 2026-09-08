@@ -15,7 +15,7 @@ from collections.abc import Callable
 
 import torch
 
-from .batch_size import MAX_BATCH_SIZE, find_batch_size, is_out_of_memory, no_gpu_batch_size
+from .batch_size import MAX_BATCH_SIZE, find_batch_size, is_out_of_memory, no_gpu_batch_size, smaller_pot
 
 logger = logging.getLogger(__name__)
 
@@ -37,15 +37,17 @@ def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'ba
     :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
     :raises InsufficientMemoryError: If not even a batch size of 1 fits.
     """
-    limit = limit or MAX_BATCH_SIZE
+    limit = smaller_pot(limit or MAX_BATCH_SIZE)
 
     if not torch.cuda.is_available():
         return no_gpu_batch_size(limit, probe)
 
     margin = reserve_margin(vram_limit_gb, probe=probe)
-    chosen = find_batch_size(measured_fits(run_batch, probe=probe), limit=limit)
-    del margin
-    free_cuda_memory()
+    try:
+        chosen = find_batch_size(measured_fits(run_batch, probe=probe), limit=limit)
+    finally:
+        del margin
+        free_cuda_memory()
     logger.info('%s: selected batch size %d (upper bound %d)', probe, chosen, limit)
     return chosen
 
