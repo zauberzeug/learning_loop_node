@@ -34,9 +34,9 @@ jobs:
       # would delete each other's project
       max-parallel: 1
       matrix:
-        # the ends of what requires-python promises; the unit job covers 3.11 and 3.12 too,
-        # and no node runs anything outside this range
-        python-version: ["3.10", "3.13"]
+        # the floor requires-python promises, and the version every node ships with; the unit
+        # job covers 3.11 and 3.13 too
+        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
