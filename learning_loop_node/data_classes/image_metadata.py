@@ -46,6 +46,8 @@ class ImageMetadata():
         'description': 'Creation date of the image'})
     source: Optional[str] = field(default=None, metadata={
         'description': 'Source of the image'})
+    state: str | None = field(default=None, metadata={
+        'description': 'State the image should enter the loop in (e.g. "trash"); None uses the loop default'})
 
     def __len__(self):
         return len(self.box_detections) + len(self.point_detections) + len(self.segmentation_detections) + len(self.classification_detections)
