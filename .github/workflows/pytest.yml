@@ -83,6 +83,23 @@ jobs:
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: uv run --no-sync python -m pytest mock_trainer -v
 
+  all-green:
+    # the one status check the branch ruleset requires: a matrix job's check run is named
+    # "<job> (<entry>)", so requiring the entries themselves ties the ruleset to the matrix
+    # and every change to it leaves the ruleset waiting for a name nothing reports any more
+    needs:
+      - unit
+      - pytest
+    if: always() # a required check that is skipped reports nothing and waits forever
+    runs-on: ubuntu-latest
+    steps:
+      - name: check the jobs it gates
+        # skipped and cancelled have to fail too -- only success is green
+        run: |
+          echo "unit: ${{ needs.unit.result }}, pytest: ${{ needs.pytest.result }}"
+          [ "${{ needs.unit.result }}" = success ] || exit 1
+          [ "${{ needs.pytest.result }}" = success ] || exit 1
+
   slack:
     needs:
       - unit
