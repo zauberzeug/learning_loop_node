@@ -339,7 +339,9 @@ class DetectorNode(Node):
                 - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
                 - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
                 - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
-            - metadata: The metadata for the image (optional)
+            - metadata: The metadata for the image (optional). Besides detections and annotations it
+              may carry `tags`, `source`, `created` and `state`. A `state` of e.g. "trash" makes the
+              loop file the image into that state instead of its default one.
             - upload_priority: Whether to upload with priority (optional)
             """
             self.log.debug('Processing upload via socketio.')
