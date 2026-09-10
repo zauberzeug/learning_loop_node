@@ -53,15 +53,63 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 - **Annotator** — thin: it forwards the loop frontend's `handle_user_input` events into
   `AnnotatorLogic` and keeps a per-frontend history.
 
+`trainer/subprocess.py`, `trainer/batch_size.py` and `trainer/metrics.py` hold the parts of a
+trainer that are not framework-specific. `iterator_cpu_bound` runs a training generator in a
+spawned process and yields its progress through a `maxsize=1` queue, so the event loop stays
+responsive, CUDA state stays out of the node process, and the training can never run more than
+one item ahead of the bookkeeping. `find_batch_size` probes for the largest power-of-two batch
+that fits, around a `fits` predicate the trainer supplies — none of it imports torch, so a node
+brings its own way of running a step. `macro_f1` scores the confusion matrix
+`_get_new_best_training_state` returns.
+
+`trainer/cuda.py` is the one exception to that framework independence, and holds everything
+about a batch-size probe that torch has to answer. `usable_memory_bytes` and `limit_cuda_memory`
+turn a `--vram-limit-gb` setting into the budget a probe measures against and the cap that holds
+the process to it, and capping an allocator has no NVML equivalent. `probe_batch_size` is the
+whole probe for a node whose measurement is a single call — it resolves the limit, falls back
+without a card, holds the safety margin and runs the search. A node that must build a throwaway
+model first reserves the margin before building it, and so composes the same pieces itself:
+`reserve_margin`, `measured_fits` and `find_batch_size`. `measured_fits` is where an
+out-of-memory failure is told from a bug — both arrive as the same exception types, and a probe
+that confuses them reports the smallest batch size as the card's fault.
+
+It imports torch, the package does **not** declare it, and only a trainer imports the module — so
+the library keeps working where nothing trains. Its unit test installs a stand-in under the name
+`torch`, which covers the arithmetic, the guards and the search; whether the cap holds, and what
+a real step costs, can only be seen on a card.
+
+`helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
+configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
+*and* an environment variable from one declaration — `--conf-threshold` reads
+`CONF_THRESHOLD`. The exception is `--host`/`--port`, which read `NODE_HOST`/`NODE_PORT`: the
+bare `HOST` already means the loop's address, and a node adopting it would hand it to uvicorn
+and fail to bind. A node that used to require a prefix passes `legacy_env_prefix`, and the
+prefixed names keep working with a warning.
+
+`detector/postprocess.py` and `detector/geometry.py` hold the parts of a detector that do *not*
+depend on the model: confidence filtering, per-class NMS, box/point clipping, and turning
+predictions into the loop's dataclasses. A node should import them rather than write its own —
+every node repository had grown its own drifting copy, which is why they live here. Note the two
+containers: `to_image_metadata` builds what a **detector** node reports, `to_detections` what a
+**trainer**'s auto-detection pass reports. Both go through one routine, so the two paths cannot
+drift apart again.
+
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the
 `current_model` symlink, `outbox/`, and the per-project training folders.
 
 ## Running and testing
 
-The suites talk to a real Learning Loop instance and read their credentials from a local `.env`
-(`LOOP_HOST`, `LOOP_USERNAME`, `LOOP_PASSWORD`). Without a reachable loop they cannot pass — do not
-treat their failure as a regression you introduced.
+The `unit` suite is self-contained — no Learning Loop, no credentials, no network — so it is the
+one to run while iterating, and the one CI gates the others on:
+
+```bash
+python -m pytest learning_loop_node/tests/unit -v
+```
+
+Every other suite talks to a real Learning Loop instance and reads its credentials from a local
+`.env` (`LOOP_HOST`, `LOOP_USERNAME`, `LOOP_PASSWORD`). Without a reachable loop those cannot pass —
+do not treat their failure as a regression you introduced.
 
 ```bash
 ./run_tests.sh              # all suites
@@ -92,7 +140,8 @@ uvx ruff check .
 A clean tree already reports several hundred ruff findings, so a clean run is not a reachable goal.
 Compare the count on the files you touched, before and after.
 
-`.github/workflows/pytest.yml` runs the suites, `publish.yml` releases to PyPI on a tagged release.
+`.github/workflows/pytest.yml` runs the suites (the `unit` job first, without secrets),
+`publish.yml` releases to PyPI on a tagged release.
 
 ## Working in this repository
 

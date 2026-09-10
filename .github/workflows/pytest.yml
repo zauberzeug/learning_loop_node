@@ -3,96 +3,107 @@ name: Run Tests
 on: [push]
 
 jobs:
-  pytest_3_10:
+  unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
       fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - name: set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - name: set up uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
+      - name: install dependencies
+        # --locked fails on a lockfile that no longer matches pyproject.toml
+        run: uv sync --extra dev --locked --python ${{ matrix.python-version }}
+      - name: check interpreter
+        run: uv run --no-sync python -c "import sys; assert sys.version_info[:2] == tuple(map(int, '${{ matrix.python-version }}'.split('.'))), sys.version"
+      - name: test_unit
+        # no Learning Loop and no secrets needed, so this suite gates the slow ones
+        run: uv run --no-sync python -m pytest learning_loop_node/tests/unit -v
+
+  pytest:
+    needs:
+      - unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      # these suites share one Learning Loop instance, and test_general creates and deletes
+      # the project zauberzeug/pytest_nodelib_general by a fixed name -- two entries at once
+      # would delete each other's project
+      max-parallel: 1
+      matrix:
+        # the floor requires-python promises, and the version every node ships with; the unit
+        # job covers 3.11 and 3.13 too
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
       - name: install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install libcurl4-openssl-dev libssl-dev jpeginfo
       - name: install dependencies
-        run: |
-          uv sync --extra dev --frozen
+        run: uv sync --extra dev --locked --python ${{ matrix.python-version }}
       - name: test_general
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
-        run: |
-          uv run python -m pytest "learning_loop_node/tests/general" -v
+        run: uv run --no-sync python -m pytest learning_loop_node/tests/general -v
       - name: test_detector
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
-        run: |
-          uv run python -m pytest learning_loop_node/tests/detector -v
+        run: uv run --no-sync python -m pytest learning_loop_node/tests/detector -v
       - name: test_mock_detector
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
-        run: |
-          uv run python -m pytest mock_detector -v
-
-  pytest_3_13:
-    needs:
-      - pytest_3_10
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-      - name: set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: set up uv
-        uses: astral-sh/setup-uv@v3
-      - name: install test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install libcurl4-openssl-dev libssl-dev jpeginfo
-      - name: install dependencies
-        run: |
-          uv sync --extra dev --frozen
+        run: uv run --no-sync python -m pytest mock_detector -v
       - name: test_annotator
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
-        run: |
-          uv run python -m pytest learning_loop_node/tests/annotator -v
+        run: uv run --no-sync python -m pytest learning_loop_node/tests/annotator -v
       - name: test_trainer
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
-        run: |
-          uv run python -m pytest learning_loop_node/tests/trainer -v
+        run: uv run --no-sync python -m pytest learning_loop_node/tests/trainer -v
       - name: test_mock_trainer
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
+        run: uv run --no-sync python -m pytest mock_trainer -v
+
+  all-green:
+    # the one status check the branch ruleset requires: a matrix job's check run is named
+    # "<job> (<entry>)", so requiring the entries themselves ties the ruleset to the matrix
+    # and every change to it leaves the ruleset waiting for a name nothing reports any more
+    needs:
+      - unit
+      - pytest
+    if: always() # a required check that is skipped reports nothing and waits forever
+    runs-on: ubuntu-latest
+    steps:
+      - name: check the jobs it gates
+        # skipped and cancelled have to fail too -- only success is green
         run: |
-          uv run python -m pytest mock_trainer -v
+          echo "unit: ${{ needs.unit.result }}, pytest: ${{ needs.pytest.result }}"
+          [ "${{ needs.unit.result }}" = success ] || exit 1
+          [ "${{ needs.pytest.result }}" = success ] || exit 1
 
   slack:
     needs:
-      - pytest_3_10
-      - pytest_3_13
+      - unit
+      - pytest
     if: always() # also execute when pytest fails
     runs-on: ubuntu-latest
     steps:

@@ -161,27 +161,38 @@ class TrainerLogic(TrainerLogicGeneric):
 
     @abstractmethod
     async def _start_training_from_base_model(self) -> None:
-        '''Should be used to start a training on executer, e.g. self.executor.start(cmd).'''
+        """Should be used to start a training on executer, e.g. self.executor.start(cmd)."""
 
     @abstractmethod
     async def _start_training_from_scratch(self) -> None:
-        '''Should be used to start a training from scratch on executer, e.g. self.executor.start(cmd).
+        """Should be used to start a training from scratch on executer, e.g. self.executor.start(cmd).
         NOTE base_model_id is now accessible via self.training.base_model_id 
-        the id of a pretrained model provided by self.provided_pretrained_models.'''
+        the id of a pretrained model provided by self.provided_pretrained_models."""
 
     @abstractmethod
     def _can_resume(self) -> bool:
-        '''Override this method to return True if the trainer can resume training.'''
+        """Override this method to return True if the trainer can resume training."""
 
     @abstractmethod
     async def _resume(self) -> None:
-        '''Is called when self.can_resume() returns True.
-        One may resume the training on a previously trained model stored by self.on_model_published(basic_model).'''
+        """Is called when self.can_resume() returns True.
+        One may resume the training on a previously trained model stored by self.on_model_published(basic_model)."""
 
-    @abstractmethod
     def _get_executor_error_from_log(self) -> Optional[str]:
-        '''Should be used to provide error informations to the Learning Loop by extracting data from self.executor.get_log().'''
+        """Reports what went wrong to the Learning Loop by reading self.executor's log.
+
+        The default recognises the CUDA failures every trainer hits. Override to add messages a
+        particular training framework produces, and call super() to keep these.
+        """
+        if self._executor is None:
+            return None
+        for line in self._executor.get_log_by_lines(tail=50):
+            if 'CUDA out of memory' in line:
+                return 'graphics card is out of memory'
+            if 'CUDA error: invalid device ordinal' in line:
+                return 'graphics card not found'
+        return None
 
     @abstractmethod
     async def _detect(self, model_information: ModelInformation, images: List[str], model_folder: str) -> List[Detections]:
-        '''Called to run detections on a list of images.'''
+        """Called to run detections on a list of images."""

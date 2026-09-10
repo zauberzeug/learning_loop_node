@@ -36,6 +36,10 @@ You can configure connection to our Learning Loop by specifying the following en
 
 Note that organization and project IDs are always lower case and may differ from the names in the Learning Loop which can have uppercase letters.
 
+Where a name has an alias, either spelling works. If both are set to **different** values the
+prefixed name wins and a warning names the value used — the variable is never treated as unset,
+which would otherwise let `LOOP_HOST` fall back to its default of `learning-loop.ai`.
+
 #### Testing
 
 We use github actions for CI. Tests can also be executed locally by running
