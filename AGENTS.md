@@ -66,12 +66,16 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 about a batch-size probe that torch has to answer. `usable_memory_bytes` and `limit_cuda_memory`
 turn a `--vram-limit-gb` setting into the budget a probe measures against and the cap that holds
 the process to it, and capping an allocator has no NVML equivalent. `probe_batch_size` is the
-whole probe for a node whose measurement is a single call — it resolves the limit, falls back
-without a card, holds the safety margin and runs the search. A node that must build a throwaway
-model first reserves the margin before building it, and so composes the same pieces itself:
-`reserve_margin`, `measured_fits` and `find_batch_size`. `measured_fits` is where an
-out-of-memory failure is told from a bug — both arrive as the same exception types, and a probe
-that confuses them reports the smallest batch size as the card's fault.
+whole probe except the step itself — it resolves the limit, falls back without a card, holds the
+safety margin, runs the search and releases what the trials left behind. `on_out_of_memory` is how
+a node that builds a throwaway model drops an optimizer's gradients after a failed trial, and
+`minimum` is for a step that cannot run on a single sample at all: BatchNorm over a 1x1 feature
+map, or a training whose validation halves the batch. Only a node that needs the margin claimed
+*before* it builds its model still composes `reserve_margin`, `measured_fits` and
+`find_batch_size` itself — `dfine_node` does, so that a model too large for the budget fails while
+it is being built. `measured_fits` is where an out-of-memory failure is told from a bug — both
+arrive as the same exception types, and a probe that confuses them reports the smallest batch size
+as the card's fault.
 
 It imports torch, the package does **not** declare it, and only a trainer imports the module — so
 the library keeps working where nothing trains. Its unit test installs a stand-in under the name

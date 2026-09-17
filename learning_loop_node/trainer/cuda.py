@@ -16,6 +16,7 @@ from collections.abc import Callable
 import torch
 
 from .batch_size import MAX_BATCH_SIZE, find_batch_size, is_out_of_memory, no_gpu_batch_size, smaller_pot
+from .exceptions import InsufficientMemoryError
 
 logger = logging.getLogger(__name__)
 
@@ -24,27 +25,41 @@ SAFETY_MARGIN = 0.05
 
 
 def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'batch-size probe',
-                     limit: int = 0, vram_limit_gb: float = 0) -> int:
+                     limit: int = 0, minimum: int = 1, vram_limit_gb: float = 0,
+                     on_out_of_memory: Callable[[], None] | None = None) -> int:
     """Find the largest power-of-two batch size ``run_batch`` fits into.
 
-    For a probe whose measurement is one call. A probe that has to build a throwaway model first
-    composes :func:`reserve_margin`, :func:`measured_fits` and ``find_batch_size`` itself.
+    This is the whole of a probe except the step itself: the margin, the search, telling an
+    out-of-memory failure from a bug, and releasing what the trials left behind. A caller that
+    builds a throwaway model supplies ``on_out_of_memory`` to drop what a failed trial left on the
+    card; only a caller that needs the margin claimed *before* it builds that model has to compose
+    :func:`reserve_margin`, :func:`measured_fits` and ``find_batch_size`` itself.
 
     :param run_batch: Runs the batch; may return a detail to append to the log line.
     :param probe: Names this probe in the log, so a node running several stays readable.
     :param limit: Caps the search, rounded down to a power of two; 0 means
         :data:`~learning_loop_node.trainer.batch_size.MAX_BATCH_SIZE`.
+    :param minimum: Smallest batch size to try, rounded down to a power of two. Raise it above one
+        for a step that cannot run on a single sample at all — BatchNorm over a 1x1 feature map, a
+        validation pass that halves the batch — where a failure at one says nothing about memory.
     :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
-    :raises InsufficientMemoryError: If not even a batch size of 1 fits.
+    :param on_out_of_memory: Runs after a trial ran out of memory, to drop what it left behind
+        (an optimizer's gradients, say).
+    :raises InsufficientMemoryError: If not even ``minimum`` fits.
     """
-    limit = smaller_pot(limit or MAX_BATCH_SIZE)
+    minimum = smaller_pot(max(1, minimum))
+    limit = max(smaller_pot(limit or MAX_BATCH_SIZE), minimum)
 
     if not torch.cuda.is_available():
-        return no_gpu_batch_size(limit, probe)
+        return max(minimum, no_gpu_batch_size(limit, probe))
 
     margin = reserve_margin(vram_limit_gb, probe=probe)
     try:
-        chosen = find_batch_size(measured_fits(run_batch, probe=probe), limit=limit)
+        fits = measured_fits(run_batch, probe=probe, on_out_of_memory=on_out_of_memory)
+        # Searched in units of the minimum, so the smallest trial is the minimum rather than one.
+        chosen = minimum * find_batch_size(lambda n: fits(minimum * n), limit=limit // minimum)
+    except InsufficientMemoryError as exc:
+        raise InsufficientMemoryError(f'batch size {minimum} does not fit in memory') from exc
     finally:
         del margin
         free_cuda_memory()

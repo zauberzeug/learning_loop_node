@@ -133,6 +133,73 @@ def test_a_probe_without_a_gpu_does_not_run_the_step(load):
     assert not fake.allocated, 'and no margin claimed on a card that is not there'
 
 
+# --- a minimum above one ---
+
+def test_a_minimum_keeps_the_search_off_the_sizes_below_it(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.probe_batch_size(_fits_up_to(16, fake, ran), limit=64, minimum=2) == 16
+    assert ran == [2, 4, 8, 16, 32], 'the smallest trial is the minimum, not one'
+
+
+def test_a_minimum_is_rounded_down_to_a_power_of_two(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    cuda.probe_batch_size(_fits_up_to(64, fake, ran), limit=64, minimum=3)
+    assert ran[0] == 2
+
+
+def test_a_minimum_of_one_searches_exactly_as_before(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.probe_batch_size(_fits_up_to(16, fake, ran), limit=64, minimum=1) == 16
+    assert ran == [1, 2, 4, 8, 16, 32]
+
+
+def test_a_minimum_that_does_not_fit_reports_its_own_size(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    with pytest.raises(InsufficientMemoryError, match='batch size 4'):
+        cuda.probe_batch_size(_fits_up_to(2, fake, ran), limit=32, minimum=4)
+
+
+def test_a_minimum_above_the_limit_still_gets_tried(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.probe_batch_size(_fits_up_to(64, fake, ran), limit=2, minimum=8) == 8
+    assert ran == [8]
+
+
+def test_without_a_gpu_the_fallback_respects_the_minimum(load):
+    cuda, fake = load(cuda_available=False)
+    ran: list[int] = []
+    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=64, minimum=16) == 16
+    assert not ran
+
+
+# --- cleaning up after a trial that did not fit ---
+
+def test_the_out_of_memory_hook_runs_after_every_failed_trial(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    dropped: list[int] = []
+    cuda.probe_batch_size(_fits_up_to(4, fake, ran), limit=32,
+                          on_out_of_memory=lambda: dropped.append(len(ran)))
+    assert dropped == [4], 'once, after the single trial that went over'
+
+
+def test_the_out_of_memory_hook_does_not_run_for_a_bug(load):
+    cuda, _ = load()
+    dropped: list[int] = []
+
+    def run_batch(_: int) -> None:
+        raise RuntimeError('a real bug')
+
+    with pytest.raises(RuntimeError, match='a real bug'):
+        cuda.probe_batch_size(run_batch, limit=32, on_out_of_memory=lambda: dropped.append(1))
+    assert not dropped
+
+
 def test_a_batch_size_of_one_that_does_not_fit_is_an_error(load):
     cuda, fake = load()
     ran: list[int] = []
