@@ -11,6 +11,7 @@ from ...trainer.batch_size import (
     no_gpu_batch_size,
     smaller_pot,
 )
+from ...trainer.exceptions import InsufficientMemoryError
 
 
 def test_the_search_doubles_up_to_the_limit():
@@ -28,6 +29,57 @@ def test_the_search_backs_off_to_the_last_size_that_fit():
 def test_a_limit_that_is_not_a_power_of_two_is_rounded_down():
     assert find_batch_size(_fits_up_to(1024), limit=48) == 32
     assert find_batch_size(_fits_up_to(1024), limit=1) == 1
+
+
+def test_a_minimum_keeps_the_search_off_the_sizes_below_it():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=2) == 16
+    assert ran == [2, 4, 8, 16, 32], 'the smallest trial is the minimum, not one'
+
+
+def test_a_minimum_is_rounded_down_to_a_power_of_two():
+    ran: list[int] = []
+    find_batch_size(_fits_up_to(64, ran), limit=64, minimum=3)
+    assert ran[0] == 2
+
+
+def test_a_minimum_that_does_not_fit_reports_its_own_size():
+    with pytest.raises(InsufficientMemoryError, match='batch size 4'):
+        find_batch_size(_fits_up_to(2, []), limit=32, minimum=4)
+
+
+def test_a_minimum_above_the_limit_still_gets_tried():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(64, ran), limit=2, minimum=8) == 8
+    assert ran == [8]
+
+
+def test_a_named_candidate_that_fits_is_used_as_named():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(24, ran), limit=24, candidate=24) == 24
+    assert ran == [1, 2, 4, 8, 16, 24], 'tried only after the doubling reached its ceiling'
+
+
+def test_a_named_candidate_that_does_not_fit_leaves_the_power_of_two():
+    assert find_batch_size(_fits_up_to(16, []), limit=24, candidate=24) == 16
+
+
+def test_a_candidate_is_not_tried_when_memory_stopped_the_doubling_earlier():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(4, ran), limit=24, candidate=24) == 4
+    assert 24 not in ran, 'if 16 does not fit, 24 cannot'
+
+
+def test_a_candidate_above_the_limit_is_ignored():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(64, ran), limit=16, candidate=24) == 16
+    assert 24 not in ran
+
+
+def test_a_candidate_that_is_already_a_power_of_two_changes_nothing():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(64, ran), limit=16, candidate=16) == 16
+    assert ran.count(16) == 1, 'the doubling already tried it'
 
 
 def test_a_machine_that_cannot_take_one_sample_is_an_error():
@@ -110,6 +162,15 @@ def _recording(capacity: int) -> tuple[Callable[[int], bool], list[int]]:
     return fits, calls
 
 
-def _fits_up_to(capacity: int) -> Callable[[int], bool]:
-    fits, _ = _recording(capacity)
-    return fits
+def _fits_up_to(capacity: int, ran: list[int] | None = None) -> Callable[[int], bool]:
+    """A `fits` predicate for a machine of `capacity`, appending every size asked about to `ran`."""
+    fits, calls = _recording(capacity)
+    if ran is None:
+        return fits
+
+    def recording_fits(batch_size: int) -> bool:
+        result = fits(batch_size)
+        ran[:] = calls
+        return result
+
+    return recording_fits

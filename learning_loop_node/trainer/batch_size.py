@@ -16,6 +16,13 @@ from .exceptions import InsufficientMemoryError
 
 logger = logging.getLogger(__name__)
 
+BATCH_SIZE = 'batch_size'
+"""The hyperparameter every node reads its `measure_batch_size` argument out of.
+
+Named here so the nodes agree on the spelling, and here rather than in :mod:`.cuda` so that a
+hyperparameter parser can read it without pulling torch in. 0 or absent means the card decides.
+"""
+
 MAX_BATCH_SIZE = 1024
 """Where a search stops when its caller sets no bound of its own."""
 
@@ -26,19 +33,38 @@ MIN_TRAIN_STEPS_PER_EPOCH = 8
 """Fewest optimizer steps an epoch must have; :func:`dataset_limit` is derived from it."""
 
 
-def find_batch_size(fits: Callable[[int], bool], *, limit: int) -> int:
-    """Return the largest power-of-two batch size that fits, never exceeding ``limit``.
+def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1,
+                    candidate: int = 0) -> int:
+    """Return the largest batch size that fits, never exceeding ``limit``.
+
+    Powers of two, so equal hardware and equal hyperparameters yield an equal recipe — plus
+    ``candidate``, which is the one size outside that set this will return, and only when somebody
+    named it and it then measured.
 
     :param fits: Runs a representative probe; ``False`` on out-of-memory.
-    :raises InsufficientMemoryError: If not even a batch size of 1 fits.
+    :param limit: Upper bound; the doubling stops at the largest power of two within it.
+    :param minimum: Smallest size to try, rounded down to a power of two. Raise it above one for a
+        step that cannot run on a single sample at all — BatchNorm over a 1x1 feature map, a
+        validation pass that halves the batch — where a failure at one says nothing about memory.
+    :param candidate: An exact size, tried once the doubling has reached its ceiling, so a size
+        that was asked for is used as asked for rather than rounded down. Ignored unless it lies
+        between that ceiling and ``limit``; a bound nobody named — one derived from the dataset,
+        say — must not be passed here.
+    :raises InsufficientMemoryError: If not even ``minimum`` fits.
     """
-    limit = smaller_pot(limit)
-    if not fits(1):
-        raise InsufficientMemoryError('batch size 1 does not fit in memory')
+    minimum = smaller_pot(max(1, minimum))
+    bound = max(limit, minimum)
+    ceiling = max(smaller_pot(bound), minimum)
 
-    size = 1
-    while size < limit and fits(size * 2):
+    if not fits(minimum):
+        raise InsufficientMemoryError(f'batch size {minimum} does not fit in memory')
+
+    size = minimum
+    while size < ceiling and fits(size * 2):
         size *= 2
+
+    if size == ceiling and ceiling < candidate <= bound and fits(candidate):
+        size = candidate  # the doubling was not what stopped it, so the named size is reachable
 
     return size
 

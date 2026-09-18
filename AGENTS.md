@@ -65,12 +65,25 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `usable_memory_bytes` and `limit_cuda_memory`
 turn a `--vram-limit-gb` setting into the budget a probe measures against and the cap that holds
-the process to it, and capping an allocator has no NVML equivalent. `probe_batch_size` is the
-whole probe except the step itself — it resolves the limit, falls back without a card, holds the
+the process to it, and capping an allocator has no NVML equivalent.
+
+`measure_batch_size` is what every trainer calls, whatever shape its hyperparameters have: it
+takes the requested size as an `int`, so a node parsing into a dataclass enters the same door as
+one keeping a dict. `batch_size` — the key named by the `BATCH_SIZE` constant, so the three nodes
+agree on the spelling — is the largest batch the training may use, and it is measured rather than
+trusted: a size that fits is used as named, whether or not it is a power of two, and one that does
+not becomes the largest power of two below it that does. A training that starts small beats one
+that runs out of memory at epoch 30. The settled size is returned and **not** stored anywhere the
+next measurement would read it, which would otherwise leave inference bounded by training. Below
+it,
+`probe_batch_size` is the whole probe except the step itself — it resolves the limit, falls back without a card, holds the
 safety margin, runs the search and releases what the trials left behind. `on_out_of_memory` is how
 a node that builds a throwaway model drops an optimizer's gradients after a failed trial, and
-`minimum` is for a step that cannot run on a single sample at all: BatchNorm over a 1x1 feature
-map, or a training whose validation halves the batch. Only a node that needs the margin claimed
+`minimum` and `candidate` belong to `find_batch_size` itself, so a node composing by hand gets
+them too: `minimum` is for a step that cannot run on a single sample at all — BatchNorm over a 1x1
+feature map, or a training whose validation halves the batch — and `candidate` is the one way the
+search returns a size that is not a power of two, and only ever one that was named and then
+measured. Only a node that needs the margin claimed
 *before* it builds its model still composes `reserve_margin`, `measured_fits` and
 `find_batch_size` itself — `dfine_node` does, so that a model too large for the budget fails while
 it is being built. `measured_fits` is where an out-of-memory failure is told from a bug — both

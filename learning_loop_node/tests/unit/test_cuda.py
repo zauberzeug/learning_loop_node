@@ -133,6 +133,99 @@ def test_a_probe_without_a_gpu_does_not_run_the_step(load):
     assert not fake.allocated, 'and no margin claimed on a card that is not there'
 
 
+# --- settling a batch size from the hyperparameters ---
+
+def test_a_requested_size_that_fits_is_used_as_named(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.measure_batch_size(_fits_up_to(64, fake, ran), batch_size=16) == 16
+    assert ran[-1] == 16, 'and it was measured, not taken on trust'
+
+
+def test_a_requested_size_that_does_not_fit_backs_off_instead_of_running_out_of_memory(load):
+    cuda, fake = load()
+    assert cuda.measure_batch_size(_fits_up_to(8, fake, []), batch_size=32) == 8
+
+
+def test_a_requested_size_is_tried_even_when_it_is_not_a_power_of_two(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.measure_batch_size(_fits_up_to(24, fake, ran), batch_size=24) == 24
+    assert ran == [1, 2, 4, 8, 16, 24], 'the named size only after the search reached its ceiling'
+
+
+def test_a_named_size_that_does_not_fit_falls_back_to_the_power_of_two_below_it(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.measure_batch_size(_fits_up_to(16, fake, ran), batch_size=24) == 16
+    assert ran[-1] == 24, 'it was tried, and it did not fit'
+
+
+def test_a_named_size_is_not_tried_when_memory_stopped_the_search_earlier(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.measure_batch_size(_fits_up_to(4, fake, ran), batch_size=24) == 4
+    assert 24 not in ran, 'if 16 does not fit, 24 cannot'
+
+
+def test_an_absent_batch_size_leaves_the_bound_to_the_library(load):
+    cuda, fake = load()
+    assert cuda.measure_batch_size(_fits_up_to(2048, fake, [])) == MAX_BATCH_SIZE
+
+
+def test_a_batch_size_of_zero_means_measure(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.measure_batch_size(_fits_up_to(16, fake, ran), batch_size=0) == 16
+    assert ran
+
+
+def test_the_settled_size_is_only_returned(load):
+    cuda, fake = load()
+    settled = cuda.measure_batch_size(_fits_up_to(16, fake, []), batch_size=64)
+    assert settled == 16, 'the caller reports it; nothing here stores it where a second call would read it'
+
+
+def test_the_dataset_bounds_the_search_as_well(load):
+    cuda, fake = load()
+    # 80 samples leave room for 10 per step, rounded down to a power of two
+    assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), sample_count=80) == 8
+
+
+def test_a_dataset_bound_is_never_used_as_a_candidate(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    cuda.measure_batch_size(_fits_up_to(1024, fake, ran), sample_count=80)
+    assert 10 not in ran, 'samples // 8 is a heuristic, not a size anyone asked for'
+
+
+def test_the_tighter_of_the_request_and_the_dataset_wins(load):
+    cuda, fake = load()
+    assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), batch_size=4,
+                                   sample_count=8000) == 4
+    assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), batch_size=512,
+                                   sample_count=80) == 8
+
+
+def test_memory_still_decides_below_both_bounds(load):
+    cuda, fake = load()
+    assert cuda.measure_batch_size(_fits_up_to(2, fake, []), batch_size=64,
+                                   sample_count=8000) == 2
+
+
+def test_a_negative_batch_size_is_a_mistake_not_a_sentinel(load):
+    cuda, fake = load()
+    with pytest.raises(ValueError, match='batch_size'):
+        cuda.measure_batch_size(_fits_up_to(64, fake, []), batch_size=-1)
+
+
+def test_the_minimum_reaches_the_probe(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    cuda.measure_batch_size(_fits_up_to(64, fake, ran), minimum=4)
+    assert ran[0] == 4
+
+
 # --- a minimum above one ---
 
 def test_a_minimum_keeps_the_search_off_the_sizes_below_it(load):
