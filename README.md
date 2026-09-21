@@ -40,6 +40,16 @@ Where a name has an alias, either spelling works. If both are set to **different
 prefixed name wins and a warning names the value used — the variable is never treated as unset,
 which would otherwise let `LOOP_HOST` fall back to its default of `learning-loop.ai`.
 
+#### Debug logging
+
+Every node type (Detector, Trainer, Annotator, Converter) has a REST endpoint to switch its own log level between `INFO` and `DEBUG` at runtime. Send the plain text `on` or `off` with a PUT request:
+
+- Turn debug logging on: `curl -X PUT -d "on" http://localhost/debug_logging`
+- Turn debug logging off: `curl -X PUT -d "off" http://localhost/debug_logging`
+
+The response repeats the new state. Any other body returns status code 400.
+Only the node's own logger is affected; third-party loggers such as `httpx` keep their level. The setting is not persistent, a restart brings the log level back to `INFO`.
+
 #### Testing
 
 We use github actions for CI. Tests can also be executed locally by running
