@@ -3,12 +3,14 @@ from collections.abc import Callable
 import pytest
 
 from ...trainer.batch_size import (
+    BATCH_SIZE,
     MIN_TRAIN_STEPS_PER_EPOCH,
     batch_count,
     dataset_limit,
     find_batch_size,
     is_out_of_memory,
     no_gpu_batch_size,
+    requested_batch_size,
     smaller_pot,
 )
 from ...trainer.exceptions import InsufficientMemoryError
@@ -110,6 +112,21 @@ def test_batch_count_covers_the_whole_set_without_overshooting_by_a_batch():
             covered = batch_count(sample_count, batch_size) * batch_size
             assert covered >= sample_count
             assert covered - sample_count < batch_size
+
+
+@pytest.mark.parametrize('empty', [{}, {BATCH_SIZE: None}, {BATCH_SIZE: ''}, {BATCH_SIZE: 0}])
+def test_an_unfilled_batch_size_means_no_bound(empty: dict):
+    assert requested_batch_size(empty) == 0
+
+
+@pytest.mark.parametrize(('value', 'expected'), [('64', 64), (64, 64), (48.0, 48)])
+def test_a_batch_size_is_read_whatever_the_loop_spelled_it_as(value: object, expected: int):
+    assert requested_batch_size({BATCH_SIZE: value}) == expected
+
+
+def test_a_batch_size_that_is_not_a_number_is_an_error():
+    with pytest.raises(ValueError):
+        requested_batch_size({BATCH_SIZE: 'lots'})
 
 
 def test_the_dataset_limit_keeps_enough_steps_per_epoch():

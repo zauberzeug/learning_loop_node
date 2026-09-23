@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import gc
 import logging
+from argparse import ArgumentParser
 from collections.abc import Callable
 
 import torch
 
+from ..helpers.entrypoint import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
 from .batch_size import (
     BATCH_SIZE,
     MAX_BATCH_SIZE,
@@ -161,6 +163,16 @@ def usable_memory_bytes(vram_limit_gb: float) -> int:
     if vram_limit_gb <= 0:
         return total_bytes
     return min(total_bytes, int(vram_limit_gb * 1024**3))
+
+
+def add_vram_limit_argument(parser: ArgumentParser) -> None:
+    """Give a spawned training script the same GPU budget flag its node has.
+
+    The cap does not survive a spawn, so a node that probes against a budget has to hand the
+    number to whatever it spawns, and that process has to call :func:`limit_cuda_memory` itself.
+    This is the parsing half of that, spelled and documented exactly as on the node.
+    """
+    parser.add_argument(VRAM_LIMIT_GB_FLAG, type=float, default=0, help=VRAM_LIMIT_GB_HELP)
 
 
 def limit_cuda_memory(vram_limit_gb: float) -> None:

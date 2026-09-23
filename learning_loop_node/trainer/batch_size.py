@@ -10,7 +10,8 @@ https://github.com/Lightning-AI/pytorch-lightning
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from .exceptions import InsufficientMemoryError
 
@@ -67,6 +68,18 @@ def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1
         size = candidate  # the doubling was not what stopped it, so the named size is reachable
 
     return size
+
+
+def requested_batch_size(hyperparameters: Mapping[str, Any]) -> int:
+    """The bound a training asked for, read out of the hyperparameters the loop sent.
+
+    A field nobody filled in arrives as absent, ``None`` or ``''`` depending on where it came
+    from, and all three mean the same thing: no bound of its own, the card decides alone. Read it
+    through here rather than reaching into the dict, so every node agrees on that.
+
+    :raises ValueError: If the value is there but is not a number.
+    """
+    return int(hyperparameters.get(BATCH_SIZE, 0) or 0)
 
 
 def dataset_limit(sample_count: int) -> int:
