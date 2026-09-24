@@ -17,11 +17,16 @@ from .exceptions import InsufficientMemoryError
 
 logger = logging.getLogger(__name__)
 
-BATCH_SIZE = 'batch_size'
+REQUESTED_BATCH_SIZE = 'max_batch_size'
 """The hyperparameter every node reads its `measure_batch_size` argument out of.
 
 Named here so the nodes agree on the spelling, and here rather than in :mod:`.cuda` so that a
 hyperparameter parser can read it without pulling torch in. 0 or absent means the card decides.
+
+It is an input only. A trainer reports the size it settled on under a different key —
+conventionally ``batch_size`` — because the hyperparameters are stored with the training and
+handed to the next one: were the result written back here, a resumed or follow-up training would
+read an earlier card's measurement as its own bound.
 """
 
 MAX_BATCH_SIZE = 1024
@@ -79,7 +84,7 @@ def requested_batch_size(hyperparameters: Mapping[str, Any]) -> int:
 
     :raises ValueError: If the value is there but is not a number.
     """
-    return int(hyperparameters.get(BATCH_SIZE, 0) or 0)
+    return int(hyperparameters.get(REQUESTED_BATCH_SIZE, 0) or 0)
 
 
 def dataset_limit(sample_count: int) -> int:

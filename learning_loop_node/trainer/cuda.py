@@ -18,8 +18,8 @@ import torch
 
 from ..helpers.entrypoint import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
 from .batch_size import (
-    BATCH_SIZE,
     MAX_BATCH_SIZE,
+    REQUESTED_BATCH_SIZE,
     dataset_limit,
     find_batch_size,
     is_out_of_memory,
@@ -43,11 +43,11 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: in
     requested size to honour, such as a detection pass bounded only by how many images there are.
 
     :param run_batch: Runs the batch; may return a detail to append to the log line.
-    :param batch_size: What the training asked for, as carried in the :data:`BATCH_SIZE`
-        hyperparameter: the largest batch it may use, measured rather than trusted. A size that
-        fits is used as asked for, whether or not it is a power of two; one that does not becomes
-        the largest power of two below it that does, rather than a training that runs out of memory
-        partway through. 0 means the card decides alone.
+    :param batch_size: What the training asked for, as carried in the
+        :data:`~.batch_size.REQUESTED_BATCH_SIZE` hyperparameter: the largest batch it may use,
+        measured rather than trusted. A size that fits is used as asked for, whether or not it is a
+        power of two; one that does not becomes the largest power of two below it that does, rather
+        than a training that runs out of memory partway through. 0 means the card decides alone.
     :param sample_count: Samples in the training split, when the caller knows it. The search is
         then bounded so an epoch keeps enough optimizer steps to mean something, and so a loader
         that drops its last partial batch cannot end up with no batch at all. This bound is never
@@ -59,7 +59,7 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: in
     :raises ValueError: If the training asked for a negative batch size.
     """
     if batch_size < 0:
-        raise ValueError(f'{BATCH_SIZE} must be >= 0, got {batch_size}')
+        raise ValueError(f'{REQUESTED_BATCH_SIZE} must be >= 0, got {batch_size}')
 
     limit = batch_size
     if sample_count is not None:
