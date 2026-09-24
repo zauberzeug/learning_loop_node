@@ -3,7 +3,8 @@ import pytest
 from ...helpers.entrypoint import node_parser
 
 MANAGED = ('WEIGHT_TYPE', 'MY_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT',
-           'MY_DETECTOR_HOST', 'MY_DETECTOR_PORT', 'MY_DETECTOR_NODE_HOST')
+           'MY_DETECTOR_HOST', 'MY_DETECTOR_PORT', 'MY_DETECTOR_NODE_HOST', 'VRAM_LIMIT_GB',
+           'MY_DETECTOR_VRAM_LIMIT_GB')
 
 
 def test_every_node_gets_a_host_and_a_port():
@@ -90,6 +91,30 @@ def test_the_current_name_wins_over_both_prefixed_spellings(monkeypatch: pytest.
 def test_the_loop_own_host_is_not_adopted_by_a_prefixed_node(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv('HOST', 'preview.learning-loop.ai')
     assert _parser(legacy_env_prefix='MY_DETECTOR_').parse_args([]).host == '0.0.0.0'
+
+
+def test_a_node_that_does_not_probe_has_no_vram_limit():
+    assert not hasattr(_parser().parse_args([]), 'vram_limit_gb')
+
+
+def test_the_vram_limit_defaults_to_the_whole_card():
+    assert _parser(vram_limit=True).parse_args([]).vram_limit_gb == 0
+
+
+def test_the_vram_limit_is_read_from_its_variable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('VRAM_LIMIT_GB', '6')
+    assert _parser(vram_limit=True).parse_args([]).vram_limit_gb == 6.0
+
+
+def test_the_vram_limit_flag_beats_its_variable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('VRAM_LIMIT_GB', '6')
+    assert _parser(vram_limit=True).parse_args(['--vram-limit-gb', '4.5']).vram_limit_gb == 4.5
+
+
+def test_the_vram_limit_is_still_read_under_a_legacy_prefix(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('MY_DETECTOR_VRAM_LIMIT_GB', '6')
+    args = _parser(vram_limit=True, legacy_env_prefix='MY_DETECTOR_').parse_args([])
+    assert args.vram_limit_gb == 6.0
 
 
 @pytest.fixture(autouse=True)

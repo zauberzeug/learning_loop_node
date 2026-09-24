@@ -6,6 +6,7 @@ costs, can only be observed on a card.
 """
 from __future__ import annotations
 
+import argparse
 import importlib
 import logging
 import sys
@@ -57,6 +58,14 @@ def test_nothing_is_capped_without_cuda(load):
     cuda, fake = load(cuda_available=False)
     cuda.limit_cuda_memory(2)
     assert fake.capped == []
+
+
+def test_a_spawned_script_takes_the_same_budget_flag_as_its_node(load):
+    cuda, _ = load()
+    parser = argparse.ArgumentParser()
+    cuda.add_vram_limit_argument(parser)
+    assert parser.parse_args([]).vram_limit_gb == 0
+    assert parser.parse_args(['--vram-limit-gb', '6.5']).vram_limit_gb == 6.5
 
 
 def test_a_limit_the_card_cannot_reach_warns_instead_of_capping(load, caplog):
