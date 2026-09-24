@@ -78,9 +78,7 @@ def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1
 def requested_batch_size(hyperparameters: Mapping[str, Any]) -> int:
     """The bound a training asked for, read out of the hyperparameters the loop sent.
 
-    A field nobody filled in arrives as absent, ``None`` or ``''`` depending on where it came
-    from, and all three mean the same thing: no bound of its own, the card decides alone. Read it
-    through here rather than reaching into the dict, so every node agrees on that.
+    An unfilled field arrives as absent, ``None`` or ``''``, and all three mean no bound.
 
     :raises ValueError: If the value is there but is not a number.
     """

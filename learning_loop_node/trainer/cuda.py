@@ -168,9 +168,7 @@ def usable_memory_bytes(vram_limit_gb: float) -> int:
 def add_vram_limit_argument(parser: ArgumentParser) -> None:
     """Give a spawned training script the same GPU budget flag its node has.
 
-    The cap does not survive a spawn, so a node that probes against a budget has to hand the
-    number to whatever it spawns, and that process has to call :func:`limit_cuda_memory` itself.
-    This is the parsing half of that, spelled and documented exactly as on the node.
+    The spawned process still has to call :func:`limit_cuda_memory` with it.
     """
     parser.add_argument(VRAM_LIMIT_GB_FLAG, type=float, default=0, help=VRAM_LIMIT_GB_HELP)
 

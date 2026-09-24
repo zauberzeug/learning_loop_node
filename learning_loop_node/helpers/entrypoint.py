@@ -22,7 +22,6 @@ VRAM_LIMIT_GB_HELP = ('Gigabytes of GPU memory a training may use. The batch siz
                       'out-of-memory error. Use it to share a GPU or to keep headroom against fragmentation. '
                       "The limit is relative to the card's total memory, not to what is currently free. "
                       '0 (default) means no limit.')
-"""Written once here because an operator reads it as the contract for what ``VRAM_LIMIT_GB`` does."""
 
 
 def node_parser(*, description: str, legacy_env_prefix: str = '',
@@ -33,8 +32,8 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
         ``'MY_DETECTOR_'``. Both spellings keep working, with a warning: the prefix on the
         current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
-    :param vram_limit: Add :data:`VRAM_LIMIT_GB_FLAG`. Opt-in, because only a node that probes a
-        batch size has anything to do with it; on a detector node the setting means nothing.
+    :param vram_limit: Add :data:`VRAM_LIMIT_GB_FLAG`; only a node that probes a batch size has
+        anything to do with it.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',
