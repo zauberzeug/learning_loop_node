@@ -121,7 +121,7 @@ def test_an_unfilled_batch_size_means_no_bound(empty: dict):
 
 
 def test_the_reported_batch_size_is_never_read_as_a_bound():
-    """A trainer reports its settled size as `batch_size`; the next training must not inherit it."""
+    """A trainer reports its settled size as `batch_size`; a resumed training must not read it as its bound."""
     assert REQUESTED_BATCH_SIZE != 'batch_size'
     assert requested_batch_size({'batch_size': 16}) == 0
     assert requested_batch_size({'batch_size': 16, REQUESTED_BATCH_SIZE: 64}) == 64

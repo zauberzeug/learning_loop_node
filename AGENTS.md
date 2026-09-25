@@ -76,8 +76,11 @@ used as named, whether or not it is a power of two, and one that does not become
 power of two below it that does. A training that starts small beats one that runs out of memory
 partway through. The settled size is returned and **not** stored anywhere the next measurement
 would read it: a trainer reports it as `batch_size`, never under `max_batch_size`, because the
-hyperparameters are stored with the training and handed to the next one — a resumed or follow-up
-training would otherwise inherit an earlier card's measurement as its bound.
+node saves the hyperparameters with the training (`LastTrainingIO`) and a training resumed after a
+restart reads them back — it would otherwise take its first run's measurement as its bound instead
+of measuring again. The loop does not hand reported values to a later training: it builds each one
+from the project configuration and the job's override, taking only `resolution` from a base
+training.
 
 Below it, `probe_batch_size` is the whole probe except the step itself — it resolves the limit,
 falls back without a card, holds the safety margin, runs the search and releases what the trials

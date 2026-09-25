@@ -24,9 +24,9 @@ Named here so the nodes agree on the spelling, and here rather than in :mod:`.cu
 hyperparameter parser can read it without pulling torch in. 0 or absent means the card decides.
 
 It is an input only. A trainer reports the size it settled on under a different key —
-conventionally ``batch_size`` — because the hyperparameters are stored with the training and
-handed to the next one: were the result written back here, a resumed or follow-up training would
-read an earlier card's measurement as its own bound.
+conventionally ``batch_size`` — because the node saves the hyperparameters with the training and
+a training resumed after a restart reads them back: were the result written back here, the resumed
+run would take its first run's measurement as its bound instead of measuring again.
 """
 
 MAX_BATCH_SIZE = 1024
