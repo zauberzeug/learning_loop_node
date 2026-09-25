@@ -66,6 +66,8 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: in
     limit = batch_size
     if sample_count is not None:
         limit = min(limit or MAX_BATCH_SIZE, dataset_limit(sample_count))
+        logger.info('%s: %d training samples allow at most %d per batch', probe, sample_count,
+                    dataset_limit(sample_count))
 
     return probe_batch_size(run_batch, probe=probe, limit=limit, candidate=batch_size,
                             minimum=minimum, vram_limit_gb=vram_limit_gb,

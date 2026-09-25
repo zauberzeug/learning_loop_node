@@ -208,6 +208,13 @@ def test_a_dataset_bound_is_never_used_as_a_candidate(load):
     assert 10 not in ran, 'samples // 8 is a heuristic, not a size anyone asked for'
 
 
+def test_the_log_says_when_the_dataset_is_what_bounds_the_search(load, caplog):
+    cuda, fake = load()
+    with caplog.at_level(logging.INFO):
+        cuda.measure_batch_size(_fits_up_to(1024, fake, []), sample_count=80)
+    assert '80 training samples allow at most 10 per batch' in caplog.text
+
+
 def test_the_tighter_of_the_request_and_the_dataset_wins(load):
     cuda, fake = load()
     assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), batch_size=4,
