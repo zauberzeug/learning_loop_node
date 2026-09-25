@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 SAFETY_MARGIN = 0.05
 """Share of the budget held back while probing, against allocator fragmentation later on."""
 
+
 def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: int = 0,
                        sample_count: int | None = None, probe: str = 'batch-size probe',
                        minimum: int = 1, vram_limit_gb: float = 0,
@@ -78,8 +79,7 @@ def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'ba
     This is the whole of a probe except the step itself: the margin, the search, telling an
     out-of-memory failure from a bug, and releasing what the trials left behind. A caller that
     builds a throwaway model supplies ``on_out_of_memory`` to drop what a failed trial left on the
-    card; only a caller that needs the margin claimed *before* it builds that model has to compose
-    :func:`reserve_margin`, :func:`measured_fits` and ``find_batch_size`` itself.
+    card.
 
     :param run_batch: Runs the batch; may return a detail to append to the log line.
     :param probe: Names this probe in the log, so a node running several stays readable.

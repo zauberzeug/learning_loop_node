@@ -85,15 +85,13 @@ training.
 Below it, `probe_batch_size` is the whole probe except the step itself — it resolves the limit,
 falls back without a card, holds the safety margin, runs the search and releases what the trials
 left behind. `on_out_of_memory` is how a node that builds a throwaway model drops an optimizer's
-gradients after a failed trial, and `minimum` and `candidate` belong to `find_batch_size` itself,
-so a node composing by hand gets them too: `minimum` is for a step that cannot run on a single
-sample at all — BatchNorm over a 1x1 feature map, or a training whose validation halves the batch
-— and `candidate` is the one way the search returns a size that is not a power of two, and only
-ever one that was named and then measured. A node that needs the margin claimed *before* it builds
-its model — so that a model too large for the budget fails while it is being built — can still
-compose `reserve_margin`, `measured_fits` and `find_batch_size` itself. `measured_fits` is where an
-out-of-memory failure is told from a bug — both arrive as the same exception types, and a probe
-that confuses them reports the smallest batch size as the card's fault.
+gradients after a failed trial. `minimum` is for a step that cannot run on a single sample at all
+— BatchNorm over a 1x1 feature map, or a training whose validation halves the batch — and
+`candidate` is the one way the search returns a size that is not a power of two, and only ever
+one that was named and then measured. A node does not compose `reserve_margin`, `measured_fits`
+and `find_batch_size` itself; they are the pieces `probe_batch_size` is built from. `measured_fits`
+is where an out-of-memory failure is told from a bug — both arrive as the same exception types,
+and a probe that confuses them reports the smallest batch size as the card's fault.
 
 A trainer that probes opts into the budget flag with `node_parser(vram_limit=True)`, which adds
 `--vram-limit-gb` / `VRAM_LIMIT_GB`. The cap does not survive a spawn, so a script the trainer
