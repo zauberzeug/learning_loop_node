@@ -12,16 +12,9 @@ from argparse import Action, Namespace
 import configargparse
 import uvicorn
 
+from ..trainer.batch_size import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
+
 logger = logging.getLogger(__name__)
-
-VRAM_LIMIT_GB_FLAG = '--vram-limit-gb'
-"""The flag a trainer takes its GPU budget from; ``VRAM_LIMIT_GB`` follows from the name."""
-
-VRAM_LIMIT_GB_HELP = ('Gigabytes of GPU memory a training may use. The batch size is probed against this limit '
-                      'instead of the whole card, so a lower limit yields a smaller batch size rather than an '
-                      'out-of-memory error. Use it to share a GPU or to keep headroom against fragmentation. '
-                      "The limit is relative to the card's total memory, not to what is currently free. "
-                      '0 (default) means no limit.')
 
 
 def node_parser(*, description: str, legacy_env_prefix: str = '',
@@ -32,8 +25,8 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
         ``'MY_DETECTOR_'``. Both spellings keep working, with a warning: the prefix on the
         current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
-    :param vram_limit: Add :data:`VRAM_LIMIT_GB_FLAG`; only a node that probes a batch size has
-        anything to do with it.
+    :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`;
+        only a node that probes a batch size has anything to do with it.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',

@@ -16,10 +16,11 @@ from collections.abc import Callable
 
 import torch
 
-from ..helpers.entrypoint import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
 from .batch_size import (
     MAX_BATCH_SIZE,
     REQUESTED_BATCH_SIZE,
+    VRAM_LIMIT_GB_FLAG,
+    VRAM_LIMIT_GB_HELP,
     dataset_limit,
     find_batch_size,
     is_out_of_memory,

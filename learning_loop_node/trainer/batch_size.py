@@ -29,6 +29,19 @@ a training resumed after a restart reads them back: were the result written back
 run would take its first run's measurement as its bound instead of measuring again.
 """
 
+VRAM_LIMIT_GB_FLAG = '--vram-limit-gb'
+"""The flag a trainer takes its GPU budget from; ``VRAM_LIMIT_GB`` follows from the name.
+
+Here rather than beside ``node_parser``, so that :mod:`.cuda` declares the same flag for a spawned
+script without depending on the node's entrypoint.
+"""
+
+VRAM_LIMIT_GB_HELP = ('Gigabytes of GPU memory a training may use. The batch size is probed against this limit '
+                      'instead of the whole card, so a lower limit yields a smaller batch size rather than an '
+                      'out-of-memory error. Use it to share a GPU or to keep headroom against fragmentation. '
+                      "The limit is relative to the card's total memory, not to what is currently free. "
+                      '0 (default) means no limit.')
+
 MAX_BATCH_SIZE = 1024
 """Where a search stops when its caller sets no bound of its own."""
 
