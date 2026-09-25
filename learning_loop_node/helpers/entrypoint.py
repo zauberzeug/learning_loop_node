@@ -12,21 +12,28 @@ from argparse import Action, Namespace
 import configargparse
 import uvicorn
 
+from ..trainer.batch_size import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
+
 logger = logging.getLogger(__name__)
 
 
-def node_parser(*, description: str, legacy_env_prefix: str = '') -> configargparse.ArgumentParser:
+def node_parser(*, description: str, legacy_env_prefix: str = '',
+                vram_limit: bool = False) -> configargparse.ArgumentParser:
     """Build the parser for a node, pre-loaded with the settings every node has.
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
         ``'MY_DETECTOR_'``. Both spellings keep working, with a warning: the prefix on the
         current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
+    :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`;
+        only a node that probes a batch size has anything to do with it.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',
                         help='Host interface to bind to')
     parser.add_argument('--port', type=int, default=80, env_var='NODE_PORT', help='Port to bind to')
+    if vram_limit:
+        parser.add_argument(VRAM_LIMIT_GB_FLAG, type=float, default=0, help=VRAM_LIMIT_GB_HELP)
     return parser
 
 
