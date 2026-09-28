@@ -20,21 +20,12 @@ logger = logging.getLogger(__name__)
 REQUESTED_BATCH_SIZE = 'max_batch_size'
 """The hyperparameter every node reads its `measure_batch_size` argument out of.
 
-Named here so the nodes agree on the spelling, and here rather than in :mod:`.cuda` so that a
-hyperparameter parser can read it without pulling torch in. 0 or absent means the card decides.
-
-It is an input only. A trainer reports the size it settled on under a different key —
-conventionally ``batch_size`` — because the node saves the hyperparameters with the training and
-a training resumed after a restart reads them back: were the result written back here, the resumed
-run would take its first run's measurement as its bound instead of measuring again.
+0 or absent means the card decides. It is an input only: a trainer reports the size it settled on
+under a different key, conventionally ``batch_size``, and never writes it back here.
 """
 
 VRAM_LIMIT_GB_FLAG = '--vram-limit-gb'
-"""The flag a trainer takes its GPU budget from; ``VRAM_LIMIT_GB`` follows from the name.
-
-Here rather than beside ``node_parser``, so that :mod:`.cuda` declares the same flag for a spawned
-script without depending on the node's entrypoint.
-"""
+"""The flag a trainer takes its GPU budget from; ``VRAM_LIMIT_GB`` follows from the name."""
 
 VRAM_LIMIT_GB_HELP = ('Gigabytes of GPU memory a training may use. The batch size is probed against this limit '
                       'instead of the whole card, so a lower limit yields a smaller batch size rather than an '
@@ -56,15 +47,14 @@ def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1
                     candidate: int = 0) -> int:
     """Return the largest batch size that fits, never exceeding ``limit``.
 
-    Powers of two, so equal hardware and equal hyperparameters yield an equal recipe — plus
-    ``candidate``, which is the one size outside that set this will return, and only when somebody
-    named it and it then measured.
+    Powers of two, plus ``candidate``, which is the one size outside that set this will return, and
+    only when somebody named it and it then measured.
 
     :param fits: Runs a representative probe; ``False`` on out-of-memory.
     :param limit: Upper bound; the doubling stops at the largest power of two within it.
     :param minimum: Smallest size to try, rounded down to a power of two. Raise it above one for a
-        step that cannot run on a single sample at all — BatchNorm over a 1x1 feature map, a
-        validation pass that halves the batch — where a failure at one says nothing about memory.
+        step that cannot run on a single sample at all: BatchNorm over a 1x1 feature map, a
+        validation pass that halves the batch.
     :param candidate: An exact size, tried once the doubling has reached its ceiling, so a size
         that was asked for is used as asked for rather than rounded down. Ignored unless it lies
         between that ceiling and ``limit``; a bound nobody named — one derived from the dataset,
@@ -83,7 +73,7 @@ def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1
         size *= 2
 
     if size == ceiling and ceiling < candidate <= bound and fits(candidate):
-        size = candidate  # the doubling was not what stopped it, so the named size is reachable
+        size = candidate
 
     return size
 

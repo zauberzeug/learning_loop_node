@@ -40,20 +40,19 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: in
                        on_out_of_memory: Callable[[], None] | None = None) -> int:
     """Settle a training's batch size against what it asked for and what the card allows.
 
-    The whole of the decision, so that a trainer is left with only the step. Every training enters
-    here, whatever shape its hyperparameters have; :func:`probe_batch_size` is for a probe with no
-    requested size to honour, such as a detection pass bounded only by how many images there are.
+    Every training enters here, whatever shape its hyperparameters have; :func:`probe_batch_size` is
+    for a probe with no requested size to honour, such as a detection pass bounded only by how many
+    images there are.
 
     :param run_batch: Runs the batch; may return a detail to append to the log line.
     :param batch_size: What the training asked for, as carried in the
         :data:`~.batch_size.REQUESTED_BATCH_SIZE` hyperparameter: the largest batch it may use,
         measured rather than trusted. A size that fits is used as asked for, whether or not it is a
-        power of two; one that does not becomes the largest power of two below it that does, rather
-        than a training that runs out of memory partway through. 0 means the card decides alone.
+        power of two; one that does not becomes the largest power of two below it that does. 0 means
+        the card decides alone.
     :param sample_count: Samples in the training split, when the caller knows it. The search is
-        then bounded so an epoch keeps enough optimizer steps to mean something, and so a loader
-        that drops its last partial batch cannot end up with no batch at all. This bound is never
-        used as the exact candidate -- it is a heuristic, not a size anyone named.
+        then bounded by :func:`~.batch_size.dataset_limit`; that bound is never used as the exact
+        candidate.
     :param minimum: Smallest size to try; see :func:`probe_batch_size`.
     :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
     :param on_out_of_memory: Runs after a trial ran out of memory, to drop what it left behind.
