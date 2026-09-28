@@ -10,11 +10,28 @@ https://github.com/Lightning-AI/pytorch-lightning
 """
 
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from typing import Any
 
 from .exceptions import InsufficientMemoryError
 
 logger = logging.getLogger(__name__)
+
+REQUESTED_BATCH_SIZE = 'max_batch_size'
+"""The hyperparameter every node reads its `measure_batch_size` argument out of.
+
+0 or absent means the card decides. It is an input only: a trainer reports the size it settled on
+under a different key, conventionally ``batch_size``, and never writes it back here.
+"""
+
+VRAM_LIMIT_GB_FLAG = '--vram-limit-gb'
+"""The flag a trainer takes its GPU budget from; ``VRAM_LIMIT_GB`` follows from the name."""
+
+VRAM_LIMIT_GB_HELP = ('Gigabytes of GPU memory a training may use. The batch size is probed against this limit '
+                      'instead of the whole card, so a lower limit yields a smaller batch size rather than an '
+                      'out-of-memory error. Use it to share a GPU or to keep headroom against fragmentation. '
+                      "The limit is relative to the card's total memory, not to what is currently free. "
+                      '0 (default) means no limit.')
 
 MAX_BATCH_SIZE = 1024
 """Where a search stops when its caller sets no bound of its own."""
@@ -26,21 +43,49 @@ MIN_TRAIN_STEPS_PER_EPOCH = 8
 """Fewest optimizer steps an epoch must have; :func:`dataset_limit` is derived from it."""
 
 
-def find_batch_size(fits: Callable[[int], bool], *, limit: int) -> int:
-    """Return the largest power-of-two batch size that fits, never exceeding ``limit``.
+def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1,
+                    candidate: int = 0) -> int:
+    """Return the largest batch size that fits, never exceeding ``limit``.
+
+    Powers of two, plus ``candidate``, which is the one size outside that set this will return, and
+    only when somebody named it and it then measured.
 
     :param fits: Runs a representative probe; ``False`` on out-of-memory.
-    :raises InsufficientMemoryError: If not even a batch size of 1 fits.
+    :param limit: Upper bound; the doubling stops at the largest power of two within it.
+    :param minimum: Smallest size to try, rounded down to a power of two. Raise it above one for a
+        step that cannot run on a single sample at all: BatchNorm over a 1x1 feature map, a
+        validation pass that halves the batch.
+    :param candidate: An exact size, tried once the doubling has reached its ceiling, so a size
+        that was asked for is used as asked for rather than rounded down. Ignored unless it lies
+        between that ceiling and ``limit``; a bound nobody named — one derived from the dataset,
+        say — must not be passed here.
+    :raises InsufficientMemoryError: If not even ``minimum`` fits.
     """
-    limit = smaller_pot(limit)
-    if not fits(1):
-        raise InsufficientMemoryError('batch size 1 does not fit in memory')
+    minimum = smaller_pot(max(1, minimum))
+    bound = max(limit, minimum)
+    ceiling = max(smaller_pot(bound), minimum)
 
-    size = 1
-    while size < limit and fits(size * 2):
+    if not fits(minimum):
+        raise InsufficientMemoryError(f'batch size {minimum} does not fit in memory')
+
+    size = minimum
+    while size < ceiling and fits(size * 2):
         size *= 2
 
+    if size == ceiling and ceiling < candidate <= bound and fits(candidate):
+        size = candidate
+
     return size
+
+
+def requested_batch_size(hyperparameters: Mapping[str, Any]) -> int:
+    """The bound a training asked for, read out of the hyperparameters the loop sent.
+
+    An unfilled field arrives as absent, ``None`` or ``''``, and all three mean no bound.
+
+    :raises ValueError: If the value is there but is not a number.
+    """
+    return int(hyperparameters.get(REQUESTED_BATCH_SIZE, 0) or 0)
 
 
 def dataset_limit(sample_count: int) -> int:
