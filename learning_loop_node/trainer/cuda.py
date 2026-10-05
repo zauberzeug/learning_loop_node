@@ -32,10 +32,13 @@ logger = logging.getLogger(__name__)
 SAFETY_MARGIN = 0.05
 """Share of the budget held back while probing, against allocator fragmentation later on."""
 
+_budget_gb: float = 0
+"""What :func:`limit_cuda_memory` capped this process to; 0 means the whole card."""
+
 
 def measure_batch_size(run_batch: Callable[[int], str | None], *, max_batch_size: int = 0,
                        sample_count: int | None = None, probe: str = 'batch-size probe',
-                       minimum: int = 1, vram_limit_gb: float = 0,
+                       minimum: int = 1,
                        on_out_of_memory: Callable[[], None] | None = None) -> int:
     """Settle a training's batch size against what it asked for and what the card allows.
 
@@ -54,7 +57,6 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, max_batch_size
         candidate.
     :param minimum: Smallest size to try, taking precedence over ``max_batch_size``; see
         :func:`~.batch_size.find_batch_size`.
-    :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
     :param on_out_of_memory: Runs after a trial ran out of memory, to drop what it left behind.
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
     :raises ValueError: If the training asked for a negative batch size.
@@ -72,17 +74,17 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, max_batch_size
                     dataset_limit(sample_count))
 
     return probe_batch_size(run_batch, probe=probe, limit=limit, candidate=max_batch_size,
-                            minimum=minimum, vram_limit_gb=vram_limit_gb,
-                            on_out_of_memory=on_out_of_memory)
+                            minimum=minimum, on_out_of_memory=on_out_of_memory)
 
 
 def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'batch-size probe',
-                     limit: int = 0, candidate: int = 0, minimum: int = 1, vram_limit_gb: float = 0,
+                     limit: int = 0, candidate: int = 0, minimum: int = 1,
                      on_out_of_memory: Callable[[], None] | None = None) -> int:
     """Run :func:`~learning_loop_node.trainer.batch_size.find_batch_size` against a real card.
 
     This is the whole of a probe except the step itself: the margin, the search, telling an
-    out-of-memory failure from a bug, and releasing what the trials left behind. A caller that
+    out-of-memory failure from a bug, and releasing what the trials left behind. The margin is a
+    share of the budget :func:`limit_cuda_memory` set in this process. A caller that
     builds a throwaway model supplies ``on_out_of_memory`` to drop what a failed trial left on the
     card.
 
@@ -93,7 +95,6 @@ def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'ba
     :param candidate: An exact size to try once the doubling has reached its ceiling; see
         ``find_batch_size``.
     :param minimum: Smallest size to try; see ``find_batch_size``.
-    :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
     :param on_out_of_memory: Runs after a trial ran out of memory, to drop what it left behind
         (an optimizer's gradients, say).
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
@@ -103,7 +104,7 @@ def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'ba
     if not torch.cuda.is_available():
         return no_gpu_batch_size(bound, probe, minimum)
 
-    margin = reserve_margin(vram_limit_gb, probe=probe)
+    margin = reserve_margin(probe=probe)
     try:
         fits = measured_fits(run_batch, probe=probe, on_out_of_memory=on_out_of_memory)
         chosen = find_batch_size(fits, limit=bound, minimum=minimum, candidate=candidate)
@@ -146,28 +147,22 @@ def measured_fits(run_batch: Callable[[int], str | None], *, probe: str,
     return fits
 
 
-def reserve_margin(vram_limit_gb: float, *, probe: str) -> torch.Tensor:
+def reserve_margin(*, probe: str) -> torch.Tensor:
     """Claim :data:`SAFETY_MARGIN` of the budget, so a trial competes against a smaller card.
 
     Keep the returned tensor alive for as long as the probe runs: releasing it hands the margin
     back, and the chosen size is no longer the size that was measured.
-
-    :param vram_limit_gb: The budget the margin is a share of; 0 means the whole card.
     """
-    margin_bytes = int(usable_memory_bytes(vram_limit_gb) * SAFETY_MARGIN)
+    margin_bytes = int(usable_memory_bytes() * SAFETY_MARGIN)
     logger.info('%s: keeping %.0f MB free as a safety margin', probe, margin_bytes / 1024**2)
     return torch.empty(margin_bytes, dtype=torch.uint8, device='cuda')
 
 
-def usable_memory_bytes(vram_limit_gb: float) -> int:
-    """How much GPU memory this process may allocate, honouring :func:`limit_cuda_memory`.
-
-    :param vram_limit_gb: 0 or less means the whole card.
-    """
-    total_bytes = torch.cuda.get_device_properties(None).total_memory
-    if vram_limit_gb <= 0:
-        return total_bytes
-    return min(total_bytes, int(vram_limit_gb * 1024**3))
+def usable_memory_bytes() -> int:
+    """How much GPU memory this process may allocate, honouring :func:`limit_cuda_memory`."""
+    if _budget_gb > 0:
+        return int(_budget_gb * 1024**3)
+    return torch.cuda.get_device_properties(None).total_memory
 
 
 def add_vram_limit_argument(parser: ArgumentParser) -> None:
@@ -182,10 +177,11 @@ def limit_cuda_memory(vram_limit_gb: float) -> None:
     """Cap how much of the GPU this process may allocate, to ``vram_limit_gb`` gigabytes.
 
     Call this once per process that touches the GPU, a spawned training process included: the
-    cap does not survive the spawn.
+    cap does not survive the spawn. A probe in this process then measures against the same budget.
 
     :param vram_limit_gb: 0 or less means no cap.
     """
+    global _budget_gb  # pylint: disable=global-statement
     if vram_limit_gb <= 0 or not torch.cuda.is_available():
         return
 
@@ -199,6 +195,7 @@ def limit_cuda_memory(vram_limit_gb: float) -> None:
         return
 
     torch.cuda.set_per_process_memory_fraction(fraction, None)
+    _budget_gb = vram_limit_gb
     logger.info('Limiting VRAM usage to %.1f GB of %.1f GB (%.0f%%)', vram_limit_gb, total_gb, fraction * 100)
 
 

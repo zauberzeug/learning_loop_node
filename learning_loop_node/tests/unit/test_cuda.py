@@ -27,18 +27,21 @@ GIB = 1024**3
 
 def test_no_limit_means_the_whole_card(load):
     cuda, _ = load(total_gb=8.0)
-    assert cuda.usable_memory_bytes(0) == 8 * GIB
-    assert cuda.usable_memory_bytes(-1) == 8 * GIB
+    assert cuda.usable_memory_bytes() == 8 * GIB
+    cuda.limit_cuda_memory(0)
+    assert cuda.usable_memory_bytes() == 8 * GIB
 
 
 def test_a_limit_below_the_card_is_the_budget(load):
     cuda, _ = load(total_gb=8.0)
-    assert cuda.usable_memory_bytes(6) == 6 * GIB
+    cuda.limit_cuda_memory(6)
+    assert cuda.usable_memory_bytes() == 6 * GIB
 
 
-def test_a_limit_above_the_card_is_clamped_to_it(load):
+def test_a_limit_above_the_card_leaves_the_whole_card(load):
     cuda, _ = load(total_gb=8.0)
-    assert cuda.usable_memory_bytes(16) == 8 * GIB
+    cuda.limit_cuda_memory(16)
+    assert cuda.usable_memory_bytes() == 8 * GIB
 
 
 def test_the_cap_is_the_limits_share_of_the_card(load):
@@ -78,7 +81,7 @@ def test_a_limit_the_card_cannot_reach_warns_instead_of_capping(load, caplog):
 
 def test_the_budget_and_the_cap_follow_the_current_device(load):
     cuda, fake = load(total_gb=8.0)
-    cuda.usable_memory_bytes(2)
+    cuda.usable_memory_bytes()
     cuda.limit_cuda_memory(2)
     assert fake.asked_devices and all(device is None for device in fake.asked_devices)
 
@@ -93,13 +96,14 @@ def test_freeing_empties_the_cache(load):
 
 def test_the_margin_is_a_share_of_the_budget(load):
     cuda, fake = load(total_gb=8.0)
-    cuda.reserve_margin(4, probe='probe')
+    cuda.limit_cuda_memory(4)
+    cuda.reserve_margin(probe='probe')
     assert fake.allocated == [int(4 * GIB * cuda.SAFETY_MARGIN)]
 
 
 def test_the_margin_is_a_share_of_the_whole_card_when_nothing_is_budgeted(load):
     cuda, fake = load(total_gb=8.0)
-    cuda.reserve_margin(0, probe='probe')
+    cuda.reserve_margin(probe='probe')
     assert fake.allocated == [int(8 * GIB * cuda.SAFETY_MARGIN)]
 
 
