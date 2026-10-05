@@ -33,7 +33,7 @@ SAFETY_MARGIN = 0.05
 """Share of the budget held back while probing, against allocator fragmentation later on."""
 
 
-def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: int = 0,
+def measure_batch_size(run_batch: Callable[[int], str | None], *, max_batch_size: int = 0,
                        sample_count: int | None = None, probe: str = 'batch-size probe',
                        minimum: int = 1, vram_limit_gb: float = 0,
                        on_out_of_memory: Callable[[], None] | None = None) -> int:
@@ -44,7 +44,7 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: in
     images there are.
 
     :param run_batch: Runs the batch; may return a detail to append to the log line.
-    :param batch_size: What the training asked for, as carried in the
+    :param max_batch_size: What the training asked for, as carried in the
         :data:`~.batch_size.REQUESTED_BATCH_SIZE` hyperparameter: the largest batch it may use,
         measured rather than trusted. A size that fits is used as asked for, whether or not it is a
         power of two; one that does not becomes the largest power of two below it that does. 0 means
@@ -58,16 +58,16 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, batch_size: in
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
     :raises ValueError: If the training asked for a negative batch size.
     """
-    if batch_size < 0:
-        raise ValueError(f'{REQUESTED_BATCH_SIZE} must be >= 0, got {batch_size}')
+    if max_batch_size < 0:
+        raise ValueError(f'{REQUESTED_BATCH_SIZE} must be >= 0, got {max_batch_size}')
 
-    limit = batch_size
+    limit = max_batch_size
     if sample_count is not None:
         limit = min(limit or MAX_BATCH_SIZE, dataset_limit(sample_count))
         logger.info('%s: %d training samples allow at most %d per batch', probe, sample_count,
                     dataset_limit(sample_count))
 
-    return probe_batch_size(run_batch, probe=probe, limit=limit, candidate=batch_size,
+    return probe_batch_size(run_batch, probe=probe, limit=limit, candidate=max_batch_size,
                             minimum=minimum, vram_limit_gb=vram_limit_gb,
                             on_out_of_memory=on_out_of_memory)
 
