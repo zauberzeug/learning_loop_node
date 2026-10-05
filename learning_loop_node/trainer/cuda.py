@@ -48,11 +48,12 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, max_batch_size
         :data:`~.batch_size.REQUESTED_BATCH_SIZE` hyperparameter: the largest batch it may use,
         measured rather than trusted. A size that fits is used as asked for, whether or not it is a
         power of two; one that does not becomes the largest power of two below it that does. 0 means
-        the card decides alone.
+        the card decides alone. A request below ``minimum`` is raised to it, with a warning.
     :param sample_count: Samples in the training split, when the caller knows it. The search is
         then bounded by :func:`~.batch_size.dataset_limit`; that bound is never used as the exact
         candidate.
-    :param minimum: Smallest size to try; see :func:`probe_batch_size`.
+    :param minimum: Smallest size to try, taking precedence over ``max_batch_size``; see
+        :func:`~.batch_size.find_batch_size`.
     :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
     :param on_out_of_memory: Runs after a trial ran out of memory, to drop what it left behind.
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
@@ -60,6 +61,9 @@ def measure_batch_size(run_batch: Callable[[int], str | None], *, max_batch_size
     """
     if max_batch_size < 0:
         raise ValueError(f'{REQUESTED_BATCH_SIZE} must be >= 0, got {max_batch_size}')
+    if 0 < max_batch_size < minimum:
+        logger.warning('%s: requested %s=%d is below the trainer minimum of %d; using %d', probe,
+                       REQUESTED_BATCH_SIZE, max_batch_size, minimum, minimum)
 
     limit = max_batch_size
     if sample_count is not None:

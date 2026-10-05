@@ -242,6 +242,20 @@ def test_the_minimum_reaches_the_probe(load):
     assert ran[0] == 4
 
 
+def test_a_request_below_the_minimum_is_raised_to_it_with_a_warning(load, caplog):
+    cuda, fake = load()
+    with caplog.at_level(logging.WARNING):
+        assert cuda.measure_batch_size(_fits_up_to(64, fake, []), max_batch_size=1, minimum=2) == 2
+    assert 'requested max_batch_size=1 is below the trainer minimum of 2; using 2' in caplog.text
+
+
+def test_an_unset_request_does_not_warn_about_the_minimum(load, caplog):
+    cuda, fake = load()
+    with caplog.at_level(logging.WARNING):
+        cuda.measure_batch_size(_fits_up_to(64, fake, []), minimum=2)
+    assert 'below the trainer minimum' not in caplog.text
+
+
 # --- a minimum above one ---
 
 def test_a_minimum_keeps_the_search_off_the_sizes_below_it(load):
