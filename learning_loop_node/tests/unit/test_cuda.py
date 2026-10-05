@@ -11,6 +11,7 @@ import importlib
 import logging
 import sys
 import types
+import weakref
 from collections.abc import Callable
 from typing import Any
 
@@ -151,159 +152,191 @@ def test_a_probe_without_a_gpu_does_not_run_the_step(load):
 def test_a_requested_size_that_fits_is_used_as_named(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_fits_up_to(64, fake, ran), max_batch_size=16) == 16
+    assert cuda.measure_batch_size(_built(_fits_up_to(64, fake, ran)), max_batch_size=16) == 16
     assert ran[-1] == 16, 'and it was measured, not taken on trust'
 
 
 def test_a_requested_size_that_does_not_fit_backs_off_instead_of_running_out_of_memory(load):
     cuda, fake = load()
-    assert cuda.measure_batch_size(_fits_up_to(8, fake, []), max_batch_size=32) == 8
+    assert cuda.measure_batch_size(_built(_fits_up_to(8, fake, [])), max_batch_size=32) == 8
 
 
 def test_a_requested_size_is_tried_even_when_it_is_not_a_power_of_two(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_fits_up_to(24, fake, ran), max_batch_size=24) == 24
+    assert cuda.measure_batch_size(_built(_fits_up_to(24, fake, ran)), max_batch_size=24) == 24
     assert ran == [1, 2, 4, 8, 16, 24], 'the named size only after the search reached its ceiling'
 
 
 def test_a_named_size_that_does_not_fit_falls_back_to_the_power_of_two_below_it(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_fits_up_to(16, fake, ran), max_batch_size=24) == 16
+    assert cuda.measure_batch_size(_built(_fits_up_to(16, fake, ran)), max_batch_size=24) == 16
     assert ran[-1] == 24, 'it was tried, and it did not fit'
 
 
 def test_a_named_size_is_not_tried_when_memory_stopped_the_search_earlier(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_fits_up_to(4, fake, ran), max_batch_size=24) == 4
+    assert cuda.measure_batch_size(_built(_fits_up_to(4, fake, ran)), max_batch_size=24) == 4
     assert 24 not in ran, 'if 16 does not fit, 24 cannot'
 
 
 def test_an_absent_batch_size_leaves_the_bound_to_the_library(load):
     cuda, fake = load()
-    assert cuda.measure_batch_size(_fits_up_to(2048, fake, [])) == MAX_BATCH_SIZE
+    assert cuda.measure_batch_size(_built(_fits_up_to(2048, fake, []))) == MAX_BATCH_SIZE
 
 
 def test_a_batch_size_of_zero_means_measure(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_fits_up_to(16, fake, ran), max_batch_size=0) == 16
+    assert cuda.measure_batch_size(_built(_fits_up_to(16, fake, ran)), max_batch_size=0) == 16
     assert ran
 
 
 def test_the_settled_size_is_only_returned(load):
     cuda, fake = load()
-    settled = cuda.measure_batch_size(_fits_up_to(16, fake, []), max_batch_size=64)
+    settled = cuda.measure_batch_size(_built(_fits_up_to(16, fake, [])), max_batch_size=64)
     assert settled == 16, 'the caller reports it; nothing here stores it where a second call would read it'
 
 
 def test_the_dataset_bounds_the_search_as_well(load):
     cuda, fake = load()
     # 80 samples leave room for 10 per step, rounded down to a power of two
-    assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), sample_count=80) == 8
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), sample_count=80) == 8
 
 
 def test_a_dataset_bound_is_never_used_as_a_candidate(load):
     cuda, fake = load()
     ran: list[int] = []
-    cuda.measure_batch_size(_fits_up_to(1024, fake, ran), sample_count=80)
+    cuda.measure_batch_size(_built(_fits_up_to(1024, fake, ran)), sample_count=80)
     assert 10 not in ran, 'samples // 8 is a heuristic, not a size anyone asked for'
 
 
 def test_the_log_says_when_the_dataset_is_what_bounds_the_search(load, caplog):
     cuda, fake = load()
     with caplog.at_level(logging.INFO):
-        cuda.measure_batch_size(_fits_up_to(1024, fake, []), sample_count=80)
+        cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), sample_count=80)
     assert '80 training samples allow at most 10 per batch' in caplog.text
 
 
 def test_the_tighter_of_the_request_and_the_dataset_wins(load):
     cuda, fake = load()
-    assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), max_batch_size=4,
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), max_batch_size=4,
                                    sample_count=8000) == 4
-    assert cuda.measure_batch_size(_fits_up_to(1024, fake, []), max_batch_size=512,
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), max_batch_size=512,
                                    sample_count=80) == 8
 
 
 def test_memory_still_decides_below_both_bounds(load):
     cuda, fake = load()
-    assert cuda.measure_batch_size(_fits_up_to(2, fake, []), max_batch_size=64,
+    assert cuda.measure_batch_size(_built(_fits_up_to(2, fake, [])), max_batch_size=64,
                                    sample_count=8000) == 2
 
 
 def test_a_negative_batch_size_is_a_mistake_not_a_sentinel(load):
     cuda, fake = load()
     with pytest.raises(ValueError, match='max_batch_size'):
-        cuda.measure_batch_size(_fits_up_to(64, fake, []), max_batch_size=-1)
+        cuda.measure_batch_size(_built(_fits_up_to(64, fake, [])), max_batch_size=-1)
 
 
 def test_the_minimum_reaches_the_probe(load):
     cuda, fake = load()
     ran: list[int] = []
-    cuda.measure_batch_size(_fits_up_to(64, fake, ran), minimum=4)
+    cuda.measure_batch_size(_built(_fits_up_to(64, fake, ran)), minimum=4)
     assert ran[0] == 4
 
 
 def test_a_request_below_the_minimum_is_raised_to_it_with_a_warning(load, caplog):
     cuda, fake = load()
     with caplog.at_level(logging.WARNING):
-        assert cuda.measure_batch_size(_fits_up_to(64, fake, []), max_batch_size=1, minimum=2) == 2
+        assert cuda.measure_batch_size(_built(_fits_up_to(64, fake, [])), max_batch_size=1, minimum=2) == 2
     assert 'requested max_batch_size=1 is below the trainer minimum of 2; using 2' in caplog.text
 
 
 def test_an_unset_request_does_not_warn_about_the_minimum(load, caplog):
     cuda, fake = load()
     with caplog.at_level(logging.WARNING):
-        cuda.measure_batch_size(_fits_up_to(64, fake, []), minimum=2)
+        cuda.measure_batch_size(_built(_fits_up_to(64, fake, [])), minimum=2)
     assert 'below the trainer minimum' not in caplog.text
 
 
-# --- a minimum above one ---
-
-def test_a_minimum_keeps_the_search_off_the_sizes_below_it(load):
+def test_a_minimum_above_the_request_still_gets_tried(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.probe_batch_size(_fits_up_to(16, fake, ran), limit=64, minimum=2) == 16
-    assert ran == [2, 4, 8, 16, 32], 'the smallest trial is the minimum, not one'
-
-
-def test_a_minimum_that_is_not_a_power_of_two_is_tried_as_named(load):
-    cuda, fake = load()
-    ran: list[int] = []
-    cuda.probe_batch_size(_fits_up_to(64, fake, ran), limit=64, minimum=3)
-    assert ran[:2] == [3, 4]
-
-
-def test_a_minimum_of_one_searches_exactly_as_before(load):
-    cuda, fake = load()
-    ran: list[int] = []
-    assert cuda.probe_batch_size(_fits_up_to(16, fake, ran), limit=64, minimum=1) == 16
-    assert ran == [1, 2, 4, 8, 16, 32]
-
-
-def test_a_minimum_that_does_not_fit_reports_its_own_size(load):
-    cuda, fake = load()
-    ran: list[int] = []
-    with pytest.raises(InsufficientMemoryError, match='batch size 4'):
-        cuda.probe_batch_size(_fits_up_to(2, fake, ran), limit=32, minimum=4)
-
-
-def test_a_minimum_above_the_limit_still_gets_tried(load):
-    cuda, fake = load()
-    ran: list[int] = []
-    assert cuda.probe_batch_size(_fits_up_to(64, fake, ran), limit=2, minimum=8) == 8
+    assert cuda.measure_batch_size(_built(_fits_up_to(64, fake, ran)), max_batch_size=2, minimum=8) == 8
     assert ran == [8]
 
 
 def test_without_a_gpu_the_fallback_respects_the_minimum(load):
     cuda, fake = load(cuda_available=False)
     ran: list[int] = []
-    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=64, minimum=16) == 16
-    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=64, minimum=3) == NO_GPU_BATCH_SIZE
-    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=3, minimum=3) == 3
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, ran)), max_batch_size=64, minimum=16) == 16
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, ran)), max_batch_size=64,
+                                   minimum=3) == NO_GPU_BATCH_SIZE
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, ran)), max_batch_size=3, minimum=3) == 3
     assert not ran
+
+
+# --- the step's lifecycle ---
+
+def test_the_step_is_built_once_the_margin_is_reserved(load):
+    cuda, fake = load()
+    claimed: list[int] = []
+
+    def build() -> _Step:
+        claimed.extend(fake.allocated)
+        return _Step(_fits_up_to(4, fake, []))
+
+    cuda.measure_batch_size(build)
+    assert claimed, 'so the step competes against the smaller card'
+
+
+def test_no_step_is_built_without_a_gpu(load):
+    cuda, _ = load(cuda_available=False)
+
+    def build() -> _Step:
+        raise AssertionError('nothing may be built for a card that is not there')
+
+    assert cuda.measure_batch_size(build) == NO_GPU_BATCH_SIZE
+
+
+def test_nothing_references_the_step_once_the_size_is_settled(load):
+    cuda, fake = load()
+    steps: list[weakref.ref] = []
+
+    def build() -> _Step:
+        step = _Step(_fits_up_to(4, fake, []))
+        steps.append(weakref.ref(step))
+        return step
+
+    cuda.measure_batch_size(build)
+    assert steps[0]() is None, 'the training that follows must not share the card with it'
+
+
+def test_the_step_is_released_after_the_search(load):
+    cuda, fake = load()
+    step = _Step(_fits_up_to(4, fake, []))
+    cuda.measure_batch_size(lambda: step)
+    assert step.released == 1
+
+
+def test_the_step_is_released_when_the_search_fails(load):
+    cuda, fake = load()
+    step = _Step(_fits_up_to(0, fake, []))
+    with pytest.raises(InsufficientMemoryError):
+        cuda.measure_batch_size(lambda: step)
+    assert step.released == 1
+
+
+def test_a_step_needs_to_implement_nothing_but_run(load):
+    cuda, fake = load()
+
+    class Step(cuda.ProbeStep):
+        def run(self, batch_size: int) -> None:
+            _fits_up_to(4, fake, [])(batch_size)
+
+    assert cuda.measure_batch_size(Step, max_batch_size=32) == 4
 
 
 # --- cleaning up after a trial that did not fit ---
@@ -311,22 +344,21 @@ def test_without_a_gpu_the_fallback_respects_the_minimum(load):
 def test_the_out_of_memory_hook_runs_after_every_failed_trial(load):
     cuda, fake = load()
     ran: list[int] = []
-    dropped: list[int] = []
-    cuda.probe_batch_size(_fits_up_to(4, fake, ran), limit=32,
-                          on_out_of_memory=lambda: dropped.append(len(ran)))
-    assert dropped == [4], 'once, after the single trial that went over'
+    step = _Step(_fits_up_to(4, fake, ran))
+    cuda.measure_batch_size(lambda: step, max_batch_size=32)
+    assert step.dropped == [4], 'once, after the single trial that went over'
 
 
 def test_the_out_of_memory_hook_does_not_run_for_a_bug(load):
     cuda, _ = load()
-    dropped: list[int] = []
 
     def run_batch(_: int) -> None:
         raise RuntimeError('a real bug')
 
+    step = _Step(run_batch)
     with pytest.raises(RuntimeError, match='a real bug'):
-        cuda.probe_batch_size(run_batch, limit=32, on_out_of_memory=lambda: dropped.append(1))
-    assert not dropped
+        cuda.measure_batch_size(lambda: step, max_batch_size=32)
+    assert not step.dropped
 
 
 def test_a_batch_size_of_one_that_does_not_fit_is_an_error(load):
@@ -409,6 +441,31 @@ def load_fixture(monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[Any, _F
 
     yield load
     sys.modules.pop(MODULE, None)
+
+
+def _built(run_batch: Callable[[int], None]) -> Callable[[], _Step]:
+    """A factory for a step that runs ``run_batch``."""
+    return lambda: _Step(run_batch)
+
+
+class _Step:
+    """A step as ``measure_batch_size`` sees one, recording what was asked of it."""
+
+    def __init__(self, run_batch: Callable[[int], None]) -> None:
+        self._run_batch = run_batch
+        self._ran = 0
+        self.dropped: list[int] = []
+        self.released = 0
+
+    def run(self, batch_size: int) -> None:
+        self._ran += 1
+        self._run_batch(batch_size)
+
+    def on_out_of_memory(self) -> None:
+        self.dropped.append(self._ran)
+
+    def release(self) -> None:
+        self.released += 1
 
 
 def _fits_up_to(largest: int, fake: _FakeTorch, ran: list[int]) -> Callable[[int], None]:

@@ -63,9 +63,10 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
-about a batch-size probe that torch has to answer. `usable_memory_bytes` and `limit_cuda_memory`
-turn a `--vram-limit-gb` setting into the budget a probe measures against and the cap that holds
-the process to it, and capping an allocator has no NVML equivalent.
+about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
+setting into the cap that holds the process to it and remembers it as the budget a probe in the
+same process measures against (`usable_memory_bytes`), so no probe takes the value as a parameter;
+capping an allocator has no NVML equivalent.
 
 `measure_batch_size` is what every trainer calls, whatever shape its hyperparameters have: it
 takes the requested size as an `int`, so a node parsing into a dataclass enters the same door as
@@ -82,14 +83,21 @@ of measuring again. The loop does not hand reported values to a later training: 
 from the project configuration and the job's override, taking only `resolution` from a base
 training.
 
-Below it, `probe_batch_size` is the whole probe except the step itself — it resolves the limit,
-falls back without a card, holds the safety margin, runs the search and releases what the trials
-left behind. `on_out_of_memory` is how a node that builds a throwaway model drops an optimizer's
-gradients after a failed trial. `minimum` is for a step that cannot run on a single sample at all
-— BatchNorm over a 1x1 feature map, or a training whose validation halves the batch — and
-`candidate` is the one way the search returns a size that is not a power of two, and only ever
-one that was named and then measured. A node does not compose `reserve_margin`, `measured_fits`
-and `find_batch_size` itself; they are the pieces `probe_batch_size` is built from. `measured_fits`
+The trainer hands `measure_batch_size` a factory for a `ProbeStep`, not a built step: the library
+checks for a card, reserves the safety margin, builds the step, searches, calls its `release` and
+holds the only reference to it, so the throwaway model cannot stay on the card for a training
+that follows in the same process. A step implements `run`; `on_out_of_memory` is how one that
+builds a throwaway model drops an optimizer's gradients after a failed trial, and `release` how
+one that moved the real model aside puts it back. `minimum` is for a step that cannot run on a
+single sample at all — BatchNorm over a 1x1 feature map, or a training whose validation halves the
+batch. It is tried as named and wins over a smaller requested size, with a warning; it and the
+requested size are the only sizes the search returns that are not powers of two.
+
+`probe_batch_size` is the same probe for a pass with no requested size — a detection pass, bounded
+by how many images there are — and takes a plain callable and a limit. The requested size reaches
+the search as its exact candidate only through `measure_batch_size`, so an image count or a
+dataset bound can never be tried as one. A node does not compose `reserve_margin`, `measured_fits`
+and `find_batch_size` itself; they are the pieces both are built from. `measured_fits`
 is where an out-of-memory failure is told from a bug — both arrive as the same exception types,
 and a probe that confuses them reports the smallest batch size as the card's fault.
 
