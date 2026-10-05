@@ -47,21 +47,21 @@ def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1
                     candidate: int = 0) -> int:
     """Return the largest batch size that fits, never exceeding ``limit``.
 
-    Powers of two, plus ``candidate``, which is the one size outside that set this will return, and
-    only when somebody named it and it then measured.
+    Powers of two, plus ``minimum`` and ``candidate``, the two sizes outside that set this will
+    return, and only because somebody named them and they then measured.
 
     :param fits: Runs a representative probe; ``False`` on out-of-memory.
     :param limit: Upper bound; the doubling stops at the largest power of two within it.
-    :param minimum: Smallest size to try, rounded down to a power of two. Raise it above one for a
-        step that cannot run on a single sample at all: BatchNorm over a 1x1 feature map, a
-        validation pass that halves the batch.
+    :param minimum: Smallest size to try, as named; the doubling continues from the next power of
+        two above it. Raise it above one for a step that cannot run on a single sample at all:
+        BatchNorm over a 1x1 feature map, a validation pass that halves the batch.
     :param candidate: An exact size, tried once the doubling has reached its ceiling, so a size
         that was asked for is used as asked for rather than rounded down. Ignored unless it lies
         between that ceiling and ``limit``; a bound nobody named — one derived from the dataset,
         say — must not be passed here.
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
     """
-    minimum = smaller_pot(max(1, minimum))
+    minimum = max(1, minimum)
     bound = max(limit, minimum)
     ceiling = max(smaller_pot(bound), minimum)
 
@@ -69,8 +69,8 @@ def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1
         raise InsufficientMemoryError(f'batch size {minimum} does not fit in memory')
 
     size = minimum
-    while size < ceiling and fits(size * 2):
-        size *= 2
+    while size < ceiling and fits(smaller_pot(size) * 2):
+        size = smaller_pot(size) * 2
 
     if size == ceiling and ceiling < candidate <= bound and fits(candidate):
         size = candidate
@@ -95,9 +95,9 @@ def dataset_limit(sample_count: int) -> int:
     return max(1, sample_count // MIN_TRAIN_STEPS_PER_EPOCH)
 
 
-def no_gpu_batch_size(limit: int, probe: str) -> int:
-    """The batch size to fall back on when there is no GPU to probe."""
-    batch_size = min(smaller_pot(limit), NO_GPU_BATCH_SIZE)
+def no_gpu_batch_size(limit: int, probe: str, minimum: int = 1) -> int:
+    """The batch size to fall back on when there is no GPU to probe; never below ``minimum``."""
+    batch_size = max(min(smaller_pot(limit), NO_GPU_BATCH_SIZE), minimum)
     logger.warning('%s: CUDA is unavailable; using batch size %d without probing', probe, batch_size)
     return batch_size
 

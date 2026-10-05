@@ -25,7 +25,6 @@ from .batch_size import (
     find_batch_size,
     is_out_of_memory,
     no_gpu_batch_size,
-    smaller_pot,
 )
 
 logger = logging.getLogger(__name__)
@@ -98,7 +97,7 @@ def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'ba
     bound = max(limit or MAX_BATCH_SIZE, minimum)
 
     if not torch.cuda.is_available():
-        return max(smaller_pot(max(1, minimum)), no_gpu_batch_size(bound, probe))
+        return no_gpu_batch_size(bound, probe, minimum)
 
     margin = reserve_margin(vram_limit_gb, probe=probe)
     try:

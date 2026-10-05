@@ -39,10 +39,14 @@ def test_a_minimum_keeps_the_search_off_the_sizes_below_it():
     assert ran == [2, 4, 8, 16, 32], 'the smallest trial is the minimum, not one'
 
 
-def test_a_minimum_is_rounded_down_to_a_power_of_two():
+def test_a_minimum_that_is_not_a_power_of_two_is_tried_as_named():
     ran: list[int] = []
-    find_batch_size(_fits_up_to(64, ran), limit=64, minimum=3)
-    assert ran[0] == 2
+    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=3) == 16
+    assert ran == [3, 4, 8, 16, 32], 'never below the minimum, then back on powers of two'
+
+
+def test_a_minimum_that_fits_is_kept_when_the_next_power_of_two_does_not():
+    assert find_batch_size(_fits_up_to(6, []), limit=64, minimum=6) == 6
 
 
 def test_a_minimum_that_does_not_fit_reports_its_own_size():

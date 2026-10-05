@@ -251,11 +251,11 @@ def test_a_minimum_keeps_the_search_off_the_sizes_below_it(load):
     assert ran == [2, 4, 8, 16, 32], 'the smallest trial is the minimum, not one'
 
 
-def test_a_minimum_is_rounded_down_to_a_power_of_two(load):
+def test_a_minimum_that_is_not_a_power_of_two_is_tried_as_named(load):
     cuda, fake = load()
     ran: list[int] = []
     cuda.probe_batch_size(_fits_up_to(64, fake, ran), limit=64, minimum=3)
-    assert ran[0] == 2
+    assert ran[:2] == [3, 4]
 
 
 def test_a_minimum_of_one_searches_exactly_as_before(load):
@@ -283,6 +283,8 @@ def test_without_a_gpu_the_fallback_respects_the_minimum(load):
     cuda, fake = load(cuda_available=False)
     ran: list[int] = []
     assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=64, minimum=16) == 16
+    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=64, minimum=3) == NO_GPU_BATCH_SIZE
+    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=3, minimum=3) == 3
     assert not ran
 
 
