@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import gc
 import logging
+from abc import ABC, abstractmethod
 from argparse import ArgumentParser
 from collections.abc import Callable
 
@@ -32,32 +33,48 @@ logger = logging.getLogger(__name__)
 SAFETY_MARGIN = 0.05
 """Share of the budget held back while probing, against allocator fragmentation later on."""
 
+DEFAULT_STEPS_PER_TRIAL = 4
+"""Training steps a batch size must survive before it counts as fitting.
+
+Some trainings reach their peak only after a few steps: an optimizer that allocates its state on
+the first one, gradients that accumulate, a scaler that skips the first updates.
+"""
+
 _budget_gb: float = 0
 """What :func:`limit_cuda_memory` capped this process to; 0 means the whole card."""
 
 
-class ProbeStep:
-    """A training step built for one batch-size probe and released once the probe is done.
+class ProbeStep(ABC):
+    """A training cycle built for one batch-size probe and released once the probe is done.
 
     :func:`measure_batch_size` builds it through a factory, after the safety margin is reserved,
     and holds the only reference to it, so nothing built for the probe stays on the card for the
-    training that follows. A subclass implements :meth:`run`; the other two are optional.
+    training that follows. A trial at one batch size is ``steps_per_trial`` calls of
+    :meth:`train_step` followed by one of :meth:`val_step`; a subclass implements both, the other
+    two are optional.
     """
 
-    def run(self, batch_size: int) -> str | None:
-        """Run one trial at ``batch_size``; may return a detail to append to the log line."""
-        raise NotImplementedError
+    @abstractmethod
+    def train_step(self, batch_size: int) -> str | None:
+        """Run one training step at ``batch_size``; may return a detail to append to the log line."""
 
-    def on_out_of_memory(self) -> None:
+    @abstractmethod
+    def val_step(self, batch_size: int) -> str | None:
+        """Run the validation the training runs between epochs, at what ``batch_size`` becomes there.
+
+        A training that does not validate returns ``None`` without running anything.
+        """
+
+    def on_out_of_memory(self) -> None:  # noqa: B027
         """Drop what a trial that ran out of memory left behind (an optimizer's gradients, say)."""
 
-    def release(self) -> None:
+    def release(self) -> None:  # noqa: B027
         """Undo what building the step changed outside it, such as moving the real model off the card."""
 
 
 def measure_batch_size(build_step: Callable[[], ProbeStep], *, max_batch_size: int = 0,
                        sample_count: int | None = None, probe: str = 'batch-size probe',
-                       minimum: int = 1) -> int:
+                       minimum: int = 1, steps_per_trial: int = DEFAULT_STEPS_PER_TRIAL) -> int:
     """Settle a training's batch size against what it asked for and what the card allows.
 
     Every training enters here, whatever shape its hyperparameters have; :func:`probe_batch_size` is
@@ -76,11 +93,16 @@ def measure_batch_size(build_step: Callable[[], ProbeStep], *, max_batch_size: i
     :param probe: Names this probe in the log, so a node running several stays readable.
     :param minimum: Smallest size to try, taking precedence over ``max_batch_size``; see
         :func:`~.batch_size.find_batch_size`.
+    :param steps_per_trial: Training steps a size must survive, each trial then ending in one
+        validation step.
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
-    :raises ValueError: If the training asked for a negative batch size.
+    :raises ValueError: If the training asked for a negative batch size, or ``steps_per_trial`` is
+        below one.
     """
     if max_batch_size < 0:
         raise ValueError(f'{REQUESTED_BATCH_SIZE} must be >= 0, got {max_batch_size}')
+    if steps_per_trial < 1:
+        raise ValueError(f'steps_per_trial must be >= 1, got {steps_per_trial}')
     if 0 < max_batch_size < minimum:
         logger.warning('%s: requested %s=%d is below the trainer minimum of %d; using %d', probe,
                        REQUESTED_BATCH_SIZE, max_batch_size, minimum, minimum)
@@ -91,7 +113,8 @@ def measure_batch_size(build_step: Callable[[], ProbeStep], *, max_batch_size: i
         logger.info('%s: %d training samples allow at most %d per batch', probe, sample_count,
                     dataset_limit(sample_count))
 
-    return _probe(build_step, probe=probe, limit=limit, candidate=max_batch_size, minimum=minimum)
+    return _probe(build_step, probe=probe, limit=limit, steps_per_trial=steps_per_trial,
+                  candidate=max_batch_size, minimum=minimum)
 
 
 def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'batch-size probe',
@@ -104,21 +127,24 @@ def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'ba
         :data:`~learning_loop_node.trainer.batch_size.MAX_BATCH_SIZE`.
     :raises InsufficientMemoryError: If not even a batch of one fits.
     """
-    return _probe(lambda: _PassStep(run_batch), probe=probe, limit=limit)
+    return _probe(lambda: _PassStep(run_batch), probe=probe, limit=limit, steps_per_trial=1)
 
 
 class _PassStep(ProbeStep):
-    """A plain callable as a step; there is nothing of its own to build or release."""
+    """A plain callable as a step; there is nothing of its own to build, validate or release."""
 
     def __init__(self, run_batch: Callable[[int], str | None]) -> None:
         self._run_batch = run_batch
 
-    def run(self, batch_size: int) -> str | None:
+    def train_step(self, batch_size: int) -> str | None:
         return self._run_batch(batch_size)
 
+    def val_step(self, batch_size: int) -> None:
+        return None
 
-def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, candidate: int = 0,
-           minimum: int = 1) -> int:
+
+def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, steps_per_trial: int,
+           candidate: int = 0, minimum: int = 1) -> int:
     """Everything of a probe but the step: the GPU check, the margin, the search, the release.
 
     The margin is a share of the budget :func:`limit_cuda_memory` set in this process.
@@ -130,7 +156,8 @@ def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, candi
 
     margin = reserve_margin(probe=probe)
     try:
-        chosen = _search(build_step, probe=probe, bound=bound, minimum=minimum, candidate=candidate)
+        chosen = _search(build_step, probe=probe, bound=bound, steps_per_trial=steps_per_trial,
+                         minimum=minimum, candidate=candidate)
     finally:
         del margin
         free_cuda_memory()
@@ -138,15 +165,27 @@ def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, candi
     return chosen
 
 
-def _search(build_step: Callable[[], ProbeStep], *, probe: str, bound: int, minimum: int,
-            candidate: int) -> int:
+def _search(build_step: Callable[[], ProbeStep], *, probe: str, bound: int, steps_per_trial: int,
+            minimum: int, candidate: int) -> int:
     """Build the step, search with it and release it; once this returns, nothing references it."""
     step = build_step()
     try:
-        fits = measured_fits(step.run, probe=probe, on_out_of_memory=step.on_out_of_memory)
+        fits = measured_fits(_trial(step, steps_per_trial), probe=probe, on_out_of_memory=step.on_out_of_memory)
         return find_batch_size(fits, limit=bound, minimum=minimum, candidate=candidate)
     finally:
         step.release()
+
+
+def _trial(step: ProbeStep, steps_per_trial: int) -> Callable[[int], str | None]:
+    """One trial of ``step``: its training steps, then its validation."""
+    def run_trial(batch_size: int) -> str | None:
+        train_detail = None
+        for _ in range(steps_per_trial):
+            train_detail = step.train_step(batch_size)
+        val_detail = step.val_step(batch_size)
+        return '; '.join(detail for detail in (train_detail, val_detail) if detail) or None
+
+    return run_trial
 
 
 def measured_fits(run_batch: Callable[[int], str | None], *, probe: str,

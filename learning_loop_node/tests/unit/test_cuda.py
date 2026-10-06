@@ -165,7 +165,7 @@ def test_a_requested_size_is_tried_even_when_it_is_not_a_power_of_two(load):
     cuda, fake = load()
     ran: list[int] = []
     assert cuda.measure_batch_size(_built(_fits_up_to(24, fake, ran)), max_batch_size=24) == 24
-    assert ran == [1, 2, 4, 8, 16, 24], 'the named size only after the search reached its ceiling'
+    assert _sizes(ran) == [1, 2, 4, 8, 16, 24], 'the named size only after the search reached its ceiling'
 
 
 def test_a_named_size_that_does_not_fit_falls_back_to_the_power_of_two_below_it(load):
@@ -265,7 +265,7 @@ def test_a_minimum_above_the_request_still_gets_tried(load):
     cuda, fake = load()
     ran: list[int] = []
     assert cuda.measure_batch_size(_built(_fits_up_to(64, fake, ran)), max_batch_size=2, minimum=8) == 8
-    assert ran == [8]
+    assert _sizes(ran) == [8]
 
 
 def test_without_a_gpu_the_fallback_respects_the_minimum(load):
@@ -329,14 +329,96 @@ def test_the_step_is_released_when_the_search_fails(load):
     assert step.released == 1
 
 
-def test_a_step_needs_to_implement_nothing_but_run(load):
+def test_a_step_needs_to_implement_nothing_but_its_training_and_its_validation(load):
     cuda, fake = load()
 
     class Step(cuda.ProbeStep):
-        def run(self, batch_size: int) -> None:
+        def train_step(self, batch_size: int) -> None:
             _fits_up_to(4, fake, [])(batch_size)
 
+        def val_step(self, batch_size: int) -> None:
+            return None
+
     assert cuda.measure_batch_size(Step, max_batch_size=32) == 4
+
+
+def test_a_step_without_a_validation_cannot_be_built(load):
+    cuda, _ = load()
+
+    class Step(cuda.ProbeStep):
+        def train_step(self, batch_size: int) -> None:
+            pass
+
+    with pytest.raises(TypeError, match='val_step'):
+        cuda.measure_batch_size(Step)
+
+
+# --- what a trial runs ---
+
+def test_a_trial_is_four_training_steps_and_then_a_validation(load):
+    cuda, fake = load()
+    step = _Step(_fits_up_to(1, fake, []))
+    cuda.measure_batch_size(lambda: step, max_batch_size=2)
+    assert step.calls[:5] == [('train', 1)] * 4 + [('val', 1)]
+    assert cuda.DEFAULT_STEPS_PER_TRIAL == 4
+
+
+def test_the_steps_per_trial_can_be_named(load):
+    cuda, fake = load()
+    step = _Step(_fits_up_to(1, fake, []))
+    cuda.measure_batch_size(lambda: step, max_batch_size=2, steps_per_trial=2)
+    assert step.calls[:3] == [('train', 1), ('train', 1), ('val', 1)]
+
+
+def test_fewer_than_one_step_per_trial_is_a_mistake(load):
+    cuda, fake = load()
+    with pytest.raises(ValueError, match='steps_per_trial'):
+        cuda.measure_batch_size(_built(_fits_up_to(64, fake, [])), steps_per_trial=0)
+
+
+def test_a_size_that_runs_out_of_memory_in_a_later_step_does_not_fit(load):
+    cuda, fake = load()
+    taken: dict[int, int] = {}
+
+    def run_batch(batch_size: int) -> None:
+        taken[batch_size] = taken.get(batch_size, 0) + 1
+        if batch_size > 4 and taken[batch_size] == 3:
+            raise fake.OutOfMemoryError('the optimizer state arrived late')
+
+    assert cuda.measure_batch_size(_built(run_batch), max_batch_size=32) == 4
+
+
+def test_a_size_whose_validation_runs_out_of_memory_does_not_fit(load):
+    cuda, fake = load()
+
+    def validate(batch_size: int) -> None:
+        if batch_size > 4:
+            raise fake.OutOfMemoryError('validation is not autocast')
+
+    step = _Step(_fits_up_to(1024, fake, []), validate)
+    assert cuda.measure_batch_size(lambda: step, max_batch_size=32) == 4
+
+
+def test_what_training_and_validation_report_is_logged_beside_the_peak(load, caplog):
+    cuda, _ = load(peak_gb=3.0)
+
+    class Step(cuda.ProbeStep):
+        def train_step(self, batch_size: int) -> str:
+            return '640 px'
+
+        def val_step(self, batch_size: int) -> str:
+            return 'validation at 1'
+
+    with caplog.at_level(logging.INFO):
+        cuda.measure_batch_size(Step, max_batch_size=1, probe='train probe')
+    assert 'train probe: 1 fits (peak 3.00 GB, margin included); 640 px; validation at 1' in caplog.text
+
+
+def test_a_detection_pass_runs_once_per_size(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    cuda.probe_batch_size(_fits_up_to(2, fake, ran), limit=4)
+    assert ran == [1, 2, 4]
 
 
 # --- cleaning up after a trial that did not fit ---
@@ -346,7 +428,7 @@ def test_the_out_of_memory_hook_runs_after_every_failed_trial(load):
     ran: list[int] = []
     step = _Step(_fits_up_to(4, fake, ran))
     cuda.measure_batch_size(lambda: step, max_batch_size=32)
-    assert step.dropped == [4], 'once, after the single trial that went over'
+    assert step.dropped == [8], 'once, after the single trial that went over'
 
 
 def test_the_out_of_memory_hook_does_not_run_for_a_bug(load):
@@ -444,25 +526,36 @@ def load_fixture(monkeypatch: pytest.MonkeyPatch) -> Callable[..., tuple[Any, _F
 
 
 def _built(run_batch: Callable[[int], None]) -> Callable[[], _Step]:
-    """A factory for a step that runs ``run_batch``."""
+    """A factory for a step that trains with ``run_batch``."""
     return lambda: _Step(run_batch)
+
+
+def _sizes(ran: list[int]) -> list[int]:
+    """The sizes tried, in order, each once however many steps its trial took."""
+    return list(dict.fromkeys(ran))
 
 
 class _Step:
     """A step as ``measure_batch_size`` sees one, recording what was asked of it."""
 
-    def __init__(self, run_batch: Callable[[int], None]) -> None:
+    def __init__(self, run_batch: Callable[[int], None],
+                 validate: Callable[[int], None] = lambda _: None) -> None:
         self._run_batch = run_batch
-        self._ran = 0
+        self._validate = validate
+        self.calls: list[tuple[str, int]] = []
         self.dropped: list[int] = []
         self.released = 0
 
-    def run(self, batch_size: int) -> None:
-        self._ran += 1
+    def train_step(self, batch_size: int) -> None:
+        self.calls.append(('train', batch_size))
         self._run_batch(batch_size)
 
+    def val_step(self, batch_size: int) -> None:
+        self.calls.append(('val', batch_size))
+        self._validate(batch_size)
+
     def on_out_of_memory(self) -> None:
-        self.dropped.append(self._ran)
+        self.dropped.append(self.calls[-1][1])
 
     def release(self) -> None:
         self.released += 1
