@@ -88,8 +88,8 @@ checks for a card, reserves the safety margin, builds the step, searches, calls 
 holds the only reference to it, so the throwaway model cannot stay on the card for a training
 that follows in the same process. A step implements `train_step` and `val_step`, both abstract, so
 no node can leave out a part of the training cycle. A trial is `steps_per_trial` training steps
-(`DEFAULT_STEPS_PER_TRIAL`, 4), because some trainings reach their peak only after the first one,
-followed by one validation step; a size fits only if all of them do. `on_out_of_memory` is how a
+(`DEFAULT_STEPS_PER_TRIAL`, 4) followed by one validation step, and a size fits only if all of
+them do: some trainings reach their peak only after the first step. `on_out_of_memory` is how a
 step that builds a throwaway model drops an optimizer's gradients after a failed trial, and
 `release` how one that moved the real model aside puts it back. `minimum` is for a step that
 cannot run on a single sample at all — BatchNorm over a 1x1 feature map, or a training whose

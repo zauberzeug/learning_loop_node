@@ -60,9 +60,11 @@ class ProbeStep(ABC):
 
     @abstractmethod
     def val_step(self, batch_size: int) -> str | None:
-        """Run the validation the training runs between epochs, at what ``batch_size`` becomes there.
+        """Run the validation a training at ``batch_size`` runs between epochs.
 
-        A training that does not validate returns ``None`` without running anything.
+        Validate at the batch size the training validates with, which need not be ``batch_size``
+        (YOLOv5 halves it). A training that does not validate returns ``None`` without running
+        anything.
         """
 
     def on_out_of_memory(self) -> None:  # noqa: B027
