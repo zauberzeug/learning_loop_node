@@ -37,7 +37,7 @@ class Outbox():
     It handles upload failures by splitting the upload into two smaller batches until the problematic image is identified - and removed.
     Any image can be saved to the normal or the priority queue.
     Images in the priority queue are uploaded first.
-    The total queue length is limited to 1000 images.
+    The normal queue is limited to MAX_OUTBOX_SIZE images (default 1000); the oldest are dropped first.
     """
 
     def __init__(self) -> None:
@@ -59,7 +59,9 @@ class Outbox():
         self.log.info('Outbox initialized with target_uri: %s', self.target_uri)
 
         self.BATCH_SIZE = 20
-        self.MAX_UPLOAD_LENGTH = 1000  # only affects the `upload_folders` list
+        self.MAX_UPLOAD_LENGTH = int(os.environ.get('MAX_OUTBOX_SIZE', '1000'))  # only limits `upload_folders`
+        if self.MAX_UPLOAD_LENGTH <= 0:
+            raise ValueError(f'MAX_OUTBOX_SIZE must be positive, got {self.MAX_UPLOAD_LENGTH}')
         self.UPLOAD_INTERVAL_S = 5
         self.UPLOAD_TIMEOUT_S = 30
 
