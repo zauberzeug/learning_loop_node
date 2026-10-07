@@ -63,15 +63,52 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
-about a batch-size probe that torch has to answer. `usable_memory_bytes` and `limit_cuda_memory`
-turn a `--vram-limit-gb` setting into the budget a probe measures against and the cap that holds
-the process to it, and capping an allocator has no NVML equivalent. `probe_batch_size` is the
-whole probe for a node whose measurement is a single call — it resolves the limit, falls back
-without a card, holds the safety margin and runs the search. A node that must build a throwaway
-model first reserves the margin before building it, and so composes the same pieces itself:
-`reserve_margin`, `measured_fits` and `find_batch_size`. `measured_fits` is where an
-out-of-memory failure is told from a bug — both arrive as the same exception types, and a probe
-that confuses them reports the smallest batch size as the card's fault.
+about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
+setting into the cap that holds the process to it and remembers it as the budget a probe in the
+same process measures against (`usable_memory_bytes`), so no probe takes the value as a parameter;
+capping an allocator has no NVML equivalent.
+
+`measure_batch_size` is what every trainer calls, whatever shape its hyperparameters have: it
+takes the requested size as an `int`, so a node parsing into a dataclass enters the same door as
+one keeping a dict. `max_batch_size` — the hyperparameter named by the `REQUESTED_BATCH_SIZE`
+constant and read through `requested_batch_size`, so every node agrees on the spelling — is the
+largest batch the training may use, and it is measured rather than trusted: a size that fits is
+used as named, whether or not it is a power of two, and one that does not becomes the largest
+power of two below it that does. A training that starts small beats one that runs out of memory
+partway through. The settled size is returned and **not** stored anywhere the next measurement
+would read it: a trainer reports it as `batch_size`, never under `max_batch_size`, because the
+node saves the hyperparameters with the training (`LastTrainingIO`) and a training resumed after a
+restart reads them back — it would otherwise take its first run's measurement as its bound instead
+of measuring again. The loop does not hand reported values to a later training: it builds each one
+from the project configuration and the job's override, taking only `resolution` from a base
+training.
+
+The trainer hands `measure_batch_size` a factory for a `ProbeStep`, not a built step: the library
+checks for a card, reserves the safety margin, builds the step, searches, calls its `release` and
+holds the only reference to it, so the throwaway model cannot stay on the card for a training
+that follows in the same process. A step implements `train_step` and `val_step`, both abstract, so
+no node can leave out a part of the training cycle. A trial is `steps_per_trial` training steps
+(`DEFAULT_STEPS_PER_TRIAL`, 4) followed by one validation step, and a size fits only if all of
+them do: some trainings reach their peak only after the first step. `on_out_of_memory` is how a
+step that builds a throwaway model drops an optimizer's gradients after a failed trial, and
+`release` how one that moved the real model aside puts it back. `minimum` is for a step that
+cannot run on a single sample at all — BatchNorm over a 1x1 feature map, or a training whose
+validation halves the batch. It is tried as named and wins over a smaller requested size, with a
+warning; it and the requested size are the only sizes the search returns that are not powers of
+two.
+
+`probe_batch_size` is the same probe for a pass with no requested size — a detection pass, bounded
+by how many images there are — and takes a plain callable and a limit. The requested size reaches
+the search as its exact candidate only through `measure_batch_size`, so an image count or a
+dataset bound can never be tried as one. A node does not compose `reserve_margin`, `measured_fits`
+and `find_batch_size` itself; they are the pieces both are built from. `measured_fits`
+is where an out-of-memory failure is told from a bug — both arrive as the same exception types,
+and a probe that confuses them reports the smallest batch size as the card's fault.
+
+A trainer that probes opts into the budget flag with `node_parser(vram_limit=True)`, which adds
+`--vram-limit-gb` / `VRAM_LIMIT_GB`. The cap does not survive a spawn, so a script the trainer
+spawns declares the same flag with `add_vram_limit_argument`, and the node passes the value on
+explicitly; that script calls `limit_cuda_memory` itself.
 
 It imports torch, the package does **not** declare it, and only a trainer imports the module — so
 the library keeps working where nothing trains. Its unit test installs a stand-in under the name

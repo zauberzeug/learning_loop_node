@@ -11,45 +11,183 @@ from __future__ import annotations
 
 import gc
 import logging
+from abc import ABC, abstractmethod
+from argparse import ArgumentParser
 from collections.abc import Callable
 
 import torch
 
-from .batch_size import MAX_BATCH_SIZE, find_batch_size, is_out_of_memory, no_gpu_batch_size, smaller_pot
+from .batch_size import (
+    MAX_BATCH_SIZE,
+    REQUESTED_BATCH_SIZE,
+    VRAM_LIMIT_GB_FLAG,
+    VRAM_LIMIT_GB_HELP,
+    dataset_limit,
+    find_batch_size,
+    is_out_of_memory,
+    no_gpu_batch_size,
+)
 
 logger = logging.getLogger(__name__)
 
 SAFETY_MARGIN = 0.05
 """Share of the budget held back while probing, against allocator fragmentation later on."""
 
+DEFAULT_STEPS_PER_TRIAL = 4
+"""Training steps a batch size must survive before it counts as fitting.
+
+Some trainings reach their peak only after a few steps: an optimizer that allocates its state on
+the first one, gradients that accumulate, a scaler that skips the first updates.
+"""
+
+_budget_gb: float = 0
+"""What :func:`limit_cuda_memory` capped this process to; 0 means the whole card."""
+
+
+class ProbeStep(ABC):
+    """A training cycle built for one batch-size probe and released once the probe is done.
+
+    :func:`measure_batch_size` builds it through a factory, after the safety margin is reserved,
+    and holds the only reference to it, so nothing built for the probe stays on the card for the
+    training that follows. A trial at one batch size is ``steps_per_trial`` calls of
+    :meth:`train_step` followed by one of :meth:`val_step`; a subclass implements both, the other
+    two are optional.
+    """
+
+    @abstractmethod
+    def train_step(self, batch_size: int) -> str | None:
+        """Run one training step at ``batch_size``; may return a detail to append to the log line."""
+
+    @abstractmethod
+    def val_step(self, batch_size: int) -> str | None:
+        """Run the validation a training at ``batch_size`` runs between epochs.
+
+        Validate at the batch size the training validates with, which need not be ``batch_size``
+        (YOLOv5 halves it). A training that does not validate returns ``None`` without running
+        anything.
+        """
+
+    def on_out_of_memory(self) -> None:  # noqa: B027
+        """Drop what a trial that ran out of memory left behind (an optimizer's gradients, say)."""
+
+    def release(self) -> None:  # noqa: B027
+        """Undo what building the step changed outside it, such as moving the real model off the card."""
+
+
+def measure_batch_size(build_step: Callable[[], ProbeStep], *, max_batch_size: int = 0,
+                       sample_count: int | None = None, probe: str = 'batch-size probe',
+                       minimum: int = 1, steps_per_trial: int = DEFAULT_STEPS_PER_TRIAL) -> int:
+    """Settle a training's batch size against what it asked for and what the card allows.
+
+    Every training enters here, whatever shape its hyperparameters have; :func:`probe_batch_size` is
+    for a probe with no requested size to honour, such as a detection pass bounded only by how many
+    images there are. The step is built only once there is a card to probe.
+
+    :param build_step: Builds the step the trials run; called once, after the margin is reserved.
+    :param max_batch_size: What the training asked for, as carried in the
+        :data:`~.batch_size.REQUESTED_BATCH_SIZE` hyperparameter: the largest batch it may use,
+        measured rather than trusted. A size that fits is used as asked for, whether or not it is a
+        power of two; one that does not becomes the largest power of two below it that does. 0 means
+        the card decides alone. A request below ``minimum`` is raised to it, with a warning.
+    :param sample_count: Samples in the training split, when the caller knows it. The search is
+        then bounded by :func:`~.batch_size.dataset_limit`; that bound is never used as the exact
+        candidate.
+    :param probe: Names this probe in the log, so a node running several stays readable.
+    :param minimum: Smallest size to try, taking precedence over ``max_batch_size``; see
+        :func:`~.batch_size.find_batch_size`.
+    :param steps_per_trial: Training steps a size must survive, each trial then ending in one
+        validation step.
+    :raises InsufficientMemoryError: If not even ``minimum`` fits.
+    :raises ValueError: If the training asked for a negative batch size, or ``steps_per_trial`` is
+        below one.
+    """
+    if max_batch_size < 0:
+        raise ValueError(f'{REQUESTED_BATCH_SIZE} must be >= 0, got {max_batch_size}')
+    if steps_per_trial < 1:
+        raise ValueError(f'steps_per_trial must be >= 1, got {steps_per_trial}')
+    if 0 < max_batch_size < minimum:
+        logger.warning('%s: requested %s=%d is below the trainer minimum of %d; using %d', probe,
+                       REQUESTED_BATCH_SIZE, max_batch_size, minimum, minimum)
+
+    limit = max_batch_size
+    if sample_count is not None:
+        limit = min(limit or MAX_BATCH_SIZE, dataset_limit(sample_count))
+        logger.info('%s: %d training samples allow at most %d per batch', probe, sample_count,
+                    dataset_limit(sample_count))
+
+    return _probe(build_step, probe=probe, limit=limit, steps_per_trial=steps_per_trial,
+                  candidate=max_batch_size, minimum=minimum)
+
 
 def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'batch-size probe',
-                     limit: int = 0, vram_limit_gb: float = 0) -> int:
-    """Find the largest power-of-two batch size ``run_batch`` fits into.
-
-    For a probe whose measurement is one call. A probe that has to build a throwaway model first
-    composes :func:`reserve_margin`, :func:`measured_fits` and ``find_batch_size`` itself.
+                     limit: int = 0) -> int:
+    """Find the largest batch that fits for a pass with no requested size, such as a detection pass.
 
     :param run_batch: Runs the batch; may return a detail to append to the log line.
     :param probe: Names this probe in the log, so a node running several stays readable.
-    :param limit: Caps the search, rounded down to a power of two; 0 means
+    :param limit: Caps the search; 0 means
         :data:`~learning_loop_node.trainer.batch_size.MAX_BATCH_SIZE`.
-    :param vram_limit_gb: The budget the safety margin is a share of; 0 means the whole card.
-    :raises InsufficientMemoryError: If not even a batch size of 1 fits.
+    :raises InsufficientMemoryError: If not even a batch of one fits.
     """
-    limit = smaller_pot(limit or MAX_BATCH_SIZE)
+    return _probe(lambda: _PassStep(run_batch), probe=probe, limit=limit, steps_per_trial=1)
+
+
+class _PassStep(ProbeStep):
+    """A plain callable as a step; there is nothing of its own to build, validate or release."""
+
+    def __init__(self, run_batch: Callable[[int], str | None]) -> None:
+        self._run_batch = run_batch
+
+    def train_step(self, batch_size: int) -> str | None:
+        return self._run_batch(batch_size)
+
+    def val_step(self, batch_size: int) -> None:
+        return None
+
+
+def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, steps_per_trial: int,
+           candidate: int = 0, minimum: int = 1) -> int:
+    """Everything of a probe but the step: the GPU check, the margin, the search, the release.
+
+    The margin is a share of the budget :func:`limit_cuda_memory` set in this process.
+    """
+    bound = max(limit or MAX_BATCH_SIZE, minimum)
 
     if not torch.cuda.is_available():
-        return no_gpu_batch_size(limit, probe)
+        return no_gpu_batch_size(bound, probe, minimum)
 
-    margin = reserve_margin(vram_limit_gb, probe=probe)
+    margin = reserve_margin(probe=probe)
     try:
-        chosen = find_batch_size(measured_fits(run_batch, probe=probe), limit=limit)
+        chosen = _search(build_step, probe=probe, bound=bound, steps_per_trial=steps_per_trial,
+                         minimum=minimum, candidate=candidate)
     finally:
         del margin
         free_cuda_memory()
-    logger.info('%s: selected batch size %d (upper bound %d)', probe, chosen, limit)
+    logger.info('%s: selected batch size %d (upper bound %d)', probe, chosen, bound)
     return chosen
+
+
+def _search(build_step: Callable[[], ProbeStep], *, probe: str, bound: int, steps_per_trial: int,
+            minimum: int, candidate: int) -> int:
+    """Build the step, search with it and release it; once this returns, nothing references it."""
+    step = build_step()
+    try:
+        fits = measured_fits(_trial(step, steps_per_trial), probe=probe, on_out_of_memory=step.on_out_of_memory)
+        return find_batch_size(fits, limit=bound, minimum=minimum, candidate=candidate)
+    finally:
+        step.release()
+
+
+def _trial(step: ProbeStep, steps_per_trial: int) -> Callable[[int], str | None]:
+    """One trial of ``step``: its training steps, then its validation."""
+    def run_trial(batch_size: int) -> str | None:
+        train_detail = None
+        for _ in range(steps_per_trial):
+            train_detail = step.train_step(batch_size)
+        val_detail = step.val_step(batch_size)
+        return '; '.join(detail for detail in (train_detail, val_detail) if detail) or None
+
+    return run_trial
 
 
 def measured_fits(run_batch: Callable[[int], str | None], *, probe: str,
@@ -84,38 +222,41 @@ def measured_fits(run_batch: Callable[[int], str | None], *, probe: str,
     return fits
 
 
-def reserve_margin(vram_limit_gb: float, *, probe: str) -> torch.Tensor:
+def reserve_margin(*, probe: str) -> torch.Tensor:
     """Claim :data:`SAFETY_MARGIN` of the budget, so a trial competes against a smaller card.
 
     Keep the returned tensor alive for as long as the probe runs: releasing it hands the margin
     back, and the chosen size is no longer the size that was measured.
-
-    :param vram_limit_gb: The budget the margin is a share of; 0 means the whole card.
     """
-    margin_bytes = int(usable_memory_bytes(vram_limit_gb) * SAFETY_MARGIN)
+    margin_bytes = int(usable_memory_bytes() * SAFETY_MARGIN)
     logger.info('%s: keeping %.0f MB free as a safety margin', probe, margin_bytes / 1024**2)
     return torch.empty(margin_bytes, dtype=torch.uint8, device='cuda')
 
 
-def usable_memory_bytes(vram_limit_gb: float) -> int:
-    """How much GPU memory this process may allocate, honouring :func:`limit_cuda_memory`.
+def usable_memory_bytes() -> int:
+    """How much GPU memory this process may allocate, honouring :func:`limit_cuda_memory`."""
+    if _budget_gb > 0:
+        return int(_budget_gb * 1024**3)
+    return torch.cuda.get_device_properties(None).total_memory
 
-    :param vram_limit_gb: 0 or less means the whole card.
+
+def add_vram_limit_argument(parser: ArgumentParser) -> None:
+    """Give a spawned training script the same GPU budget flag its node has.
+
+    The spawned process still has to call :func:`limit_cuda_memory` with it.
     """
-    total_bytes = torch.cuda.get_device_properties(None).total_memory
-    if vram_limit_gb <= 0:
-        return total_bytes
-    return min(total_bytes, int(vram_limit_gb * 1024**3))
+    parser.add_argument(VRAM_LIMIT_GB_FLAG, type=float, default=0, help=VRAM_LIMIT_GB_HELP)
 
 
 def limit_cuda_memory(vram_limit_gb: float) -> None:
     """Cap how much of the GPU this process may allocate, to ``vram_limit_gb`` gigabytes.
 
     Call this once per process that touches the GPU, a spawned training process included: the
-    cap does not survive the spawn.
+    cap does not survive the spawn. A probe in this process then measures against the same budget.
 
     :param vram_limit_gb: 0 or less means no cap.
     """
+    global _budget_gb  # pylint: disable=global-statement
     if vram_limit_gb <= 0 or not torch.cuda.is_available():
         return
 
@@ -129,6 +270,7 @@ def limit_cuda_memory(vram_limit_gb: float) -> None:
         return
 
     torch.cuda.set_per_process_memory_fraction(fraction, None)
+    _budget_gb = vram_limit_gb
     logger.info('Limiting VRAM usage to %.1f GB of %.1f GB (%.0f%%)', vram_limit_gb, total_gb, fraction * 100)
 
 
