@@ -40,7 +40,13 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   restart. The loop starts a training via the `begin_training` sio event. A concrete trainer
   implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
   `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
-  trainers that shell out to a training process.
+  trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
+  the GPU when several trainers share one (`TRAINING_SLOT_LOCK`, an `flock` on a mounted file):
+  `_run` acquires it before the state machine and releases it after, `state` reports `busy` while
+  a sibling holds it — both with no training and with one waiting for the slot. The loop treats
+  `busy` like `idle` when it ends a training, because a waiting sibling usually grabs the freed
+  slot before the finished trainer's next status report. Without the variable the slot is always
+  free.
 - **Detector** — Detectors are rolled out on user machines and thus kept very simple -> `needs_login=False, needs_sio=False`. In the loop have few non-destructive capabilities and sio has shown to cause traffic spikes when trying to reconnect on bad connections.
   It *hosts* a socket.io server for its own clients and polls
   `/{org}/projects/{project}/deployment/target` over REST in `on_repeat` instead. `_DetectorState`
