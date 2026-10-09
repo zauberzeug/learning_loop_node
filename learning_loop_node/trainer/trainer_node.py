@@ -7,6 +7,7 @@ from typing import Dict, Optional
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient, exceptions
 
+from ..enums import TrainerState
 from ..node import Node
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls
@@ -102,7 +103,7 @@ class TrainerNode(Node):
         if not self._idle_timeout:
             return
 
-        if self.trainer_logic.state == 'idle':
+        if self.trainer_logic.state in (TrainerState.Idle, TrainerState.Blocked):
             if self._first_idle_time is None:
                 self._first_idle_time = time.time()
             idle_time = time.time() - self._first_idle_time

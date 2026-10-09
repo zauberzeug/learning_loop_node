@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import socket
 import subprocess
@@ -11,6 +12,7 @@ import pytest
 
 from ...data_classes import PretrainedModel, TrainingStateData
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
+from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import (
     ENV_VAR,
     AlwaysFreeSlot,
@@ -35,6 +37,28 @@ def test_the_slot_is_exclusive_and_names_its_holder(lock_path: Path):
     assert not second.try_acquire('node b')
     assert not second.held
     assert second.holder() == 'node a'
+
+
+def test_inspecting_a_slot_does_not_create_its_file(lock_path: Path):
+    assert FileTrainingSlot(lock_path).holder() is None
+    assert not lock_path.exists()
+
+
+def test_the_file_is_writable_for_sibling_users(lock_path: Path):
+    slot = FileTrainingSlot(lock_path)
+    old_umask = os.umask(0o022)
+    try:
+        slot.try_acquire('me')
+    finally:
+        os.umask(old_umask)
+        slot.release()
+    assert lock_path.stat().st_mode & 0o777 == 0o666
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason='root reads any file')
+def test_an_unreadable_slot_counts_as_free(lock_path: Path):
+    lock_path.touch(mode=0o000)
+    assert FileTrainingSlot(lock_path).holder() is None
 
 
 def test_release_hands_the_slot_on(lock_path: Path):
@@ -144,17 +168,17 @@ def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
     return trainer
 
 
-def test_an_idle_trainer_reports_busy_while_a_sibling_holds_the_slot(lock_path: Path):
+def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_path: Path):
     sibling = FileTrainingSlot(lock_path)
     trainer = _trainer_with(FileTrainingSlot(lock_path))
     assert trainer.state == 'idle'
     sibling.try_acquire('sibling')
-    assert trainer.state == 'busy'
+    assert trainer.state == 'blocked'
     sibling.release()
     assert trainer.state == 'idle'
 
 
-async def test_a_training_waits_for_the_slot_and_reports_busy_meanwhile(lock_path: Path):
+async def test_a_training_waits_for_the_slot_and_reports_its_own_state_meanwhile(lock_path: Path):
     sibling = FileTrainingSlot(lock_path)
     sibling.try_acquire('sibling')
     trainer = _trainer_with(FileTrainingSlot(lock_path))
@@ -164,7 +188,7 @@ async def test_a_training_waits_for_the_slot_and_reports_busy_meanwhile(lock_pat
     task = asyncio.create_task(trainer._acquire_training_slot())
     await asyncio.sleep(0.3)
     assert not task.done()
-    assert trainer.state == 'busy'
+    assert trainer.state == 'initialized'
 
     sibling.release()
     started = time.time()
@@ -173,3 +197,12 @@ async def test_a_training_waits_for_the_slot_and_reports_busy_meanwhile(lock_pat
     assert trainer.training_slot.held
     assert trainer.state == 'initialized'
     assert sibling.holder() == f'pid {os.getpid()} on {socket.gethostname()}, node node-uuid, training training-id'
+
+
+def test_a_blocked_trainer_runs_into_its_idle_timeout(lock_path: Path):
+    sibling = FileTrainingSlot(lock_path)
+    sibling.try_acquire('sibling')
+    node = SimpleNamespace(trainer_logic=_trainer_with(FileTrainingSlot(lock_path)), log=logging.getLogger(__name__),
+                           _idle_timeout=1.0, _first_idle_time=time.time() - 2.0)
+    with pytest.raises(SystemExit):
+        TrainerNode.check_idle_timeout(node)  # type: ignore[arg-type]

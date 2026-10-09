@@ -1,15 +1,18 @@
 """The right to use the GPU, shared between the trainer nodes on one machine.
 
 A node holds the slot from the moment it starts a training until the training is cleared;
-siblings that find the slot taken report `busy` and a sibling that was handed a training
-waits for the slot instead of competing for the card.
+siblings without a training that find the slot taken report `blocked`, and a sibling that was
+handed a training waits for the slot instead of competing for the card.
 """
 import fcntl
+import logging
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
 ENV_VAR = 'TRAINING_SLOT_LOCK'
+
+logger = logging.getLogger('learning_loop_node.training_slot')
 
 
 class TrainingSlot(ABC):
@@ -29,7 +32,7 @@ class TrainingSlot(ABC):
 
     @abstractmethod
     def holder(self) -> str | None:
-        """Who holds the slot, None if it is free."""
+        """Who holds the slot, None if it is free or cannot be inspected."""
 
 class AlwaysFreeSlot(TrainingSlot):
     """The slot of a node that has the GPU to itself."""
@@ -60,7 +63,8 @@ class FileTrainingSlot(TrainingSlot):
 
     The file's content names the holder and is diagnostic only — `holder()` tells a free slot
     from a taken one by trying the lock, and that probe holds the lock for an instant, so an
-    acquirer that loses against a probe simply tries again.
+    acquirer that loses against a probe simply tries again. The file is made writable for everyone,
+    since sibling containers may run as different users.
     """
 
     def __init__(self, path: str | Path) -> None:
@@ -96,7 +100,13 @@ class FileTrainingSlot(TrainingSlot):
     def holder(self) -> str | None:
         if self._fd is not None:
             return self._holder
-        fd = self._open()
+        try:
+            fd = os.open(self.path, os.O_RDONLY)
+        except FileNotFoundError:
+            return None
+        except OSError:
+            logger.warning('cannot inspect training slot %s - treating it as free', self.path, exc_info=True)
+            return None
         try:
             if self._try_lock(fd):
                 return None
@@ -105,7 +115,12 @@ class FileTrainingSlot(TrainingSlot):
             os.close(fd)
 
     def _open(self) -> int:
-        return os.open(self.path, os.O_RDWR | os.O_CREAT, 0o666)
+        fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o666)
+        try:
+            os.fchmod(fd, 0o666)
+        except PermissionError:
+            pass  # only the owner may chmod; the owner already did
+        return fd
 
     @staticmethod
     def _try_lock(fd: int) -> bool:
