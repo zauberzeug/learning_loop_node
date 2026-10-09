@@ -226,7 +226,7 @@ inside it, e.g. `/slot/training.lock`. A trainer holds the lock from the start o
 the training is cleaned up, including detection and upload. While a sibling holds it, the others
 report the state `blocked` instead of `idle`, so the Learning Loop neither offers them for a training
 nor dispatches queued jobs to them; a trainer that is handed a training regardless waits for the
-lock before it starts, reporting the training's own state meanwhile. The lock is an `flock`, so the kernel releases it whenever the holding
+lock before it starts, reporting `waiting_for_slot` meanwhile. The lock is an `flock`, so the kernel releases it whenever the holding
 process ends, however it ends — there is nothing to clean up after a crash. Mount the directory,
 not the file, and never replace the file: the lock belongs to its inode.
 

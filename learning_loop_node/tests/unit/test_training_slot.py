@@ -178,7 +178,7 @@ def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_pat
     assert trainer.state == 'idle'
 
 
-async def test_a_training_waits_for_the_slot_and_reports_its_own_state_meanwhile(lock_path: Path):
+async def test_a_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path):
     sibling = FileTrainingSlot(lock_path)
     sibling.try_acquire('sibling')
     trainer = _trainer_with(FileTrainingSlot(lock_path))
@@ -188,7 +188,7 @@ async def test_a_training_waits_for_the_slot_and_reports_its_own_state_meanwhile
     task = asyncio.create_task(trainer._acquire_training_slot())
     await asyncio.sleep(0.3)
     assert not task.done()
-    assert trainer.state == 'initialized'
+    assert trainer.state == 'waiting_for_slot'
 
     sibling.release()
     started = time.time()
