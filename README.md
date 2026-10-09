@@ -34,6 +34,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)            | 0            |
 | KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            | 0            |
 | TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)            | 0 (disabled) |
+| TRAINING_SLOT_LOCK       | -            | Lock file shared by the trainers on one GPU (see Trainer Node) | Trainer (opt.)          | - (disabled) |
 | USE_BACKDOOR_CONTROLS    | -            | Always enable backdoor controls (set to 1)                   | Trainer / Detector (opt.) | 0            |
 
 Note that organization and project IDs are always lower case and may differ from the names in the Learning Loop which can have uppercase letters.
@@ -216,6 +217,18 @@ The outbox mode can also be queried via:
 Trainers fetch the images and anntoations from the Learning Loop to train new models.
 
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
+
+### Several trainers on one GPU
+
+Trainers that share a GPU (say, one per model architecture on the same machine) coordinate through
+a lock file: mount one host directory into each of them and point `TRAINING_SLOT_LOCK` at a file
+inside it, e.g. `/slot/training.lock`. A trainer holds the lock from the start of a training until
+the training is cleaned up, including detection and upload. While a sibling holds it, the others
+report the state `blocked` instead of `idle`, so the Learning Loop neither offers them for a training
+nor dispatches queued jobs to them; a trainer that is handed a training regardless waits for the
+lock before it starts, reporting `waiting_for_slot` meanwhile. The lock is an `flock`, so the kernel releases it whenever the holding
+process ends, however it ends — there is nothing to clean up after a crash. Mount the directory,
+not the file, and never replace the file: the lock belongs to its inode.
 
 ## Converter Node
 

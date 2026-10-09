@@ -4,7 +4,9 @@ from enum import Enum
 
 class TrainerState(str, Enum):
     Idle = 'idle'
+    Blocked = 'blocked'
     Initialized = 'initialized'
+    WaitingForSlot = 'waiting_for_slot'
     Preparing = 'preparing'
     DataDownloading = 'data_downloading'
     DataDownloaded = 'data_downloaded'

@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+import os
 import shutil
+import socket
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -28,6 +30,7 @@ from ..helpers.misc import (
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
+from .training_slot import TrainingSlot, training_slot_from_env
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -37,7 +40,7 @@ logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
 class TrainerLogicGeneric(ABC):
 
-    def __init__(self, model_format: str) -> None:
+    def __init__(self, model_format: str, training_slot: Optional[TrainingSlot] = None) -> None:
 
         # NOTE: model_format is used in the file path for the model on the server:
         # It acts as a key for list of files (cf. _get_latest_model_files)
@@ -54,6 +57,7 @@ class TrainerLogicGeneric(ABC):
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._environment_vars = EnvironmentVars()
+        self.training_slot = training_slot or training_slot_from_env()
 
     # ---------------------------------------- PROPERTIES TO AVOID CHECKING FOR NONE ----------------------------------------
 
@@ -99,8 +103,14 @@ class TrainerLogicGeneric(ABC):
     @property
     def state(self) -> str:
         """Returns the current state of the training. Used solely by the node in send_status().
+        `blocked` means there is no training and a sibling node holds the GPU; the loop ends a training on
+        it as on `idle`. A training that waits for the slot reports `waiting_for_slot`, which keeps it.
         """
-        if (not self.training_active) or (self.training.training_state is None):
+        if not self.training_active:
+            return TrainerState.Idle.value if self.training_slot.holder() is None else TrainerState.Blocked.value
+        if not self.training_slot.held:
+            return TrainerState.WaitingForSlot.value
+        if self.training.training_state is None:
             return TrainerState.Idle.value
         return self.training.training_state
 
@@ -242,6 +252,7 @@ class TrainerLogicGeneric(ABC):
         """
         self.errors.reset_all()
         try:
+            await self._acquire_training_slot()
             await self._training_loop()
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
@@ -254,6 +265,17 @@ class TrainerLogicGeneric(ABC):
                 logger.info('CancelledError in _run - shutting down')
         except Exception:
             logger.exception('(Ignored) exception in trainer_logic._run:')
+        finally:
+            self.training_slot.release()
+
+    async def _acquire_training_slot(self) -> None:
+        holder = f'pid {os.getpid()} on {socket.gethostname()}, node {self.node.uuid}, training {self.training.id}'
+        if self.training_slot.try_acquire(holder):
+            return
+        logger.info('training slot is taken by %s - waiting', self.training_slot.holder())
+        while not self.training_slot.try_acquire(holder):
+            await asyncio.sleep(1)
+        logger.info('acquired training slot')
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
