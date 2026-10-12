@@ -4,7 +4,7 @@ from enum import Enum
 
 class TrainerState(str, Enum):
     Idle = 'idle'
-    Blocked = 'blocked'
+    Blocked = 'blocked'  # idle, but unable to take a training
     Initialized = 'initialized'
     WaitingForSlot = 'waiting_for_slot'
     Preparing = 'preparing'

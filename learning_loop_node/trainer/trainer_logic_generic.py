@@ -102,10 +102,11 @@ class TrainerLogicGeneric(ABC):
 
     @property
     def state(self) -> str:
-        """Returns the current state of the training. Used solely by the node in send_status().
-        `blocked` means there is no training and a sibling node holds the GPU; the loop ends a training on
-        it as on `idle`. A training resumed after a restart may find the slot taken and reports
-        `waiting_for_slot` until it gets it, which keeps the training.
+        """Returns the current state of the training.
+
+        Without a training the state is `idle`, or `blocked` while a sibling node holds the training slot.
+        A training resumed after a restart reports `waiting_for_slot` until it gets the slot: it has a
+        training, so it is never `blocked`.
         """
         if not self.training_active:
             return TrainerState.Idle.value if self.training_slot.holder() is None else TrainerState.Blocked.value
