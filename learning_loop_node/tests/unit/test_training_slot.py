@@ -97,6 +97,16 @@ def test_a_failed_acquire_leaves_the_slot_free(lock_path: Path, monkeypatch: pyt
     assert FileTrainingSlot(lock_path).try_acquire('sibling')
 
 
+def test_a_failed_release_still_frees_the_slot(lock_path: Path, monkeypatch: pytest.MonkeyPatch):
+    slot = FileTrainingSlot(lock_path)
+    slot.try_acquire('me')
+    with monkeypatch.context() as patch:
+        patch.setattr(os, 'ftruncate', _failing)
+        slot.release()
+    assert not slot.held
+    assert FileTrainingSlot(lock_path).try_acquire('sibling')
+
+
 def test_a_dying_process_frees_the_slot(lock_path: Path):
     held_marker = lock_path.with_suffix('.held')
     other = subprocess.Popen([sys.executable, '-c', f'''

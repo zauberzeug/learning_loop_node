@@ -105,10 +105,14 @@ class FileTrainingSlot(TrainingSlot):
     def release(self) -> None:
         if self._fd is None:
             return
-        os.ftruncate(self._fd, 0)
-        os.close(self._fd)
-        self._fd = None
-        self._holder = None
+        try:
+            os.ftruncate(self._fd, 0)
+        except OSError:
+            logger.warning('cannot clear the holder from training slot %s', self.path, exc_info=True)
+        finally:
+            os.close(self._fd)
+            self._fd = None
+            self._holder = None
 
     @property
     def held(self) -> bool:
