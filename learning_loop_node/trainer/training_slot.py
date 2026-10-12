@@ -1,8 +1,8 @@
 """The right to use the GPU, shared between the trainer nodes on one machine.
 
-A node holds the slot from the moment it starts a training until the training is cleared;
-siblings without a training that find the slot taken report `blocked`, and a sibling that was
-handed a training waits for the slot instead of competing for the card.
+A node holds the slot from the moment it accepts a training until the training is cleared;
+siblings without a training that find the slot taken report `blocked` and refuse a training they
+are asked to begin. A training resumed after a restart waits for the slot instead.
 """
 import fcntl
 import logging

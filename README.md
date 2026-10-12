@@ -222,11 +222,13 @@ Trainers fetch the images and anntoations from the Learning Loop to train new mo
 
 Trainers that share a GPU (say, one per model architecture on the same machine) coordinate through
 a lock file: mount one host directory into each of them and point `TRAINING_SLOT_LOCK` at a file
-inside it, e.g. `/slot/training.lock`. A trainer holds the lock from the start of a training until
-the training is cleaned up, including detection and upload. While a sibling holds it, the others
-report the state `blocked` instead of `idle`, so the Learning Loop neither offers them for a training
-nor dispatches queued jobs to them; a trainer that is handed a training regardless waits for the
-lock before it starts, reporting `waiting_for_slot` meanwhile. The lock is an `flock`, so the kernel releases it whenever the holding
+inside it, e.g. `/slot/training.lock`. A trainer takes the lock when it accepts a training and holds
+it until the training is cleaned up, including detection and upload. While a sibling holds it, the
+others report the state `blocked` instead of `idle`, so the Learning Loop neither offers them for a
+training nor dispatches queued jobs to them; a trainer that is sent `begin_training` regardless
+refuses it with `{"success": false, "error_msg": ...}` in the acknowledgement and sets nothing up. A
+training resumed after a restart cannot be refused — it waits for the lock instead, reporting
+`waiting_for_slot` meanwhile. The lock is an `flock`, so the kernel releases it whenever the holding
 process ends, however it ends — there is nothing to clean up after a crash. Mount the directory,
 not the file, and never replace the file: the lock belongs to its inode.
 

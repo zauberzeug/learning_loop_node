@@ -10,7 +10,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from ...data_classes import PretrainedModel, TrainingStateData
+from ...data_classes import Context, PretrainedModel, TrainingStateData
+from ...globals import GLOBALS
+from ...helpers.misc import ensure_socket_response
+from ...trainer.exceptions import TrainingRefusedError
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import (
@@ -164,8 +167,27 @@ class _Trainer(TrainerLogicGeneric):
 
 def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
     trainer = _Trainer('mocked', training_slot=slot)
-    trainer._node = SimpleNamespace(uuid='node-uuid', name='node')  # type: ignore[assignment]
+    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
     return trainer
+
+
+TRAINING_CONFIG = {'model_variant': 'small', 'categories': [], 'training_number': 7, 'hyperparameters': {}}
+
+
+@pytest.fixture
+def data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(GLOBALS, 'data_folder', str(tmp_path / 'data'))
+    return tmp_path / 'data'
+
+
+@pytest.fixture
+def started(monkeypatch: pytest.MonkeyPatch) -> list[TrainerLogicGeneric]:
+    trainers: list[TrainerLogicGeneric] = []
+
+    def record(trainer: TrainerLogicGeneric) -> None:
+        trainers.append(trainer)
+    monkeypatch.setattr(TrainerLogicGeneric, '_begin_training_task', record)
+    return trainers
 
 
 def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_path: Path):
@@ -178,11 +200,77 @@ def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_pat
     assert trainer.state == 'idle'
 
 
-async def test_a_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path):
+async def test_begin_training_takes_the_slot_and_starts(lock_path: Path, data_folder: Path, started: list):
+    trainer = _trainer_with(FileTrainingSlot(lock_path))
+    await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    assert started == [trainer]
+    assert trainer.training_slot.held
+    assert FileTrainingSlot(lock_path).holder() == \
+        f'pid {os.getpid()} on {socket.gethostname()}, node node-uuid, training #7 of zauberzeug/demo'
+
+
+async def test_begin_training_is_refused_while_a_sibling_holds_the_slot(lock_path: Path, data_folder: Path,
+                                                                        started: list):
+    old_training = data_folder / 'zauberzeug' / 'demo' / 'trainings' / 'old'
+    old_training.mkdir(parents=True)
     sibling = FileTrainingSlot(lock_path)
     sibling.try_acquire('sibling')
     trainer = _trainer_with(FileTrainingSlot(lock_path))
-    trainer._training = SimpleNamespace(id='training-id', training_state='initialized')  # type: ignore[assignment]
+
+    with pytest.raises(TrainingRefusedError, match='held by sibling'):
+        await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    assert not started
+    assert not trainer.training_active
+    assert not trainer.training_slot.held
+    assert old_training.exists()
+    assert trainer.state == 'blocked'
+
+
+async def test_begin_training_is_refused_while_a_training_is_active(lock_path: Path, data_folder: Path,
+                                                                     started: list):
+    trainer = _trainer_with(FileTrainingSlot(lock_path))
+    await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    with pytest.raises(TrainingRefusedError, match='still active'):
+        await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    assert started == [trainer]
+
+
+async def test_an_invalid_training_config_gives_the_slot_back(lock_path: Path, data_folder: Path, started: list):
+    trainer = _trainer_with(FileTrainingSlot(lock_path))
+    with pytest.raises(ValueError):
+        await trainer.begin_training('zauberzeug', 'demo', {**TRAINING_CONFIG, 'training_number': 'seven'})
+    assert not started
+    assert not trainer.training_slot.held
+    assert FileTrainingSlot(lock_path).holder() is None
+
+
+async def test_the_loop_receives_a_refusal_as_a_failed_socket_response(lock_path: Path, data_folder: Path,
+                                                                       started: list):
+    sibling = FileTrainingSlot(lock_path)
+    sibling.try_acquire('sibling')
+    handlers = {}
+    sio_client = SimpleNamespace(event=lambda handler: handlers.setdefault(handler.__name__, handler))
+    node = SimpleNamespace(trainer_logic=_trainer_with(FileTrainingSlot(lock_path)), log=logging.getLogger(__name__))
+    TrainerNode.register_sio_events(node, sio_client)  # type: ignore[arg-type]
+
+    @ensure_socket_response
+    async def trigger(event: str, *args):
+        return await handlers[event](*args)
+
+    response = await trigger('begin_training', 'zauberzeug', 'demo', TRAINING_CONFIG)
+    assert response == {'success': False, 'error_msg': 'the training slot is held by sibling', 'payload': None}
+
+    sibling.release()
+    response = await trigger('begin_training', 'zauberzeug', 'demo', TRAINING_CONFIG)
+    assert response == {'success': True, 'error_msg': None, 'payload': None}
+
+
+async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path):
+    sibling = FileTrainingSlot(lock_path)
+    sibling.try_acquire('sibling')
+    trainer = _trainer_with(FileTrainingSlot(lock_path))
+    trainer._training = SimpleNamespace(id='training-id', training_state='initialized', training_number=3,  # type: ignore[assignment]
+                                        context=Context(organization='zauberzeug', project='demo'))
     trainer._active_training_io = object()  # type: ignore[assignment]
 
     task = asyncio.create_task(trainer._acquire_training_slot())
@@ -196,7 +284,8 @@ async def test_a_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_
     assert time.time() - started < 2
     assert trainer.training_slot.held
     assert trainer.state == 'initialized'
-    assert sibling.holder() == f'pid {os.getpid()} on {socket.gethostname()}, node node-uuid, training training-id'
+    assert sibling.holder() == \
+        f'pid {os.getpid()} on {socket.gethostname()}, node node-uuid, training #3 of zauberzeug/demo'
 
 
 def test_a_blocked_trainer_runs_into_its_idle_timeout(lock_path: Path):

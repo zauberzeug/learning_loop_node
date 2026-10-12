@@ -5,6 +5,10 @@ class CriticalError(Exception):
     """
 
 
+class TrainingRefusedError(Exception):
+    """Raised when a trainer cannot take on a training it was asked to begin; nothing was set up."""
+
+
 class InsufficientMemoryError(RuntimeError):
     """Raised when not even the smallest unit of work fits in memory."""
 

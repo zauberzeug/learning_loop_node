@@ -28,7 +28,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
@@ -104,7 +104,8 @@ class TrainerLogicGeneric(ABC):
     def state(self) -> str:
         """Returns the current state of the training. Used solely by the node in send_status().
         `blocked` means there is no training and a sibling node holds the GPU; the loop ends a training on
-        it as on `idle`. A training that waits for the slot reports `waiting_for_slot`, which keeps it.
+        it as on `idle`. A training resumed after a restart may find the slot taken and reports
+        `waiting_for_slot` until it gets it, which keeps the training.
         """
         if not self.training_active:
             return TrainerState.Idle.value if self.training_slot.holder() is None else TrainerState.Blocked.value
@@ -223,8 +224,22 @@ class TrainerLogicGeneric(ABC):
 
     async def begin_training(self, organization: str, project: str, training_config: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
+
+        The training slot is taken before anything is set up, so a refused training leaves the
+        previous training folders in place.
+
+        :raise TrainingRefusedError: if a training is active or a sibling node holds the training slot.
         """
-        self._init_new_training(Context(organization=organization, project=project), training_config)
+        if self.training_active:
+            raise TrainingRefusedError(f'training {self.training.id} is still active')
+        context = Context(organization=organization, project=project)
+        if not self.training_slot.try_acquire(self._slot_holder(context, training_config.get('training_number'))):
+            raise TrainingRefusedError(f'the training slot is held by {self.training_slot.holder() or "a sibling"}')
+        try:
+            self._init_new_training(context, training_config)
+        except Exception:
+            self.training_slot.release()
+            raise
         self._begin_training_task()
 
     def _begin_training_task(self) -> None:
@@ -269,13 +284,17 @@ class TrainerLogicGeneric(ABC):
             self.training_slot.release()
 
     async def _acquire_training_slot(self) -> None:
-        holder = f'pid {os.getpid()} on {socket.gethostname()}, node {self.node.uuid}, training {self.training.id}'
+        holder = self._slot_holder(self.training.context, self.training.training_number)
         if self.training_slot.try_acquire(holder):
             return
         logger.info('training slot is taken by %s - waiting', self.training_slot.holder())
         while not self.training_slot.try_acquire(holder):
             await asyncio.sleep(1)
         logger.info('acquired training slot')
+
+    def _slot_holder(self, context: Context, training_number: Any) -> str:
+        return (f'pid {os.getpid()} on {socket.gethostname()}, node {self.node.uuid}, '
+                f'training #{training_number} of {context.organization}/{context.project}')
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 

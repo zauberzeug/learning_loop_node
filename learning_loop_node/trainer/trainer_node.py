@@ -7,8 +7,10 @@ from typing import Dict, Optional
 from fastapi.encoders import jsonable_encoder
 from socketio import AsyncClient, exceptions
 
+from ..data_classes import SocketResponse
 from ..enums import TrainerState
 from ..node import Node
+from .exceptions import TrainingRefusedError
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls
 from .trainer_logic_generic import TrainerLogicGeneric
@@ -65,7 +67,11 @@ class TrainerNode(Node):
         @sio_client.event
         async def begin_training(organization: str, project: str, details: Dict):
             self.log.info('received begin_training from server')
-            await self.trainer_logic.begin_training(organization, project, details)
+            try:
+                await self.trainer_logic.begin_training(organization, project, details)
+            except TrainingRefusedError as e:
+                self.log.warning('refused begin_training: %s', e)
+                return SocketResponse.for_failure(str(e))
             return True
 
         @sio_client.event
