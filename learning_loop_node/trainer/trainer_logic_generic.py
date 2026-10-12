@@ -282,6 +282,10 @@ class TrainerLogicGeneric(ABC):
         except Exception:
             logger.exception('(Ignored) exception in trainer_logic._run:')
         finally:
+            # A training whose run ended without clearing it would otherwise refuse every new one and
+            # never resume; one still saved on disk is resumed by try_continue_run_if_incomplete.
+            self._training = None
+            self._active_training_io = None
             self.training_slot.release()
 
     async def _acquire_training_slot(self) -> None:

@@ -14,6 +14,7 @@ from ...data_classes import Context, PretrainedModel, TrainingStateData
 from ...globals import GLOBALS
 from ...helpers.misc import ensure_socket_response
 from ...trainer.exceptions import TrainingRefusedError
+from ...trainer.io_helpers import LastTrainingIO
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import (
@@ -283,6 +284,28 @@ async def test_the_loop_receives_a_refusal_as_a_failed_socket_response(lock_path
     sibling.release()
     response = await trigger('begin_training', 'zauberzeug', 'demo', TRAINING_CONFIG)
     assert response == {'success': True, 'error_msg': None, 'payload': None}
+
+
+class _TrainerFailingCleanup(_Trainer):
+
+    async def _clear_training_data(self, training_folder: str) -> None:
+        raise OSError('disk gone')
+
+
+async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_path: Path, data_folder: Path,
+                                                                          started: list):
+    trainer = _TrainerFailingCleanup('mocked', training_slot=FileTrainingSlot(lock_path))
+    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
+    trainer._last_training_io = LastTrainingIO('node-uuid')
+    await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    trainer.training.training_state = 'ready_for_cleanup'
+
+    await trainer._run()
+
+    assert not trainer.training_slot.held
+    assert trainer.state == 'idle'
+    await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    assert len(started) == 2
 
 
 async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path):
