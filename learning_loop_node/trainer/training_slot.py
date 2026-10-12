@@ -89,11 +89,15 @@ class FileTrainingSlot(TrainingSlot):
         if self._fd is not None:
             return True
         fd = self._open()
-        if not self._try_lock(fd):
+        try:
+            if not self._try_lock(fd):
+                os.close(fd)
+                return False
+            os.ftruncate(fd, 0)
+            os.write(fd, holder.encode())
+        except BaseException:
             os.close(fd)
-            return False
-        os.ftruncate(fd, 0)
-        os.write(fd, holder.encode())
+            raise
         self._fd = fd
         self._holder = holder
         return True
