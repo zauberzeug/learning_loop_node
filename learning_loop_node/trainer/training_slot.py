@@ -5,6 +5,7 @@ A node holds the slot from the moment it accepts a training until the training i
 import fcntl
 import logging
 import os
+import weakref
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -63,12 +64,26 @@ class FileTrainingSlot(TrainingSlot):
     from a taken one by trying the lock, and that probe holds the lock for an instant, so an
     acquirer that loses against a probe simply tries again. The file is made writable for everyone,
     since sibling containers may run as different users.
+
+    A forked child shares the parent's lock and would keep it alive after the parent releases it,
+    so the child closes its copy right after the fork; the parent's lock is unaffected.
     """
+
+    _instances: 'weakref.WeakSet[FileTrainingSlot]' = weakref.WeakSet()
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self._fd: int | None = None
         self._holder: str | None = None
+        FileTrainingSlot._instances.add(self)
+
+    @classmethod
+    def _drop_inherited_locks(cls) -> None:
+        for slot in list(cls._instances):
+            if slot._fd is not None:
+                os.close(slot._fd)
+                slot._fd = None
+                slot._holder = None
 
     def try_acquire(self, holder: str) -> bool:
         if self._fd is not None:
@@ -127,6 +142,9 @@ class FileTrainingSlot(TrainingSlot):
         except BlockingIOError:
             return False
         return True
+
+os.register_at_fork(after_in_child=FileTrainingSlot._drop_inherited_locks)  # pylint: disable=protected-access
+
 
 def training_slot_from_env() -> TrainingSlot:
     """The slot `TRAINING_SLOT_LOCK` names, or a free one if the variable is unset.

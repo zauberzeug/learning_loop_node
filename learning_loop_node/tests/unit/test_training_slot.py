@@ -106,6 +106,26 @@ time.sleep(60)
         other.kill()
 
 
+def test_a_forked_child_does_not_keep_the_slot(lock_path: Path):
+    slot = FileTrainingSlot(lock_path)
+    slot.try_acquire('me')
+    started, signal = os.pipe()
+    child = os.fork()
+    if child == 0:
+        os.write(signal, b'x')
+        time.sleep(30)
+        os._exit(0)
+    try:
+        os.read(started, 1)
+        slot.release()
+        assert FileTrainingSlot(lock_path).try_acquire('sibling')
+    finally:
+        os.kill(child, 9)
+        os.waitpid(child, 0)
+        os.close(started)
+        os.close(signal)
+
+
 def test_without_the_variable_the_slot_is_always_free(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv(ENV_VAR, raising=False)
     slot = training_slot_from_env()
