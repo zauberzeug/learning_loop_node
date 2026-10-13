@@ -40,7 +40,7 @@ logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
 class TrainerLogicGeneric(ABC):
 
-    def __init__(self, model_format: str, training_slot: Optional[TrainingSlot] = None) -> None:
+    def __init__(self, model_format: str, training_slot: TrainingSlot | None = None) -> None:
 
         # NOTE: model_format is used in the file path for the model on the server:
         # It acts as a key for list of files (cf. _get_latest_model_files)
