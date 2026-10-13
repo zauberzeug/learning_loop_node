@@ -9,6 +9,8 @@ import weakref
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from .exceptions import TrainingSlotTakenError
+
 ENV_VAR = 'TRAINING_SLOT_LOCK'
 
 logger = logging.getLogger('learning_loop_node.training_slot')
@@ -17,8 +19,11 @@ logger = logging.getLogger('learning_loop_node.training_slot')
 class TrainingSlot(ABC):
 
     @abstractmethod
-    def try_acquire(self, holder: str) -> bool:
-        """Take the slot without waiting; True if this slot now holds it (also if it already did)."""
+    def acquire(self, holder: str) -> None:
+        """Take the slot without waiting; a no-op if this slot already holds it.
+
+        :raise TrainingSlotTakenError: if a sibling holds the slot.
+        """
 
     @abstractmethod
     def release(self) -> None:
@@ -39,9 +44,8 @@ class AlwaysFreeSlot(TrainingSlot):
     def __init__(self) -> None:
         self._holder: str | None = None
 
-    def try_acquire(self, holder: str) -> bool:
+    def acquire(self, holder: str) -> None:
         self._holder = holder
-        return True
 
     def release(self) -> None:
         self._holder = None
@@ -56,9 +60,9 @@ class AlwaysFreeSlot(TrainingSlot):
 class FileTrainingSlot(TrainingSlot):
     """A slot backed by an exclusive `flock` on a file every sibling node mounts.
 
-    The kernel drops the lock with the process, so a node that dies in any way frees the slot
-    without a heartbeat or a timeout. The lock belongs to the inode: the file is only ever
-    truncated and rewritten in place, never replaced, and the mounted path is its directory.
+    The kernel drops the lock with the process, so a node that dies in any way frees the slot.
+    The lock belongs to the inode: the file is only ever truncated and rewritten in place, never
+    replaced, and the mounted path is its directory.
 
     The file's content names the holder and is diagnostic only — `holder()` tells a free slot
     from a taken one by trying the lock, and that probe holds the lock for an instant, so an
@@ -77,22 +81,12 @@ class FileTrainingSlot(TrainingSlot):
         self._holder: str | None = None
         FileTrainingSlot._instances.add(self)
 
-    @classmethod
-    def _drop_inherited_locks(cls) -> None:
-        for slot in list(cls._instances):
-            if slot._fd is not None:
-                os.close(slot._fd)
-                slot._fd = None
-                slot._holder = None
-
-    def try_acquire(self, holder: str) -> bool:
+    def acquire(self, holder: str) -> None:
         if self._fd is not None:
-            return True
+            return
         fd = self._open()
         try:
-            if not self._try_lock(fd):
-                os.close(fd)
-                return False
+            self._lock(fd)
             os.ftruncate(fd, 0)
             os.write(fd, holder.encode())
         except BaseException:
@@ -100,7 +94,6 @@ class FileTrainingSlot(TrainingSlot):
             raise
         self._fd = fd
         self._holder = holder
-        return True
 
     def release(self) -> None:
         if self._fd is None:
@@ -129,27 +122,35 @@ class FileTrainingSlot(TrainingSlot):
             logger.warning('cannot inspect training slot %s - treating it as free', self.path, exc_info=True)
             return None
         try:
-            if self._try_lock(fd):
-                return None
-            return os.read(fd, 4096).decode(errors='replace') or 'unknown'
+            self._lock(fd)
+        except TrainingSlotTakenError as e:
+            return e.holder
         finally:
             os.close(fd)
+        return None
+
+    @classmethod
+    def _drop_inherited_locks(cls) -> None:
+        for slot in list(cls._instances):
+            if slot._fd is not None:
+                os.close(slot._fd)
+                slot._fd = None
+                slot._holder = None
 
     def _open(self) -> int:
         fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o666)
         try:
             os.fchmod(fd, 0o666)
         except PermissionError:
-            pass  # only the owner may chmod; the owner already did
+            pass
         return fd
 
     @staticmethod
-    def _try_lock(fd: int) -> bool:
+    def _lock(fd: int) -> None:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return False
-        return True
+        except BlockingIOError as e:
+            raise TrainingSlotTakenError(os.read(fd, 4096).decode(errors='replace') or 'unknown') from e
 
 os.register_at_fork(after_in_child=FileTrainingSlot._drop_inherited_locks)  # pylint: disable=protected-access
 
@@ -157,9 +158,7 @@ os.register_at_fork(after_in_child=FileTrainingSlot._drop_inherited_locks)  # py
 def training_slot_from_env() -> TrainingSlot:
     """The slot `TRAINING_SLOT_LOCK` names, or a free one if the variable is unset.
 
-    :raise FileNotFoundError: if the lock file's directory does not exist — it is meant to be a
-        mount shared with the sibling nodes, and a lock in a directory of the node's own would
-        hold nobody off.
+    :raise FileNotFoundError: if the lock file's directory does not exist.
     """
     path = os.environ.get(ENV_VAR)
     if not path:

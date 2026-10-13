@@ -28,7 +28,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError, TrainingSlotTakenError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
@@ -234,8 +234,7 @@ class TrainerLogicGeneric(ABC):
         if self.training_active:
             raise TrainingRefusedError(f'training {self.training.id} is still active')
         context = Context(organization=organization, project=project)
-        if not self.training_slot.try_acquire(self._slot_holder(context, training_config.get('training_number'))):
-            raise TrainingRefusedError(f'the training slot is held by {self.training_slot.holder() or "a sibling"}')
+        self.training_slot.acquire(self._slot_holder(context, training_config.get('training_number')))
         try:
             self._init_new_training(context, training_config)
         except Exception:
@@ -282,19 +281,24 @@ class TrainerLogicGeneric(ABC):
         except Exception:
             logger.exception('(Ignored) exception in trainer_logic._run:')
         finally:
-            # A training whose run ended without clearing it would otherwise refuse every new one and
-            # never resume; one still saved on disk is resumed by try_continue_run_if_incomplete.
             self._training = None
             self.training_slot.release()
 
     async def _acquire_training_slot(self) -> None:
         holder = self._slot_holder(self.training.context, self.training.training_number)
-        if self.training_slot.try_acquire(holder):
+        try:
+            self.training_slot.acquire(holder)
             return
-        logger.info('training slot is taken by %s - waiting', self.training_slot.holder())
-        while not self.training_slot.try_acquire(holder):
+        except TrainingSlotTakenError as e:
+            logger.info('%s - waiting', e)
+        while True:
             await asyncio.sleep(1)
-        logger.info('acquired training slot')
+            try:
+                self.training_slot.acquire(holder)
+            except TrainingSlotTakenError:
+                continue
+            logger.info('acquired training slot')
+            return
 
     def _slot_holder(self, context: Context, training_number: Any) -> str:
         return (f'pid {os.getpid()} on {socket.gethostname()}, node {self.node.uuid}, '

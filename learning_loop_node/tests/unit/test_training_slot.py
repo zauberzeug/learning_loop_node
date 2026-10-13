@@ -13,7 +13,7 @@ import pytest
 from ...data_classes import Context, PretrainedModel, TrainingStateData
 from ...globals import GLOBALS
 from ...helpers.misc import ensure_socket_response
-from ...trainer.exceptions import TrainingRefusedError
+from ...trainer.exceptions import TrainingRefusedError, TrainingSlotTakenError
 from ...trainer.io_helpers import LastTrainingIO
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
@@ -36,9 +36,10 @@ def test_a_free_slot_has_no_holder(lock_path: Path):
 
 def test_the_slot_is_exclusive_and_names_its_holder(lock_path: Path):
     first, second = FileTrainingSlot(lock_path), FileTrainingSlot(lock_path)
-    assert first.try_acquire('node a')
+    first.acquire('node a')
     assert first.held
-    assert not second.try_acquire('node b')
+    with pytest.raises(TrainingSlotTakenError):
+        second.acquire('node b')
     assert not second.held
     assert second.holder() == 'node a'
 
@@ -52,7 +53,7 @@ def test_the_file_is_writable_for_sibling_users(lock_path: Path):
     slot = FileTrainingSlot(lock_path)
     old_umask = os.umask(0o022)
     try:
-        slot.try_acquire('me')
+        slot.acquire('me')
     finally:
         os.umask(old_umask)
         slot.release()
@@ -67,17 +68,17 @@ def test_an_unreadable_slot_counts_as_free(lock_path: Path):
 
 def test_release_hands_the_slot_on(lock_path: Path):
     first, second = FileTrainingSlot(lock_path), FileTrainingSlot(lock_path)
-    first.try_acquire('node a')
+    first.acquire('node a')
     first.release()
     assert not first.held
-    assert second.try_acquire('node b')
+    second.acquire('node b')
     assert first.holder() == 'node b'
 
 
 def test_acquiring_twice_is_harmless(lock_path: Path):
     slot = FileTrainingSlot(lock_path)
-    assert slot.try_acquire('node a')
-    assert slot.try_acquire('node a')
+    slot.acquire('node a')
+    slot.acquire('node a')
     slot.release()
     slot.release()
     assert slot.holder() is None
@@ -92,19 +93,19 @@ def test_a_failed_acquire_leaves_the_slot_free(lock_path: Path, monkeypatch: pyt
     with monkeypatch.context() as patch:
         patch.setattr(os, 'write', _failing)
         with pytest.raises(OSError):
-            slot.try_acquire('me')
+            slot.acquire('me')
     assert not slot.held
-    assert FileTrainingSlot(lock_path).try_acquire('sibling')
+    FileTrainingSlot(lock_path).acquire('sibling')
 
 
 def test_a_failed_release_still_frees_the_slot(lock_path: Path, monkeypatch: pytest.MonkeyPatch):
     slot = FileTrainingSlot(lock_path)
-    slot.try_acquire('me')
+    slot.acquire('me')
     with monkeypatch.context() as patch:
         patch.setattr(os, 'ftruncate', _failing)
         slot.release()
     assert not slot.held
-    assert FileTrainingSlot(lock_path).try_acquire('sibling')
+    FileTrainingSlot(lock_path).acquire('sibling')
 
 
 def test_a_dying_process_frees_the_slot(lock_path: Path):
@@ -112,7 +113,7 @@ def test_a_dying_process_frees_the_slot(lock_path: Path):
     other = subprocess.Popen([sys.executable, '-c', f'''
 from learning_loop_node.trainer.training_slot import FileTrainingSlot
 import pathlib, time
-assert FileTrainingSlot({str(lock_path)!r}).try_acquire('other process')
+FileTrainingSlot({str(lock_path)!r}).acquire('other process')
 pathlib.Path({str(held_marker)!r}).touch()
 time.sleep(60)
 '''], stdout=subprocess.DEVNULL)
@@ -122,18 +123,19 @@ time.sleep(60)
             assert time.time() < deadline and other.poll() is None, 'the other process never took the slot'
             time.sleep(0.05)
         slot = FileTrainingSlot(lock_path)
-        assert not slot.try_acquire('me')
+        with pytest.raises(TrainingSlotTakenError):
+            slot.acquire('me')
         assert slot.holder() == 'other process'
         other.kill()
         other.wait()
-        assert slot.try_acquire('me')
+        slot.acquire('me')
     finally:
         other.kill()
 
 
 def test_a_forked_child_does_not_keep_the_slot(lock_path: Path):
     slot = FileTrainingSlot(lock_path)
-    slot.try_acquire('me')
+    slot.acquire('me')
     started, signal = os.pipe()
     child = os.fork()
     if child == 0:
@@ -143,7 +145,7 @@ def test_a_forked_child_does_not_keep_the_slot(lock_path: Path):
     try:
         os.read(started, 1)
         slot.release()
-        assert FileTrainingSlot(lock_path).try_acquire('sibling')
+        FileTrainingSlot(lock_path).acquire('sibling')
     finally:
         os.kill(child, 9)
         os.waitpid(child, 0)
@@ -156,7 +158,7 @@ def test_without_the_variable_the_slot_is_always_free(monkeypatch: pytest.Monkey
     slot = training_slot_from_env()
     assert isinstance(slot, AlwaysFreeSlot)
     assert slot.holder() is None
-    assert slot.try_acquire('me')
+    slot.acquire('me')
     assert slot.holder() == 'me'
 
 
@@ -239,7 +241,7 @@ def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_pat
     sibling = FileTrainingSlot(lock_path)
     trainer = _trainer_with(FileTrainingSlot(lock_path))
     assert trainer.state == 'idle'
-    sibling.try_acquire('sibling')
+    sibling.acquire('sibling')
     assert trainer.state == 'blocked'
     sibling.release()
     assert trainer.state == 'idle'
@@ -259,7 +261,7 @@ async def test_begin_training_is_refused_while_a_sibling_holds_the_slot(lock_pat
     old_training = data_folder / 'zauberzeug' / 'demo' / 'trainings' / 'old'
     old_training.mkdir(parents=True)
     sibling = FileTrainingSlot(lock_path)
-    sibling.try_acquire('sibling')
+    sibling.acquire('sibling')
     trainer = _trainer_with(FileTrainingSlot(lock_path))
 
     with pytest.raises(TrainingRefusedError, match='held by sibling'):
@@ -292,7 +294,7 @@ async def test_an_invalid_training_config_gives_the_slot_back(lock_path: Path, d
 async def test_the_loop_receives_a_refusal_as_a_failed_socket_response(lock_path: Path, data_folder: Path,
                                                                        started: list):
     sibling = FileTrainingSlot(lock_path)
-    sibling.try_acquire('sibling')
+    sibling.acquire('sibling')
     handlers = {}
     sio_client = SimpleNamespace(event=lambda handler: handlers.setdefault(handler.__name__, handler))
     node = SimpleNamespace(trainer_logic=_trainer_with(FileTrainingSlot(lock_path)), log=logging.getLogger(__name__))
@@ -334,7 +336,7 @@ async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_pa
 
 async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path):
     sibling = FileTrainingSlot(lock_path)
-    sibling.try_acquire('sibling')
+    sibling.acquire('sibling')
     trainer = _trainer_with(FileTrainingSlot(lock_path))
     trainer._training = SimpleNamespace(id='training-id', training_state='initialized', training_number=3,  # type: ignore[assignment]
                                         context=Context(organization='zauberzeug', project='demo'))
@@ -357,7 +359,7 @@ async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhi
 
 def test_a_blocked_trainer_runs_into_its_idle_timeout(lock_path: Path):
     sibling = FileTrainingSlot(lock_path)
-    sibling.try_acquire('sibling')
+    sibling.acquire('sibling')
     node = SimpleNamespace(trainer_logic=_trainer_with(FileTrainingSlot(lock_path)), log=logging.getLogger(__name__),
                            _idle_timeout=1.0, _first_idle_time=time.time() - 2.0)
     with pytest.raises(SystemExit):
