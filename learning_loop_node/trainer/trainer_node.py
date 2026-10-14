@@ -71,7 +71,7 @@ class TrainerNode(Node):
                 await self.trainer_logic.begin_training(organization, project, details)
             except TrainingRefusedError as e:
                 self.log.warning('refused begin_training: %s', e)
-                return SocketResponse.for_failure(str(e))
+                return SocketResponse(success=False, error_msg=str(e), payload='refused')
             return True
 
         @sio_client.event
