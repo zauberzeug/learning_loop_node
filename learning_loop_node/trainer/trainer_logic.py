@@ -149,8 +149,12 @@ class TrainerLogic(TrainerLogicGeneric):
 
     async def stop(self) -> None:
         """If executor is running, stop it, so the training ends and its model is uploaded.
-        Else stop as the base class does."""
+        While the training runs without a process, before it started or after it ended, wait for the
+        process or the next state. Else stop as the base class does."""
         print('===============> stop received in trainer_logic.', flush=True)
+        while self.training_active and self.training.training_state == TrainerState.TrainingRunning \
+                and not (self._executor and self._executor.is_running()) and not self.shutdown_event.is_set():
+            await asyncio.sleep(0.1)
         if not self.training_active:
             return
         if self._executor and self._executor.is_running():

@@ -38,9 +38,10 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   cycle), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event. Its `stop_training`
-  keeps the model: `stop` ends the training process and lets the upload and detection states
-  finish, while `abort_training` (`abort`) cancels the task in any state. Before the training has
-  run, and on shutdown, `stop` aborts too. A concrete trainer implements `_train`, `_do_detections`,
+  keeps the model: `stop` lets the upload and detection states finish, while `abort_training`
+  (`abort`) cancels the task in any state. Before the training has run, and on shutdown, `stop`
+  aborts too. A running training only `TrainerLogic` can stop without aborting, by ending its
+  training process. A concrete trainer implements `_train`, `_do_detections`,
   `_get_new_best_training_state`, `_on_metrics_published`, `_get_latest_model_files` and
   `_clear_training_data`; `TrainerLogic` adds an `Executor` for trainers that shell out to a
   training process.

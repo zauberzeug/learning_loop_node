@@ -35,17 +35,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
 # The states after the training has run, which upload its model and detections.
-_WIND_DOWN_STATES = frozenset({
-    TrainerState.TrainingFinished,
-    TrainerState.ConfusionMatrixSyncing,
-    TrainerState.ConfusionMatrixSynced,
-    TrainerState.TrainModelUploading,
-    TrainerState.TrainModelUploaded,
-    TrainerState.Detecting,
-    TrainerState.Detected,
-    TrainerState.DetectionUploading,
-    TrainerState.ReadyForCleanup,
-})
+# NOTE: TrainerState declares the states in the order a training runs through them
+_STATE_ORDER = list(TrainerState)
+_WIND_DOWN_STATES = frozenset(_STATE_ORDER[_STATE_ORDER.index(TrainerState.TrainingFinished):])
 
 
 class TrainerLogicGeneric(ABC):
@@ -301,7 +293,7 @@ class TrainerLogicGeneric(ABC):
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         '''
         Perform a training state and handle errors.
-        - If the training is aborted, this will raise a CancelledError.
+        - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
         '''
@@ -482,11 +474,12 @@ class TrainerLogicGeneric(ABC):
         await self.stop()
         await self.stop()
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the training but keep its model.
 
         Once the training has run, the states that upload its model and detections are left to finish.
-        Before that there is no model to keep, and a shutdown must not wait for one, so both abort.
+        Before that this base class aborts, as it cannot end a running training; `TrainerLogic` ends its
+        training process instead. A shutdown must not wait for the upload, so it aborts in any state.
         """
         if not self.training_active:
             return
