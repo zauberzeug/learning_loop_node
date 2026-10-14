@@ -19,6 +19,7 @@ from ..data_classes import (
     TrainingStateData,
     TrainingStatus,
 )
+from ..data_exchanger import MODEL_UPLOAD_RETRY_INTERVAL
 from ..enums import TrainerState
 from ..helpers.misc import (
     create_project_folder,
@@ -400,7 +401,10 @@ class TrainerLogicGeneric(ABC):
 
     async def _upload_model(self) -> None:
         """Uploads the latest model to the Learning Loop.
+        After a failed attempt the next one waits, so a loop that cannot store the model is not sent it over and over.
         """
+        if self.errors.has_error_for('upload_model'):
+            await asyncio.sleep(MODEL_UPLOAD_RETRY_INTERVAL)
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid

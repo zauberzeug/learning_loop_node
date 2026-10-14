@@ -12,7 +12,7 @@ from ...data_exchanger import DataExchanger
 from ...enums import TrainerState
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
-from ...trainer.exceptions import CriticalError, ModelAlreadyUploadedError
+from ...trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
 from ...trainer.trainer_node import TrainerNode
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
@@ -36,11 +36,19 @@ def retry_delays_fixture(monkeypatch: pytest.MonkeyPatch) -> list[float]:
 @pytest.mark.parametrize(('status', 'error'), [
     (409, ModelAlreadyUploadedError),
     (404, CriticalError),
-    (500, CriticalError),
+    (413, CriticalError),
 ])
 async def test_a_refused_upload_tells_the_trainer_to_skip_or_give_up(status: int, error: type[Exception]):
     communicator = _communicator(httpx.Response(status, text='no'))
     with pytest.raises(error):
+        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
+    assert communicator.put.await_count == 1
+
+
+@pytest.mark.parametrize('status', [500, 507])
+async def test_a_server_error_tells_the_trainer_to_try_again_later(status: int):
+    communicator = _communicator(httpx.Response(status, text='disk full'))
+    with pytest.raises(ModelUploadFailedError):
         await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
     assert communicator.put.await_count == 1
 
@@ -61,9 +69,9 @@ async def test_an_error_that_may_pass_is_retried(status: int):
     assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == 'model-id'
 
 
-async def test_an_error_that_persists_ends_the_upload_after_the_last_retry(retry_delays: list[float]):
+async def test_an_error_that_persists_is_left_to_the_trainer_after_the_last_retry(retry_delays: list[float]):
     communicator = _communicator(*[httpx.Response(502)] * data_exchanger.MAX_MODEL_UPLOAD_ATTEMPTS)
-    with pytest.raises(CriticalError):
+    with pytest.raises(ModelUploadFailedError):
         await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
     assert communicator.put.await_count == data_exchanger.MAX_MODEL_UPLOAD_ATTEMPTS
     assert retry_delays == [5, 10, 20, 40, 80]
@@ -80,7 +88,7 @@ async def test_a_rate_limit_is_left_to_the_communicator(retry_delays: list[float
     communicator.async_client = httpx.AsyncClient(base_url=communicator.base_url, cookies={'session': 'logged-in'},
                                                   transport=httpx.MockTransport(rate_limit))
 
-    with pytest.raises(CriticalError):
+    with pytest.raises(ModelUploadFailedError):
         await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
     await communicator.shutdown()
 
@@ -129,6 +137,27 @@ async def test_a_rejected_format_leaves_the_training_without_a_model_id(trainer:
 
     assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert trainer.training.model_uuid_for_detecting is None
+
+
+async def test_a_format_the_loop_cannot_store_keeps_the_training_and_is_sent_again_later(
+        trainer: TestingTrainerLogic, retry_delays: list[float]):
+    communicator = _communicator(ACCEPTED, httpx.Response(500), ACCEPTED)
+    trainer.node.data_exchanger.loop_communicator = communicator
+
+    await _perform_upload_state(trainer)
+
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.errors.has_error_for('upload_model')
+    assert trainer.node.last_training_io.load().training_state == TrainerState.ConfusionMatrixSynced
+    assert data_exchanger.MODEL_UPLOAD_RETRY_INTERVAL not in retry_delays
+
+    await _perform_upload_state(trainer)
+
+    assert data_exchanger.MODEL_UPLOAD_RETRY_INTERVAL in retry_delays
+    assert [put.args[0].split('/')[-2] for put in communicator.put.await_args_list] == ['first', 'second', 'second']
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.model_uuid_for_detecting == 'model-id'
+    assert not trainer.errors.has_error_for('upload_model')
 
 
 @pytest.fixture(name='trainer')

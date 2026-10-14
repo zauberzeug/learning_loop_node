@@ -14,7 +14,7 @@ import aiofiles  # type: ignore
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image
 from .loop_communication import LoopCommunicator
-from .trainer.exceptions import CriticalError, ModelAlreadyUploadedError
+from .trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ MODEL_UPLOAD_RETRY_DELAY = 5  # seconds before the first retry, doubled for ever
 # NOTE: 429 is missing on purpose, the LoopCommunicator already retries it
 PASSING_UPLOAD_ERRORS = {HTTPStatus.REQUEST_TIMEOUT,
                          HTTPStatus.BAD_GATEWAY, HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.GATEWAY_TIMEOUT}
+MODEL_UPLOAD_RETRY_INTERVAL = 300  # seconds before the trainer tries a failed upload again
 
 
 class DownloadError(Exception):
@@ -186,7 +187,8 @@ class DataExchanger():
 
         :return: The new model uuid.
         :raise ModelAlreadyUploadedError: If the loop already stores the model in this format but names no uuid.
-        :raise CriticalError: If the loop rejects the upload, or still fails after the last retry.
+        :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
+        :raise ModelUploadFailedError: If the loop could not store the model, or still fails after the last retry.
         """
         path = f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file'
         response = await self.loop_communicator.put(path, files=files)
@@ -211,10 +213,16 @@ class DataExchanger():
         if response.status_code != HTTPStatus.OK:
             logger.error('Could not upload model for training %s, format %s: %s %s',
                          training_number, mformat, response.status_code, response.text)
-            raise CriticalError(
+            error = CriticalError if _rejects_upload(response.status_code) else ModelUploadFailedError
+            raise error(
                 f'Could not upload model for training {training_number}, format {mformat}: {response.status_code} {response.text}')
 
         uploaded_model = response.json()
         logger.info('Uploaded model for training %s, format %s. Response is: %s',
                     training_number, mformat, uploaded_model)
         return uploaded_model['id']
+
+
+def _rejects_upload(status_code: int) -> bool:
+    """A client error other than 408 and 429 answers the same however often the upload is sent."""
+    return 400 <= status_code < 500 and status_code not in (HTTPStatus.REQUEST_TIMEOUT, HTTPStatus.TOO_MANY_REQUESTS)

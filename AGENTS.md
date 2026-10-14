@@ -36,9 +36,12 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
   ordinary exception records the error and rewinds to the previous state (retried on the next
   cycle), a `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with an
-  error that may pass (408, 502–504) is retried in place with a growing delay before it
-  becomes a `CriticalError` (a 429 is already retried by `LoopCommunicator`); one it answers with 409 already holds that format and counts as
-  done, with the model id the 409 names (loops before zauberzeug/loop#444 name none). Every
+  error that may pass (408, 502–504) is retried in place with a growing delay (a 429 is already
+  retried by `LoopCommunicator`); one it answers with 409 already holds that format and counts as
+  done, with the model id the 409 names (loops before zauberzeug/loop#444 name none). Only a
+  client error ends the training. A server error, or an error that persists after the retries,
+  raises `ModelUploadFailedError`, which keeps the training: the upload state is retried every
+  `MODEL_UPLOAD_RETRY_INTERVAL` until the loop takes the model or the training is aborted. Every
   transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event. A concrete trainer

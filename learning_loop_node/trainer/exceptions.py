@@ -11,6 +11,12 @@ class ModelAlreadyUploadedError(CriticalError):
     """
 
 
+class ModelUploadFailedError(Exception):
+    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error.
+    Unlike a CriticalError it keeps the training, so the upload is tried again later.
+    """
+
+
 class InsufficientMemoryError(RuntimeError):
     """Raised when not even the smallest unit of work fits in memory."""
 
