@@ -19,6 +19,7 @@ from ..data_classes import (
     TrainingStateData,
     TrainingStatus,
 )
+from ..data_exchanger import ModelAlreadyUploadedError
 from ..enums import TrainerState
 from ..helpers.misc import (
     create_project_folder,
@@ -33,6 +34,19 @@ if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
+
+# The states after the training has run, which upload its model and detections.
+_WIND_DOWN_STATES = frozenset({
+    TrainerState.TrainingFinished,
+    TrainerState.ConfusionMatrixSyncing,
+    TrainerState.ConfusionMatrixSynced,
+    TrainerState.TrainModelUploading,
+    TrainerState.TrainModelUploaded,
+    TrainerState.Detecting,
+    TrainerState.Detected,
+    TrainerState.DetectionUploading,
+    TrainerState.ReadyForCleanup,
+})
 
 
 class TrainerLogicGeneric(ABC):
@@ -288,7 +302,7 @@ class TrainerLogicGeneric(ABC):
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         '''
         Perform a training state and handle errors.
-        - If the loop sends a StopTraining event, this will raise a CancelledError.
+        - If the training is aborted, this will raise a CancelledError.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
         '''
@@ -410,10 +424,11 @@ class TrainerLogicGeneric(ABC):
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
+        A format the loop already stores counts as uploaded: an earlier attempt got it there, but not its answer.
 
         :return: The new model UUID.
-        :raise CriticalError: If the latest model files cannot be obtained.
-        :raise Exception: If the response for the model upload attempt is invalid.
+        :raise CriticalError: If the latest model files cannot be obtained,
+            or the model is uploaded but its UUID is unknown.
         """
 
         files = await self._get_latest_model_files()
@@ -426,20 +441,24 @@ class TrainerLogicGeneric(ABC):
 
         already_uploaded_formats = self.active_training_io.load_model_upload_progress()
 
-        model_uuid = None
         for file_format in [f for f in files if f not in already_uploaded_formats]:
             _files = files[file_format] + [self._dump_categories_to_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
-            model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            try:
+                # NOTE: kept on the training, so a retry meeting only formats the loop already stores still knows it
+                self.training.model_uuid_for_detecting = await self.node.data_exchanger.upload_model_get_uuid(
+                    context, _files, self.training.training_number, file_format)
+            except ModelAlreadyUploadedError:
+                logger.warning('The loop already stores the model in format %s, counting it as uploaded', file_format)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
 
-        if not model_uuid:
-            raise Exception('Invalid response for model upload attempt')
+        if not self.training.model_uuid_for_detecting:
+            raise CriticalError('The model is uploaded, but the loop never answered with its id')
 
-        return model_uuid
+        return self.training.model_uuid_for_detecting
 
     def _dump_categories_to_json(self) -> str:
         """Dumps the categories to a json file and returns the path to the file.
@@ -470,8 +489,18 @@ class TrainerLogicGeneric(ABC):
         await self.stop()
 
     async def stop(self):
-        """Stop the training. Default is to abort.
+        """Stop the training but keep its model.
+
+        Before the training has run there is no model to keep, and a shutdown must not wait for one, so both abort.
+        Once it has run, the states that upload its model and detections are left to finish:
+        cancelling them would leave the model in the loop without some of its formats.
         """
+        if not self.training_active:
+            return
+        if self.training.training_state in _WIND_DOWN_STATES and not self.shutdown_event.is_set():
+            logger.info('Stop in state %s: the training has already run, letting its upload finish',
+                        self.training.training_state)
+            return
         await self.abort()
 
     async def abort(self):

@@ -148,7 +148,8 @@ class TrainerLogic(TrainerLogicGeneric):
     # ---------------------------------------- OVERWRITTEN METHODS ----------------------------------------
 
     async def stop(self) -> None:
-        """If executor is running, stop it. Else cancel training task."""
+        """If executor is running, stop it, so the training ends and its model is uploaded.
+        Else stop as the base class does."""
         print('===============> stop received in trainer_logic.', flush=True)
         if not self.training_active:
             return
