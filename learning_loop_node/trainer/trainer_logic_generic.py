@@ -35,9 +35,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
 # The states after the training has run, which upload its model and detections.
-# NOTE: TrainerState declares the states in the order a training runs through them
-_STATE_ORDER = list(TrainerState)
-_WIND_DOWN_STATES = frozenset(_STATE_ORDER[_STATE_ORDER.index(TrainerState.TrainingFinished):])
+_WIND_DOWN_STATES = frozenset({TrainerState.TrainingFinished, TrainerState.ConfusionMatrixSyncing,
+                               TrainerState.ConfusionMatrixSynced, TrainerState.TrainModelUploading,
+                               TrainerState.TrainModelUploaded, TrainerState.Detecting, TrainerState.Detected,
+                               TrainerState.DetectionUploading, TrainerState.ReadyForCleanup})
 
 
 class TrainerLogicGeneric(ABC):
@@ -471,8 +472,7 @@ class TrainerLogicGeneric(ABC):
 
     async def on_shutdown(self) -> None:
         self.shutdown_event.set()
-        await self.stop()
-        await self.stop()
+        await self.abort()
 
     async def stop(self) -> None:
         """Stop the training but keep its model.

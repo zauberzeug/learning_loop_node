@@ -10,8 +10,10 @@ import pytest
 from ...data_classes import Context
 from ...enums import TrainerState
 from ...globals import GLOBALS
+from ...trainer.exceptions import CriticalError
 from ...trainer.rest import backdoor_controls
 from ...trainer.trainer_node import TrainerNode
+from ..test_helper import condition
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
@@ -30,21 +32,41 @@ async def test_a_stop_after_the_training_has_run_lets_its_upload_finish(trainer:
     assert not trainer.training_task.done()
 
 
+async def test_a_stop_during_the_training_ends_its_process(trainer: TestingTrainerLogic):
+    train = asyncio.create_task(trainer._train())
+    await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
+
+    await trainer.stop()
+    await asyncio.wait_for(train, timeout=2)
+
+    assert not trainer.executor.is_running()
+    assert not trainer.training_task.done()
+
+
 async def test_a_stop_after_the_training_process_ended_lets_its_upload_finish(trainer: TestingTrainerLogic):
     trainer.training.training_state = TrainerState.TrainingRunning
+    trainer._process_started = True  # the process has ended, but `_train` has not handed over yet
 
-    stop = asyncio.create_task(trainer.stop())
-    await asyncio.sleep(0.3)
-    assert not stop.done()
-
-    trainer.training.training_state = TrainerState.TrainingFinished
-    await asyncio.wait_for(stop, timeout=1)
+    await asyncio.wait_for(trainer.stop(), timeout=1)
 
     assert not trainer.training_task.done()
 
 
-async def test_a_stop_before_the_training_has_run_aborts_it(trainer: TestingTrainerLogic):
-    trainer.training.training_state = TrainerState.DataDownloading
+async def test_a_stopped_training_ends_when_its_process_fails(trainer: TestingTrainerLogic):
+    train = asyncio.create_task(trainer._train())
+    await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
+    trainer.error_msg = 'graphics card is out of memory'
+
+    await trainer.stop()
+
+    with pytest.raises(CriticalError):
+        await asyncio.wait_for(train, timeout=2)
+
+
+@pytest.mark.parametrize('state', [TrainerState.DataDownloading, TrainerState.TrainModelDownloaded,
+                                   TrainerState.TrainingRunning])
+async def test_a_stop_before_the_training_has_run_aborts_it(trainer: TestingTrainerLogic, state: TrainerState):
+    trainer.training.training_state = state
 
     await trainer.stop()
 
@@ -56,6 +78,14 @@ async def test_a_stop_on_shutdown_aborts_even_the_upload(trainer: TestingTrainer
     trainer.shutdown_event.set()
 
     await trainer.stop()
+
+    assert trainer.training_task.cancelled()
+
+
+async def test_a_shutdown_aborts_even_the_upload(trainer: TestingTrainerLogic):
+    trainer.training.training_state = TrainerState.TrainModelUploading
+
+    await trainer.on_shutdown()
 
     assert trainer.training_task.cancelled()
 
@@ -80,6 +110,8 @@ async def trainer_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
                                {'categories': [], 'training_number': 0, 'model_variant': '', 'hyperparameters': {}})
     trainer.training_task = asyncio.create_task(asyncio.sleep(10))
     yield trainer
+    if trainer._executor:
+        await trainer._executor.stop_and_wait()
     trainer.training_task.cancel()
     with contextlib.suppress(asyncio.CancelledError):
         await trainer.training_task
