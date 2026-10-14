@@ -13,8 +13,13 @@ import aiofiles  # type: ignore
 
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image
-from .loop_communication import LoopCommunicationException, LoopCommunicator
-from .trainer.exceptions import CriticalError
+from .loop_communication import LoopCommunicator
+from .trainer.exceptions import CriticalError, ModelAlreadyUploadedError
+
+MAX_MODEL_UPLOAD_ATTEMPTS = 6
+MODEL_UPLOAD_RETRY_DELAY = 5  # seconds before the first retry, doubled for every further one
+PASSING_UPLOAD_ERRORS = {HTTPStatus.REQUEST_TIMEOUT, HTTPStatus.TOO_MANY_REQUESTS,
+                         HTTPStatus.BAD_GATEWAY, HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.GATEWAY_TIMEOUT}
 
 
 class DownloadError(Exception):
@@ -25,10 +30,6 @@ class DownloadError(Exception):
 
     def __str__(self) -> str:
         return f'DownloadError: {self.cause}'
-
-
-class ModelAlreadyUploadedError(Exception):
-    """Raised when the loop already stores the model of a training in the format being uploaded."""
 
 
 class DataExchanger():
@@ -177,22 +178,30 @@ class DataExchanger():
 
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
         """Used by the trainers. Function returns the new model uuid to use for detection.
+        An answer that may pass (408, 429, 502-504) is retried a few times, waiting longer each time.
 
         :return: The new model uuid.
         :raise ModelAlreadyUploadedError: If the loop already stores the model in this format.
-        :raise LoopCommunicationException: If the loop answers with a server error, which may pass.
-        :raise CriticalError: If the loop rejects the upload.
+        :raise CriticalError: If the loop rejects the upload, or still fails after the last retry.
         """
-        response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
+        path = f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file'
+        response = await self.loop_communicator.put(path, files=files)
+        for attempt in range(1, MAX_MODEL_UPLOAD_ATTEMPTS):
+            if response.status_code not in PASSING_UPLOAD_ERRORS:
+                break
+            delay = MODEL_UPLOAD_RETRY_DELAY * 2 ** (attempt - 1)
+            logging.warning('Upload of model for training %s, format %s answered with %s, retrying in %s s',
+                            training_number, mformat, response.status_code, delay)
+            await asyncio.sleep(delay)
+            response = await self.loop_communicator.put(path, files=files)
+
         if response.status_code == HTTPStatus.CONFLICT:
             raise ModelAlreadyUploadedError(f'The model of training {training_number} is already uploaded in format {mformat}')
         if response.status_code != HTTPStatus.OK:
             logging.error('Could not upload model for training %s, format %s: %s %s',
                           training_number, mformat, response.status_code, response.text)
-            message = f'Could not upload model for training {training_number}, format {mformat}: {response.status_code} {response.text}'
-            if response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                raise LoopCommunicationException(message)
-            raise CriticalError(message)
+            raise CriticalError(
+                f'Could not upload model for training {training_number}, format {mformat}: {response.status_code} {response.text}')
 
         uploaded_model = response.json()
         logging.info('Uploaded model for training %s, format %s. Response is: %s',

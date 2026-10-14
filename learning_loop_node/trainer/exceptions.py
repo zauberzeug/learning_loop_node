@@ -5,6 +5,10 @@ class CriticalError(Exception):
     """
 
 
+class ModelAlreadyUploadedError(Exception):
+    """Raised when the loop already stores the model of a training in the format being uploaded."""
+
+
 class InsufficientMemoryError(RuntimeError):
     """Raised when not even the smallest unit of work fits in memory."""
 

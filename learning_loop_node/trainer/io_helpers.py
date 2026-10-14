@@ -55,6 +55,7 @@ class ActiveTrainingIO:
         self.context = context
 
         self.mup_path = f'{training_folder}/model_uploading_progress.txt'
+        self.muuid_path = f'{training_folder}/uploaded_model_uuid.txt'
         # string with placeholder gor index
         self.det_path = f'{training_folder}' + '/detections_{0}.json'
         self.dufi_path = f'{training_folder}/detection_uploading_json_index.txt'
@@ -72,6 +73,16 @@ class ActiveTrainingIO:
             return []
         with open(self.mup_path, 'r') as f:
             return f.read().split(',')
+
+    def save_uploaded_model_uuid(self, model_uuid: str) -> None:
+        with open(self.muuid_path, 'w') as f:
+            f.write(model_uuid)
+
+    def load_uploaded_model_uuid(self) -> str | None:
+        if not os.path.exists(self.muuid_path):
+            return None
+        with open(self.muuid_path) as f:
+            return f.read()
 
     # detections
 
