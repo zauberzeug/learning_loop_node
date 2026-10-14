@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ...data_classes import Context, PretrainedModel, TrainingStateData
+from ...data_classes import PretrainedModel, TrainingStateData
 from ...globals import GLOBALS
 from ...helpers.misc import ensure_socket_response
 from ...trainer.exceptions import TrainingRefusedError, TrainingSlotTakenError
@@ -389,26 +389,32 @@ async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_pa
     assert len(started) == 2
 
 
-async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path):
+async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path, data_folder: Path,
+                                                                                   started: list):
+    trainer = _trainer_with(FileTrainingSlot(lock_path))
+    trainer._last_training_io = LastTrainingIO('node-uuid')
+    await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
+    trainer.training.training_state = 'ready_for_cleanup'
+    trainer.training_slot.release()  # a restarted node has its training back, but not the slot
     sibling = FileTrainingSlot(lock_path)
     sibling.claim('sibling')
-    trainer = _trainer_with(FileTrainingSlot(lock_path))
-    trainer._training = SimpleNamespace(id='training-id', training_state='initialized', training_number=3,  # type: ignore[assignment]
-                                        context=Context(organization='zauberzeug', project='demo'))
-    trainer._active_training_io = object()  # type: ignore[assignment]
 
-    task = asyncio.create_task(trainer.training_slot.wait_for('training #3'))
-    await asyncio.sleep(0.3)
+    task = asyncio.create_task(trainer._run())
+    await asyncio.sleep(1.5)
     assert not task.done()
     assert trainer.state == 'waiting_for_slot'
 
     sibling.release()
-    started = time.time()
+    deadline = time.time() + 2
+    while not trainer.training_slot.held:
+        assert time.time() < deadline, 'the resumed training never took the freed slot'
+        await asyncio.sleep(0.05)
+    assert trainer.state == 'ready_for_cleanup'
+    assert _holder_of(lock_path) == _claimed('node node-uuid, training #7 of zauberzeug/demo')
+
     await asyncio.wait_for(task, timeout=5)
-    assert time.time() - started < 2
-    assert trainer.training_slot.held
-    assert trainer.state == 'initialized'
-    assert _holder_of(lock_path) == _claimed('training #3')
+    assert not trainer.training_slot.held
+    assert trainer.state == 'idle'
 
 
 def test_a_blocked_trainer_runs_into_its_idle_timeout(lock_path: Path):
