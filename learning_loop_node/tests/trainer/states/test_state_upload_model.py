@@ -52,7 +52,6 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
 
 
 async def test_stop_during_upload_lets_it_finish(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
-    """A stop after the training has run must not cancel the upload, or the model lacks some of its formats."""
     trainer = test_initialized_trainer
 
     async def slow_upload(*_):

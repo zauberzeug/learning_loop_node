@@ -424,7 +424,7 @@ class TrainerLogicGeneric(ABC):
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
-        A format the loop already stores counts as uploaded: an earlier attempt got it there, but not its answer.
+        A format the loop already stores counts as uploaded.
 
         :return: The new model UUID.
         :raise CriticalError: If the latest model files cannot be obtained,
@@ -446,7 +446,6 @@ class TrainerLogicGeneric(ABC):
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
             try:
-                # NOTE: kept on the training, so a retry meeting only formats the loop already stores still knows it
                 self.training.model_uuid_for_detecting = await self.node.data_exchanger.upload_model_get_uuid(
                     context, _files, self.training.training_number, file_format)
             except ModelAlreadyUploadedError:
@@ -491,9 +490,8 @@ class TrainerLogicGeneric(ABC):
     async def stop(self):
         """Stop the training but keep its model.
 
-        Before the training has run there is no model to keep, and a shutdown must not wait for one, so both abort.
-        Once it has run, the states that upload its model and detections are left to finish:
-        cancelling them would leave the model in the loop without some of its formats.
+        Once the training has run, the states that upload its model and detections are left to finish.
+        Before that there is no model to keep, and a shutdown must not wait for one, so both abort.
         """
         if not self.training_active:
             return
