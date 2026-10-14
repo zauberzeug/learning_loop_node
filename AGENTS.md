@@ -38,7 +38,8 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   cycle), a `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with an
   error that may pass (408, 429, 502–504) is retried in place with a growing delay before it
   becomes a `CriticalError`; one it answers with 409 already holds that format and counts as
-  done. Every transition is persisted through
+  done, with the model id the 409 names (loops before zauberzeug/loop#444 name none). Every
+  transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event. A concrete trainer
   implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,

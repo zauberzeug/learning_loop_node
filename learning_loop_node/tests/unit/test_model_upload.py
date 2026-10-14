@@ -42,6 +42,11 @@ async def test_an_accepted_upload_returns_the_model_id():
     assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == 'model-id'
 
 
+async def test_a_stored_format_returns_the_model_id_the_loop_names():
+    communicator = _communicator(httpx.Response(409, json={'detail': {'message': 'exists', 'id': 'model-id'}}))
+    assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == 'model-id'
+
+
 @pytest.mark.parametrize('status', [408, 429, 502, 503, 504])
 async def test_an_error_that_may_pass_is_retried(status: int):
     communicator = _communicator(httpx.Response(status), ACCEPTED)

@@ -10,6 +10,7 @@ from time import time
 from typing import Any, Dict, List, Optional
 
 import aiofiles  # type: ignore
+import httpx
 
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image
@@ -179,9 +180,10 @@ class DataExchanger():
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
         """Used by the trainers. Function returns the new model uuid to use for detection.
         An answer that may pass (408, 429, 502-504) is retried a few times, waiting longer each time.
+        A loop that already stores the model in this format answers 409 and names the model's uuid there.
 
         :return: The new model uuid.
-        :raise ModelAlreadyUploadedError: If the loop already stores the model in this format.
+        :raise ModelAlreadyUploadedError: If the loop already stores the model in this format but names no uuid.
         :raise CriticalError: If the loop rejects the upload, or still fails after the last retry.
         """
         path = f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file'
@@ -196,7 +198,12 @@ class DataExchanger():
             response = await self.loop_communicator.put(path, files=files)
 
         if response.status_code == HTTPStatus.CONFLICT:
-            raise ModelAlreadyUploadedError(f'The model of training {training_number} is already uploaded in format {mformat}')
+            stored_model_id = _stored_model_id(response)
+            if stored_model_id is None:
+                raise ModelAlreadyUploadedError(f'The model of training {training_number} is already uploaded in format {mformat}')
+            logging.info('The loop already stores model %s of training %s in format %s',
+                         stored_model_id, training_number, mformat)
+            return stored_model_id
         if response.status_code != HTTPStatus.OK:
             logging.error('Could not upload model for training %s, format %s: %s %s',
                           training_number, mformat, response.status_code, response.text)
@@ -207,3 +214,12 @@ class DataExchanger():
         logging.info('Uploaded model for training %s, format %s. Response is: %s',
                      training_number, mformat, uploaded_model)
         return uploaded_model['id']
+
+
+def _stored_model_id(response: httpx.Response) -> str | None:
+    """The model id a 409 answer names; loops before zauberzeug/loop#444 name none."""
+    try:
+        detail = response.json()['detail']
+    except (ValueError, KeyError, TypeError):
+        return None
+    return detail.get('id') if isinstance(detail, dict) else None
