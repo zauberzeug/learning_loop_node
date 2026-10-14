@@ -360,7 +360,7 @@ async def test_the_loop_receives_a_refusal_as_a_failed_socket_response(lock_path
 
     response = await trigger('begin_training', 'zauberzeug', 'demo', TRAINING_CONFIG)
     assert response == {'success': False, 'error_msg': f'the training slot is held by {_claimed("sibling")}',
-                        'payload': None}
+                        'payload': 'refused'}
 
     sibling.release()
     response = await trigger('begin_training', 'zauberzeug', 'demo', TRAINING_CONFIG)
