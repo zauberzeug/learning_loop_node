@@ -78,9 +78,8 @@ class ActiveTrainingIO:
         with open(self.muuid_path, 'w') as f:
             f.write(model_uuid)
 
-    def load_uploaded_model_uuid(self) -> str | None:
-        if not os.path.exists(self.muuid_path):
-            return None
+    def load_uploaded_model_uuid(self) -> str:
+        """:raise FileNotFoundError: If no upload has named the model uuid yet."""
         with open(self.muuid_path) as f:
             return f.read()
 

@@ -427,7 +427,6 @@ class TrainerLogicGeneric(ABC):
         assert isinstance(files, Dict), f'can only upload model as list or dict, but was {files}'
 
         already_uploaded_formats = self.active_training_io.load_model_upload_progress()
-        model_uuid = self.active_training_io.load_uploaded_model_uuid()
 
         for file_format in [f for f in files if f not in already_uploaded_formats]:
             _files = files[file_format] + [self._dump_categories_to_json()]
@@ -442,10 +441,10 @@ class TrainerLogicGeneric(ABC):
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
 
-        if not model_uuid:
-            raise CriticalError('The model is uploaded, but the loop never answered with its id')
-
-        return model_uuid
+        try:
+            return self.active_training_io.load_uploaded_model_uuid()
+        except FileNotFoundError as e:
+            raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
 
     def _dump_categories_to_json(self) -> str:
         """Dumps the categories to a json file and returns the path to the file.
