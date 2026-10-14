@@ -1,9 +1,7 @@
 import asyncio
 import json
 import logging
-import os
 import shutil
-import socket
 import sys
 import time
 from abc import ABC, abstractmethod
@@ -28,7 +26,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError, TrainingSlotTakenError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
@@ -109,7 +107,7 @@ class TrainerLogicGeneric(ABC):
         training, so it is never `blocked`.
         """
         if not self.training_active:
-            return TrainerState.Idle.value if self.training_slot.holder() is None else TrainerState.Blocked.value
+            return TrainerState.Blocked.value if self.training_slot.taken_by_sibling else TrainerState.Idle.value
         if not self.training_slot.held:
             return TrainerState.WaitingForSlot.value
         if self.training.training_state is None:
@@ -234,7 +232,7 @@ class TrainerLogicGeneric(ABC):
         if self.training_active:
             raise TrainingRefusedError(f'training {self.training.id} is still active')
         context = Context(organization=organization, project=project)
-        self.training_slot.acquire(self._slot_holder(context, training_config.get('training_number')))
+        self.training_slot.claim(self._slot_claim(context, training_config.get('training_number')))
         try:
             self._init_new_training(context, training_config)
         except Exception:
@@ -267,7 +265,7 @@ class TrainerLogicGeneric(ABC):
         """
         self.errors.reset_all()
         try:
-            await self._acquire_training_slot()
+            await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
@@ -284,25 +282,8 @@ class TrainerLogicGeneric(ABC):
             self._training = None
             self.training_slot.release()
 
-    async def _acquire_training_slot(self) -> None:
-        holder = self._slot_holder(self.training.context, self.training.training_number)
-        try:
-            self.training_slot.acquire(holder)
-            return
-        except TrainingSlotTakenError as e:
-            logger.info('%s - waiting', e)
-        while True:
-            await asyncio.sleep(1)
-            try:
-                self.training_slot.acquire(holder)
-            except TrainingSlotTakenError:
-                continue
-            logger.info('acquired training slot')
-            return
-
-    def _slot_holder(self, context: Context, training_number: Any) -> str:
-        return (f'pid {os.getpid()} on {socket.gethostname()}, node {self.node.uuid}, '
-                f'training #{training_number} of {context.organization}/{context.project}')
+    def _slot_claim(self, context: Context, training_number: Any) -> str:
+        return f'node {self.node.uuid}, training #{training_number} of {context.organization}/{context.project}'
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 
