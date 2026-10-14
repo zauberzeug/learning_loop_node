@@ -34,12 +34,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
-# The states after the training has run and before its model is in the loop.
-_STATES_UNTIL_MODEL_UPLOADED = frozenset({
+# The states after the training has run, which upload its model and detections.
+_WIND_DOWN_STATES = frozenset({
     TrainerState.TrainingFinished,
     TrainerState.ConfusionMatrixSyncing,
     TrainerState.ConfusionMatrixSynced,
     TrainerState.TrainModelUploading,
+    TrainerState.TrainModelUploaded,
+    TrainerState.Detecting,
+    TrainerState.Detected,
+    TrainerState.DetectionUploading,
+    TrainerState.ReadyForCleanup,
 })
 
 
@@ -480,14 +485,14 @@ class TrainerLogicGeneric(ABC):
     async def stop(self):
         """Stop the training but keep its model.
 
-        From the end of the training until its model is uploaded, a stop is ignored, so the upload finishes.
-        In every other state it aborts: before that there is no model yet, after it the model is in the loop,
-        and a shutdown must not wait for an upload.
+        Once the training has run, the states that upload its model and detections are left to finish.
+        Before that there is no model to keep, and a shutdown must not wait for one, so both abort.
         """
         if not self.training_active:
             return
-        if self.training.training_state in _STATES_UNTIL_MODEL_UPLOADED and not self.shutdown_event.is_set():
-            logger.info('Stop in state %s: letting the model upload finish', self.training.training_state)
+        if self.training.training_state in _WIND_DOWN_STATES and not self.shutdown_event.is_set():
+            logger.info('Stop in state %s: the training has already run, letting its upload finish',
+                        self.training.training_state)
             return
         await self.abort()
 

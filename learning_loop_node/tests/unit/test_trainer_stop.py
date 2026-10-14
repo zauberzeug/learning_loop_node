@@ -13,10 +13,10 @@ from ..trainer.testing_trainer_logic import TestingTrainerLogic
 # pylint: disable=protected-access
 
 
-@pytest.mark.parametrize('state', [TrainerState.TrainingFinished, TrainerState.ConfusionMatrixSynced,
-                                   TrainerState.TrainModelUploading])
-async def test_a_stop_before_the_model_is_uploaded_lets_the_upload_finish(trainer: TestingTrainerLogic,
-                                                                          state: TrainerState):
+@pytest.mark.parametrize('state', [TrainerState.TrainingFinished, TrainerState.TrainModelUploading,
+                                   TrainerState.Detecting])
+async def test_a_stop_after_the_training_has_run_lets_its_upload_finish(trainer: TestingTrainerLogic,
+                                                                        state: TrainerState):
     trainer.training.training_state = state
 
     await trainer.stop()
@@ -24,11 +24,8 @@ async def test_a_stop_before_the_model_is_uploaded_lets_the_upload_finish(traine
     assert not trainer.training_task.done()
 
 
-@pytest.mark.parametrize('state', [TrainerState.DataDownloading, TrainerState.TrainModelUploaded,
-                                   TrainerState.Detecting, TrainerState.DetectionUploading])
-async def test_a_stop_before_the_training_or_after_the_upload_aborts(trainer: TestingTrainerLogic,
-                                                                     state: TrainerState):
-    trainer.training.training_state = state
+async def test_a_stop_before_the_training_has_run_aborts_it(trainer: TestingTrainerLogic):
+    trainer.training.training_state = TrainerState.DataDownloading
 
     await trainer.stop()
 
