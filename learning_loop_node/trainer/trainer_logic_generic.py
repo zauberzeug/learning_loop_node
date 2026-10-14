@@ -19,7 +19,6 @@ from ..data_classes import (
     TrainingStateData,
     TrainingStatus,
 )
-from ..data_exchanger import ModelAlreadyUploadedError
 from ..enums import TrainerState
 from ..helpers.misc import (
     create_project_folder,
@@ -424,11 +423,10 @@ class TrainerLogicGeneric(ABC):
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
-        A format the loop already stores counts as uploaded.
 
         :return: The new model UUID.
-        :raise CriticalError: If the latest model files cannot be obtained,
-            or the model is uploaded but its UUID is unknown.
+        :raise CriticalError: If the latest model files cannot be obtained.
+        :raise Exception: If the response for the model upload attempt is invalid.
         """
 
         files = await self._get_latest_model_files()
@@ -441,23 +439,20 @@ class TrainerLogicGeneric(ABC):
 
         already_uploaded_formats = self.active_training_io.load_model_upload_progress()
 
+        model_uuid = None
         for file_format in [f for f in files if f not in already_uploaded_formats]:
             _files = files[file_format] + [self._dump_categories_to_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
-            try:
-                self.training.model_uuid_for_detecting = await self.node.data_exchanger.upload_model_get_uuid(
-                    context, _files, self.training.training_number, file_format)
-            except ModelAlreadyUploadedError:
-                logger.warning('The loop already stores the model in format %s, counting it as uploaded', file_format)
+            model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
 
-        if not self.training.model_uuid_for_detecting:
-            raise CriticalError('The model is uploaded, but the loop never answered with its id')
+        if not model_uuid:
+            raise Exception('Invalid response for model upload attempt')
 
-        return self.training.model_uuid_for_detecting
+        return model_uuid
 
     def _dump_categories_to_json(self) -> str:
         """Dumps the categories to a json file and returns the path to the file.

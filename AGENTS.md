@@ -40,11 +40,10 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   restart. The loop starts a training via the `begin_training` sio event. Its `stop_training`
   keeps the model: `stop` ends the training process and lets the upload and detection states
   finish, while `abort_training` (`abort`) cancels the task in any state. Before the training has
-  run, and on shutdown, `stop` aborts too. A model upload the loop answers with a server error is
-  retried; one it answers with 409 already holds that format and counts as done. A concrete trainer
-  implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
-  `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
-  trainers that shell out to a training process.
+  run, and on shutdown, `stop` aborts too. A concrete trainer implements `_train`, `_do_detections`,
+  `_get_new_best_training_state`, `_on_metrics_published`, `_get_latest_model_files` and
+  `_clear_training_data`; `TrainerLogic` adds an `Executor` for trainers that shell out to a
+  training process.
 - **Detector** — Detectors are rolled out on user machines and thus kept very simple -> `needs_login=False, needs_sio=False`. In the loop have few non-destructive capabilities and sio has shown to cause traffic spikes when trying to reconnect on bad connections.
   It *hosts* a socket.io server for its own clients and polls
   `/{org}/projects/{project}/deployment/target` over REST in `on_repeat` instead. `_DetectorState`

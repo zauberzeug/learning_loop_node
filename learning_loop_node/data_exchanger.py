@@ -13,7 +13,7 @@ import aiofiles  # type: ignore
 
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image
-from .loop_communication import LoopCommunicationException, LoopCommunicator
+from .loop_communication import LoopCommunicator
 from .trainer.exceptions import CriticalError
 
 
@@ -25,10 +25,6 @@ class DownloadError(Exception):
 
     def __str__(self) -> str:
         return f'DownloadError: {self.cause}'
-
-
-class ModelAlreadyUploadedError(Exception):
-    """Raised when the loop already stores the model of a training in the format being uploaded."""
 
 
 class DataExchanger():
@@ -179,20 +175,14 @@ class DataExchanger():
         """Used by the trainers. Function returns the new model uuid to use for detection.
 
         :return: The new model uuid.
-        :raise ModelAlreadyUploadedError: If the loop already stores the model in this format.
-        :raise LoopCommunicationException: If the loop answers with a server error, which may pass.
-        :raise CriticalError: If the loop rejects the upload.
+        :raise CriticalError: If the upload does not return status code 200.
         """
         response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
-        if response.status_code == HTTPStatus.CONFLICT:
-            raise ModelAlreadyUploadedError(f'The model of training {training_number} is already uploaded in format {mformat}')
-        if response.status_code != HTTPStatus.OK:
-            logging.error('Could not upload model for training %s, format %s: %s %s',
-                          training_number, mformat, response.status_code, response.text)
-            message = f'Could not upload model for training {training_number}, format {mformat}: {response.status_code} {response.text}'
-            if response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
-                raise LoopCommunicationException(message)
-            raise CriticalError(message)
+        if response.status_code != 200:
+            logging.error('Could not upload model for training %s, format %s: %s',
+                          training_number, mformat, response.text)
+            raise CriticalError(
+                f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
 
         uploaded_model = response.json()
         logging.info('Uploaded model for training %s, format %s. Response is: %s',
