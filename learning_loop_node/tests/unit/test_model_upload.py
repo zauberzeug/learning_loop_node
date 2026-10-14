@@ -6,13 +6,14 @@ from unittest.mock import AsyncMock, Mock
 import httpx
 import pytest
 
-from ... import data_exchanger, loop_communication
+from ... import loop_communication
 from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...enums import TrainerState
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
 from ...trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
+from ...trainer.trainer_logic_generic import MODEL_UPLOAD_RETRY_DELAY
 from ...trainer.trainer_node import TrainerNode
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
@@ -45,8 +46,8 @@ async def test_a_refused_upload_tells_the_trainer_to_skip_or_give_up(status: int
     assert communicator.put.await_count == 1
 
 
-@pytest.mark.parametrize('status', [500, 507])
-async def test_a_server_error_tells_the_trainer_to_try_again_later(status: int):
+@pytest.mark.parametrize('status', [408, 500, 502, 503, 504, 507])
+async def test_an_error_that_may_pass_tells_the_trainer_to_try_again_later(status: int):
     communicator = _communicator(httpx.Response(status, text='disk full'))
     with pytest.raises(ModelUploadFailedError):
         await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
@@ -61,20 +62,6 @@ async def test_an_accepted_upload_returns_the_model_id():
 async def test_a_stored_format_returns_the_model_id_the_loop_names():
     communicator = _communicator(httpx.Response(409, json={'detail': {'message': 'exists', 'id': 'model-id'}}))
     assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == 'model-id'
-
-
-@pytest.mark.parametrize('status', [408, 502, 503, 504])
-async def test_an_error_that_may_pass_is_retried(status: int):
-    communicator = _communicator(httpx.Response(status), ACCEPTED)
-    assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == 'model-id'
-
-
-async def test_an_error_that_persists_is_left_to_the_trainer_after_the_last_retry(retry_delays: list[float]):
-    communicator = _communicator(*[httpx.Response(502)] * data_exchanger.MAX_MODEL_UPLOAD_ATTEMPTS)
-    with pytest.raises(ModelUploadFailedError):
-        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
-    assert communicator.put.await_count == data_exchanger.MAX_MODEL_UPLOAD_ATTEMPTS
-    assert retry_delays == [5, 10, 20, 40, 80]
 
 
 async def test_a_rate_limit_is_left_to_the_communicator(retry_delays: list[float]):
@@ -121,15 +108,6 @@ async def test_an_uploaded_model_without_a_known_id_ends_the_training(trainer: T
         await trainer._upload_model_return_new_model_uuid(CONTEXT)
 
 
-async def test_the_upload_state_outlasts_an_error_that_passes(trainer: TestingTrainerLogic):
-    trainer.node.data_exchanger.loop_communicator = _communicator(httpx.Response(502), ACCEPTED, ACCEPTED)
-
-    await _perform_upload_state(trainer)
-
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
-    assert trainer.training.model_uuid_for_detecting == 'model-id'
-
-
 async def test_a_rejected_format_leaves_the_training_without_a_model_id(trainer: TestingTrainerLogic):
     trainer.node.data_exchanger.loop_communicator = _communicator(ACCEPTED, httpx.Response(413))
 
@@ -141,7 +119,7 @@ async def test_a_rejected_format_leaves_the_training_without_a_model_id(trainer:
 
 async def test_a_format_the_loop_cannot_store_keeps_the_training_and_is_sent_again_later(
         trainer: TestingTrainerLogic, retry_delays: list[float]):
-    communicator = _communicator(ACCEPTED, httpx.Response(500), ACCEPTED)
+    communicator = _communicator(ACCEPTED, httpx.Response(500), httpx.Response(502), ACCEPTED)
     trainer.node.data_exchanger.loop_communicator = communicator
 
     await _perform_upload_state(trainer)
@@ -149,15 +127,27 @@ async def test_a_format_the_loop_cannot_store_keeps_the_training_and_is_sent_aga
     assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
     assert trainer.errors.has_error_for('upload_model')
     assert trainer.node.last_training_io.load().training_state == TrainerState.ConfusionMatrixSynced
-    assert data_exchanger.MODEL_UPLOAD_RETRY_INTERVAL not in retry_delays
+    assert not _upload_waits(retry_delays)
 
     await _perform_upload_state(trainer)
+    await _perform_upload_state(trainer)
 
-    assert data_exchanger.MODEL_UPLOAD_RETRY_INTERVAL in retry_delays
-    assert [put.args[0].split('/')[-2] for put in communicator.put.await_args_list] == ['first', 'second', 'second']
+    assert _upload_waits(retry_delays) == [5, 10]
+    assert [put.args[0].split('/')[-2] for put in communicator.put.await_args_list] == \
+        ['first', 'second', 'second', 'second']
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_uuid_for_detecting == 'model-id'
     assert not trainer.errors.has_error_for('upload_model')
+
+
+async def test_the_wait_before_the_next_upload_grows_up_to_its_limit(
+        trainer: TestingTrainerLogic, retry_delays: list[float]):
+    trainer.node.data_exchanger.loop_communicator = _communicator(*[httpx.Response(500)] * 9)
+
+    for _ in range(9):
+        await _perform_upload_state(trainer)
+
+    assert _upload_waits(retry_delays) == [5, 10, 20, 40, 80, 160, 300, 300]
 
 
 @pytest.fixture(name='trainer')
@@ -187,3 +177,8 @@ def _answer_uploads(trainer: TestingTrainerLogic, *answers: str | Exception) -> 
 async def _perform_upload_state(trainer: TestingTrainerLogic) -> None:
     await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
                                  trainer._upload_model)
+
+
+def _upload_waits(delays: list[float]) -> list[float]:
+    """The waits before an upload attempt, without the short sleeps of `_perform_state`."""
+    return [delay for delay in delays if delay >= MODEL_UPLOAD_RETRY_DELAY]

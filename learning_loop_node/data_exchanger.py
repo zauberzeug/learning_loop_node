@@ -18,13 +18,6 @@ from .trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelU
 
 logger = logging.getLogger(__name__)
 
-MAX_MODEL_UPLOAD_ATTEMPTS = 6
-MODEL_UPLOAD_RETRY_DELAY = 5  # seconds before the first retry, doubled for every further one
-# NOTE: 429 is missing on purpose, the LoopCommunicator already retries it
-PASSING_UPLOAD_ERRORS = {HTTPStatus.REQUEST_TIMEOUT,
-                         HTTPStatus.BAD_GATEWAY, HTTPStatus.SERVICE_UNAVAILABLE, HTTPStatus.GATEWAY_TIMEOUT}
-MODEL_UPLOAD_RETRY_INTERVAL = 300  # seconds before the trainer tries a failed upload again
-
 
 class DownloadError(Exception):
 
@@ -182,25 +175,15 @@ class DataExchanger():
 
     async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
         """Used by the trainers. Function returns the new model uuid to use for detection.
-        An answer that may pass (408, 502-504) is retried a few times, waiting longer each time.
         A loop that already stores the model in this format answers 409 and names the model's uuid there.
 
         :return: The new model uuid.
         :raise ModelAlreadyUploadedError: If the loop already stores the model in this format but names no uuid.
         :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
-        :raise ModelUploadFailedError: If the loop could not store the model, or still fails after the last retry.
+        :raise ModelUploadFailedError: If the loop could not store the model, e.g. on a server error.
         """
         path = f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file'
         response = await self.loop_communicator.put(path, files=files)
-        for attempt in range(1, MAX_MODEL_UPLOAD_ATTEMPTS):
-            if response.status_code not in PASSING_UPLOAD_ERRORS:
-                break
-            delay = MODEL_UPLOAD_RETRY_DELAY * 2 ** (attempt - 1)
-            logger.warning('Upload of model for training %s, format %s answered with %s, retrying in %s s',
-                           training_number, mformat, response.status_code, delay)
-            await asyncio.sleep(delay)
-            response = await self.loop_communicator.put(path, files=files)
-
         if response.status_code == HTTPStatus.CONFLICT:
             try:
                 stored_model_id = response.json()['detail']['id']
