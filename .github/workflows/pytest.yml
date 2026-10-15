@@ -95,7 +95,7 @@ jobs:
         # also sweeps those of earlier runs that are over, which a lost runner never got to delete
         if: always()
         continue-on-error: true
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           LOOP_HOST: "preview.learning-loop.ai"
           LOOP_USERNAME: "admin"
