@@ -75,8 +75,10 @@ class ActiveTrainingIO:
             return f.read().split(',')
 
     def save_uploaded_model_uuid(self, model_uuid: str) -> None:
-        with open(self.muuid_path, 'w') as f:
+        """Replaces the file in one step, so a crash while writing cannot leave it empty."""
+        with open(f'{self.muuid_path}.tmp', 'w') as f:
             f.write(model_uuid)
+        os.replace(f'{self.muuid_path}.tmp', self.muuid_path)
 
     def load_uploaded_model_uuid(self) -> str:
         """:raise FileNotFoundError: If no upload has named the model uuid yet."""

@@ -32,10 +32,15 @@ from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
-MODEL_UPLOAD_RETRY_DELAY = 5  # seconds before the first retry of a failed model upload, doubled for every further one
-MAX_MODEL_UPLOAD_RETRY_DELAY = 300  # seconds
+STATE_RETRY_DELAY = 5  # seconds before the first retry of a failed state, doubled for every further one
+MAX_STATE_RETRY_DELAY = 300  # seconds
 
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
+
+
+def _retry_delay(failures: int) -> float:
+    """The wait before the next attempt of a state that has failed `failures` times in a row."""
+    return min(STATE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_STATE_RETRY_DELAY)
 
 
 class TrainerLogicGeneric(ABC):
@@ -47,7 +52,7 @@ class TrainerLogicGeneric(ABC):
         # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
         self.model_format: str = model_format
         self.errors = Errors()
-        self._model_upload_failures = 0
+        self._state_failures: Dict[str, int] = {}  # failed attempts in a row, by error key
 
         self.training_task: Optional[asyncio.Task] = None
         self.shutdown_event: asyncio.Event = asyncio.Event()
@@ -245,7 +250,7 @@ class TrainerLogicGeneric(ABC):
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
         self.errors.reset_all()
-        self._model_upload_failures = 0
+        self._state_failures.clear()
         try:
             await self._training_loop()
         except asyncio.CancelledError:
@@ -296,8 +301,13 @@ class TrainerLogicGeneric(ABC):
         - If the loop sends a StopTraining event, this will raise a CancelledError.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+          The next attempt waits `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`,
+          so a loop that cannot answer is not asked over and over. The state is retried until it succeeds or the training
+          is aborted, so a finished training is not dropped because the loop is down for a while.
         '''
 
+        if failures := self._state_failures.get(error_key):
+            await asyncio.sleep(_retry_delay(failures))
         await asyncio.sleep(0.1)
         logger.info('Performing state: %s', state_during)
         previous_state = self.training.training_state
@@ -326,6 +336,7 @@ class TrainerLogicGeneric(ABC):
             print('Error in %s - Exception: %s', state_during, e, flush=True)
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
+            self._state_failures[error_key] = self._state_failures.get(error_key, 0) + 1
             self.training.training_state = previous_state
             return
         else:
@@ -334,6 +345,7 @@ class TrainerLogicGeneric(ABC):
                 self.errors.reset(error_key)
             self.training.training_state = state_after
 
+        self._state_failures.pop(error_key, None)
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
@@ -405,18 +417,8 @@ class TrainerLogicGeneric(ABC):
 
     async def _upload_model(self) -> None:
         """Uploads the latest model to the Learning Loop.
-        After a failed attempt the next one waits, twice as long after every further failure,
-        so a loop that cannot store the model is not sent it over and over.
         """
-        if self._model_upload_failures:
-            await asyncio.sleep(min(MODEL_UPLOAD_RETRY_DELAY * 2 ** (self._model_upload_failures - 1),
-                                    MAX_MODEL_UPLOAD_RETRY_DELAY))
-        try:
-            new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
-        except Exception:
-            self._model_upload_failures += 1
-            raise
-        self._model_upload_failures = 0
+        new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
 

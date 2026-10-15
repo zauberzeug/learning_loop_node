@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 import aiofiles  # type: ignore
 
 from .data_classes import Context
-from .helpers.misc import create_resource_paths, create_task, is_valid_image
+from .helpers.misc import create_resource_paths, create_task, is_valid_image, is_valid_uuid4
 from .loop_communication import LoopCommunicator
 from .trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
 
@@ -178,7 +178,7 @@ class DataExchanger():
         A loop that already stores the model in this format answers 409 and names the model's uuid there.
 
         :return: The new model uuid.
-        :raise ModelAlreadyUploadedError: If the loop already stores the model in this format but names no uuid.
+        :raise ModelAlreadyUploadedError: If the loop already stores the model in this format but names no valid uuid.
         :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
         :raise ModelUploadFailedError: If the loop could not store the model, e.g. on a server error.
         """
@@ -187,9 +187,11 @@ class DataExchanger():
         if response.status_code == HTTPStatus.CONFLICT:
             try:
                 stored_model_id = response.json()['detail']['id']
-            except (ValueError, KeyError, TypeError) as e:  # loops before zauberzeug/loop#445 name no id
+            except (ValueError, KeyError, TypeError):  # loops before zauberzeug/loop#445 name no id
+                stored_model_id = None
+            if not is_valid_uuid4(stored_model_id):
                 raise ModelAlreadyUploadedError(
-                    f'The model of training {training_number} is already uploaded in format {mformat}') from e
+                    f'The model of training {training_number} is already uploaded in format {mformat}')
             logger.info('The loop already stores model %s of training %s in format %s',
                         stored_model_id, training_number, mformat)
             return stored_model_id

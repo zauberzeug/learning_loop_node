@@ -34,15 +34,14 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
-  ordinary exception records the error and rewinds to the previous state (retried on the next
-  cycle), a `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with 409
-  already holds that format and counts as done, with the model id the 409 names (loops before
+  ordinary exception records the error and rewinds to the previous state, which is retried after
+  `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`; a
+  `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with 409 already
+  holds that format and counts as done, with the model id the 409 names (loops before
   zauberzeug/loop#445 name none). Only a client error other than 408 and 429 ends the training
   (a 429 is first retried by `LoopCommunicator`). Any other failed upload, e.g. a server error
-  (`ModelUploadFailedError`) or a timeout, keeps the training: the upload state is retried after
-  `MODEL_UPLOAD_RETRY_DELAY`, twice as long after every further failure up to
-  `MAX_MODEL_UPLOAD_RETRY_DELAY`, until the loop takes the model or the training is aborted. Every
-  transition is persisted through
+  (`ModelUploadFailedError`) or a timeout, keeps the training for as long as it takes, until the
+  loop takes the model or the training is aborted. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event. A concrete trainer
   implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
