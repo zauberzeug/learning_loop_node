@@ -3,14 +3,11 @@ import logging
 import os
 import shutil
 
-# ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
-import sys
-
 import pytest
 
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
-from ..test_helper import project_name
+from ..test_helper import delete_project, project_name
 
 PROJECT = project_name('pytest_nodelib_annotator')
 
@@ -18,11 +15,7 @@ PROJECT = project_name('pytest_nodelib_annotator')
 @pytest.fixture()
 async def setup_test_project():  # pylint: disable=redefined-outer-name
     loop_communicator = LoopCommunicator()
-    try:
-        await loop_communicator.delete(f'/zauberzeug/projects/{PROJECT}?keep_images=true', timeout=10)
-    except Exception:
-        logging.exception('Failed to delete project %s', PROJECT)
-        sys.exit(1)
+    await delete_project(loop_communicator, PROJECT, keep_images=True)
     await asyncio.sleep(1)
     project_conf = {
         'project_name': PROJECT, 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
@@ -30,8 +23,12 @@ async def setup_test_project():  # pylint: disable=redefined-outer-name
         'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
     assert (await loop_communicator.post("/zauberzeug/projects/generator", json=project_conf)).status_code == 200
     yield
-    await loop_communicator.delete(f'/zauberzeug/projects/{PROJECT}?keep_images=true', timeout=10)
-    await loop_communicator.shutdown()
+    try:
+        await delete_project(loop_communicator, PROJECT, keep_images=True)
+    finally:
+        await loop_communicator.shutdown()
+
+# ====================================== REDUNDANT FIXTURES IN ALL CONFTESTS ! ======================================
 
 
 @pytest.fixture(autouse=True, scope='session')

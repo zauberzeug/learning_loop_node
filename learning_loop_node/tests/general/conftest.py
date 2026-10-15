@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import shutil
-import sys
 
 import pytest
 
@@ -10,7 +9,7 @@ from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
-from ..test_helper import project_name
+from ..test_helper import delete_project, project_name
 
 PROJECT = project_name('pytest_nodelib_general')
 
@@ -19,11 +18,7 @@ PROJECT = project_name('pytest_nodelib_general')
 async def create_project_for_module():
 
     loop_communicator = LoopCommunicator()
-    try:
-        await loop_communicator.delete(f'/zauberzeug/projects/{PROJECT}', timeout=10)
-    except Exception:
-        logging.warning('Failed to delete project %s', PROJECT)
-        sys.exit(1)
+    await delete_project(loop_communicator, PROJECT)
 
     await asyncio.sleep(1)
     project_configuration = {
@@ -32,8 +27,10 @@ async def create_project_for_module():
         'trainings': 1, 'box_detections': 3, 'box_annotations': 0}
     assert (await loop_communicator.post("/zauberzeug/projects/generator", json=project_configuration)).status_code == 200
     yield
-    await loop_communicator.delete(f'/zauberzeug/projects/{PROJECT}', timeout=10)
-    await loop_communicator.shutdown()
+    try:
+        await delete_project(loop_communicator, PROJECT)
+    finally:
+        await loop_communicator.shutdown()
 
 
 @pytest.fixture()

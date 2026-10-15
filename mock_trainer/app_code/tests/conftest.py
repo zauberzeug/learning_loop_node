@@ -5,7 +5,7 @@ import pytest
 
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.loop_communication import LoopCommunicator
-from learning_loop_node.tests.test_helper import project_name
+from learning_loop_node.tests.test_helper import delete_project, project_name
 
 PROJECT1 = project_name('pytest_mock_trainer_test1')
 PROJECT2 = project_name('pytest_mock_trainer_test2')
@@ -22,7 +22,7 @@ async def glc():
 
 @pytest.fixture()
 async def setup_test_project1(glc: LoopCommunicator):
-    await glc.delete(f'/zauberzeug/projects/{PROJECT1}?keep_images=true')
+    await delete_project(glc, PROJECT1, keep_images=True)
     await asyncio.sleep(1)
     project_configuration = {
         'project_name': PROJECT1, 'inbox': 1, 'annotate': 2, 'review': 3, 'complete': 4, 'image_style': 'plain',
@@ -30,7 +30,7 @@ async def setup_test_project1(glc: LoopCommunicator):
     assert (await glc.post("/zauberzeug/projects/generator", json=project_configuration)).status_code == 200
     await asyncio.sleep(1)
     yield
-    await glc.delete(f'/zauberzeug/projects/{PROJECT1}?keep_images=true')
+    await delete_project(glc, PROJECT1, keep_images=True)
     await asyncio.sleep(1)
 
 
@@ -44,7 +44,7 @@ def data_folder():
 
 @pytest.fixture()
 async def setup_test_project2(glc: LoopCommunicator):
-    await glc.delete(f'/zauberzeug/projects/{PROJECT2}?keep_images=true')
+    await delete_project(glc, PROJECT2, keep_images=True)
     await asyncio.sleep(1)
     project_configuration = {
         'project_name': PROJECT2, 'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'plain',
@@ -53,5 +53,5 @@ async def setup_test_project2(glc: LoopCommunicator):
     assert (await glc.post("/zauberzeug/projects/generator", json=project_configuration)).status_code == 200
     await asyncio.sleep(1)
     yield
-    await glc.delete(f'/zauberzeug/projects/{PROJECT2}?keep_images=true')
+    await delete_project(glc, PROJECT2, keep_images=True)
     await asyncio.sleep(1)

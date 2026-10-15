@@ -66,7 +66,12 @@ async def main() -> None:
             if not is_stale(project, runs[run_id]):
                 logging.info('keeping %s', project)
                 continue
-            response = await loop_communicator.delete(f'/{ORGANIZATION}/projects/{project}', timeout=30)
+            try:
+                response = await loop_communicator.delete(f'/{ORGANIZATION}/projects/{project}', timeout=30)
+            except httpx.TimeoutException:
+                # a delete can hang on the loop; the next run's sweep tries again, the others go on now
+                logging.warning('deleting %s timed out', project)
+                continue
             logging.info('deleting %s: %s', project, response.status_code)
     finally:
         await github.aclose()

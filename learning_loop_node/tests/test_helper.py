@@ -6,6 +6,9 @@ import zipfile
 from glob import glob
 from typing import Callable
 
+import httpx
+import pytest
+
 from ..data_classes import (
     BoxDetection,
     ClassificationDetection,
@@ -29,6 +32,25 @@ def project_name(name: str) -> str:
     can tell from the name whether the run that created it is over. Locally the bare name is used."""
     suffix = os.environ.get(TEST_PROJECT_SUFFIX)
     return f'{name}_{suffix}' if suffix else name
+
+
+async def delete_project(loop_communicator: LoopCommunicator, project: str, *, keep_images: bool = False,
+                         timeout: float = 10) -> None:
+    """Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
+
+    A fresh per-run project normally does not exist yet, so a quick lookup comes first and the delete -- which can
+    hang on the loop -- is only sent for a project that is really there."""
+    path = f'/zauberzeug/projects/{project}'
+    try:
+        response = await loop_communicator.get(path, timeout=timeout)
+        if response.status_code == 404:
+            return
+        response = await loop_communicator.delete(path + ('?keep_images=true' if keep_images else ''), timeout=timeout)
+    except httpx.TimeoutException:
+        pytest.fail(f'deleting {path} on {loop_communicator.host} took longer than {timeout} s', pytrace=False)
+    if response.status_code not in (200, 404):
+        pytest.fail(f'deleting {path} on {loop_communicator.host} answered {response.status_code}: {response.text}',
+                    pytrace=False)
 
 
 def get_files_in_folder(folder: str):
