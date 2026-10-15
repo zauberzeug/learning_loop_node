@@ -6,6 +6,9 @@ import zipfile
 from glob import glob
 from typing import Callable
 
+import httpx
+import pytest
+
 from ..data_classes import (
     BoxDetection,
     ClassificationDetection,
@@ -17,6 +20,39 @@ from ..data_classes import (
 )
 from ..data_classes.image_metadata import ImageMetadata
 from ..loop_communication import LoopCommunicator
+
+TEST_PROJECT_SUFFIX = 'LOOP_TEST_PROJECT_SUFFIX'
+
+
+def project_name(name: str) -> str:
+    """The name of a project a suite creates and deletes on the shared loop.
+
+    CI sets `LOOP_TEST_PROJECT_SUFFIX` to `<run id>_<run attempt>_<job index>`, so two runs at once -- two branches
+    pushed close together -- each get their own project instead of deleting each other's, and `cleanup_test_projects`
+    can tell from the name whether the run that created it is over. Locally the bare name is used."""
+    suffix = os.environ.get(TEST_PROJECT_SUFFIX)
+    return f'{name}_{suffix}' if suffix else name
+
+
+async def delete_project(loop_communicator: LoopCommunicator, project: str, *, keep_images: bool = False,
+                         timeout: float = 75) -> None:
+    """Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
+
+    A fresh per-run project normally does not exist yet, so a quick lookup comes first and the delete is only sent
+    for a project that is really there. The loop deletes a project only once no other request is running anywhere
+    on it, and gives up with a 500 after 60 s, so the default timeout outlasts that and the failure carries the
+    loop's own reason instead of a bare ReadTimeout."""
+    path = f'/zauberzeug/projects/{project}'
+    try:
+        response = await loop_communicator.get(path, timeout=10)
+        if response.status_code == 404:
+            return
+        response = await loop_communicator.delete(path + ('?keep_images=true' if keep_images else ''), timeout=timeout)
+    except httpx.TimeoutException:
+        pytest.fail(f'deleting {path} on {loop_communicator.host} took longer than {timeout} s', pytrace=False)
+    if response.status_code not in (200, 404):
+        pytest.fail(f'deleting {path} on {loop_communicator.host} answered {response.status_code}: {response.text}',
+                    pytrace=False)
 
 
 def get_files_in_folder(folder: str):

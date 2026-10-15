@@ -16,6 +16,9 @@ from ...data_classes import (
     UserInput,
 )
 from ...enums import AnnotationEventType, CategoryType
+from ..test_helper import project_name
+
+PROJECT = project_name('pytest_nodelib_annotator')
 
 
 class MockedAnnotatatorLogic(AnnotatorLogic):
@@ -33,7 +36,7 @@ def default_user_input() -> UserInput:
     annotation_data = AnnotationData(
         coordinate=Point(x=0, y=0),
         event_type=AnnotationEventType.LeftMouseDown,
-        context=Context(organization='zauberzeug', project='pytest_nodelib_annotator'),
+        context=Context(organization='zauberzeug', project=PROJECT),
         image_uuid='10f7d7d2-4076-7006-af37-fa28a6a848ae',
         category=Category(id='some_id', name='category_1', description='',
                           hotkey='', color='', type=CategoryType.Segmentation)
@@ -48,7 +51,7 @@ def default_user_input() -> UserInput:
 async def test_image_download():
     # pylint: disable=protected-access
 
-    image_folder = '/tmp/learning_loop_lib_data/zauberzeug/pytest_nodelib_annotator/images'
+    image_folder = f'/tmp/learning_loop_lib_data/zauberzeug/{PROJECT}/images'
 
     assert os.path.exists(image_folder) is False or len(os.listdir(image_folder)) == 0
 
