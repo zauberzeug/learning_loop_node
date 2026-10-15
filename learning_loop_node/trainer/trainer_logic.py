@@ -12,7 +12,6 @@ from dacite import from_dict
 from ..data_classes import Detections, ModelInformation, TrainingError
 from ..enums import TrainerState
 from ..helpers.misc import create_image_folder, create_project_folder, images_for_ids, is_valid_uuid4
-from .exceptions import CriticalError
 from .executor import Executor
 from .trainer_logic_generic import TrainerLogicGeneric
 
@@ -85,7 +84,10 @@ class TrainerLogic(TrainerLogicGeneric):
         except TrainingError as e:
             logging.exception('Exception in trainer_logic._train')
             if self._stop_requested:
-                raise CriticalError(e.cause) from e  # a stopped training must not start over
+                # ending the process may be what failed it; a stopped training must not start over, and the
+                # wind-down uploads the model it has (or ends with a CriticalError if there is none)
+                logging.warning('Training process failed after a stop (%s), winding down with its model', e.cause)
+                return
             self.training.training_state = previous_state
             raise
         finally:

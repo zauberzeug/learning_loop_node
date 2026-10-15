@@ -60,6 +60,8 @@ class TrainerLogicGeneric(ABC):
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._environment_vars = EnvironmentVars()
+        # whether the last attempt of the current state failed, so it is being retried
+        self._state_failed: bool = False
 
     # ---------------------------------------- PROPERTIES TO AVOID CHECKING FOR NONE ----------------------------------------
 
@@ -247,6 +249,7 @@ class TrainerLogicGeneric(ABC):
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
         self.errors.reset_all()
+        self._state_failed = False
         try:
             await self._training_loop()
         except asyncio.CancelledError:
@@ -297,6 +300,7 @@ class TrainerLogicGeneric(ABC):
         - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+          It stays marked as failed until an attempt succeeds, so a stop during its retries aborts.
         '''
 
         await asyncio.sleep(0.1)
@@ -328,6 +332,7 @@ class TrainerLogicGeneric(ABC):
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
             self.training.training_state = previous_state
+            self._state_failed = True
             return
         else:
             logger.info('Successfully finished state: %s', state_during)
@@ -335,6 +340,7 @@ class TrainerLogicGeneric(ABC):
                 self.errors.reset(error_key)
             self.training.training_state = state_after
 
+        self._state_failed = False
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
@@ -479,11 +485,13 @@ class TrainerLogicGeneric(ABC):
 
         Once the training has run, the states that upload its model and detections are left to finish.
         Before that this base class aborts, as it cannot end a running training; `TrainerLogic` ends its
-        training process instead. A shutdown must not wait for the upload, so it aborts in any state.
+        training process instead. A state that is failing and being retried would never finish, and a
+        shutdown must not wait for the upload, so both abort in any state.
         """
         if not self.training_active:
             return
-        if self.training.training_state in _WIND_DOWN_STATES and not self.shutdown_event.is_set():
+        if (self.training.training_state in _WIND_DOWN_STATES and not self._state_failed
+                and not self.shutdown_event.is_set()):
             logger.info('Stop in state %s: the training has already run, letting its upload finish',
                         self.training.training_state)
             return

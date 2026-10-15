@@ -10,7 +10,6 @@ import pytest
 from ...data_classes import Context
 from ...enums import TrainerState
 from ...globals import GLOBALS
-from ...trainer.exceptions import CriticalError
 from ...trainer.rest import backdoor_controls
 from ...trainer.trainer_node import TrainerNode
 from ..test_helper import condition
@@ -52,15 +51,38 @@ async def test_a_stop_after_the_training_process_ended_lets_its_upload_finish(tr
     assert not trainer.training_task.done()
 
 
-async def test_a_stopped_training_ends_when_its_process_fails(trainer: TestingTrainerLogic):
-    train = asyncio.create_task(trainer._train())
+async def test_a_stopped_training_winds_down_when_its_process_fails(trainer: TestingTrainerLogic):
+    train = asyncio.create_task(trainer._perform_state('run_training', TrainerState.TrainingRunning,
+                                                       TrainerState.TrainingFinished, trainer._train))
     await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
     trainer.error_msg = 'graphics card is out of memory'
 
     await trainer.stop()
+    await asyncio.wait_for(train, timeout=2)
 
-    with pytest.raises(CriticalError):
-        await asyncio.wait_for(train, timeout=2)
+    assert trainer.training.training_state == TrainerState.TrainingFinished
+
+
+async def test_a_stop_while_the_upload_fails_aborts_it(trainer: TestingTrainerLogic):
+    trainer.training.training_state = TrainerState.ConfusionMatrixSynced
+    await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
+                                 AsyncMock(side_effect=ConnectionError('loop is unreachable')))
+
+    await trainer.stop()
+
+    assert trainer.training_task.cancelled()
+
+
+async def test_a_stop_after_the_upload_recovered_lets_it_finish(trainer: TestingTrainerLogic):
+    trainer.training.training_state = TrainerState.ConfusionMatrixSynced
+    await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
+                                 AsyncMock(side_effect=ConnectionError('loop is unreachable')))
+    await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
+                                 AsyncMock())
+
+    await trainer.stop()
+
+    assert not trainer.training_task.done()
 
 
 @pytest.mark.parametrize('state', [TrainerState.DataDownloading, TrainerState.TrainModelDownloaded,
