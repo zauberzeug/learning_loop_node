@@ -5,6 +5,18 @@ class CriticalError(Exception):
     """
 
 
+class TrainingRefusedError(Exception):
+    """Raised when a trainer cannot take on a training it was asked to begin; nothing was set up."""
+
+
+class TrainingSlotTakenError(TrainingRefusedError):
+    """Raised when a sibling node holds the training slot."""
+
+    def __init__(self, holder: str) -> None:
+        super().__init__(f'the training slot is held by {holder}')
+        self.holder = holder
+
+
 class InsufficientMemoryError(RuntimeError):
     """Raised when not even the smallest unit of work fits in memory."""
 
