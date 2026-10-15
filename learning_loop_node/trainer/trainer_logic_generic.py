@@ -26,8 +26,9 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
+from .training_slot import TrainingSlot, training_slot_from_env
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -43,7 +44,7 @@ _WIND_DOWN_STATES = frozenset({TrainerState.TrainingFinished, TrainerState.Confu
 
 class TrainerLogicGeneric(ABC):
 
-    def __init__(self, model_format: str) -> None:
+    def __init__(self, model_format: str, training_slot: TrainingSlot | None = None) -> None:
 
         # NOTE: model_format is used in the file path for the model on the server:
         # It acts as a key for list of files (cf. _get_latest_model_files)
@@ -62,6 +63,7 @@ class TrainerLogicGeneric(ABC):
         self._environment_vars = EnvironmentVars()
         # whether the last attempt of the current state failed, so it is being retried
         self._state_failed: bool = False
+        self.training_slot = training_slot or training_slot_from_env()
 
     # ---------------------------------------- PROPERTIES TO AVOID CHECKING FOR NONE ----------------------------------------
 
@@ -106,9 +108,17 @@ class TrainerLogicGeneric(ABC):
 
     @property
     def state(self) -> str:
-        """Returns the current state of the training. Used solely by the node in send_status().
+        """Returns the current state of the training.
+
+        Without a training the state is `idle`, or `blocked` while a sibling node holds the training slot.
+        A training resumed after a restart reports `waiting_for_slot` until it gets the slot: it has a
+        training, so it is never `blocked`.
         """
-        if (not self.training_active) or (self.training.training_state is None):
+        if not self.training_active:
+            return TrainerState.Blocked.value if self.training_slot.taken_by_sibling else TrainerState.Idle.value
+        if not self.training_slot.held:
+            return TrainerState.WaitingForSlot.value
+        if self.training.training_state is None:
             return TrainerState.Idle.value
         return self.training.training_state
 
@@ -221,8 +231,21 @@ class TrainerLogicGeneric(ABC):
 
     async def begin_training(self, organization: str, project: str, training_config: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
+
+        The training slot is taken before anything is set up, so a refused training leaves the
+        previous training folders in place.
+
+        :raise TrainingRefusedError: if a training is active or a sibling node holds the training slot.
         """
-        self._init_new_training(Context(organization=organization, project=project), training_config)
+        if self.training_active:
+            raise TrainingRefusedError(f'training {self.training.id} is still active')
+        context = Context(organization=organization, project=project)
+        self.training_slot.claim(self._slot_claim(context, training_config.get('training_number')))
+        try:
+            self._init_new_training(context, training_config)
+        except Exception:
+            self.training_slot.release()
+            raise
         self._begin_training_task()
 
     def _begin_training_task(self) -> None:
@@ -251,6 +274,7 @@ class TrainerLogicGeneric(ABC):
         self.errors.reset_all()
         self._state_failed = False
         try:
+            await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
         except asyncio.CancelledError:
             if not self.shutdown_event.is_set():
@@ -263,6 +287,12 @@ class TrainerLogicGeneric(ABC):
                 logger.info('CancelledError in _run - shutting down')
         except Exception:
             logger.exception('(Ignored) exception in trainer_logic._run:')
+        finally:
+            self._training = None
+            self.training_slot.release()
+
+    def _slot_claim(self, context: Context, training_number: Any) -> str:
+        return f'node {self.node.uuid}, training #{training_number} of {context.organization}/{context.project}'
 
     # ---------------------------------------- TRAINING STATES ----------------------------------------
 

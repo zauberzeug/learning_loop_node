@@ -37,16 +37,25 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   ordinary exception records the error and rewinds to the previous state (retried on the next
   cycle), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
-  restart. The loop starts a training via the `begin_training` sio event. Its `stop_training`
-  keeps the model: `stop` lets the upload and detection states finish, while `abort_training`
-  (`abort`) cancels the task in any state, as a shutdown does. Before the training has run, `stop`
-  aborts too, and so does a stop while a state is failing and being retried, which would otherwise
-  never finish. A running training only `TrainerLogic` can stop without aborting, by ending its
-  training process; a stop before that process has started still aborts, and a training process
-  that fails after a stop is not retried but winds down with the model it has. A concrete trainer
-  implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
-  `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
-  trainers that shell out to a training process.
+  restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
+  a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
+  training or refuses it with an error, and a refused training has set nothing up. The loop's
+  `stop_training` keeps the model: `stop` lets the upload and detection states finish, while
+  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. Before the training
+  has run, `stop` aborts too, and so does a stop while a state is failing and being retried, which
+  would otherwise never finish. A running training only `TrainerLogic` can stop without aborting,
+  by ending its training process; a stop before that process has started still aborts, and a
+  training process that fails after a stop is not retried but winds down with the model it has. A
+  concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
+  `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
+  trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
+  the GPU when several trainers share one (`TRAINING_SLOT_LOCK`, an `flock` on a mounted file):
+  `begin_training` takes it before setting anything up and refuses the training if a sibling holds
+  it, `_run` releases it after the state machine, and `state` reports `blocked` while a sibling holds
+  it and there is no training. Only a training resumed after a restart waits for the slot, since
+  nobody is there to hear a refusal; it reports `waiting_for_slot`, never `blocked`: the loop ends a
+  training on `blocked` just as on `idle`, because a waiting sibling usually grabs the freed slot
+  before the finished trainer's next status report. Without the variable the slot is always free.
 - **Detector** — Detectors are rolled out on user machines and thus kept very simple -> `needs_login=False, needs_sio=False`. In the loop have few non-destructive capabilities and sio has shown to cause traffic spikes when trying to reconnect on bad connections.
   It *hosts* a socket.io server for its own clients and polls
   `/{org}/projects/{project}/deployment/target` over REST in `on_repeat` instead. `_DetectorState`

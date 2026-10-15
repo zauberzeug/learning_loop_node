@@ -150,7 +150,7 @@ def ensure_socket_response(func):
             if isinstance(value, bool):
                 return asdict(SocketResponse.from_bool(value))
             if isinstance(value, SocketResponse):
-                return value
+                return asdict(value)
             if (args[0] in ['connect', 'disconnect', 'connect_error']):
                 return value
             if value is None:
