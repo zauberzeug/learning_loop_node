@@ -18,6 +18,18 @@ from ..data_classes import (
 from ..data_classes.image_metadata import ImageMetadata
 from ..loop_communication import LoopCommunicator
 
+TEST_PROJECT_SUFFIX = 'LOOP_TEST_PROJECT_SUFFIX'
+
+
+def project_name(name: str) -> str:
+    """The name of a project a suite creates and deletes on the shared loop.
+
+    CI sets `LOOP_TEST_PROJECT_SUFFIX` to `<run id>_<run attempt>_<job index>`, so two runs at once -- two branches
+    pushed close together -- each get their own project instead of deleting each other's, and `cleanup_test_projects`
+    can tell from the name whether the run that created it is over. Locally the bare name is used."""
+    suffix = os.environ.get(TEST_PROJECT_SUFFIX)
+    return f'{name}_{suffix}' if suffix else name
+
 
 def get_files_in_folder(folder: str):
     files = [entry for entry in glob(f'{folder}/**/*', recursive=True) if os.path.isfile(entry)]

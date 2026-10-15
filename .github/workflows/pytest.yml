@@ -27,11 +27,19 @@ jobs:
       - unit
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read # the cleanup step asks whether the run that left a project behind is over
+    env:
+      # the suites share one Learning Loop instance and create and delete their projects there; the
+      # suffix gives every job of every run its own (pytest_nodelib_general_<suffix>, ...), so two
+      # runs at once -- two branches pushed close together -- cannot delete each other's project.
+      # cleanup_test_projects reads the run back out of the name, keep the format in step
+      LOOP_TEST_PROJECT_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}_${{ strategy.job-index }}
     strategy:
       fail-fast: false
-      # these suites share one Learning Loop instance, and test_general creates and deletes
-      # the project zauberzeug/pytest_nodelib_general by a fixed name -- two entries at once
-      # would delete each other's project
+      # the projects no longer collide, but every entry still reads from and uploads to the shared
+      # zauberzeug/demo project; one entry at a time keeps a run's load on the preview loop down
       max-parallel: 1
       matrix:
         # the floor requires-python promises, and the version every node ships with; the unit
@@ -82,6 +90,17 @@ jobs:
           LOOP_USERNAME: "admin"
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: uv run --no-sync python -m pytest mock_trainer -v
+      - name: clean up test projects
+        # always() also runs after a cancellation, when no teardown deleted this job's projects; it
+        # also sweeps those of earlier runs that are over, which a lost runner never got to delete
+        if: always()
+        continue-on-error: true
+        env:
+          LOOP_HOST: "preview.learning-loop.ai"
+          LOOP_USERNAME: "admin"
+          LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run --no-sync python -m learning_loop_node.tests.cleanup_test_projects
 
   all-green:
     # the one status check the branch ruleset requires: a matrix job's check run is named

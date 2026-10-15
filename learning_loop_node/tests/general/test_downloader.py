@@ -7,22 +7,24 @@ from ...globals import GLOBALS
 from ...helpers.misc import create_image_folder, create_project_folder, create_training_folder, delete_corrupt_images
 from .. import test_helper
 
+PROJECT = test_helper.project_name('pytest_nodelib_general')
+
 # Used by all Nodes
 
 
 async def test_download_model(data_exchanger: DataExchanger):
 
     _, _, trainings_folder = create_needed_folders()
-    model_id = await test_helper.get_latest_model_id(project='pytest_nodelib_general')
+    model_id = await test_helper.get_latest_model_id(project=PROJECT)
 
-    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project='pytest_nodelib_general'), model_id, 'mocked')
+    await data_exchanger.download_model(trainings_folder, Context(organization='zauberzeug', project=PROJECT), model_id, 'mocked')
 
     files = test_helper.get_files_in_folder(GLOBALS.data_folder)
     assert len(files) == 3, str(files)
 
-    file_1 = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/file_1.txt'
-    file_2 = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/file_2.txt'
-    model_json = f'{GLOBALS.data_folder}/zauberzeug/pytest_nodelib_general/trainings/some_uuid/model.json'
+    file_1 = f'{GLOBALS.data_folder}/zauberzeug/{PROJECT}/trainings/some_uuid/file_1.txt'
+    file_2 = f'{GLOBALS.data_folder}/zauberzeug/{PROJECT}/trainings/some_uuid/file_2.txt'
+    model_json = f'{GLOBALS.data_folder}/zauberzeug/{PROJECT}/trainings/some_uuid/model.json'
 
     assert file_1 in files
     assert file_2 in files
@@ -78,7 +80,7 @@ async def test_removal_of_corrupted_images(data_exchanger: DataExchanger):
 
 def create_needed_folders(training_uuid: str = 'some_uuid'):  # pylint: disable=unused-argument
     project_folder = create_project_folder(
-        Context(organization='zauberzeug', project='pytest_nodelib_general'))
+        Context(organization='zauberzeug', project=PROJECT))
     image_folder = create_image_folder(project_folder)
     training_folder = create_training_folder(project_folder, training_uuid)
     return project_folder, image_folder, training_folder

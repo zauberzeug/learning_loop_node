@@ -11,17 +11,19 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 
 from ..mock_trainer_logic import MockTrainerLogic
 
+PROJECT = test_helper.project_name('pytest_mock_trainer_test1')
+
 
 @pytest.mark.usefixtures('setup_test_project1')
 async def test_all():
     assert_image_count(0)
     assert GLOBALS.data_folder == '/tmp/learning_loop_lib_data'
 
-    latest_model_id = await test_helper.get_latest_model_id(project='pytest_mock_trainer_test1')
+    latest_model_id = await test_helper.get_latest_model_id(project=PROJECT)
 
     trainer = MockTrainerLogic(model_format='mocked')
     node = TrainerNode(name='test', trainer_logic=trainer)
-    context = Context(organization='zauberzeug', project='pytest_mock_trainer_test1')
+    context = Context(organization='zauberzeug', project=PROJECT)
     details = {'categories': [jsonable_encoder(asdict(Category(id='some_id', name='some_category_name')))],
                'id': '798bfbf1-8948-2ea9-32fb-3571b6748bca',  # version 1.2 of demo project
                'training_number': 0,
@@ -49,7 +51,7 @@ async def test_all():
 
 
 def assert_image_count(value: int):
-    images_folder = f'{GLOBALS.data_folder}/zauberzeug/pytest_mock_trainer_test1'
+    images_folder = f'{GLOBALS.data_folder}/zauberzeug/{PROJECT}'
     files = glob(f'{images_folder}/**/*.*', recursive=True)
     files = [file for file in files if file.endswith('.jpg')]
     assert len(files) == value
