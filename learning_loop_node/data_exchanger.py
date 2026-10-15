@@ -187,7 +187,7 @@ class DataExchanger():
         if response.status_code == HTTPStatus.CONFLICT:
             try:
                 stored_model_id = response.json()['detail']['id']
-            except (ValueError, KeyError, TypeError) as e:  # loops before zauberzeug/loop#444 name no id
+            except (ValueError, KeyError, TypeError) as e:  # loops before zauberzeug/loop#445 name no id
                 raise ModelAlreadyUploadedError(
                     f'The model of training {training_number} is already uploaded in format {mformat}') from e
             logger.info('The loop already stores model %s of training %s in format %s',

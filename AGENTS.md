@@ -37,7 +37,7 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   ordinary exception records the error and rewinds to the previous state (retried on the next
   cycle), a `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with 409
   already holds that format and counts as done, with the model id the 409 names (loops before
-  zauberzeug/loop#444 name none). Only a client error other than 408 and 429 ends the training
+  zauberzeug/loop#445 name none). Only a client error other than 408 and 429 ends the training
   (a 429 is first retried by `LoopCommunicator`). Any other failed upload, e.g. a server error
   (`ModelUploadFailedError`) or a timeout, keeps the training: the upload state is retried after
   `MODEL_UPLOAD_RETRY_DELAY`, twice as long after every further failure up to
