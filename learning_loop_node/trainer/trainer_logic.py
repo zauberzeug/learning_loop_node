@@ -25,6 +25,8 @@ class TrainerLogic(TrainerLogicGeneric):
         super().__init__(model_format)
         self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
+        self._process_started: bool = False
+        self._stop_requested: bool = False
         self.start_training_task: Optional[Coroutine] = None
         self.inference_batch_size = self._environment_vars.inference_batch_size
 
@@ -47,10 +49,12 @@ class TrainerLogic(TrainerLogicGeneric):
         previous_state = TrainerState.TrainModelDownloaded
         error_key = 'run_training'
         self._executor = Executor(self.training.training_folder)
+        self._stop_requested = False
         self.training.training_state = TrainerState.TrainingRunning
 
         try:
             await self._start_training()
+            self._process_started = True
             last_sync_time = datetime.now()
 
             while True:
@@ -77,11 +81,17 @@ class TrainerLogic(TrainerLogicGeneric):
             # if self.executor.return_code != 0:
             #     raise TrainingError(cause=f'Executor returned with error code: {self.executor.return_code}')
 
-        except TrainingError:
+        except TrainingError as e:
             logging.exception('Exception in trainer_logic._train')
+            if self._stop_requested:
+                # ending the process may be what failed it; a stopped training must not start over, and the
+                # wind-down uploads the model it has (or ends with a CriticalError if there is none)
+                logging.warning('Training process failed after a stop (%s), winding down with its model', e.cause)
+                return
             self.training.training_state = previous_state
             raise
         finally:
+            self._process_started = False
             # shield so the subprocess is stopped even when the task is cancelled (e.g. on abort())
             if self._executor and self._executor.is_running():
                 await asyncio.shield(self.executor.stop_and_wait())
@@ -148,12 +158,16 @@ class TrainerLogic(TrainerLogicGeneric):
     # ---------------------------------------- OVERWRITTEN METHODS ----------------------------------------
 
     async def stop(self) -> None:
-        """If executor is running, stop it. Else cancel training task."""
+        """End the training process, so the training winds down and uploads its model.
+
+        Once the process has ended, the wind-down follows on its own. Before the process has started, on
+        shutdown and in every other state, it stops as the base class does.
+        """
         print('===============> stop received in trainer_logic.', flush=True)
-        if not self.training_active:
-            return
-        if self._executor and self._executor.is_running():
-            await self.executor.stop_and_wait()
+        if self._process_started and not self.shutdown_event.is_set():
+            self._stop_requested = True
+            if self._executor and self._executor.is_running():
+                await self.executor.stop_and_wait()
             return
         await super().stop()
 

@@ -35,6 +35,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
+# The states after the training has run, which upload its model and detections.
+_WIND_DOWN_STATES = frozenset({TrainerState.TrainingFinished, TrainerState.ConfusionMatrixSyncing,
+                               TrainerState.ConfusionMatrixSynced, TrainerState.TrainModelUploading,
+                               TrainerState.TrainModelUploaded, TrainerState.Detecting, TrainerState.Detected,
+                               TrainerState.DetectionUploading, TrainerState.ReadyForCleanup})
+
 
 class TrainerLogicGeneric(ABC):
 
@@ -55,6 +61,8 @@ class TrainerLogicGeneric(ABC):
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._environment_vars = EnvironmentVars()
+        # whether the last attempt of the current state failed, so it is being retried
+        self._state_failed: bool = False
         self.training_slot = training_slot or training_slot_from_env()
 
     # ---------------------------------------- PROPERTIES TO AVOID CHECKING FOR NONE ----------------------------------------
@@ -264,6 +272,7 @@ class TrainerLogicGeneric(ABC):
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
         self.errors.reset_all()
+        self._state_failed = False
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
@@ -318,9 +327,10 @@ class TrainerLogicGeneric(ABC):
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         '''
         Perform a training state and handle errors.
-        - If the loop sends a StopTraining event, this will raise a CancelledError.
+        - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+          It stays marked as failed until an attempt succeeds, so a stop during its retries aborts.
         '''
 
         await asyncio.sleep(0.1)
@@ -352,6 +362,7 @@ class TrainerLogicGeneric(ABC):
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
             self.training.training_state = previous_state
+            self._state_failed = True
             return
         else:
             logger.info('Successfully finished state: %s', state_during)
@@ -359,6 +370,7 @@ class TrainerLogicGeneric(ABC):
                 self.errors.reset(error_key)
             self.training.training_state = state_after
 
+        self._state_failed = False
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
@@ -496,12 +508,23 @@ class TrainerLogicGeneric(ABC):
 
     async def on_shutdown(self) -> None:
         self.shutdown_event.set()
-        await self.stop()
-        await self.stop()
+        await self.abort()
 
-    async def stop(self):
-        """Stop the training. Default is to abort.
+    async def stop(self) -> None:
+        """Stop the training but keep its model.
+
+        Once the training has run, the states that upload its model and detections are left to finish.
+        Before that this base class aborts, as it cannot end a running training; `TrainerLogic` ends its
+        training process instead. A state that is failing and being retried would never finish, and a
+        shutdown must not wait for the upload, so both abort in any state.
         """
+        if not self.training_active:
+            return
+        if (self.training.training_state in _WIND_DOWN_STATES and not self._state_failed
+                and not self.shutdown_event.is_set()):
+            logger.info('Stop in state %s: the training has already run, letting its upload finish',
+                        self.training.training_state)
+            return
         await self.abort()
 
     async def abort(self):
