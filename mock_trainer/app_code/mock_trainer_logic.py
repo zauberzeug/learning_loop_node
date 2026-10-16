@@ -109,15 +109,15 @@ class MockTrainerLogic(TrainerLogic):
     def provided_hyperparameters(self) -> list[Hyperparameter]:
         return [
             Hyperparameter(name='resolution', type='int', default=832, minimum=32, maximum=4096,
-                           notes='image size the model is trained on'),
-            Hyperparameter(name='epochs', type='int', default=100, minimum=1, notes='passes over the training set'),
+                           notes='Image size the model is trained on'),
+            Hyperparameter(name='epochs', type='int', default=100, minimum=1, notes='Passes over the training set'),
             Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0),
             Hyperparameter(name='fliplr', type='float', default=0.5, minimum=0.0, maximum=1.0,
-                           notes='probability of a horizontal flip'),
+                           notes='Probability of a horizontal flip'),
             Hyperparameter(name='flipud', type='float', default=0.0, minimum=0.0, maximum=1.0,
-                           notes='probability of a vertical flip'),
+                           notes='Probability of a vertical flip'),
             Hyperparameter(name='use_amp', type='bool', default=False, expert=True,
-                           notes='mixed precision, faster but less exact'),
+                           notes='Mixed precision, faster but less exact'),
             Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True),
         ]
 
