@@ -59,6 +59,9 @@ class ModelInformation():
         default=None, metadata={"description": "The path of the parent directory of the model in the file system."})
     model_size: Optional[str] = field(default=None, metadata={
                                       "description": "The size of the model (i.e. the specification or variant of the model architecture)."})
+    conf_threshold: Optional[float] = field(default=None, metadata={
+        "description": "The minimum confidence the trainer chose for the detections of this model, if it chose one. "
+                       "A detector without a configured confidence threshold should use it."})
 
     @property
     def context(self):

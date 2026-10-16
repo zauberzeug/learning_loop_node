@@ -71,6 +71,14 @@ that fits, around a `fits` predicate the trainer supplies — none of it imports
 brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
+`trainer/validation_set.py` decides which images a training selects its models on. A node uses
+the `val` images of `image_data` (`Training.val_images()`) for best model, early stopping and
+confidence threshold if there are any, and reads `test` only for the counts it reports; without
+them it selects on `test`, as before. `_prepare` calls `assign_validation_set` right after the
+download: a `val` set the loop sent is used as it is; otherwise the `separate_testset`
+hyperparameter moves a hash-chosen tenth of the train images to `val`, so the nodes never split
+anything themselves and need no change once the loop offers a dedicated validation set.
+
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
 setting into the cap that holds the process to it and remembers it as the budget a probe in the
