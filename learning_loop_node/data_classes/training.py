@@ -27,8 +27,8 @@ class Hyperparameter:
     """One hyperparameter a trainer accepts, reported to the loop so it can offer it in the project settings.
 
     Plain data only, so it reaches the loop as it is. ``minimum`` and ``maximum`` apply to ``int`` and ``float``,
-    ``choices`` to ``str``. ``notes`` help whoever sets the value. An ``editable`` hyperparameter can be changed per
-    job in the enqueue dialog, the others only in the project settings. ``expert`` ones are offered behind an expansion.
+    ``choices`` to ``str``. ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
+    Whether a value can be changed when a training is started is the project's choice, not the trainer's.
     """
     name: str
     type: Literal['int', 'float', 'bool', 'str']
@@ -37,7 +37,6 @@ class Hyperparameter:
     maximum: float | None = None
     choices: list[str] | None = None
     notes: str = ''
-    editable: bool = True
     expert: bool = False
 
 

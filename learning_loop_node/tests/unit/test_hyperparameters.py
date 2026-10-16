@@ -10,7 +10,7 @@ from ...trainer.hyperparameters import resolve
 
 DECLARED = [
     Hyperparameter(name='epochs', type='int', default=100, minimum=1),
-    Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0, editable=False),
+    Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0),
     Hyperparameter(name='use_amp', type='bool', default=False, expert=True),
     Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam']),
     Hyperparameter(name='comment', type='str', default='none'),
