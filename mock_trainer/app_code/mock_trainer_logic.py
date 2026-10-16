@@ -111,14 +111,16 @@ class MockTrainerLogic(TrainerLogic):
             Hyperparameter(name='resolution', type='int', default=832, minimum=32, maximum=4096,
                            notes='Image size the model is trained on'),
             Hyperparameter(name='epochs', type='int', default=100, minimum=1, notes='Passes over the training set'),
-            Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0),
+            Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0,
+                           notes='Step size of the optimizer'),
             Hyperparameter(name='fliplr', type='float', default=0.5, minimum=0.0, maximum=1.0,
                            notes='Probability of a horizontal flip'),
             Hyperparameter(name='flipud', type='float', default=0.0, minimum=0.0, maximum=1.0,
                            notes='Probability of a vertical flip'),
             Hyperparameter(name='use_amp', type='bool', default=False, expert=True,
                            notes='Mixed precision, faster but less exact'),
-            Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True),
+            Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True,
+                           notes='Algorithm that updates the weights'),
         ]
 
     @property
