@@ -119,6 +119,8 @@ class MockTrainerLogic(TrainerLogic):
                            notes='Mixed precision, faster but less exact'),
             Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True,
                            notes='Algorithm that updates the weights'),
+            Hyperparameter(name='flip_label_pairs', type='str', default='', expert=True,
+                           notes='Categories swapped by a horizontal flip, as "uuid:uuid,..."'),
         ]
 
     @property
