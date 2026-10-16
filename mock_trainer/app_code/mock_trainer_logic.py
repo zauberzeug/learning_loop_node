@@ -5,7 +5,7 @@ import time
 from typing import Dict, List, Optional
 
 from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, Detections, ErrorConfiguration,
-                                             ModelInformation, Point, PointDetection, PretrainedModel,
+                                             Hyperparameter, ModelInformation, Point, PointDetection, PretrainedModel,
                                              SegmentationDetection, Shape, TrainingStateData)
 from learning_loop_node.enums import CategoryType
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
@@ -104,6 +104,23 @@ class MockTrainerLogic(TrainerLogic):
             PretrainedModel(name='small', label='Small', description='a small model'),
             PretrainedModel(name='medium', label='Medium', description='a medium model'),
             PretrainedModel(name='large', label='Large', description='a large model')]
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return [
+            Hyperparameter(name='resolution', type='int', default=832, minimum=32, maximum=4096,
+                           notes='image size the model is trained on'),
+            Hyperparameter(name='epochs', type='int', default=100, minimum=1, notes='passes over the training set'),
+            Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0, editable=False,
+                           notes='set once per project'),
+            Hyperparameter(name='fliplr', type='float', default=0.5, minimum=0.0, maximum=1.0,
+                           notes='probability of a horizontal flip'),
+            Hyperparameter(name='flipud', type='float', default=0.0, minimum=0.0, maximum=1.0,
+                           notes='probability of a vertical flip'),
+            Hyperparameter(name='use_amp', type='bool', default=False, expert=True,
+                           notes='mixed precision, faster but less exact'),
+            Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True),
+        ]
 
     @property
     def training_progress(self) -> float:

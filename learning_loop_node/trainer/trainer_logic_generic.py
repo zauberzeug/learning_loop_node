@@ -13,6 +13,7 @@ from fastapi.encoders import jsonable_encoder
 from ..data_classes import (
     Context,
     Errors,
+    Hyperparameter,
     PretrainedModel,
     Training,
     TrainingOut,
@@ -27,6 +28,7 @@ from ..helpers.misc import (
 )
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
+from .hyperparameters import resolve
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
@@ -176,6 +178,18 @@ class TrainerLogicGeneric(ABC):
         """
         raise NotImplementedError
 
+    # ---------------------------------------- OPTIONAL PROPERTIES ----------------------------------------
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        """Returns the hyperparameters this trainer accepts, with their types, defaults and ranges.
+
+        They are reported to the loop, which offers them in the project settings and sends only what a project
+        sets; the declared defaults fill in the rest before the training starts.
+        A trainer that declares none receives the hyperparameters unchecked.
+        """
+        return []
+
     # ---------------------------------------- METHODS ----------------------------------------
 
     # NOTE: Trainings are started by the Learning Loop via the begin_training event
@@ -194,6 +208,7 @@ class TrainerLogicGeneric(ABC):
                                 progress=self.general_progress)
 
         status.pretrained_models = self.provided_pretrained_models
+        status.hyperparameters = self.provided_hyperparameters
         status.architecture = self.model_architecture
 
         if self._training:
@@ -362,8 +377,13 @@ class TrainerLogicGeneric(ABC):
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        """Resolves the hyperparameters, then downloads images to the images_folder and saves annotations to
+        training.data.image_data.
+
+        :raise CriticalError: If a hyperparameter does not fit its declaration.
         """
+        if self.provided_hyperparameters:
+            self.training.hyperparameters = resolve(self.provided_hyperparameters, self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
