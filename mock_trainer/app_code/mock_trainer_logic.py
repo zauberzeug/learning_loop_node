@@ -115,12 +115,12 @@ class MockTrainerLogic(TrainerLogic):
                            notes='Step size of the optimizer'),
             Hyperparameter(name='fliplr', type='bool', default=True, notes='Flip half of the images horizontally'),
             Hyperparameter(name='flipud', type='bool', default=False, notes='Flip half of the images vertically'),
+            Hyperparameter(name='flip_label_pairs', type='str', default='',
+                           notes='Categories swapped by a horizontal flip, as "uuid:uuid,..."'),
             Hyperparameter(name='use_amp', type='bool', default=False, expert=True,
                            notes='Mixed precision, faster but less exact'),
             Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True,
                            notes='Algorithm that updates the weights'),
-            Hyperparameter(name='flip_label_pairs', type='str', default='', expert=True,
-                           notes='Categories swapped by a horizontal flip, as "uuid:uuid,..."'),
         ]
 
     @property
