@@ -178,18 +178,18 @@ class TrainerLogicGeneric(ABC):
         """
         raise NotImplementedError
 
-    # ---------------------------------------- OPTIONAL PROPERTIES ----------------------------------------
-
     @property
+    @abstractmethod
     def provided_hyperparameters(self) -> list[Hyperparameter]:
         """Returns the hyperparameters this trainer accepts, with their types, defaults and ranges.
 
         They are reported to the loop, which offers them in the project settings and sends only what a project
         sets; the declared defaults fill in the rest when the training begins, and a value that does not fit
-        its declaration refuses the training. A trainer that declares none receives the hyperparameters unchecked.
-        The declaration is checked once, when the ``TrainerNode`` is built, so it must not change afterwards.
+        its declaration refuses the training. A trainer that returns an empty list receives the hyperparameters
+        unchecked. The declaration is checked once, when the ``TrainerNode`` is built, so it must not change
+        afterwards.
         """
-        return []
+        raise NotImplementedError
 
     # ---------------------------------------- METHODS ----------------------------------------
 

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ...data_classes import PretrainedModel, TrainingStateData
+from ...data_classes import Hyperparameter, PretrainedModel, TrainingStateData
 from ...helpers.misc import ensure_socket_response
 from ...trainer.exceptions import TrainingRefusedError, TrainingSlotTakenError
 from ...trainer.io_helpers import LastTrainingIO
@@ -245,6 +245,10 @@ class _Trainer(TrainerLogicGeneric):
 
     @property
     def provided_pretrained_models(self) -> list[PretrainedModel]:
+        return []
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
         return []
 
     async def _train(self) -> None:
