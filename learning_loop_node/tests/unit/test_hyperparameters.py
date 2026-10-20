@@ -2,6 +2,7 @@ import logging
 from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from dacite import from_dict
@@ -13,6 +14,7 @@ from ...trainer.batch_size import REQUESTED_BATCH_SIZE
 from ...trainer.exceptions import CriticalError, TrainingRefusedError
 from ...trainer.hyperparameters import check_declaration, resolve, warn_about_undeclared
 from ...trainer.io_helpers import LastTrainingIO
+from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import AlwaysFreeSlot
 from .test_training_slot import TRAINING_CONFIG, _Trainer
@@ -75,7 +77,7 @@ def test_a_large_int_is_kept_exact():
     {'comment': {'a': 1}},
     {'comment': [1, 2]},
 ])
-def test_an_invalid_value_is_a_critical_error(received):
+def test_an_invalid_value_is_a_critical_error(received: dict[str, Any]):
     with pytest.raises(CriticalError, match=next(iter(received))):
         resolve(DECLARED, received)
 
@@ -90,7 +92,7 @@ def test_an_invalid_value_is_a_critical_error(received):
     Hyperparameter(name='h', type='int', default='many'),
     Hyperparameter(name='h', type='str', default='x', choices=['a', 'b']),
 ])
-def test_a_declaration_that_contradicts_itself_is_rejected(declaration):
+def test_a_declaration_that_contradicts_itself_is_rejected(declaration: Hyperparameter):
     with pytest.raises(ValueError, match="the trainer declares hyperparameter 'h'"):
         check_declaration([declaration])
 
@@ -136,31 +138,15 @@ def test_the_declaration_survives_the_trip_to_the_loop():
 
 # --- resolving in the trainer ---
 
-class _DeclaringTrainer(_Trainer):
-
-    @property
-    def provided_hyperparameters(self) -> list[Hyperparameter]:
-        return DECLARED
-
-
-def _with_node(trainer: _Trainer) -> _Trainer:
-    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
-    trainer._last_training_io = LastTrainingIO('node-uuid')
-    return trainer
-
-
-def _config(hyperparameters: dict) -> dict:
-    return {**TRAINING_CONFIG, 'hyperparameters': hyperparameters}
-
-
-async def test_begin_training_resolves_the_hyperparameters(data_folder: Path, started: list):
+async def test_begin_training_resolves_the_hyperparameters(data_folder: Path, started: list[TrainerLogicGeneric]):
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
     await trainer.begin_training('zauberzeug', 'demo', _config({'epochs': '7'}))
     assert started == [trainer]
     assert trainer.training.hyperparameters == {**resolve(DECLARED, {}), 'epochs': 7}
 
 
-async def test_begin_training_is_refused_for_a_value_that_does_not_fit(data_folder: Path, started: list):
+async def test_begin_training_is_refused_for_a_value_that_does_not_fit(data_folder: Path,
+                                                                       started: list[TrainerLogicGeneric]):
     old_training = data_folder / 'zauberzeug' / 'demo' / 'trainings' / 'old'
     old_training.mkdir(parents=True)
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
@@ -172,21 +158,14 @@ async def test_begin_training_is_refused_for_a_value_that_does_not_fit(data_fold
     assert old_training.exists()
 
 
-async def test_a_trainer_that_declares_nothing_gets_the_hyperparameters_unchecked(data_folder: Path, started: list):
+async def test_a_trainer_that_declares_nothing_gets_the_hyperparameters_unchecked(data_folder: Path,
+                                                                                  started: list[TrainerLogicGeneric]):
     trainer = _with_node(_Trainer('mocked', training_slot=AlwaysFreeSlot()))
     await trainer.begin_training('zauberzeug', 'demo', _config({'epochs': 'many'}))
     assert trainer.training.hyperparameters == {'epochs': 'many'}
 
 
-async def _saved_by_an_older_trainer(hyperparameters: dict) -> None:
-    """Leaves a training behind that was begun before its trainer declared hyperparameters."""
-    trainer = _with_node(_Trainer('mocked', training_slot=AlwaysFreeSlot()))
-    await trainer.begin_training('zauberzeug', 'demo', _config(hyperparameters))
-    trainer.training.training_state = TrainerState.TrainingRunning
-    trainer.last_training_io.save(trainer.training)
-
-
-async def test_a_resumed_training_is_resolved_again(data_folder: Path, started: list):
+async def test_a_resumed_training_is_resolved_again(data_folder: Path, started: list[TrainerLogicGeneric]):
     await _saved_by_an_older_trainer({'epochs': '7', 'trainer_version': '1.0'})
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
     assert await trainer.try_continue_run_if_incomplete()
@@ -194,12 +173,25 @@ async def test_a_resumed_training_is_resolved_again(data_folder: Path, started: 
     assert trainer.training.training_state == TrainerState.TrainingRunning
 
 
-async def test_a_resumed_training_that_does_not_fit_is_cleaned_up_with_an_error(data_folder: Path, started: list):
+async def test_a_resumed_training_that_does_not_fit_is_cleaned_up_with_an_error(data_folder: Path,
+                                                                                started: list[TrainerLogicGeneric]):
     await _saved_by_an_older_trainer({'learning_rate': 1.5})
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
     assert await trainer.try_continue_run_if_incomplete()
     assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert 'learning_rate' in trainer.errors.errors['prepare']
+
+
+def test_a_trainer_node_is_not_built_around_a_declaration_that_contradicts_itself():
+    with pytest.raises(ValueError, match="hyperparameter 'epochs'"):
+        TrainerNode(name='trainer', trainer_logic=_BrokenTrainer('mocked', training_slot=AlwaysFreeSlot()))
+
+
+class _DeclaringTrainer(_Trainer):
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return DECLARED
 
 
 class _BrokenTrainer(_Trainer):
@@ -209,6 +201,19 @@ class _BrokenTrainer(_Trainer):
         return [Hyperparameter(name='epochs', type='int', default=0, minimum=1)]
 
 
-def test_a_trainer_node_is_not_built_around_a_declaration_that_contradicts_itself():
-    with pytest.raises(ValueError, match="hyperparameter 'epochs'"):
-        TrainerNode(name='trainer', trainer_logic=_BrokenTrainer('mocked', training_slot=AlwaysFreeSlot()))
+async def _saved_by_an_older_trainer(hyperparameters: dict[str, Any]) -> None:
+    """Leaves a training behind that was begun before its trainer declared hyperparameters."""
+    trainer = _with_node(_Trainer('mocked', training_slot=AlwaysFreeSlot()))
+    await trainer.begin_training('zauberzeug', 'demo', _config(hyperparameters))
+    trainer.training.training_state = TrainerState.TrainingRunning
+    trainer.last_training_io.save(trainer.training)
+
+
+def _with_node(trainer: _Trainer) -> _Trainer:
+    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
+    trainer._last_training_io = LastTrainingIO('node-uuid')
+    return trainer
+
+
+def _config(hyperparameters: dict[str, Any]) -> dict[str, Any]:
+    return {**TRAINING_CONFIG, 'hyperparameters': hyperparameters}

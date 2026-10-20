@@ -96,7 +96,7 @@ def _coerce(hyperparameter: Hyperparameter, value: Any) -> Any:
         if isinstance(value, bool):
             return value
         if isinstance(value, (int, float)) and math.isfinite(value):
-            return value != 0  # older projects configure a flag as a probability, e.g. fliplr: 0.5
+            return value != 0
         if isinstance(value, str) and value.strip().lower() in BOOL_STRINGS:
             return BOOL_STRINGS[value.strip().lower()]
         raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be true or false, got {value!r}")
@@ -104,7 +104,7 @@ def _coerce(hyperparameter: Hyperparameter, value: Any) -> Any:
         raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be a number, got {value!r}")
     if hyperparameter.type == 'int' and isinstance(value, (int, str)):
         with contextlib.suppress(ValueError):
-            return int(value)  # exact, where going through float would round a large number
+            return int(value)
     try:
         number = float(value)
     except (TypeError, ValueError):
