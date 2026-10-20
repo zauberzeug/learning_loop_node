@@ -28,7 +28,7 @@ from ..helpers.misc import (
 )
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
-from .hyperparameters import resolve
+from .hyperparameters import resolve, warn_about_undeclared
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
@@ -185,8 +185,8 @@ class TrainerLogicGeneric(ABC):
         """Returns the hyperparameters this trainer accepts, with their types, defaults and ranges.
 
         They are reported to the loop, which offers them in the project settings and sends only what a project
-        sets; the declared defaults fill in the rest before the training starts.
-        A trainer that declares none receives the hyperparameters unchecked.
+        sets; the declared defaults fill in the rest when the training begins, and a value that does not fit
+        its declaration refuses the training. A trainer that declares none receives the hyperparameters unchecked.
         """
         return []
 
@@ -221,6 +221,7 @@ class TrainerLogicGeneric(ABC):
         """Tries to continue a training if the last training was not finished.
         """
         if not self.training_active and self.last_training_io.exists():
+            self.errors.reset_all()
             self._init_from_last_training()
             logger.info('found incomplete training, continuing now.')
             self._begin_training_task()
@@ -229,9 +230,20 @@ class TrainerLogicGeneric(ABC):
 
     def _init_from_last_training(self) -> None:
         """Initializes a new training object from the last training saved on disc via last_training_io.
+
+        The hyperparameters are resolved again, since the training may have been saved before this trainer declared
+        them. One that no longer fits sends the training to cleanup, with the error under ``prepare``.
         """
         self._training = self.last_training_io.load()
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
+        declared = self.provided_hyperparameters
+        if declared:
+            try:
+                self._training.hyperparameters = resolve(declared, self._training.hyperparameters)
+            except CriticalError as e:
+                logger.error('restored training does not fit the declared hyperparameters: %s', e)
+                self.errors.set('prepare', str(e))
+                self._training.training_state = TrainerState.ReadyForCleanup
         logger.info('restored training: \n%s', self._training)
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, self._training.context)
@@ -239,13 +251,15 @@ class TrainerLogicGeneric(ABC):
     async def begin_training(self, organization: str, project: str, training_config: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
 
-        The training slot is taken before anything is set up, so a refused training leaves the
-        previous training folders in place.
+        The hyperparameters are resolved and the training slot is taken before anything is set up, so a refused
+        training leaves the previous training folders in place.
 
-        :raise TrainingRefusedError: if a training is active or a sibling node holds the training slot.
+        :raise TrainingRefusedError: if a training is active, a hyperparameter does not fit its declaration or a
+            sibling node holds the training slot.
         """
         if self.training_active:
             raise TrainingRefusedError(f'training {self.training.id} is still active')
+        training_config = self._with_resolved_hyperparameters(training_config)
         context = Context(organization=organization, project=project)
         self.training_slot.claim(self._slot_claim(context, training_config.get('training_number')))
         try:
@@ -253,7 +267,26 @@ class TrainerLogicGeneric(ABC):
         except Exception:
             self.training_slot.release()
             raise
+        self.errors.reset_all()
         self._begin_training_task()
+
+    def _with_resolved_hyperparameters(self, training_config: dict) -> dict:
+        """Returns ``training_config`` with its hyperparameters resolved against the declared ones.
+
+        A config without a hyperparameters dict is returned as it is, for ``Training.generate_training`` to reject.
+
+        :raise TrainingRefusedError: if a hyperparameter does not fit its declaration.
+        """
+        declared = self.provided_hyperparameters
+        received = training_config.get('hyperparameters')
+        if not declared or not isinstance(received, dict):
+            return training_config
+        try:
+            resolved = resolve(declared, received)
+        except CriticalError as e:
+            raise TrainingRefusedError(str(e)) from e
+        warn_about_undeclared(declared, received)
+        return {**training_config, 'hyperparameters': resolved}
 
     def _begin_training_task(self) -> None:
         # NOTE: Task object is used to potentially cancel the task
@@ -278,7 +311,6 @@ class TrainerLogicGeneric(ABC):
         """Called on `begin_training` event from the Learning Loop. 
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
-        self.errors.reset_all()
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
@@ -377,13 +409,8 @@ class TrainerLogicGeneric(ABC):
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        """Resolves the hyperparameters, then downloads images to the images_folder and saves annotations to
-        training.data.image_data.
-
-        :raise CriticalError: If a hyperparameter does not fit its declaration.
+        """Downloads images to the images_folder and saves annotations to training.data.image_data.
         """
-        if self.provided_hyperparameters:
-            self.training.hyperparameters = resolve(self.provided_hyperparameters, self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)

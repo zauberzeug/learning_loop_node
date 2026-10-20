@@ -12,7 +12,6 @@ from types import SimpleNamespace
 import pytest
 
 from ...data_classes import PretrainedModel, TrainingStateData
-from ...globals import GLOBALS
 from ...helpers.misc import ensure_socket_response
 from ...trainer.exceptions import TrainingRefusedError, TrainingSlotTakenError
 from ...trainer.io_helpers import LastTrainingIO
@@ -274,22 +273,6 @@ def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
 
 
 TRAINING_CONFIG = {'model_variant': 'small', 'categories': [], 'training_number': 7, 'hyperparameters': {}}
-
-
-@pytest.fixture
-def data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setattr(GLOBALS, 'data_folder', str(tmp_path / 'data'))
-    return tmp_path / 'data'
-
-
-@pytest.fixture
-def started(monkeypatch: pytest.MonkeyPatch) -> list[TrainerLogicGeneric]:
-    trainers: list[TrainerLogicGeneric] = []
-
-    def record(trainer: TrainerLogicGeneric) -> None:
-        trainers.append(trainer)
-    monkeypatch.setattr(TrainerLogicGeneric, '_begin_training_task', record)
-    return trainers
 
 
 def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_path: Path):
