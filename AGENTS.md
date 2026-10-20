@@ -41,8 +41,9 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. A trainer may
   declare the hyperparameters it accepts (`provided_hyperparameters`); `trainer/hyperparameters.py`
-  resolves the sent ones against that declaration when a training begins and again when one is
-  resumed, so a value that does not fit refuses the training instead of failing it. A concrete trainer
+  checks the declaration once, when the `TrainerNode` is built, and resolves the sent values
+  against it when a training begins and again when one is resumed, so a value that does not fit
+  refuses the training instead of failing it. A concrete trainer
   implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
   `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use

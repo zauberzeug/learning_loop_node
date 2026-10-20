@@ -11,8 +11,9 @@ from ...data_classes import Hyperparameter, TrainingStatus
 from ...enums import TrainerState
 from ...trainer.batch_size import REQUESTED_BATCH_SIZE
 from ...trainer.exceptions import CriticalError, TrainingRefusedError
-from ...trainer.hyperparameters import resolve, warn_about_undeclared
+from ...trainer.hyperparameters import check_declaration, resolve, warn_about_undeclared
 from ...trainer.io_helpers import LastTrainingIO
+from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import AlwaysFreeSlot
 from .test_training_slot import TRAINING_CONFIG, _Trainer
 
@@ -89,10 +90,19 @@ def test_an_invalid_value_is_a_critical_error(received):
     Hyperparameter(name='h', type='int', default='many'),
     Hyperparameter(name='h', type='str', default='x', choices=['a', 'b']),
 ])
-@pytest.mark.parametrize('received', [{}, {'h': '5'}])
-def test_a_declaration_that_contradicts_itself_is_a_critical_error(declaration, received):
-    with pytest.raises(CriticalError, match="the trainer declares hyperparameter 'h'"):
-        resolve([declaration], received)
+def test_a_declaration_that_contradicts_itself_is_rejected(declaration):
+    with pytest.raises(ValueError, match="the trainer declares hyperparameter 'h'"):
+        check_declaration([declaration])
+
+
+def test_a_name_declared_twice_is_rejected():
+    with pytest.raises(ValueError, match='twice: epochs'):
+        check_declaration([*DECLARED, Hyperparameter(name='epochs', type='int', default=1)])
+
+
+def test_a_consistent_declaration_passes():
+    check_declaration(DECLARED)
+    check_declaration([Hyperparameter(name='learning_rate', type='float', default=None, minimum=0)])
 
 
 def test_a_default_of_none_is_left_to_the_trainer():
@@ -190,3 +200,15 @@ async def test_a_resumed_training_that_does_not_fit_is_cleaned_up_with_an_error(
     assert await trainer.try_continue_run_if_incomplete()
     assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert 'learning_rate' in trainer.errors.errors['prepare']
+
+
+class _BrokenTrainer(_Trainer):
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return [Hyperparameter(name='epochs', type='int', default=0, minimum=1)]
+
+
+def test_a_trainer_node_is_not_built_around_a_declaration_that_contradicts_itself():
+    with pytest.raises(ValueError, match="hyperparameter 'epochs'"):
+        TrainerNode(name='trainer', trainer_logic=_BrokenTrainer('mocked', training_slot=AlwaysFreeSlot()))

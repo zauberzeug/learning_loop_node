@@ -11,6 +11,7 @@ from ..data_classes import SocketResponse
 from ..enums import TrainerState
 from ..node import Node
 from .exceptions import TrainingRefusedError
+from .hyperparameters import check_declaration
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls
 from .trainer_logic_generic import TrainerLogicGeneric
@@ -19,6 +20,8 @@ from .trainer_logic_generic import TrainerLogicGeneric
 class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogicGeneric, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
+        """:raise ValueError: if the trainer declares hyperparameters that contradict themselves."""
+        check_declaration(trainer_logic.provided_hyperparameters)
         super().__init__(name, uuid=uuid, node_type='trainer')
         trainer_logic._node = self
         self.trainer_logic = trainer_logic

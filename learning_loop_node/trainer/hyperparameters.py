@@ -27,21 +27,36 @@ BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'on': True,
 def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> dict[str, Any]:
     """Coerce and check ``received`` against ``declared`` and fill in the declared defaults.
 
-    Names the trainer does not declare are kept unchanged: old project configurations still carry them,
-    and a resolved training carries the values its trainer reported. Resolving twice gives the same result.
+    ``declared`` is trusted to have passed :func:`check_declaration`. Names the trainer does not declare are kept
+    unchanged: old project configurations still carry them, and a resolved training carries the values its trainer
+    reported. Resolving twice gives the same result.
 
-    :raises CriticalError: If a value cannot be coerced to its type, is out of range or not one of its choices,
-        or if a declaration contradicts itself.
+    :raises CriticalError: If a value cannot be coerced to its type, is out of range or not one of its choices.
     """
     resolved = dict(received)
     for hyperparameter in declared:
-        default = _checked_default(hyperparameter)
         value = received.get(hyperparameter.name)
         if value is None or (value == '' and (hyperparameter.type != 'str' or hyperparameter.choices)):
-            resolved[hyperparameter.name] = default
+            resolved[hyperparameter.name] = (None if hyperparameter.default is None
+                                             else _coerce(hyperparameter, hyperparameter.default))
         else:
             resolved[hyperparameter.name] = _check(hyperparameter, _coerce(hyperparameter, value))
     return resolved
+
+
+def check_declaration(declared: Sequence[Hyperparameter]) -> None:
+    """Check that ``declared`` is consistent, so that :func:`resolve` can rely on it.
+
+    A trainer's declaration does not change while it runs, so the node checks it once, when it is built. A default of
+    ``None`` stands for "the trainer decides" and is not checked.
+
+    :raises ValueError: If a name is declared twice, a hyperparameter contradicts itself or its default does not fit.
+    """
+    names = [h.name for h in declared]
+    if duplicates := sorted({name for name in names if names.count(name) > 1}):
+        raise ValueError(f'the trainer declares these hyperparameters twice: {", ".join(duplicates)}')
+    for hyperparameter in declared:
+        _check_one_declaration(hyperparameter)
 
 
 def warn_about_undeclared(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> None:
@@ -51,13 +66,9 @@ def warn_about_undeclared(declared: Sequence[Hyperparameter], received: Mapping[
         logger.warning('these hyperparameters are not declared by this trainer: %s', ', '.join(unknown))
 
 
-def _checked_default(hyperparameter: Hyperparameter) -> Any:
-    """Checks the declaration and returns its default, coerced like a sent value.
-
-    A default of ``None`` stands for "the trainer decides" and is kept.
-    """
-    def contradiction(reason: str) -> CriticalError:
-        return CriticalError(f"the trainer declares hyperparameter '{hyperparameter.name}' {reason}")
+def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
+    def contradiction(reason: str) -> ValueError:
+        return ValueError(f"the trainer declares hyperparameter '{hyperparameter.name}' {reason}")
 
     if hyperparameter.type not in ('int', 'float', 'bool', 'str'):
         raise contradiction(f'with the unknown type {hyperparameter.type!r}')
@@ -69,12 +80,11 @@ def _checked_default(hyperparameter: Hyperparameter) -> Any:
     if (hyperparameter.minimum is not None and hyperparameter.maximum is not None and
             hyperparameter.minimum > hyperparameter.maximum):
         raise contradiction('with a minimum above its maximum')
-    if hyperparameter.default is None:
-        return None
-    try:
-        return _check(hyperparameter, _coerce(hyperparameter, hyperparameter.default))
-    except CriticalError as e:
-        raise contradiction(f'with a default that does not fit: {e}') from None
+    if hyperparameter.default is not None:
+        try:
+            _check(hyperparameter, _coerce(hyperparameter, hyperparameter.default))
+        except CriticalError as e:
+            raise contradiction(f'with a default that does not fit: {e}') from None
 
 
 def _coerce(hyperparameter: Hyperparameter, value: Any) -> Any:
