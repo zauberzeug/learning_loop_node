@@ -29,7 +29,8 @@ def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> 
 
     ``declared`` is trusted to have passed :func:`check_declaration`. Names the trainer does not declare are kept
     unchanged: old project configurations still carry them, and a resolved training carries the values its trainer
-    reported. Resolving twice gives the same result.
+    reported. An unset hyperparameter with a default of ``None`` is left out, so the trainer's own fallback applies.
+    Resolving twice gives the same result.
 
     :raises CriticalError: If a value cannot be coerced to its type, is out of range or not one of its choices.
     """
@@ -37,8 +38,10 @@ def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> 
     for hyperparameter in declared:
         value = received.get(hyperparameter.name)
         if value is None or (value == '' and (hyperparameter.type != 'str' or hyperparameter.choices)):
-            resolved[hyperparameter.name] = (None if hyperparameter.default is None
-                                             else _coerce(hyperparameter, hyperparameter.default))
+            if hyperparameter.default is None:
+                resolved.pop(hyperparameter.name, None)
+            else:
+                resolved[hyperparameter.name] = _coerce(hyperparameter, hyperparameter.default)
         else:
             resolved[hyperparameter.name] = _check(hyperparameter, _coerce(hyperparameter, value))
     return resolved
@@ -77,6 +80,9 @@ def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
         raise contradiction(f'as {hyperparameter.type} with a minimum or maximum')
     if hyperparameter.type != 'str' and hyperparameter.choices:
         raise contradiction(f'as {hyperparameter.type} with choices')
+    for bound in (hyperparameter.minimum, hyperparameter.maximum):
+        if bound is not None and (isinstance(bound, bool) or not isinstance(bound, (int, float))):
+            raise contradiction(f'with the bound {bound!r}, which is not a number')
     if (hyperparameter.minimum is not None and hyperparameter.maximum is not None and
             hyperparameter.minimum > hyperparameter.maximum):
         raise contradiction('with a minimum above its maximum')
@@ -89,16 +95,18 @@ def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
 
 def _coerce(hyperparameter: Hyperparameter, value: Any) -> Any:
     if hyperparameter.type == 'str':
-        if not isinstance(value, (str, int, float)):
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
             raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be text, got {value!r}")
         return str(value)
     if hyperparameter.type == 'bool':
         if isinstance(value, bool):
             return value
-        if isinstance(value, (int, float)) and math.isfinite(value):
-            return value != 0
         if isinstance(value, str) and value.strip().lower() in BOOL_STRINGS:
             return BOOL_STRINGS[value.strip().lower()]
+        with contextlib.suppress(TypeError, ValueError):
+            number = float(value)
+            if math.isfinite(number):
+                return number != 0
         raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be true or false, got {value!r}")
     if isinstance(value, bool):
         raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be a number, got {value!r}")

@@ -53,6 +53,8 @@ def test_sent_values_are_coerced_to_their_declared_type():
 def test_a_number_is_accepted_for_a_bool():
     assert resolve(DECLARED, {'use_amp': 0.5})['use_amp'] is True
     assert resolve(DECLARED, {'use_amp': 0})['use_amp'] is False
+    assert resolve(DECLARED, {'use_amp': '0.5'})['use_amp'] is True
+    assert resolve(DECLARED, {'use_amp': '0.0'})['use_amp'] is False
 
 
 def test_a_whole_float_is_accepted_for_an_int():
@@ -74,6 +76,8 @@ def test_a_large_int_is_kept_exact():
     {'use_amp': 'maybe'},
     {'use_amp': float('nan')},
     {'optimizer': 'rmsprop'},
+    {'use_amp': 'nan'},
+    {'comment': True},
     {'comment': {'a': 1}},
     {'comment': [1, 2]},
 ])
@@ -88,6 +92,8 @@ def test_an_invalid_value_is_a_critical_error(received: dict[str, Any]):
     Hyperparameter(name='h', type='bool', default=False, maximum=1),
     Hyperparameter(name='h', type='int', default=1, choices=['1']),
     Hyperparameter(name='h', type='int', default=5, minimum=10, maximum=1),
+    Hyperparameter(name='h', type='int', default=None, minimum='1'),  # type: ignore[arg-type]
+    Hyperparameter(name='h', type='float', default=None, maximum=True),
     Hyperparameter(name='h', type='int', default=0, minimum=1),
     Hyperparameter(name='h', type='int', default='many'),
     Hyperparameter(name='h', type='str', default='x', choices=['a', 'b']),
@@ -109,7 +115,9 @@ def test_a_consistent_declaration_passes():
 
 def test_a_default_of_none_is_left_to_the_trainer():
     declared = [Hyperparameter(name='learning_rate', type='float', default=None, minimum=0)]
-    assert resolve(declared, {}) == {'learning_rate': None}
+    assert resolve(declared, {}) == {}
+    assert resolve(declared, {'learning_rate': None}) == {}
+    assert resolve(declared, {'learning_rate': ''}) == {}
 
 
 def test_undeclared_names_are_kept():
