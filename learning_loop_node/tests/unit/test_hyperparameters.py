@@ -12,7 +12,7 @@ from ...data_classes import Hyperparameter, TrainingStatus
 from ...enums import TrainerState
 from ...trainer.batch_size import REQUESTED_BATCH_SIZE
 from ...trainer.exceptions import CriticalError, TrainingRefusedError
-from ...trainer.hyperparameters import check_declaration, resolve, warn_about_undeclared
+from ...trainer.hyperparameters import check_declaration, parse_pairs, resolve, warn_about_undeclared
 from ...trainer.io_helpers import LastTrainingIO
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
@@ -97,6 +97,8 @@ def test_an_invalid_value_is_a_critical_error(received: dict[str, Any]):
     Hyperparameter(name='h', type='int', default=0, minimum=1),
     Hyperparameter(name='h', type='int', default='many'),
     Hyperparameter(name='h', type='str', default='x', choices=['a', 'b']),
+    Hyperparameter(name='h', type='pairs', default='', choices=['a:b']),
+    Hyperparameter(name='h', type='pairs', default='a'),
 ])
 def test_a_declaration_that_contradicts_itself_is_rejected(declaration: Hyperparameter):
     with pytest.raises(ValueError, match="the trainer declares hyperparameter 'h'"):
@@ -129,6 +131,27 @@ def test_undeclared_names_are_kept():
 def test_resolving_twice_changes_nothing():
     once = resolve(DECLARED, {'epochs': '7', 'use_amp': 0.5, 'optimizer': '', 'trainer_version': '1.0'})
     assert resolve(DECLARED, once) == once
+
+
+PAIRS = [Hyperparameter(name='flip_label_pairs', type='pairs', default='')]
+
+
+def test_pairs_are_written_the_same_way_whatever_spacing_they_were_sent_with():
+    assert resolve(PAIRS, {'flip_label_pairs': ' a : b , c:d,'})['flip_label_pairs'] == 'a:b,c:d'
+    assert parse_pairs('a:b,c:d') == [('a', 'b'), ('c', 'd')]
+
+
+def test_no_pairs_is_a_value_of_its_own():
+    declared = [Hyperparameter(name='flip_label_pairs', type='pairs', default='a:b')]
+    assert resolve(declared, {'flip_label_pairs': ''})['flip_label_pairs'] == ''
+    assert resolve(declared, {})['flip_label_pairs'] == 'a:b'
+    assert parse_pairs('') == []
+
+
+@pytest.mark.parametrize('value', ['a', 'a:b:c', ':b', 'a:', 'a:b,c', 7, True])
+def test_a_malformed_pair_is_a_critical_error(value: Any):
+    with pytest.raises(CriticalError, match='flip_label_pairs'):
+        resolve(PAIRS, {'flip_label_pairs': value})
 
 
 def test_only_names_neither_the_trainer_nor_the_library_knows_are_warned_about(caplog: pytest.LogCaptureFixture):

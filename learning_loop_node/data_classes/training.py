@@ -27,11 +27,12 @@ class Hyperparameter:
     """One hyperparameter a trainer accepts, reported to the loop so it can offer it in the project settings.
 
     Plain data only, so it reaches the loop as it is. ``minimum`` and ``maximum`` apply to ``int`` and ``float``,
-    ``choices`` to ``str``. ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
+    ``choices`` to ``str``. A ``pairs`` value is text of the form ``"key:value,..."``, which ``parse_pairs`` reads.
+    ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
     Whether a value can be changed when a training is started is the project's choice, not the trainer's.
     """
     name: str
-    type: Literal['int', 'float', 'bool', 'str']
+    type: Literal['int', 'float', 'bool', 'str', 'pairs']
     default: Any
     minimum: float | None = None
     maximum: float | None = None

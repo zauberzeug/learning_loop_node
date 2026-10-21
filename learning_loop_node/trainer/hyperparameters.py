@@ -23,6 +23,9 @@ LIBRARY_NAMES = (REQUESTED_BATCH_SIZE,)
 BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'on': True,
                 'false': False, '0': False, 'no': False, 'off': False}
 
+TEXT_TYPES = ('str', 'pairs')
+"""Types for which an empty value is a value of its own rather than an unset one."""
+
 
 def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> dict[str, Any]:
     """Coerce and check ``received`` against ``declared`` and fill in the declared defaults.
@@ -37,7 +40,7 @@ def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> 
     resolved = dict(received)
     for hyperparameter in declared:
         value = received.get(hyperparameter.name)
-        if value is None or (value == '' and (hyperparameter.type != 'str' or hyperparameter.choices)):
+        if value is None or (value == '' and (hyperparameter.type not in TEXT_TYPES or hyperparameter.choices)):
             if hyperparameter.default is None:
                 resolved.pop(hyperparameter.name, None)
             else:
@@ -62,6 +65,24 @@ def check_declaration(declared: Sequence[Hyperparameter]) -> None:
         _check_one_declaration(hyperparameter)
 
 
+def parse_pairs(text: str) -> list[tuple[str, str]]:
+    """The ``key:value`` items of a ``pairs`` hyperparameter such as ``"uuid:uuid,uuid:uuid"``.
+
+    Empty items and the spaces around keys and values are skipped, so ``''`` holds no pairs.
+
+    :raises ValueError: If an item is not a key and a value separated by a single colon.
+    """
+    pairs = []
+    for item in (i.strip() for i in text.split(',')):
+        if not item:
+            continue
+        key, _, value = (part.strip() for part in item.partition(':'))
+        if not key or not value or ':' in value:
+            raise ValueError(f'"{item}" is not of the form "key:value"')
+        pairs.append((key, value))
+    return pairs
+
+
 def warn_about_undeclared(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> None:
     """Log the names in ``received`` that neither the trainer nor the library knows; they are not rejected."""
     unknown = sorted(set(received) - {h.name for h in declared} - set(LIBRARY_NAMES))
@@ -73,7 +94,7 @@ def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
     def contradiction(reason: str) -> ValueError:
         return ValueError(f"the trainer declares hyperparameter '{hyperparameter.name}' {reason}")
 
-    if hyperparameter.type not in ('int', 'float', 'bool', 'str'):
+    if hyperparameter.type not in ('int', 'float', 'bool', 'str', 'pairs'):
         raise contradiction(f'with the unknown type {hyperparameter.type!r}')
     if hyperparameter.type not in ('int', 'float') and (hyperparameter.minimum is not None or
                                                         hyperparameter.maximum is not None):
@@ -94,6 +115,13 @@ def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
 
 
 def _coerce(hyperparameter: Hyperparameter, value: Any) -> Any:
+    if hyperparameter.type == 'pairs':
+        if not isinstance(value, str):
+            raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be text of key:value pairs, got {value!r}")
+        try:
+            return ','.join(f'{key}:{item}' for key, item in parse_pairs(value))
+        except ValueError as e:
+            raise CriticalError(f"hyperparameter '{hyperparameter.name}': {e}") from None
     if hyperparameter.type == 'str':
         if isinstance(value, bool) or not isinstance(value, (str, int, float)):
             raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be text, got {value!r}")
