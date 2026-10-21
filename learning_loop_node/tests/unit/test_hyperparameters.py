@@ -174,6 +174,25 @@ async def test_begin_training_resolves_the_hyperparameters(data_folder: Path, st
     assert trainer.training.hyperparameters == {**resolve(DECLARED, {}), 'epochs': 7}
 
 
+async def test_the_defaults_filled_in_are_not_reported_back(data_folder: Path, started: list[TrainerLogicGeneric]):
+    trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
+    await trainer.begin_training('zauberzeug', 'demo', _config({'epochs': '7', 'optimizer': 'sgd'}))
+    trainer.training.hyperparameters.update(batch_size=16, learning_rate=0.5)
+    assert trainer.hyperparameters_for_state_sync == {'epochs': 7, 'optimizer': 'sgd', 'batch_size': 16,
+                                                      'learning_rate': 0.5}
+
+
+async def test_the_defaults_filled_in_stay_unreported_after_a_restart(data_folder: Path,
+                                                                     started: list[TrainerLogicGeneric]):
+    first = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
+    await first.begin_training('zauberzeug', 'demo', _config({'epochs': '7'}))
+    first.training.training_state = TrainerState.TrainingRunning
+    first.last_training_io.save(first.training)
+    trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
+    assert await trainer.try_continue_run_if_incomplete()
+    assert trainer.hyperparameters_for_state_sync == {'epochs': 7}
+
+
 async def test_begin_training_is_refused_for_a_value_that_does_not_fit(data_folder: Path,
                                                                        started: list[TrainerLogicGeneric]):
     old_training = data_folder / 'zauberzeug' / 'demo' / 'trainings' / 'old'
@@ -199,6 +218,7 @@ async def test_a_resumed_training_is_resolved_again(data_folder: Path, started: 
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
     assert await trainer.try_continue_run_if_incomplete()
     assert trainer.training.hyperparameters == {**resolve(DECLARED, {}), 'epochs': 7, 'trainer_version': '1.0'}
+    assert trainer.hyperparameters_for_state_sync == {'epochs': 7, 'trainer_version': '1.0'}
     assert trainer.training.training_state == TrainerState.TrainingRunning
 
 

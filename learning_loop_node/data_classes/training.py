@@ -77,6 +77,8 @@ class Training():
 
     categories: List[Category]
     hyperparameters: Dict[str, Any]
+    # the declared defaults filled into `hyperparameters` for what the loop did not send; not reported back
+    hyperparameter_defaults: Dict[str, Any] = field(default_factory=dict)
 
     training_number: int
     training_state: str
