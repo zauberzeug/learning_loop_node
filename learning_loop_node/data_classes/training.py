@@ -22,6 +22,9 @@ class PretrainedModel():
     description: str
 
 
+HyperparameterType = Literal['int', 'float', 'bool', 'str', 'pairs']
+
+
 @dataclass(**KWONLY_SLOTS)
 class Hyperparameter:
     """One hyperparameter a trainer accepts, reported to the loop so it can offer it in the project settings.
@@ -32,7 +35,7 @@ class Hyperparameter:
     Whether a value can be changed when a training is started is the project's choice, not the trainer's.
     """
     name: str
-    type: Literal['int', 'float', 'bool', 'str', 'pairs']
+    type: HyperparameterType
     default: Any
     minimum: float | None = None
     maximum: float | None = None

@@ -1,7 +1,6 @@
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -13,11 +12,10 @@ from ...enums import TrainerState
 from ...trainer.batch_size import REQUESTED_BATCH_SIZE
 from ...trainer.exceptions import CriticalError, TrainingRefusedError
 from ...trainer.hyperparameters import check_declaration, parse_pairs, resolve, warn_about_undeclared
-from ...trainer.io_helpers import LastTrainingIO
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import AlwaysFreeSlot
-from .test_training_slot import TRAINING_CONFIG, _Trainer
+from .test_training_slot import TRAINING_CONFIG, _Trainer, _with_node
 
 # pylint: disable=protected-access,redefined-outer-name
 
@@ -241,12 +239,6 @@ async def _saved_by_an_older_trainer(hyperparameters: dict[str, Any]) -> None:
     await trainer.begin_training('zauberzeug', 'demo', _config(hyperparameters))
     trainer.training.training_state = TrainerState.TrainingRunning
     trainer.last_training_io.save(trainer.training)
-
-
-def _with_node(trainer: _Trainer) -> _Trainer:
-    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
-    trainer._last_training_io = LastTrainingIO('node-uuid')
-    return trainer
 
 
 def _config(hyperparameters: dict[str, Any]) -> dict[str, Any]:

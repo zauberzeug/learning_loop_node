@@ -8,6 +8,7 @@ import sys
 import time
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TypeVar
 
 import pytest
 
@@ -270,10 +271,17 @@ class _Trainer(TrainerLogicGeneric):
         pass
 
 
-def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
-    trainer = _Trainer('mocked', training_slot=slot)
+_T = TypeVar('_T', bound=TrainerLogicGeneric)
+
+
+def _with_node(trainer: _T) -> _T:
     trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
+    trainer._last_training_io = LastTrainingIO('node-uuid')
     return trainer
+
+
+def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
+    return _with_node(_Trainer('mocked', training_slot=slot))
 
 
 TRAINING_CONFIG = {'model_variant': 'small', 'categories': [], 'training_number': 7, 'hyperparameters': {}}
@@ -362,9 +370,7 @@ class _TrainerFailingCleanup(_Trainer):
 
 async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_path: Path, data_folder: Path,
                                                                           started: list):
-    trainer = _TrainerFailingCleanup('mocked', training_slot=FileTrainingSlot(lock_path))
-    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
-    trainer._last_training_io = LastTrainingIO('node-uuid')
+    trainer = _with_node(_TrainerFailingCleanup('mocked', training_slot=FileTrainingSlot(lock_path)))
     await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
     trainer.training.training_state = 'ready_for_cleanup'
 
@@ -379,7 +385,6 @@ async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_pa
 async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path, data_folder: Path,
                                                                                    started: list):
     trainer = _trainer_with(FileTrainingSlot(lock_path))
-    trainer._last_training_io = LastTrainingIO('node-uuid')
     await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
     trainer.training.training_state = 'ready_for_cleanup'
     trainer.training_slot.release()  # a restarted node has its training back, but not the slot

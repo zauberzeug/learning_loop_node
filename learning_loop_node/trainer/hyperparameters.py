@@ -9,9 +9,10 @@ import contextlib
 import logging
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, get_args
 
 from ..data_classes import Hyperparameter
+from ..data_classes.training import HyperparameterType
 from .batch_size import REQUESTED_BATCH_SIZE
 from .exceptions import CriticalError
 
@@ -22,9 +23,6 @@ LIBRARY_NAMES = (REQUESTED_BATCH_SIZE,)
 
 BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'on': True,
                 'false': False, '0': False, 'no': False, 'off': False}
-
-TEXT_TYPES = ('str', 'pairs')
-"""Types for which an empty value is a value of its own rather than an unset one."""
 
 
 def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> dict[str, Any]:
@@ -40,7 +38,7 @@ def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> 
     resolved = dict(received)
     for hyperparameter in declared:
         value = received.get(hyperparameter.name)
-        if value is None or (value == '' and (hyperparameter.type not in TEXT_TYPES or hyperparameter.choices)):
+        if _is_unset(hyperparameter, value):
             if hyperparameter.default is None:
                 resolved.pop(hyperparameter.name, None)
             else:
@@ -94,7 +92,7 @@ def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
     def contradiction(reason: str) -> ValueError:
         return ValueError(f"the trainer declares hyperparameter '{hyperparameter.name}' {reason}")
 
-    if hyperparameter.type not in ('int', 'float', 'bool', 'str', 'pairs'):
+    if hyperparameter.type not in get_args(HyperparameterType):
         raise contradiction(f'with the unknown type {hyperparameter.type!r}')
     if hyperparameter.type not in ('int', 'float') and (hyperparameter.minimum is not None or
                                                         hyperparameter.maximum is not None):
@@ -114,54 +112,68 @@ def _check_one_declaration(hyperparameter: Hyperparameter) -> None:
             raise contradiction(f'with a default that does not fit: {e}') from None
 
 
+def _is_unset(hyperparameter: Hyperparameter, value: Any) -> bool:
+    """``None``, or the empty value the loop sends for a field left blank, unless it fits as a value of its own."""
+    if value is None:
+        return True
+    if value != '':
+        return False
+    try:
+        _check(hyperparameter, _coerce(hyperparameter, value))
+    except CriticalError:
+        return True
+    return False
+
+
+def _invalid(hyperparameter: Hyperparameter, requirement: str, value: Any) -> CriticalError:
+    return CriticalError(f"hyperparameter '{hyperparameter.name}' {requirement}, got {value!r}")
+
+
 def _coerce(hyperparameter: Hyperparameter, value: Any) -> Any:
     if hyperparameter.type == 'pairs':
         if not isinstance(value, str):
-            raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be text of key:value pairs, got {value!r}")
+            raise _invalid(hyperparameter, 'must be text of key:value pairs', value)
         try:
             return ','.join(f'{key}:{item}' for key, item in parse_pairs(value))
         except ValueError as e:
             raise CriticalError(f"hyperparameter '{hyperparameter.name}': {e}") from None
     if hyperparameter.type == 'str':
         if isinstance(value, bool) or not isinstance(value, (str, int, float)):
-            raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be text, got {value!r}")
+            raise _invalid(hyperparameter, 'must be text', value)
         return str(value)
     if hyperparameter.type == 'bool':
         if isinstance(value, bool):
             return value
-        if isinstance(value, str) and value.strip().lower() in BOOL_STRINGS:
-            return BOOL_STRINGS[value.strip().lower()]
+        if isinstance(value, str) and (word := value.strip().lower()) in BOOL_STRINGS:
+            return BOOL_STRINGS[word]
         with contextlib.suppress(TypeError, ValueError):
             number = float(value)
             if math.isfinite(number):
                 return number != 0
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be true or false, got {value!r}")
+        raise _invalid(hyperparameter, 'must be true or false', value)
     if isinstance(value, bool):
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be a number, got {value!r}")
+        raise _invalid(hyperparameter, 'must be a number', value)
     if hyperparameter.type == 'int' and isinstance(value, (int, str)):
         with contextlib.suppress(ValueError):
             return int(value)
     try:
         number = float(value)
     except (TypeError, ValueError):
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be a number, got {value!r}") from None
+        raise _invalid(hyperparameter, 'must be a number', value) from None
     if not math.isfinite(number):
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be finite, got {value!r}")
+        raise _invalid(hyperparameter, 'must be finite', value)
     if hyperparameter.type == 'float':
         return number
     if not number.is_integer():
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be a whole number, got {value!r}")
+        raise _invalid(hyperparameter, 'must be a whole number', value)
     return int(number)
 
 
 def _check(hyperparameter: Hyperparameter, value: Any) -> Any:
     if hyperparameter.minimum is not None and value < hyperparameter.minimum:
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be at least {hyperparameter.minimum}, "
-                            f'got {value}')
+        raise _invalid(hyperparameter, f'must be at least {hyperparameter.minimum}', value)
     if hyperparameter.maximum is not None and value > hyperparameter.maximum:
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be at most {hyperparameter.maximum}, "
-                            f'got {value}')
+        raise _invalid(hyperparameter, f'must be at most {hyperparameter.maximum}', value)
     if hyperparameter.choices and value not in hyperparameter.choices:
-        raise CriticalError(f"hyperparameter '{hyperparameter.name}' must be one of {', '.join(hyperparameter.choices)}, "
-                            f'got {value!r}')
+        raise _invalid(hyperparameter, f"must be one of {', '.join(hyperparameter.choices)}", value)
     return value

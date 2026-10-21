@@ -215,7 +215,6 @@ class TrainerLogicGeneric(ABC):
         """Tries to continue a training if the last training was not finished.
         """
         if not self.training_active and self.last_training_io.exists():
-            self.errors.reset_all()
             self._init_from_last_training()
             logger.info('found incomplete training, continuing now.')
             self._begin_training_task()
@@ -259,7 +258,6 @@ class TrainerLogicGeneric(ABC):
         except Exception:
             self.training_slot.release()
             raise
-        self.errors.reset_all()
         self._begin_training_task()
 
     def _with_resolved_hyperparameters(self, training_config: dict) -> dict:
@@ -303,6 +301,7 @@ class TrainerLogicGeneric(ABC):
         """Called on `begin_training` event from the Learning Loop. 
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
+        self.errors.reset_all()
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
