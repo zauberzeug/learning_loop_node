@@ -204,13 +204,16 @@ async def test_a_resumed_training_is_resolved_again(data_folder: Path, started: 
     assert trainer.training.training_state == TrainerState.TrainingRunning
 
 
-async def test_a_resumed_training_that_does_not_fit_is_cleaned_up_with_an_error(data_folder: Path,
-                                                                                started: list[TrainerLogicGeneric]):
+async def test_a_resumed_training_that_does_not_fit_continues_with_its_saved_values(
+        data_folder: Path, started: list[TrainerLogicGeneric], caplog: pytest.LogCaptureFixture):
     await _saved_by_an_older_trainer({'learning_rate': 1.5})
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
-    assert await trainer.try_continue_run_if_incomplete()
-    assert trainer.training.training_state == TrainerState.ReadyForCleanup
-    assert 'learning_rate' in trainer.errors.errors['prepare']
+    with caplog.at_level(logging.WARNING):
+        assert await trainer.try_continue_run_if_incomplete()
+    assert trainer.training.hyperparameters == {'learning_rate': 1.5}
+    assert trainer.training.training_state == TrainerState.TrainingRunning
+    assert not trainer.errors.errors
+    assert 'learning_rate' in caplog.text
 
 
 def test_a_trainer_node_is_not_built_around_a_declaration_that_contradicts_itself():
