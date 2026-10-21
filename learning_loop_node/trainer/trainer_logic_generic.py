@@ -230,14 +230,12 @@ class TrainerLogicGeneric(ABC):
         """
         self._training = self.last_training_io.load()
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
-        declared = self.provided_hyperparameters
-        if declared:
-            try:
-                self._training.hyperparameters = resolve(declared, self._training.hyperparameters)
-            except CriticalError as e:
-                logger.error('restored training does not fit the declared hyperparameters: %s', e)
-                self.errors.set('prepare', str(e))
-                self._training.training_state = TrainerState.ReadyForCleanup
+        try:
+            self._training.hyperparameters = resolve(self.provided_hyperparameters, self._training.hyperparameters)
+        except CriticalError as e:
+            logger.error('restored training does not fit the declared hyperparameters: %s', e)
+            self.errors.set('prepare', str(e))
+            self._training.training_state = TrainerState.ReadyForCleanup
         logger.info('restored training: \n%s', self._training)
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, self._training.context)
