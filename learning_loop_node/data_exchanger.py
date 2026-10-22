@@ -14,7 +14,7 @@ import aiofiles  # type: ignore
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image, is_valid_uuid4
 from .loop_communication import LoopCommunicator
-from .trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
+from .trainer.exceptions import CriticalError, ModelUploadFailedError
 
 logger = logging.getLogger(__name__)
 
@@ -173,12 +173,11 @@ class DataExchanger():
         logging.info('Downloaded model %s(%s) to %s.', model_uuid, model_format, target_folder)
         return created_files
 
-    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
+    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str | None:
         """Used by the trainers. Function returns the new model uuid to use for detection.
-        A loop that already stores the model in this format answers 409 and names the model's uuid there.
+        A loop that already stores the model in this format answers 409 and should name the model's uuid there.
 
-        :return: The new model uuid.
-        :raise ModelAlreadyUploadedError: If the loop already stores the model in this format but names no valid uuid.
+        :return: The new model uuid, or None if the loop already stores the model in this format but names no valid uuid.
         :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
         :raise ModelUploadFailedError: If the loop could not store the model, e.g. on a server error.
         """
@@ -190,8 +189,9 @@ class DataExchanger():
             except (ValueError, KeyError, TypeError):  # loops before zauberzeug/loop#445 name no id
                 stored_model_id = None
             if not is_valid_uuid4(stored_model_id):
-                raise ModelAlreadyUploadedError(
-                    f'The model of training {training_number} is already uploaded in format {mformat}')
+                logger.warning('The loop already stores the model of training %s in format %s, but names no id',
+                               training_number, mformat)
+                return None
             logger.info('The loop already stores model %s of training %s in format %s',
                         stored_model_id, training_number, mformat)
             return stored_model_id

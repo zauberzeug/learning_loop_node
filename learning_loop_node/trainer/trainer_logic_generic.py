@@ -26,22 +26,22 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, ModelAlreadyUploadedError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
-STATE_RETRY_DELAY = 5  # seconds before the first retry of a failed state, doubled for every further one
-MAX_STATE_RETRY_DELAY = 300  # seconds
+BASE_RETRY_DELAY = 5  # seconds before the first retry of a failed state
+MAX_RETRY_DELAY = 300  # seconds
 
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
 
 
 def _retry_delay(failures: int) -> float:
     """The wait before the next attempt of a state that has failed `failures` times in a row."""
-    return min(STATE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_STATE_RETRY_DELAY)
+    return min(BASE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_RETRY_DELAY)
 
 
 class TrainerLogicGeneric(ABC):
@@ -331,9 +331,7 @@ class TrainerLogicGeneric(ABC):
         - If the loop sends a StopTraining event, this will raise a CancelledError.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
-          The next attempt waits `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`,
-          so a loop that cannot answer is not asked over and over. The state is retried until it succeeds or the training
-          is aborted, so a finished training is not dropped because the loop is down for a while.
+          The state is retried after a wait until the training is aborted.
         '''
 
         if failures := self._state_failures.get(error_key):
@@ -463,6 +461,7 @@ class TrainerLogicGeneric(ABC):
         :return: The new model UUID.
         :raise CriticalError: If the latest model files cannot be obtained,
             or the model is uploaded but its UUID is unknown.
+        :raise ModelUploadFailedError: If the loop could not store a model file; the state is retried.
         """
 
         files = await self._get_latest_model_files()
@@ -479,11 +478,9 @@ class TrainerLogicGeneric(ABC):
             _files = files[file_format] + [self._dump_categories_to_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
-            try:
-                model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            if model_uuid is not None:
                 self.active_training_io.save_uploaded_model_uuid(model_uuid)
-            except ModelAlreadyUploadedError:
-                logger.warning('The loop already stores the model in format %s, counting it as uploaded', file_format)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)

@@ -5,12 +5,6 @@ class CriticalError(Exception):
     """
 
 
-class ModelAlreadyUploadedError(CriticalError):
-    """Raised when the loop already stores the model of a training in the format being uploaded.
-    A caller that does not count the format as uploaded ends the training, as with any other rejected upload.
-    """
-
-
 class ModelUploadFailedError(Exception):
     """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error.
     Unlike a CriticalError it keeps the training, so the upload is tried again later.
