@@ -34,8 +34,7 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
-  ordinary exception records the error and rewinds to the previous state, which is retried after
-  `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`; a
+  ordinary exception records the error and rewinds to the previous state, which is retried after each cycle with exponential backoff; a
   `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with 409 already
   holds that format and counts as done, with the model id the 409 names (loops before
   zauberzeug/loop#445 name none). Only a client error other than 408 and 429 ends the training
