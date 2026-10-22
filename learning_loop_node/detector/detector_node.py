@@ -230,9 +230,10 @@ class DetectorNode(Node):
 
             The data dict has the following schema:
             - image: The image data as dictionary:
-              - bytes: bytes of the ndarray
-              - dtype: data type of the ndarray
-              - shape: shape of the ndarray
+              - format: 'raw' (default) or 'jpeg' (optional)
+              - bytes: bytes of the ndarray, or the JPEG-encoded image for format 'jpeg'
+              - dtype: data type of the ndarray (raw only)
+              - shape: shape of the ndarray (raw only)
             - camera_id: Optional camera ID
             - tags: Optional list of tags
             - source: Optional source string
@@ -240,7 +241,7 @@ class DetectorNode(Node):
             - creation_date: Optional creation date in isoformat string
             """
             try:
-                image = numpy_image_from_dict(data['image'])
+                image = await run.io_bound(numpy_image_from_dict, data['image'])  # decoding a JPEG takes a while
             except Exception:
                 self.log.exception('could not parse image from socketio')
                 return {'error': 'could not parse image from data'}
@@ -271,7 +272,7 @@ class DetectorNode(Node):
             """
             try:
                 images_data = data['images']
-                images = [numpy_image_from_dict(image) for image in images_data]
+                images = [await run.io_bound(numpy_image_from_dict, image) for image in images_data]
             except Exception:
                 self.log.exception('could not parse images from socketio')
                 return {'error': 'could not parse images from data'}
@@ -336,9 +337,11 @@ class DetectorNode(Node):
 
             The data dict must contain:
             - image: The image data as dictionary with the following keys:
-                - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
-                - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
-                - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+                - format: 'raw' (default) or 'jpeg' (optional)
+                - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`),
+                  or the JPEG-encoded image for format 'jpeg'
+                - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.) (raw only)
+                - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`) (raw only)
             - metadata: The metadata for the image (optional). Besides detections and annotations it
               may carry `tags`, `source`, `created` and `state`. A `state` of e.g. "trash" makes the
               loop file the image into that state instead of its default one.
@@ -362,7 +365,7 @@ class DetectorNode(Node):
                 image_metadata = ImageMetadata()
 
             try:
-                image = numpy_image_from_dict(data['image'])
+                image = await run.io_bound(numpy_image_from_dict, data['image'])  # decoding a JPEG takes a while
             except Exception:
                 self.log.exception('could not parse image from socketio')
                 return {'error': 'could not parse image from data'}

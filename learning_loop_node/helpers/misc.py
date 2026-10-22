@@ -239,10 +239,17 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     Convert image dict to numpy array.
 
     The image_data dict should have the following keys:
-    - bytes: bytes of the image in C order (row-major)
-    - dtype: data type of the pixel values
-    - shape: shape of the image (height, width, channels)
+    - format: 'raw' (default) or 'jpeg' (optional)
+    - bytes: bytes of the image in C order (row-major), or the JPEG-encoded image for format 'jpeg'
+    - dtype: data type of the pixel values (raw only)
+    - shape: shape of the image (height, width, channels) (raw only)
     """
+
+    image_format = image_data.get('format', 'raw')
+    if image_format == 'jpeg':
+        return jpg_bytes_to_numpy_array(image_data['bytes'])
+    if image_format != 'raw':
+        raise ValueError(f'unknown image format: {image_format}')
 
     image_bytes = image_data['bytes']
     image_dtype = image_data['dtype']
