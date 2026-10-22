@@ -255,3 +255,8 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     image_dtype = image_data['dtype']
     image_shape = image_data['shape']
     return np.frombuffer(image_bytes, dtype=image_dtype).reshape(image_shape, order='C')
+
+
+def jpeg_bytes_from_dict(image_data: Dict) -> Optional[bytes]:
+    """The JPEG bytes of an image dict sent with format 'jpeg', None for a raw pixel array."""
+    return image_data['bytes'] if image_data.get('format', 'raw') == 'jpeg' else None

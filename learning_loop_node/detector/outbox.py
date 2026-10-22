@@ -80,16 +80,17 @@ class Outbox():
             self.upload_folders.append(file)
 
     async def save(self,
-                   image: np.ndarray,
+                   image: Union[np.ndarray, bytes],
                    image_metadata: Optional[ImageMetadata] = None,
                    upload_priority: bool = False) -> None:
         """
-        Save an image and its metadata to disk. 
+        Save an image and its metadata to disk.
 
+        The image is either a pixel array, which is encoded as JPEG here, or JPEG bytes, which are stored as they are.
         The data will be picked up by the continuous upload process.
         """
 
-        jpg_bytes = numpy_array_to_jpg_bytes(image)
+        jpg_bytes = image if isinstance(image, bytes) else numpy_array_to_jpg_bytes(image)
 
         if image_metadata is None:
             image_metadata = ImageMetadata()

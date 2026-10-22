@@ -49,7 +49,8 @@ async def http_detect(
                                                tags=tags.split(',') if tags else [],
                                                source=source,
                                                autoupload=autoupload or 'filtered',
-                                               creation_date=creation_date)
+                                               creation_date=creation_date,
+                                               jpeg_bytes=file_bytes)
     except Exception as exc:
         logging.exception('Error during detection of image %s.', file.filename)
         raise Exception(f'Error during detection of image {file.filename}.') from exc

@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 
@@ -17,9 +17,10 @@ class RelevanceFilter():
     async def may_upload_detections(self,
                                     image_metadata: ImageMetadata,
                                     cam_id: Optional[str],
-                                    image: np.ndarray) -> List[str]:
+                                    image: Union[np.ndarray, bytes]) -> List[str]:
         """Check if the detection should be uploaded to the outbox.
         If so, upload it and return the list of causes for the upload.
+        The image, a pixel array or JPEG bytes, is handed to the outbox as it is.
         """
         for group in self.cam_histories.values():
             group.forget_old_detections()
