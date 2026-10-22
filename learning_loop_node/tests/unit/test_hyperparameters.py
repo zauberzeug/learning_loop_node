@@ -1,6 +1,7 @@
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -9,8 +10,9 @@ from fastapi.encoders import jsonable_encoder
 
 from ...data_classes import Hyperparameter, TrainingStatus
 from ...enums import TrainerState
+from ...helpers.misc import ensure_socket_response
 from ...trainer.batch_size import REQUESTED_BATCH_SIZE
-from ...trainer.exceptions import CriticalError, TrainingRefusedError
+from ...trainer.exceptions import CriticalError, HyperparameterMismatchError
 from ...trainer.hyperparameters import check_declaration, parse_pairs, resolve, warn_about_undeclared
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
@@ -193,17 +195,35 @@ async def test_the_defaults_filled_in_stay_unreported_after_a_restart(data_folde
     assert trainer.hyperparameters_for_state_sync == {'epochs': 7}
 
 
-async def test_begin_training_is_refused_for_a_value_that_does_not_fit(data_folder: Path,
-                                                                       started: list[TrainerLogicGeneric]):
+async def test_begin_training_is_rejected_for_a_value_that_does_not_fit(data_folder: Path,
+                                                                        started: list[TrainerLogicGeneric]):
     old_training = data_folder / 'zauberzeug' / 'demo' / 'trainings' / 'old'
     old_training.mkdir(parents=True)
     trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
-    with pytest.raises(TrainingRefusedError, match='learning_rate'):
+    with pytest.raises(HyperparameterMismatchError, match='learning_rate'):
         await trainer.begin_training('zauberzeug', 'demo', _config({'learning_rate': 1.5}))
     assert not started
     assert not trainer.training_active
     assert not trainer.training_slot.held
     assert old_training.exists()
+
+
+async def test_the_loop_receives_a_mismatch_as_a_failure_that_is_no_refusal(data_folder: Path,
+                                                                            started: list[TrainerLogicGeneric]):
+    handlers = {}
+    sio_client = SimpleNamespace(event=lambda handler: handlers.setdefault(handler.__name__, handler))
+    trainer = _with_node(_DeclaringTrainer('mocked', training_slot=AlwaysFreeSlot()))
+    node = SimpleNamespace(trainer_logic=trainer, log=logging.getLogger(__name__))
+    TrainerNode.register_sio_events(node, sio_client)  # type: ignore[arg-type]
+
+    @ensure_socket_response
+    async def trigger(event: str, *args):
+        return await handlers[event](*args)
+
+    response = await trigger('begin_training', 'zauberzeug', 'demo', _config({'epochs': 0}))
+    assert response == {'success': False, 'error_msg': "hyperparameter 'epochs' must be at least 1, got 0",
+                        'payload': None}
+    assert not started
 
 
 async def test_a_trainer_that_declares_nothing_gets_the_hyperparameters_unchecked(data_folder: Path,

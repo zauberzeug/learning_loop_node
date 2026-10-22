@@ -10,7 +10,7 @@ from socketio import AsyncClient, exceptions
 from ..data_classes import SocketResponse
 from ..enums import TrainerState
 from ..node import Node
-from .exceptions import TrainingRefusedError
+from .exceptions import HyperparameterMismatchError, TrainingRefusedError
 from .hyperparameters import check_declaration
 from .io_helpers import LastTrainingIO
 from .rest import backdoor_controls
@@ -75,6 +75,10 @@ class TrainerNode(Node):
             except TrainingRefusedError as e:
                 self.log.warning('refused begin_training: %s', e)
                 return SocketResponse(success=False, error_msg=str(e), payload='refused')
+            except HyperparameterMismatchError as e:
+                # NOTE: not a refusal, which the loop answers by offering the same job again
+                self.log.warning('rejected begin_training: %s', e)
+                return SocketResponse.for_failure(str(e))
             return True
 
         @sio_client.event

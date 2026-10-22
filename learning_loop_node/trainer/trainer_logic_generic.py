@@ -27,7 +27,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, HyperparameterMismatchError, NodeNeedsRestartError, TrainingRefusedError
 from .hyperparameters import filled_in_defaults, resolve, warn_about_undeclared
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
@@ -251,8 +251,8 @@ class TrainerLogicGeneric(ABC):
         The hyperparameters are resolved and the training slot is taken before anything is set up, so a refused
         training leaves the previous training folders in place.
 
-        :raise TrainingRefusedError: if a training is active, a hyperparameter does not fit its declaration or a
-            sibling node holds the training slot.
+        :raise TrainingRefusedError: if a training is active or a sibling node holds the training slot.
+        :raise HyperparameterMismatchError: if a hyperparameter does not fit its declaration.
         """
         if self.training_active:
             raise TrainingRefusedError(f'training {self.training.id} is still active')
@@ -273,7 +273,7 @@ class TrainerLogicGeneric(ABC):
 
         A config without a hyperparameters dict is returned as it is, for ``Training.generate_training`` to reject.
 
-        :raise TrainingRefusedError: if a hyperparameter does not fit its declaration.
+        :raise HyperparameterMismatchError: if a hyperparameter does not fit its declaration.
         """
         declared = self.provided_hyperparameters
         received = training_config.get('hyperparameters')
@@ -282,7 +282,7 @@ class TrainerLogicGeneric(ABC):
         try:
             resolved = resolve(declared, received)
         except CriticalError as e:
-            raise TrainingRefusedError(str(e)) from e
+            raise HyperparameterMismatchError(str(e)) from e
         warn_about_undeclared(declared, received)
         return {**training_config, 'hyperparameters': resolved}, filled_in_defaults(declared, received)
 
