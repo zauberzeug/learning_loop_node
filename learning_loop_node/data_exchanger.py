@@ -207,6 +207,24 @@ class DataExchanger():
                     training_number, mformat, uploaded_model)
         return uploaded_model['id']
 
+    async def upload_training_results(self, context: Context, training_number: int, part: str, zip_path: str) -> None:
+        """Used by the trainers. Stores one part of a training's results beside its latest model.
+        The loop answers like the model upload, and a part sent again replaces the stored one.
+
+        :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
+        :raise ModelUploadFailedError: If the loop could not store the results, e.g. on a server error.
+        """
+        path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
+                f'/models/latest/training_results/{part}')
+        response = await self.loop_communicator.put(path, files=[zip_path])
+        if response.status_code != HTTPStatus.OK:
+            logger.error('Could not upload the %s results of training %s: %s %s',
+                         part, training_number, response.status_code, response.text)
+            error = CriticalError if _rejects_upload(response.status_code) else ModelUploadFailedError
+            raise error(f'Could not upload the {part} results of training {training_number}: '
+                        f'{response.status_code} {response.text}')
+        logger.info('Uploaded the %s results of training %s', part, training_number)
+
 
 def _rejects_upload(status_code: int) -> bool:
     """A client error other than 408 and 429 answers the same however often the upload is sent."""

@@ -6,6 +6,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
@@ -28,8 +29,9 @@ from ..helpers.misc import (
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, ModelAlreadyUploadedError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
+from .training_results import CORE, OPTIONAL_PARTS, meta, parts_to_upload, write_zip
 from .training_slot import TrainingSlot, training_slot_from_env
-from .validation_set import assign_validation_set
+from .validation_set import assign_validation_set, bool_hyperparameter
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -394,7 +396,10 @@ class TrainerLogicGeneric(ABC):
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
         Moves part of the train images to `val` if `separate_testset` asks for it (see `validation_set`).
+        A malformed `upload_examples` or `upload_logs` ends the training here rather than after it has run.
         """
+        for hyperparameter in OPTIONAL_PARTS.values():
+            bool_hyperparameter(self.training.hyperparameters, hyperparameter)
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
@@ -466,10 +471,11 @@ class TrainerLogicGeneric(ABC):
         self.errors.reset(error_key)
 
     async def _upload_model(self) -> None:
-        """Uploads the latest model to the Learning Loop.
+        """Uploads the latest model and then its training results to the Learning Loop.
         """
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
+        await self._upload_training_results(self.training.context, new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
@@ -512,6 +518,37 @@ class TrainerLogicGeneric(ABC):
             return self.active_training_io.load_uploaded_model_uuid()
         except FileNotFoundError as e:
             raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
+
+    async def _upload_training_results(self, context: Context, model_uuid: str) -> None:
+        """Upload the parts of `_get_training_results` the hyperparameters ask for (see `training_results`).
+        The loop answers as it does the model upload, so a failed part keeps the training and is sent again
+        with the model upload state. A part the loop stored is recorded beside the uploaded formats and is
+        not sent again.
+        """
+        training_folder = Path(self.training.training_folder)
+        results = self._get_training_results(training_folder)
+        uploaded = self.active_training_io.load_model_upload_progress()
+        for part in parts_to_upload(results, self.training.hyperparameters):
+            if (progress_key := f'training_results/{part}') in uploaded:
+                continue
+            zip_path = training_folder / 'training_results' / f'{part}.zip'
+            part_meta = self._training_results_meta(model_uuid) if part == CORE else None
+            await asyncio.to_thread(write_zip, results[part], training_folder, zip_path, part_meta)
+            await self.node.data_exchanger.upload_training_results(context, self.training.training_number, part,
+                                                                   str(zip_path))
+            uploaded.append(progress_key)
+            self.active_training_io.save_model_upload_progress(uploaded)
+
+    def _training_results_meta(self, model_uuid: str) -> dict[str, Any]:
+        return meta(node_name=self.node.name, node_uuid=self.node.uuid,
+                    organization=self.training.context.organization, project=self.training.context.project,
+                    training_number=self.training.training_number, model_uuid=model_uuid,
+                    start_time=self.training.start_time, stop_requested=self._stop_was_requested(),
+                    hyperparameters=self.training.hyperparameters)
+
+    def _stop_was_requested(self) -> bool:
+        """Whether the training was stopped after its training process had started; this base class cannot tell."""
+        return False
 
     def _dump_model_json(self) -> str:
         """Dumps the categories and the trainer's model metadata to a json file and returns the path to the file.
@@ -640,6 +677,14 @@ class TrainerLogicGeneric(ABC):
         If the function returns an empty dict, something went wrong and the model upload will be skipped.
         """
         raise NotImplementedError
+
+    def _get_training_results(self, training_folder: Path) -> dict[str, list[Path]]:
+        """Called when the model is uploaded. Returns the result files of the training by part, stored beside the model.
+        The parts are `core` (always uploaded) and `examples` and `logs` (uploaded only if `upload_examples` and
+        `upload_logs` are true); see `training_results`. Directories go in as a whole. Name only results, never the
+        dataset. Default: no results, and nothing is uploaded.
+        """
+        return {}
 
     def _get_model_metadata(self) -> dict[str, Any]:
         """Called when the files of `_get_latest_model_files` are uploaded.

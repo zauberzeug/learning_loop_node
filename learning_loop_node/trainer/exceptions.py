@@ -12,7 +12,8 @@ class ModelAlreadyUploadedError(CriticalError):
 
 
 class ModelUploadFailedError(Exception):
-    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error.
+    """Raised when the loop could not store an uploaded model or its training results, e.g. because it answered
+    with a server error.
     Unlike a CriticalError it keeps the training, so the upload is tried again later.
     """
 

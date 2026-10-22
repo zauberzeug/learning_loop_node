@@ -91,6 +91,16 @@ download: a `val` set the loop sent is used as it is; otherwise the `separate_te
 hyperparameter moves a hash-chosen tenth of the train images to `val`, so the nodes never split
 anything themselves and need no change once the loop offers a dedicated validation set.
 
+`trainer/training_results.py` holds the results a training uploads beside its model. A trainer
+names its result files by part in `_get_training_results` (default: none); `_upload_model` sends
+the parts after the model formats, each as one zip that keeps the paths inside the training folder,
+to `trainings/<n>/models/latest/training_results/<part>`. `core` is always sent and carries a
+`meta.json` about where the results come from; `examples` and `logs` only if the `upload_examples`
+and `upload_logs` hyperparameters are true, which `_prepare` checks so a typo ends the training
+before it has run. The loop answers the results as it answers a model, and a part it stored is
+recorded in the same upload progress, so a failed part keeps the training and is sent again with
+the model upload state.
+
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
 setting into the cap that holds the process to it and remembers it as the budget a probe in the

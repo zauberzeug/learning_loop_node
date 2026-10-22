@@ -32,13 +32,18 @@ BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'false': False, '0': False
 
 def separate_testset(hyperparameters: Mapping[str, Any]) -> bool:
     """Whether `separate_testset` is set, defaulting to false; anything but a boolean is a CriticalError."""
-    value = hyperparameters.get(SEPARATE_TESTSET)
+    return bool_hyperparameter(hyperparameters, SEPARATE_TESTSET)
+
+
+def bool_hyperparameter(hyperparameters: Mapping[str, Any], name: str) -> bool:
+    """Whether the hyperparameter `name` is set, defaulting to false; anything but a boolean is a CriticalError."""
+    value = hyperparameters.get(name)
     if value is None or value == '':
         return False
     if not isinstance(value, str):
         return bool(value)
     if (key := value.strip().lower()) not in BOOL_STRINGS:
-        raise CriticalError(f"'{SEPARATE_TESTSET}' must be true or false, got {value!r}")
+        raise CriticalError(f"'{name}' must be true or false, got {value!r}")
     return BOOL_STRINGS[key]
 
 
