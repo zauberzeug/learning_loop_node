@@ -49,6 +49,7 @@ class TrainerLogic(TrainerLogicGeneric):
         previous_state = TrainerState.TrainModelDownloaded
         error_key = 'run_training'
         self._executor = Executor(self.training.training_folder)
+        self._process_started = False
         self._stop_requested = False
         self.training.training_state = TrainerState.TrainingRunning
 
@@ -89,9 +90,9 @@ class TrainerLogic(TrainerLogicGeneric):
                 logging.warning('Training process failed after a stop (%s), winding down with its model', e.cause)
                 return
             self.training.training_state = previous_state
+            self._process_started = False
             raise
         finally:
-            self._process_started = False
             # shield so the subprocess is stopped even when the task is cancelled (e.g. on abort())
             if self._executor and self._executor.is_running():
                 await asyncio.shield(self.executor.stop_and_wait())
@@ -157,19 +158,14 @@ class TrainerLogic(TrainerLogicGeneric):
 
     # ---------------------------------------- OVERWRITTEN METHODS ----------------------------------------
 
-    async def stop(self) -> None:
-        """End the training process, so the training winds down and uploads its model.
-
-        Once the process has ended, the wind-down follows on its own. Before the process has started, on
-        shutdown and in every other state, it stops as the base class does.
-        """
-        print('===============> stop received in trainer_logic.', flush=True)
-        if self._process_started and not self.shutdown_event.is_set():
-            self._stop_requested = True
-            if self._executor and self._executor.is_running():
-                await self.executor.stop_and_wait()
+    async def _stop_running_training(self) -> None:
+        """End the training process; before it has started, abort."""
+        if not self._process_started:
+            await super()._stop_running_training()
             return
-        await super().stop()
+        self._stop_requested = True
+        if self._executor and self._executor.is_running():
+            await self.executor.stop_and_wait()
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 

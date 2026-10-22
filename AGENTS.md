@@ -40,12 +40,11 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. The loop's
-  `stop_training` keeps the model: `stop` lets the upload and detection states finish, while
-  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. Before the training
-  has run, `stop` aborts too, and so does a stop while a state is failing and being retried, which
-  would otherwise never finish. A running training only `TrainerLogic` can stop without aborting,
-  by ending its training process; a stop before that process has started still aborts, and a
-  training process that fails after a stop is not retried but winds down with the model it has. A
+  `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
+  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
+  stops a running training by ending its training process, so the remaining states upload the
+  model; a training process that fails after a stop is not retried but winds down with the model
+  it has. Before that process has started, and in a trainer without one, a stop aborts. A
   concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
   `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
