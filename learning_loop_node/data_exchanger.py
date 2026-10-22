@@ -216,7 +216,7 @@ class DataExchanger():
         """
         path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
                 f'/models/latest/training_results/{part}')
-        response = await self.loop_communicator.put(path, files=[zip_path])
+        response = await self.loop_communicator.put(path, files=[zip_path], timeout=60*10)
         if response.status_code != HTTPStatus.OK:
             logger.error('Could not upload the %s results of training %s: %s %s',
                          part, training_number, response.status_code, response.text)
