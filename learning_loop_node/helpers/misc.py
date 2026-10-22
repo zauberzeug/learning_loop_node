@@ -10,7 +10,7 @@ import sys
 from dataclasses import asdict
 from glob import glob
 from time import perf_counter
-from typing import Any, Coroutine, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Coroutine, Dict, List, Optional, Tuple, TypeVar, Union
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -220,6 +220,13 @@ def create_training_folder(project_folder: str, trainings_id: str) -> str:
     return training_folder
 
 
+ImageData = Union[np.ndarray, bytes]
+"""An image as it was received: either a pixel array or a JPEG-encoded image.
+
+JPEG bytes are decoded where the pixels are needed and stored as they are when the image is uploaded.
+"""
+
+
 def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
     """Convert jpg bytes to numpy array."""
     image = Image.open(io.BytesIO(jpg_bytes))
@@ -257,6 +264,8 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     return np.frombuffer(image_bytes, dtype=image_dtype).reshape(image_shape, order='C')
 
 
-def jpeg_bytes_from_dict(image_data: Dict) -> Optional[bytes]:
-    """The JPEG bytes of an image dict sent with format 'jpeg', None for a raw pixel array."""
-    return image_data['bytes'] if image_data.get('format', 'raw') == 'jpeg' else None
+def image_from_dict(image_data: Dict) -> ImageData:
+    """The image of an image dict as received: the JPEG bytes for format 'jpeg', the pixel array otherwise."""
+    if image_data.get('format', 'raw') == 'jpeg':
+        return image_data['bytes']
+    return numpy_image_from_dict(image_data)

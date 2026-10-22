@@ -25,7 +25,7 @@ from ..data_classes import ImageMetadata
 from ..enums import OutboxMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader, run
-from ..helpers.misc import numpy_array_to_jpg_bytes
+from ..helpers.misc import ImageData, numpy_array_to_jpg_bytes
 
 T = TypeVar('T')
 
@@ -80,7 +80,7 @@ class Outbox():
             self.upload_folders.append(file)
 
     async def save(self,
-                   image: Union[np.ndarray, bytes],
+                   image: ImageData,
                    image_metadata: Optional[ImageMetadata] = None,
                    upload_priority: bool = False) -> None:
         """

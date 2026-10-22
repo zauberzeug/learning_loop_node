@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Literal, Optional
 from fastapi import APIRouter, File, Header, Request, UploadFile
 
 from ...data_classes.image_metadata import ImageMetadata
-from ...helpers import run
-from ...helpers.misc import jpg_bytes_to_numpy_array
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -43,14 +41,12 @@ async def http_detect(
         raise Exception(f'Uploaded file {file.filename} is no image file.') from exc
 
     try:
-        image = await run.io_bound(jpg_bytes_to_numpy_array, file_bytes)  # decoding a JPEG takes a while
-        detections = await node.get_detections(image=image,
+        detections = await node.get_detections(image=file_bytes,
                                                camera_id=camera_id or None,
                                                tags=tags.split(',') if tags else [],
                                                source=source,
                                                autoupload=autoupload or 'filtered',
-                                               creation_date=creation_date,
-                                               jpeg_bytes=file_bytes)
+                                               creation_date=creation_date)
     except Exception as exc:
         logging.exception('Error during detection of image %s.', file.filename)
         raise Exception(f'Error during detection of image {file.filename}.') from exc
