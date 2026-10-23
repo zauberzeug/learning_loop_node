@@ -312,3 +312,4 @@ After a short time the converted model should be available as well.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
   - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, `resolution_x`` resolution_y` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
+  - `conf_threshold` (optional): the minimum confidence the trainer chose for this model's detections; a detector without its own configured threshold uses it. A trainer adds it (or other `ModelInformation` fields) by overriding `_get_model_metadata`

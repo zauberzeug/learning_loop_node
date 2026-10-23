@@ -458,7 +458,7 @@ class TrainerLogicGeneric(ABC):
 
         model_uuid = None
         for file_format in [f for f in files if f not in already_uploaded_formats]:
-            _files = files[file_format] + [self._dump_categories_to_json()]
+            _files = files[file_format] + [self._dump_model_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
             model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
@@ -471,10 +471,11 @@ class TrainerLogicGeneric(ABC):
 
         return model_uuid
 
-    def _dump_categories_to_json(self) -> str:
-        """Dumps the categories to a json file and returns the path to the file.
+    def _dump_model_json(self) -> str:
+        """Dumps the categories and the trainer's model metadata to a json file and returns the path to the file.
         """
-        content = {'categories': [asdict(c) for c in self._training.categories], } if self._training else None
+        content = {'categories': [asdict(c) for c in self._training.categories],
+                   **self._get_model_metadata()} if self._training else None
         json_path = '/tmp/model.json'
         with open(json_path, 'w') as f:
             json.dump(content, f)
@@ -586,6 +587,13 @@ class TrainerLogicGeneric(ABC):
         If the function returns an empty dict, something went wrong and the model upload will be skipped.
         """
         raise NotImplementedError
+
+    def _get_model_metadata(self) -> dict[str, Any]:
+        """Called when the files of `_get_latest_model_files` are uploaded.
+        Returns values the trainer determined for this model, merged into its model.json.
+        The keys must be fields of `ModelInformation` (e.g. `conf_threshold`) so detectors can read them.
+        """
+        return {}
 
     @abstractmethod
     async def _clear_training_data(self, training_folder: str) -> None:
