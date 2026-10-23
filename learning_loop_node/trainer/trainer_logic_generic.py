@@ -6,6 +6,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
@@ -26,14 +27,30 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, ModelAlreadyUploadedError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
+from .training_results import CORE, OPTIONAL_PARTS, meta, parts_to_upload, write_zip
 from .training_slot import TrainingSlot, training_slot_from_env
+from .validation_set import assign_validation_set, bool_hyperparameter
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
+STATE_RETRY_DELAY = 5  # seconds before the first retry of a failed state, doubled for every further one
+MAX_STATE_RETRY_DELAY = 300  # seconds
+
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
+
+# The states after the training has run, which upload its model and detections.
+_WIND_DOWN_STATES = frozenset({TrainerState.TrainingFinished, TrainerState.ConfusionMatrixSyncing,
+                               TrainerState.ConfusionMatrixSynced, TrainerState.TrainModelUploading,
+                               TrainerState.TrainModelUploaded, TrainerState.Detecting, TrainerState.Detected,
+                               TrainerState.DetectionUploading, TrainerState.ReadyForCleanup})
+
+
+def _retry_delay(failures: int) -> float:
+    """The wait before the next attempt of a state that has failed `failures` times in a row."""
+    return min(STATE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_STATE_RETRY_DELAY)
 
 
 class TrainerLogicGeneric(ABC):
@@ -45,6 +62,7 @@ class TrainerLogicGeneric(ABC):
         # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
         self.model_format: str = model_format
         self.errors = Errors()
+        self._state_failures: Dict[str, int] = {}  # failed attempts in a row, by error key
 
         self.training_task: Optional[asyncio.Task] = None
         self.shutdown_event: asyncio.Event = asyncio.Event()
@@ -55,6 +73,8 @@ class TrainerLogicGeneric(ABC):
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._environment_vars = EnvironmentVars()
+        # whether the last attempt of the current state failed, so it is being retried
+        self._state_failed: bool = False
         self.training_slot = training_slot or training_slot_from_env()
 
     # ---------------------------------------- PROPERTIES TO AVOID CHECKING FOR NONE ----------------------------------------
@@ -264,6 +284,8 @@ class TrainerLogicGeneric(ABC):
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
         self.errors.reset_all()
+        self._state_failures.clear()
+        self._state_failed = False
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
@@ -318,11 +340,17 @@ class TrainerLogicGeneric(ABC):
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         '''
         Perform a training state and handle errors.
-        - If the loop sends a StopTraining event, this will raise a CancelledError.
+        - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+          The next attempt waits `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`,
+          so a loop that cannot answer is not asked over and over. The state is retried until it succeeds or the training
+          is aborted, so a finished training is not dropped because the loop is down for a while.
+          It stays marked as failed until an attempt succeeds, so a stop during its retries aborts.
         '''
 
+        if failures := self._state_failures.get(error_key):
+            await asyncio.sleep(_retry_delay(failures))
         await asyncio.sleep(0.1)
         logger.info('Performing state: %s', state_during)
         previous_state = self.training.training_state
@@ -351,7 +379,9 @@ class TrainerLogicGeneric(ABC):
             print('Error in %s - Exception: %s', state_during, e, flush=True)
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
+            self._state_failures[error_key] = self._state_failures.get(error_key, 0) + 1
             self.training.training_state = previous_state
+            self._state_failed = True
             return
         else:
             logger.info('Successfully finished state: %s', state_during)
@@ -359,14 +389,21 @@ class TrainerLogicGeneric(ABC):
                 self.errors.reset(error_key)
             self.training.training_state = state_after
 
+        self._state_failures.pop(error_key, None)
+        self._state_failed = False
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        Moves part of the train images to `val` if `separate_testset` asks for it (see `validation_set`).
+        A malformed `upload_examples` or `upload_logs` ends the training here rather than after it has run.
         """
+        for hyperparameter in OPTIONAL_PARTS.values():
+            bool_hyperparameter(self.training.hyperparameters, hyperparameter)
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
+        assign_validation_set(image_data, self.training.hyperparameters)
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
@@ -406,10 +443,15 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
+                # NOTE: the loop has no validation set yet, so the val images split off the train images
+                # (see `validation_set`) are reported as train images, which they are in the loop.
+                # TODO: rework once the loop offers a dedicated validation set: report a separate
+                # `val_image_count` then, which the loop stores and shows next to the train and test counts.
+                train_image_count = len(self.training.train_images()) + len(self.training.val_images())
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,
-                                           train_image_count=self.training.train_image_count(),
+                                           train_image_count=train_image_count,
                                            test_image_count=self.training.test_image_count(),
                                            hyperparameters=self.hyperparameters_for_state_sync,
                                            best_epoch=new_best_model.epoch)
@@ -429,10 +471,11 @@ class TrainerLogicGeneric(ABC):
         self.errors.reset(error_key)
 
     async def _upload_model(self) -> None:
-        """Uploads the latest model to the Learning Loop.
+        """Uploads the latest model and then its training results to the Learning Loop.
         """
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
+        await self._upload_training_results(self.training.context, new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
@@ -440,10 +483,12 @@ class TrainerLogicGeneric(ABC):
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
+        A format the loop already stores counts as uploaded.
+        The model UUID is kept beside the upload progress, so a retry after a restart still knows it.
 
         :return: The new model UUID.
-        :raise CriticalError: If the latest model files cannot be obtained.
-        :raise Exception: If the response for the model upload attempt is invalid.
+        :raise CriticalError: If the latest model files cannot be obtained,
+            or the model is uploaded but its UUID is unknown.
         """
 
         files = await self._get_latest_model_files()
@@ -456,25 +501,60 @@ class TrainerLogicGeneric(ABC):
 
         already_uploaded_formats = self.active_training_io.load_model_upload_progress()
 
-        model_uuid = None
         for file_format in [f for f in files if f not in already_uploaded_formats]:
-            _files = files[file_format] + [self._dump_categories_to_json()]
+            _files = files[file_format] + [self._dump_model_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
-            model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            try:
+                model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+                self.active_training_io.save_uploaded_model_uuid(model_uuid)
+            except ModelAlreadyUploadedError:
+                logger.warning('The loop already stores the model in format %s, counting it as uploaded', file_format)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
 
-        if not model_uuid:
-            raise Exception('Invalid response for model upload attempt')
+        try:
+            return self.active_training_io.load_uploaded_model_uuid()
+        except FileNotFoundError as e:
+            raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
 
-        return model_uuid
-
-    def _dump_categories_to_json(self) -> str:
-        """Dumps the categories to a json file and returns the path to the file.
+    async def _upload_training_results(self, context: Context, model_uuid: str) -> None:
+        """Upload the parts of `_get_training_results` the hyperparameters ask for (see `training_results`).
+        The loop answers as it does the model upload, so a failed part keeps the training and is sent again
+        with the model upload state. A part the loop stored is recorded beside the uploaded formats and is
+        not sent again.
         """
-        content = {'categories': [asdict(c) for c in self._training.categories], } if self._training else None
+        training_folder = Path(self.training.training_folder)
+        results = self._get_training_results(training_folder)
+        uploaded = self.active_training_io.load_model_upload_progress()
+        for part in parts_to_upload(results, self.training.hyperparameters):
+            if (progress_key := f'training_results/{part}') in uploaded:
+                continue
+            zip_path = training_folder / 'training_results' / f'{part}.zip'
+            part_meta = self._training_results_meta(model_uuid) if part == CORE else None
+            await asyncio.to_thread(write_zip, results[part], training_folder, zip_path, part_meta)
+            await self.node.data_exchanger.upload_training_results(context, self.training.training_number, part,
+                                                                   str(zip_path))
+            uploaded.append(progress_key)
+            self.active_training_io.save_model_upload_progress(uploaded)
+
+    def _training_results_meta(self, model_uuid: str) -> dict[str, Any]:
+        return meta(node_name=self.node.name, node_uuid=self.node.uuid,
+                    organization=self.training.context.organization, project=self.training.context.project,
+                    training_number=self.training.training_number, model_uuid=model_uuid,
+                    start_time=self.training.start_time, stop_requested=self._stop_was_requested(),
+                    hyperparameters=self.training.hyperparameters)
+
+    def _stop_was_requested(self) -> bool:
+        """Whether the training was stopped after its training process had started; this base class cannot tell."""
+        return False
+
+    def _dump_model_json(self) -> str:
+        """Dumps the categories and the trainer's model metadata to a json file and returns the path to the file.
+        """
+        content = {'categories': [asdict(c) for c in self._training.categories],
+                   **self._get_model_metadata()} if self._training else None
         json_path = '/tmp/model.json'
         with open(json_path, 'w') as f:
             json.dump(content, f)
@@ -496,12 +576,23 @@ class TrainerLogicGeneric(ABC):
 
     async def on_shutdown(self) -> None:
         self.shutdown_event.set()
-        await self.stop()
-        await self.stop()
+        await self.abort()
 
-    async def stop(self):
-        """Stop the training. Default is to abort.
+    async def stop(self) -> None:
+        """Stop the training but keep its model.
+
+        Once the training has run, the states that upload its model and detections are left to finish.
+        Before that this base class aborts, as it cannot end a running training; `TrainerLogic` ends its
+        training process instead. A state that is failing and being retried would never finish, and a
+        shutdown must not wait for the upload, so both abort in any state.
         """
+        if not self.training_active:
+            return
+        if (self.training.training_state in _WIND_DOWN_STATES and not self._state_failed
+                and not self.shutdown_event.is_set()):
+            logger.info('Stop in state %s: the training has already run, letting its upload finish',
+                        self.training.training_state)
+            return
         await self.abort()
 
     async def abort(self):
@@ -586,6 +677,21 @@ class TrainerLogicGeneric(ABC):
         If the function returns an empty dict, something went wrong and the model upload will be skipped.
         """
         raise NotImplementedError
+
+    def _get_training_results(self, training_folder: Path) -> dict[str, list[Path]]:
+        """Called when the model is uploaded. Returns the result files of the training by part, stored beside the model.
+        The parts are `core` (always uploaded) and `examples` and `logs` (uploaded only if `upload_examples` and
+        `upload_logs` are true); see `training_results`. Directories go in as a whole. Name only results, never the
+        dataset. Default: no results, and nothing is uploaded.
+        """
+        return {}
+
+    def _get_model_metadata(self) -> dict[str, Any]:
+        """Called when the files of `_get_latest_model_files` are uploaded.
+        Returns values the trainer determined for this model, merged into its model.json.
+        The keys must be fields of `ModelInformation` (e.g. `conf_threshold`) so detectors can read them.
+        """
+        return {}
 
     @abstractmethod
     async def _clear_training_data(self, training_folder: str) -> None:

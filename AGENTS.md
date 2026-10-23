@@ -34,14 +34,26 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
-  ordinary exception records the error and rewinds to the previous state (retried on the next
-  cycle), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
+  ordinary exception records the error and rewinds to the previous state, which is retried after
+  `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`; a
+  `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with 409 already
+  holds that format and counts as done, with the model id the 409 names (loops before
+  zauberzeug/loop#445 name none). Only a client error other than 408 and 429 ends the training
+  (a 429 is first retried by `LoopCommunicator`). Any other failed upload, e.g. a server error
+  (`ModelUploadFailedError`) or a timeout, keeps the training for as long as it takes, until the
+  loop takes the model or the training is aborted. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
-  training or refuses it with an error, and a refused training has set nothing up. A concrete trainer
-  implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
-  `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
+  training or refuses it with an error, and a refused training has set nothing up. The loop's
+  `stop_training` keeps the model: `stop` lets the upload and detection states finish, while
+  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. Before the training
+  has run, `stop` aborts too, and so does a stop while a state is failing and being retried, which
+  would otherwise never finish. A running training only `TrainerLogic` can stop without aborting,
+  by ending its training process; a stop before that process has started still aborts, and a
+  training process that fails after a stop is not retried but winds down with the model it has. A
+  concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
+  `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
   the GPU when several trainers share one (`TRAINING_SLOT_LOCK`, an `flock` on a mounted file):
   `begin_training` takes it before setting anything up and refuses the training if a sibling holds
@@ -70,6 +82,24 @@ one item ahead of the bookkeeping. `find_batch_size` probes for the largest powe
 that fits, around a `fits` predicate the trainer supplies — none of it imports torch, so a node
 brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
+
+`trainer/validation_set.py` decides which images a training selects its models on. A node uses
+the `val` images of `image_data` (`Training.val_images()`) for best model, early stopping and
+confidence threshold if there are any, and reads `test` only for the counts it reports; without
+them it selects on `test`, as before. `_prepare` calls `assign_validation_set` right after the
+download: a `val` set the loop sent is used as it is; otherwise the `separate_testset`
+hyperparameter moves a hash-chosen tenth of the train images to `val`, so the nodes never split
+anything themselves and need no change once the loop offers a dedicated validation set.
+
+`trainer/training_results.py` holds the results a training uploads beside its model. A trainer
+names its result files by part in `_get_training_results` (default: none); `_upload_model` sends
+the parts after the model formats, each as one zip that keeps the paths inside the training folder,
+to `trainings/<n>/models/latest/training_results/<part>`. `core` is always sent and carries a
+`meta.json` about where the results come from; `examples` and `logs` only if the `upload_examples`
+and `upload_logs` hyperparameters are true, which `_prepare` checks so a typo ends the training
+before it has run. The loop answers the results as it answers a model, and a part it stored is
+recorded in the same upload progress, so a failed part keeps the training and is sent again with
+the model upload state.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`

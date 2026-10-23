@@ -218,6 +218,15 @@ Trainers fetch the images and anntoations from the Learning Loop to train new mo
 
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
+### Training results
+
+Together with its model, a trainer uploads the results of the training to the Learning Loop, e.g. the
+metrics per epoch, the evaluation curves and the confusion matrix. The trainer decides which files
+they are; a trainer that names none uploads only its model. The results are always uploaded, the
+examples and the raw training log only if the training's `upload_examples` and `upload_logs`
+hyperparameters are true (both default to false). The results are sent right after the model, in
+the same state and with the same retries, so every uploaded model gets its results.
+
 ### Several trainers on one GPU
 
 Trainers that share a GPU (say, one per model architecture on the same machine) coordinate through
@@ -312,3 +321,4 @@ After a short time the converted model should be available as well.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
   - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, `resolution_x`` resolution_y` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
+  - `conf_threshold` (optional): the minimum confidence the trainer chose for this model's detections; a detector without its own configured threshold uses it. A trainer adds it (or other `ModelInformation` fields) by overriding `_get_model_metadata`

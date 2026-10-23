@@ -1,0 +1,218 @@
+import asyncio
+from collections.abc import AsyncIterator
+from pathlib import Path
+from unittest.mock import AsyncMock, Mock
+
+import httpx
+import pytest
+
+from ... import loop_communication
+from ...data_classes import Context
+from ...data_exchanger import DataExchanger
+from ...enums import TrainerState
+from ...globals import GLOBALS
+from ...loop_communication import LoopCommunicator
+from ...trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
+from ...trainer.trainer_logic_generic import STATE_RETRY_DELAY
+from ...trainer.trainer_node import TrainerNode
+from ..trainer.testing_trainer_logic import TestingTrainerLogic
+
+# pylint: disable=protected-access
+
+CONTEXT = Context(organization='zauberzeug', project='demo')
+MODEL_ID = '6f1c7a52-4b1e-4e0a-9d3f-2b8c5e7a9d10'
+ACCEPTED = httpx.Response(200, json={'id': MODEL_ID})
+
+
+@pytest.fixture(autouse=True, name='retry_delays')
+def retry_delays_fixture(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """Records the delays instead of sleeping them."""
+    delays: list[float] = []
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+    monkeypatch.setattr(asyncio, 'sleep', sleep)
+    return delays
+
+
+@pytest.mark.parametrize(('status', 'error'), [
+    (409, ModelAlreadyUploadedError),
+    (404, CriticalError),
+    (413, CriticalError),
+])
+async def test_a_refused_upload_tells_the_trainer_to_skip_or_give_up(status: int, error: type[Exception]):
+    communicator = _communicator(httpx.Response(status, text='no'))
+    with pytest.raises(error):
+        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
+    assert communicator.put.await_count == 1
+
+
+@pytest.mark.parametrize('status', [408, 500, 502, 503, 504, 507])
+async def test_an_error_that_may_pass_tells_the_trainer_to_try_again_later(status: int):
+    communicator = _communicator(httpx.Response(status, text='disk full'))
+    with pytest.raises(ModelUploadFailedError):
+        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
+    assert communicator.put.await_count == 1
+
+
+async def test_an_accepted_upload_returns_the_model_id():
+    communicator = _communicator(ACCEPTED)
+    assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == MODEL_ID
+
+
+async def test_a_stored_format_returns_the_model_id_the_loop_names():
+    communicator = _communicator(httpx.Response(409, json={'detail': {'message': 'exists', 'id': MODEL_ID}}))
+    assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == MODEL_ID
+
+
+@pytest.mark.parametrize('detail', [{'message': 'exists', 'id': None}, {'message': 'exists', 'id': ''}, 'exists'])
+async def test_a_stored_format_without_a_valid_id_counts_as_naming_none(detail: object):
+    communicator = _communicator(httpx.Response(409, json={'detail': detail}))
+    with pytest.raises(ModelAlreadyUploadedError):
+        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
+
+
+async def test_a_rate_limit_is_left_to_the_communicator(retry_delays: list[float]):
+    puts: list[httpx.Request] = []
+
+    def rate_limit(request: httpx.Request) -> httpx.Response:
+        puts.append(request)
+        return httpx.Response(429)
+    communicator = LoopCommunicator()
+    await communicator.shutdown()
+    communicator.async_client = httpx.AsyncClient(base_url=communicator.base_url, cookies={'session': 'logged-in'},
+                                                  transport=httpx.MockTransport(rate_limit))
+
+    with pytest.raises(ModelUploadFailedError):
+        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
+    await communicator.shutdown()
+
+    assert len(puts) == loop_communication.MAX_RETRIES_ON_429
+    assert retry_delays == [loop_communication.SLEEP_TIME_ON_429] * loop_communication.MAX_RETRIES_ON_429
+
+
+async def test_a_format_the_loop_already_stores_counts_as_uploaded(trainer: TestingTrainerLogic):
+    _answer_uploads(trainer, ModelAlreadyUploadedError(), MODEL_ID)
+
+    assert await trainer._upload_model_return_new_model_uuid(CONTEXT) == MODEL_ID
+    assert trainer.active_training_io.load_model_upload_progress() == ['first', 'second']
+
+
+async def test_a_retry_after_a_restart_still_knows_the_model_id(trainer: TestingTrainerLogic):
+    _answer_uploads(trainer, MODEL_ID, httpx.ReadTimeout('timed out'))
+    with pytest.raises(httpx.ReadTimeout):
+        await trainer._upload_model_return_new_model_uuid(CONTEXT)
+    assert trainer.active_training_io.load_model_upload_progress() == ['first']
+
+    trainer._init_from_last_training()
+    _answer_uploads(trainer, ModelAlreadyUploadedError())
+    assert await trainer._upload_model_return_new_model_uuid(CONTEXT) == MODEL_ID
+
+
+async def test_an_uploaded_model_without_a_known_id_ends_the_training(trainer: TestingTrainerLogic):
+    _answer_uploads(trainer, ModelAlreadyUploadedError(), ModelAlreadyUploadedError())
+
+    with pytest.raises(CriticalError):
+        await trainer._upload_model_return_new_model_uuid(CONTEXT)
+
+
+async def test_a_rejected_format_leaves_the_training_without_a_model_id(trainer: TestingTrainerLogic):
+    trainer.node.data_exchanger.loop_communicator = _communicator(ACCEPTED, httpx.Response(413))
+
+    await _perform_upload_state(trainer)
+
+    assert trainer.training.training_state == TrainerState.ReadyForCleanup
+    assert trainer.training.model_uuid_for_detecting is None
+
+
+async def test_a_format_the_loop_cannot_store_keeps_the_training_and_is_sent_again_later(
+        trainer: TestingTrainerLogic, retry_delays: list[float]):
+    communicator = _communicator(ACCEPTED, httpx.Response(500), httpx.Response(502), ACCEPTED)
+    trainer.node.data_exchanger.loop_communicator = communicator
+
+    await _perform_upload_state(trainer)
+
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.errors.has_error_for('upload_model')
+    assert trainer.node.last_training_io.load().training_state == TrainerState.ConfusionMatrixSynced
+    assert not _upload_waits(retry_delays)
+
+    await _perform_upload_state(trainer)
+    await _perform_upload_state(trainer)
+
+    assert _upload_waits(retry_delays) == [5, 10]
+    assert [put.args[0].split('/')[-2] for put in communicator.put.await_args_list] == \
+        ['first', 'second', 'second', 'second']
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.model_uuid_for_detecting == MODEL_ID
+    assert not trainer.errors.has_error_for('upload_model')
+
+
+async def test_the_wait_before_the_next_upload_grows_up_to_its_limit(
+        trainer: TestingTrainerLogic, retry_delays: list[float]):
+    trainer.node.data_exchanger.loop_communicator = _communicator(*[httpx.Response(500)] * 9)
+
+    for _ in range(9):
+        await _perform_upload_state(trainer)
+
+    assert _upload_waits(retry_delays) == [5, 10, 20, 40, 80, 160, 300, 300]
+
+
+async def test_a_model_upload_that_keeps_failing_keeps_the_training(trainer: TestingTrainerLogic):
+    """600 attempts at the longest wait take about two days, longer than the full disk of Trello 1235 lasted."""
+    trainer.node.data_exchanger.loop_communicator = _communicator(*[httpx.Response(500)] * 600)
+
+    for _ in range(600):
+        await _perform_upload_state(trainer)
+
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.errors.has_error_for('upload_model')
+    assert trainer.node.last_training_io.load().training_state == TrainerState.ConfusionMatrixSynced
+
+
+async def test_every_state_waits_before_it_is_tried_again(trainer: TestingTrainerLogic, retry_delays: list[float]):
+    trainer.training.training_state = TrainerState.Detected
+    upload_detections = AsyncMock(side_effect=[OSError('loop unreachable'), OSError('loop unreachable'), None])
+
+    for _ in range(3):
+        await trainer._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup,
+                                     upload_detections)
+
+    assert _upload_waits(retry_delays) == [5, 10]
+    assert trainer.training.training_state == TrainerState.ReadyForCleanup
+    assert not trainer._state_failures
+
+
+@pytest.fixture(name='trainer')
+async def trainer_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[TestingTrainerLogic]:
+    """A trainer with a fresh training whose model comes in two formats."""
+    monkeypatch.setattr(GLOBALS, 'data_folder', str(tmp_path))
+    trainer = TestingTrainerLogic()
+    node = TrainerNode(name='test', trainer_logic=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
+    trainer._init_new_training(CONTEXT, {'categories': [], 'training_number': 0, 'model_variant': '',
+                                         'hyperparameters': {}})
+    trainer.training.training_state = TrainerState.ConfusionMatrixSynced
+    node.last_training_io.save(trainer.training)
+    trainer._get_latest_model_files = AsyncMock(return_value={'first': ['/tmp/model.pt'],
+                                                              'second': ['/tmp/model.wts']})
+    yield trainer
+    await node.loop_communicator.shutdown()
+
+
+def _communicator(*responses: httpx.Response) -> Mock:
+    return Mock(put=AsyncMock(side_effect=responses))
+
+
+def _answer_uploads(trainer: TestingTrainerLogic, *answers: str | Exception) -> None:
+    trainer.node.data_exchanger.upload_model_get_uuid = AsyncMock(side_effect=answers)
+
+
+async def _perform_upload_state(trainer: TestingTrainerLogic) -> None:
+    """The upload state as `_training_loop` performs it."""
+    await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
+                                 trainer._upload_model)
+
+
+def _upload_waits(delays: list[float]) -> list[float]:
+    """The waits before an upload attempt, without the short sleeps of `_perform_state`."""
+    return [delay for delay in delays if delay >= STATE_RETRY_DELAY]
