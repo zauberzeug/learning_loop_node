@@ -90,9 +90,9 @@ class TrainerLogic(TrainerLogicGeneric):
                 logging.warning('Training process failed after a stop (%s), winding down with its model', e.cause)
                 return
             self.training.training_state = previous_state
-            self._process_started = False
             raise
         finally:
+            self._process_started = False
             # shield so the subprocess is stopped even when the task is cancelled (e.g. on abort())
             if self._executor and self._executor.is_running():
                 await asyncio.shield(self.executor.stop_and_wait())

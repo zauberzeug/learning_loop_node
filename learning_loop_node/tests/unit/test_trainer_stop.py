@@ -73,6 +73,18 @@ async def test_a_stop_before_the_retried_training_process_has_started_aborts_it(
     assert trainer.training_task.cancelled()
 
 
+async def test_a_stop_before_the_next_training_process_has_started_aborts_it(trainer: TestingTrainerLogic):
+    train = asyncio.create_task(trainer._train())
+    await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
+    await trainer.executor.stop_and_wait()
+    await asyncio.wait_for(train, timeout=2)
+    trainer.training.training_state = TrainerState.TrainingRunning  # the next run has begun, its process not yet
+
+    await trainer.stop()
+
+    assert trainer.training_task.cancelled()
+
+
 async def test_a_stop_before_the_training_process_has_started_aborts_it(trainer: TestingTrainerLogic):
     trainer.training.training_state = TrainerState.TrainingRunning
 

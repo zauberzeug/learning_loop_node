@@ -1,6 +1,5 @@
 import asyncio
 
-
 from ....data_classes import Context
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic

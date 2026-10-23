@@ -2,7 +2,6 @@
 import asyncio
 import os
 
-
 from ....enums import TrainerState
 from ... import test_helper
 from ..state_helper import assert_training_state, create_active_training_file
