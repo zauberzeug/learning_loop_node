@@ -6,7 +6,8 @@ import pytest
 from ...data_classes import Context, Training, TrainingStateData
 from ...trainer.exceptions import CriticalError
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
-from ...trainer.validation_set import SEPARATE_TESTSET, VALIDATION_FRACTION, assign_validation_set, separate_testset
+from ...trainer.validation_set import (COMPUTE_VALIDATION_SET, VALIDATION_FRACTION, assign_validation_set,
+                                       compute_validation_set)
 
 TRAIN_IMAGE_COUNT = 200
 
@@ -34,7 +35,7 @@ def test_without_the_hyperparameter_nothing_changes():
 def test_the_hyperparameter_splits_a_stable_validation_set_off_the_train_images():
     images = image_data()
 
-    assign_validation_set(images, {SEPARATE_TESTSET: True})
+    assign_validation_set(images, {COMPUTE_VALIDATION_SET: True})
 
     val_ids = ids(images, 'val')
     assert 0 < len(val_ids) < TRAIN_IMAGE_COUNT * 2 * VALIDATION_FRACTION
@@ -42,41 +43,42 @@ def test_the_hyperparameter_splits_a_stable_validation_set_off_the_train_images(
     assert ids(images, 'test') == {'test_1'}
 
     more_images = [*image_data(), image('train_new', 'train')]
-    assign_validation_set(more_images, {SEPARATE_TESTSET: True})
+    assign_validation_set(more_images, {COMPUTE_VALIDATION_SET: True})
     assert ids(more_images, 'val') - {'train_new'} == val_ids  # new images do not move existing ones
 
 
 def test_a_validation_set_of_the_loop_wins_over_the_hyperparameter():
     images = [*image_data(), image('val_1', 'val')]
 
-    assign_validation_set(images, {SEPARATE_TESTSET: True})
+    assign_validation_set(images, {COMPUTE_VALIDATION_SET: True})
 
     assert ids(images, 'val') == {'val_1'}
     assert len(ids(images, 'train')) == TRAIN_IMAGE_COUNT
 
 
-def test_at_least_one_image_is_split_off_but_never_the_only_train_image():
+def test_at_least_one_image_is_split_off():
     two = [image('a', 'train'), image('b', 'train')]
-    assign_validation_set(two, {SEPARATE_TESTSET: True})
+    assign_validation_set(two, {COMPUTE_VALIDATION_SET: True})
     assert len(ids(two, 'val')) == 1 and len(ids(two, 'train')) == 1
 
-    one = [image('a', 'train')]
-    assign_validation_set(one, {SEPARATE_TESTSET: True})
-    assert ids(one, 'train') == {'a'}
+
+def test_a_single_train_image_fails_the_training():
+    with pytest.raises(CriticalError, match='too few'):
+        assign_validation_set([image('a', 'train')], {COMPUTE_VALIDATION_SET: True})
 
 
 @pytest.mark.parametrize('value, expected', [(None, False), ('', False), (False, False), (True, True),
                                              ('true', True), (' True ', True), ('false', False), ('1', True),
                                              ('no', False)])
-def test_separate_testset_accepts_booleans(value, expected):
-    hyperparameters = {} if value is None else {SEPARATE_TESTSET: value}
-    assert separate_testset(hyperparameters) == expected
+def test_compute_validation_set_accepts_booleans(value, expected):
+    hyperparameters = {} if value is None else {COMPUTE_VALIDATION_SET: value}
+    assert compute_validation_set(hyperparameters) == expected
 
 
 @pytest.mark.parametrize('value', ['ture', 'on', '2'])
-def test_separate_testset_rejects_anything_but_a_boolean(value):
-    with pytest.raises(CriticalError, match=SEPARATE_TESTSET):
-        separate_testset({SEPARATE_TESTSET: value})
+def test_compute_validation_set_rejects_anything_but_a_boolean(value):
+    with pytest.raises(CriticalError, match=COMPUTE_VALIDATION_SET):
+        compute_validation_set({COMPUTE_VALIDATION_SET: value})
 
 
 def test_training_hands_out_its_images_by_set():

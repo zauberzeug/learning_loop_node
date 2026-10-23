@@ -364,7 +364,7 @@ class TrainerLogicGeneric(ABC):
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
-        Moves part of the train images to `val` if `separate_testset` asks for it (see `validation_set`).
+        Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
         """
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
@@ -409,10 +409,6 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
-                # NOTE: the loop has no validation set yet, so the val images split off the train images
-                # (see `validation_set`) are reported as train images, which they are in the loop.
-                # TODO: rework once the loop offers a dedicated validation set: report a separate
-                # `val_image_count` then, which the loop stores and shows next to the train and test counts.
                 train_image_count = len(self.training.train_images()) + len(self.training.val_images())
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
