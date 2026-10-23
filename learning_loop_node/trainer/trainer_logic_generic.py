@@ -29,6 +29,7 @@ from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
+from .validation_set import assign_validation_set
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -363,10 +364,12 @@ class TrainerLogicGeneric(ABC):
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        Moves part of the train images to `val` if `separate_testset` asks for it (see `validation_set`).
         """
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
+        assign_validation_set(image_data, self.training.hyperparameters)
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
@@ -406,10 +409,15 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
+                # NOTE: the loop has no validation set yet, so the val images split off the train images
+                # (see `validation_set`) are reported as train images, which they are in the loop.
+                # TODO: rework once the loop offers a dedicated validation set: report a separate
+                # `val_image_count` then, which the loop stores and shows next to the train and test counts.
+                train_image_count = len(self.training.train_images()) + len(self.training.val_images())
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,
-                                           train_image_count=self.training.train_image_count(),
+                                           train_image_count=train_image_count,
                                            test_image_count=self.training.test_image_count(),
                                            hyperparameters=self.hyperparameters_for_state_sync,
                                            best_epoch=new_best_model.epoch)
@@ -458,7 +466,7 @@ class TrainerLogicGeneric(ABC):
 
         model_uuid = None
         for file_format in [f for f in files if f not in already_uploaded_formats]:
-            _files = files[file_format] + [self._dump_categories_to_json()]
+            _files = files[file_format] + [self._dump_model_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
             model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
@@ -471,10 +479,11 @@ class TrainerLogicGeneric(ABC):
 
         return model_uuid
 
-    def _dump_categories_to_json(self) -> str:
-        """Dumps the categories to a json file and returns the path to the file.
+    def _dump_model_json(self) -> str:
+        """Dumps the categories and the trainer's model metadata to a json file and returns the path to the file.
         """
-        content = {'categories': [asdict(c) for c in self._training.categories], } if self._training else None
+        content = {'categories': [asdict(c) for c in self._training.categories],
+                   **self._get_model_metadata()} if self._training else None
         json_path = '/tmp/model.json'
         with open(json_path, 'w') as f:
             json.dump(content, f)
@@ -586,6 +595,13 @@ class TrainerLogicGeneric(ABC):
         If the function returns an empty dict, something went wrong and the model upload will be skipped.
         """
         raise NotImplementedError
+
+    def _get_model_metadata(self) -> dict[str, Any]:
+        """Called when the files of `_get_latest_model_files` are uploaded.
+        Returns values the trainer determined for this model, merged into its model.json.
+        The keys must be fields of `ModelInformation` (e.g. `conf_threshold`) so detectors can read them.
+        """
+        return {}
 
     @abstractmethod
     async def _clear_training_data(self, training_folder: str) -> None:
