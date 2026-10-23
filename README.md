@@ -95,7 +95,7 @@ The `batch_detect` endpoint receives a dictionary, with the same entries as the 
 
 - `images`: List of image data dictionaries, each with the same structure as the `image` entry in the `detect` endpoint
 
-Sending a camera's JPEG as it is (`format: 'jpeg'`) saves the bandwidth of a raw pixel array and lets the detector upload the very bytes it received instead of a re-encoded copy.
+Sending a camera's JPEG as it is (`format: 'jpeg'`) saves the bandwidth of a raw pixel array and spares the detector a re-encode for the upload.
 
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
 
