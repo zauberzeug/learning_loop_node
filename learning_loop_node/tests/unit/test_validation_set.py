@@ -81,18 +81,6 @@ def test_compute_validation_set_rejects_anything_but_a_boolean(value):
         compute_validation_set({COMPUTE_VALIDATION_SET: value})
 
 
-def test_training_hands_out_its_images_by_set():
-    training = Training(id='t', context=Context(organization='o', project='p'), project_folder='', images_folder='',
-                        training_folder='', categories=[], hyperparameters={}, training_number=1,
-                        training_state='', model_variant='',
-                        image_data=[image('a', 'train'), image('b', 'val'), image('c', 'test')])
-
-    assert [i['id'] for i in training.train_images()] == ['a']
-    assert [i['id'] for i in training.val_images()] == ['b']
-    assert [i['id'] for i in training.test_images()] == ['c']
-    assert (training.train_image_count(), training.test_image_count()) == (1, 1)
-
-
 async def test_the_loop_counts_the_val_images_as_train_images():
     training = Training(id='t', context=Context(organization='o', project='p'), project_folder='', images_folder='',
                         training_folder='', categories=[], hyperparameters={}, training_number=1,

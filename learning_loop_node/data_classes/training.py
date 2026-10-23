@@ -103,25 +103,13 @@ class Training():
         assert self.image_data is not None, 'Image data not set'
         return [image['id'] for image in self.image_data]
 
-    def train_images(self) -> list[dict]:
-        return self._images_of_set('train')
-
-    def val_images(self) -> list[dict]:
-        """The images to select models on; empty if the training selects on the test images (see `validation_set`)."""
-        return self._images_of_set('val')
-
-    def test_images(self) -> list[dict]:
-        return self._images_of_set('test')
-
     def train_image_count(self) -> int:
-        return len(self.train_images())
+        assert self.image_data is not None, 'Image data not set'
+        return len([image for image in self.image_data if image['set'] == 'train'])
 
     def test_image_count(self) -> int:
-        return len(self.test_images())
-
-    def _images_of_set(self, set_name: str) -> list[dict]:
         assert self.image_data is not None, 'Image data not set'
-        return [image for image in self.image_data if image['set'] == set_name]
+        return len([image for image in self.image_data if image['set'] == 'test'])
 
 
 @dataclass(**KWONLY_SLOTS)
