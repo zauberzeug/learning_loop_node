@@ -628,6 +628,7 @@ class DetectorNode(Node):
         and stored as they are if the image is uploaded.
         Raises exception if no model is loaded.
         """
+        _unwrap_detector(self._detector)  # before the decode, so a missing model costs no decode
         array = await _pixel_array(image)
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
@@ -669,6 +670,7 @@ class DetectorNode(Node):
         and stored as they are if the image is uploaded.
         Raises exception if no model is loaded.
         """
+        _unwrap_detector(self._detector)  # before the decode, so a missing model costs no decode
         arrays = await asyncio.gather(*(_pixel_array(image) for image in images))
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
