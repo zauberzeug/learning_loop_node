@@ -28,6 +28,16 @@ def test_image_from_dict_keeps_jpeg_bytes_and_parses_raw_arrays():
     assert np.array_equal(image_from_dict({'bytes': array.tobytes(order='C'), 'dtype': 'uint8', 'shape': (2, 3, 3)}), array)
 
 
+def test_a_jpeg_is_rotated_as_its_orientation_tag_says():
+    array = np.zeros((8, 16, 3), dtype=np.uint8)
+    exif = Image.Exif()
+    exif[0x0112] = 6  # shown rotated by 90 degrees, so the 16 wide image appears 16 tall
+    buffer = io.BytesIO()
+    Image.fromarray(array).save(buffer, format='JPEG', exif=exif.tobytes())
+    image = numpy_image_from_dict({'format': 'jpeg', 'bytes': buffer.getvalue()})
+    assert image.shape == (16, 8, 3)
+
+
 def test_an_unknown_format_is_rejected():
     with pytest.raises(ValueError):
         numpy_image_from_dict({'format': 'png', 'bytes': b''})

@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 
 import numpy as np
 import pynvml
-from PIL import Image
+from PIL import Image, ImageOps
 
 from ..data_classes.general import Context
 from ..data_classes.socket_response import SocketResponse
@@ -236,8 +236,12 @@ def is_jpeg(data: bytes) -> bool:
 
 
 def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
-    """Convert jpg bytes to numpy array."""
-    image = Image.open(io.BytesIO(jpg_bytes))
+    """Decode image bytes into a pixel array, rotated as the EXIF orientation tag says.
+
+    The array thus shows the image as a viewer honoring the tag does, so detections on it
+    line up with the image in the loop even when the stored JPEG keeps its tag.
+    """
+    image = ImageOps.exif_transpose(Image.open(io.BytesIO(jpg_bytes)))
     return np.array(image)
 
 
