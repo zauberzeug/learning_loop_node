@@ -186,7 +186,7 @@ class DataExchanger():
         if response.status_code == HTTPStatus.CONFLICT:
             try:
                 stored_model_id = response.json()['detail']['id']
-            except (ValueError, KeyError, TypeError):  # loops before zauberzeug/loop#445 name no id
+            except (ValueError, KeyError, TypeError):  # older loops name no id
                 stored_model_id = None
             if not is_valid_uuid4(stored_model_id):
                 logger.warning('The loop already stores the model of training %s in format %s, but names no id',
