@@ -22,7 +22,7 @@ from ..data_classes import ImageMetadata
 from ..enums import OutboxMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader, run
-from ..helpers.misc import ImageData, is_jpeg, jpg_bytes_to_numpy_array, numpy_array_to_jpg_bytes
+from ..helpers.misc import ImageData, numpy_array_to_jpg_bytes
 
 T = TypeVar('T')
 
@@ -83,17 +83,11 @@ class Outbox():
         """
         Save an image and its metadata to disk.
 
-        A pixel array is encoded as JPEG here, JPEG bytes are stored as they are, and the bytes of any other
-        image format PIL can read are re-encoded as JPEG. Undecodable bytes raise.
+        A pixel array is encoded as JPEG here, image bytes are stored unchanged for the loop to validate.
         The data will be picked up by the continuous upload process.
         """
 
-        if isinstance(image, np.ndarray):
-            jpg_bytes = numpy_array_to_jpg_bytes(image)
-        elif is_jpeg(image):
-            jpg_bytes = image
-        else:
-            jpg_bytes = numpy_array_to_jpg_bytes(jpg_bytes_to_numpy_array(image))
+        jpg_bytes = numpy_array_to_jpg_bytes(image) if isinstance(image, np.ndarray) else image
 
         if image_metadata is None:
             image_metadata = ImageMetadata()

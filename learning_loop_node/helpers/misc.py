@@ -221,32 +221,20 @@ def create_training_folder(project_folder: str, trainings_id: str) -> str:
 
 
 ImageData = Union[np.ndarray, bytes]
-"""An image as it was received: either a pixel array or a JPEG-encoded image.
-
-Keeping the received form spares a JPEG the decode and re-encode on its way to the outbox.
-"""
+"""An image as it was received: either a pixel array or a JPEG-encoded image."""
 
 ImageFormat = Literal['raw', 'jpeg']
 """How the `bytes` of an image dict are encoded: a pixel array in C order described by `dtype` and `shape`, or a JPEG."""
 
 
-def is_jpeg(data: bytes) -> bool:
-    """Whether the bytes start with the JPEG marker; the body is not checked."""
-    return data[:2] == b'\xff\xd8'
-
-
 def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
-    """Decode image bytes into a pixel array, rotated as the EXIF orientation tag says.
-
-    The array thus shows the image as a viewer honoring the tag does, so detections on it
-    line up with the image in the loop even when the stored JPEG keeps its tag.
-    """
+    """Decode image bytes into a pixel array, rotated as the EXIF orientation tag says."""
     image = ImageOps.exif_transpose(Image.open(io.BytesIO(jpg_bytes)))
     return np.array(image)
 
 
 def numpy_array_to_jpg_bytes(image_array: np.ndarray) -> bytes:
-    """Convert jpg bytes to numpy array."""
+    """Encode a pixel array as JPEG."""
     buffer = io.BytesIO()
     Image.fromarray(image_array).save(buffer, format="JPEG")
     jpg_bytes = buffer.getvalue()
