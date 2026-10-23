@@ -223,7 +223,7 @@ def create_training_folder(project_folder: str, trainings_id: str) -> str:
 ImageData = Union[np.ndarray, bytes]
 """An image as it was received: either a pixel array or a JPEG-encoded image.
 
-JPEG bytes are decoded where the pixels are needed and stored as they are when the image is uploaded.
+Keeping the received form spares a JPEG the decode and re-encode on its way to the outbox.
 """
 
 ImageFormat = Literal['raw', 'jpeg']

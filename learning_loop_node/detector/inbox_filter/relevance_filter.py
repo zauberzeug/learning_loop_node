@@ -19,7 +19,6 @@ class RelevanceFilter():
                                     image: ImageData) -> List[str]:
         """Check if the detection should be uploaded to the outbox.
         If so, upload it and return the list of causes for the upload.
-        The image, a pixel array or JPEG bytes, is handed to the outbox as it is.
         """
         for group in self.cam_histories.values():
             group.forget_old_detections()

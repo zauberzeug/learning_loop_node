@@ -28,7 +28,7 @@ async def upload_image(request: Request,
     """
     node: 'DetectorNode' = request.app
 
-    images = [await file.read() for file in files]  # JPEG bytes, stored by the outbox as they are
+    images = [await file.read() for file in files]
     images_metadata = ImagesMetadata(items=[ImageMetadata(source=source, created=creation_date) for _ in images])
 
     await node.upload_images(images=images,
