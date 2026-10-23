@@ -318,7 +318,7 @@ class TrainerLogicGeneric(ABC):
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         '''
         Perform a training state and handle errors.
-        - If the loop sends a StopTraining event, this will raise a CancelledError.
+        - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
         '''
@@ -496,12 +496,17 @@ class TrainerLogicGeneric(ABC):
 
     async def on_shutdown(self) -> None:
         self.shutdown_event.set()
-        await self.stop()
-        await self.stop()
+        await self.abort()
 
-    async def stop(self):
-        """Stop the training. Default is to abort.
-        """
+    async def stop(self) -> None:
+        """Stop a running training but keep its model. In every other state a stop does nothing."""
+        if not self.training_active or self.training.training_state != TrainerState.TrainingRunning:
+            logger.info('Received stop in state %s. This is ignored.', self.training.training_state if self.training_active else None)
+            return
+        await self._stop_running_training()
+
+    async def _stop_running_training(self) -> None:
+        """End the running training so it winds down with its model. This base class cannot, so it aborts."""
         await self.abort()
 
     async def abort(self):
