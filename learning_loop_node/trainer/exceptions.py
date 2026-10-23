@@ -5,6 +5,12 @@ class CriticalError(Exception):
     """
 
 
+class ModelUploadFailedError(Exception):
+    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error.
+    Unlike a CriticalError it keeps the training, so the upload is tried again later.
+    """
+
+
 class TrainingRefusedError(Exception):
     """Raised when a trainer cannot take on a training it was asked to begin; nothing was set up."""
 
