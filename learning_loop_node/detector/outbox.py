@@ -1,5 +1,4 @@
 import asyncio
-import io
 import json
 import logging
 import os
@@ -17,15 +16,13 @@ from typing import List, Optional, Tuple, TypeVar, Union
 
 import aiohttp
 import numpy as np
-import PIL
-import PIL.Image  # type: ignore
 from fastapi.encoders import jsonable_encoder
 
 from ..data_classes import ImageMetadata
 from ..enums import OutboxMode
 from ..globals import GLOBALS
 from ..helpers import environment_reader, run
-from ..helpers.misc import numpy_array_to_jpg_bytes
+from ..helpers.misc import ImageData, numpy_array_to_jpg_bytes
 
 T = TypeVar('T')
 
@@ -80,16 +77,17 @@ class Outbox():
             self.upload_folders.append(file)
 
     async def save(self,
-                   image: np.ndarray,
+                   image: ImageData,
                    image_metadata: Optional[ImageMetadata] = None,
                    upload_priority: bool = False) -> None:
         """
-        Save an image and its metadata to disk. 
+        Save an image and its metadata to disk.
 
+        A pixel array is encoded as JPEG here, image bytes are stored unchanged for the loop to validate.
         The data will be picked up by the continuous upload process.
         """
 
-        jpg_bytes = numpy_array_to_jpg_bytes(image)
+        jpg_bytes = numpy_array_to_jpg_bytes(image) if isinstance(image, np.ndarray) else image
 
         if image_metadata is None:
             image_metadata = ImageMetadata()
@@ -261,14 +259,6 @@ class Outbox():
             self.log.warning('Too many requests: %s', response.content)
         else:
             self.log.error('Could not upload images: %s', response.content)
-
-    def _is_valid_jpg(self, image: bytes) -> bool:
-        try:
-            _ = PIL.Image.open(io.BytesIO(image), formats=['JPEG'])
-            return True
-        except Exception:
-            self.log.exception('Invalid jpg image')
-            return False
 
     async def ensure_continuous_upload_stopped(self) -> bool:
         self.log.debug('Outbox: Ensuring continuous upload')
