@@ -35,8 +35,8 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
   ordinary exception records the error and rewinds to the previous state (retried after a growing
-  wait, `_retry_delay`), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is
-  persisted through `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
+  wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
+  `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. A concrete trainer
