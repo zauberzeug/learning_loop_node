@@ -1,8 +1,10 @@
+import io
 from glob import glob
 from pathlib import Path
 
 import numpy as np
 import pytest
+from PIL import Image
 
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
@@ -25,6 +27,19 @@ async def test_jpeg_bytes_are_stored_as_they_are(outbox: Outbox):
 async def test_a_pixel_array_is_encoded_as_jpeg(outbox: Outbox):
     await outbox.save(np.zeros((4, 4, 3), dtype=np.uint8))
     assert _saved_image(outbox)[:2] == b'\xff\xd8'  # the JPEG start marker
+
+
+async def test_other_image_bytes_are_re_encoded_as_jpeg(outbox: Outbox):
+    buffer = io.BytesIO()
+    Image.fromarray(np.zeros((4, 4, 3), dtype=np.uint8)).save(buffer, format='PNG')
+    await outbox.save(buffer.getvalue())
+    assert _saved_image(outbox)[:2] == b'\xff\xd8'
+
+
+async def test_undecodable_bytes_are_rejected(outbox: Outbox):
+    with pytest.raises(Exception):
+        await outbox.save(b'not an image')
+    assert not glob(f'{outbox.path}/normal/*')
 
 
 def _saved_image(outbox: Outbox) -> bytes:

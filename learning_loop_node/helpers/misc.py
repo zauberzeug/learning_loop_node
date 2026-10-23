@@ -230,6 +230,11 @@ ImageFormat = Literal['raw', 'jpeg']
 """How the `bytes` of an image dict are encoded: a pixel array in C order described by `dtype` and `shape`, or a JPEG."""
 
 
+def is_jpeg(data: bytes) -> bool:
+    """Whether the bytes start with the JPEG marker; the body is not checked."""
+    return data[:2] == b'\xff\xd8'
+
+
 def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
     """Convert jpg bytes to numpy array."""
     image = Image.open(io.BytesIO(jpg_bytes))
