@@ -669,7 +669,7 @@ class DetectorNode(Node):
         and stored as they are if the image is uploaded.
         Raises exception if no model is loaded.
         """
-        arrays = [await _pixel_array(image) for image in images]
+        arrays = await asyncio.gather(*(_pixel_array(image) for image in images))
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
             all_detections = await run.io_bound(detector.logic.batch_evaluate, arrays)
