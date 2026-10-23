@@ -3,7 +3,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import uuid4
 
 from ..enums import TrainerState
@@ -22,6 +22,28 @@ class PretrainedModel():
     description: str
 
 
+HyperparameterType = Literal['int', 'float', 'bool', 'str', 'pairs']
+
+
+@dataclass(**KWONLY_SLOTS)
+class Hyperparameter:
+    """One hyperparameter a trainer accepts, reported to the loop so it can offer it in the project settings.
+
+    Plain data only, so it reaches the loop as it is. ``minimum`` and ``maximum`` apply to ``int`` and ``float``,
+    ``choices`` to ``str``. A ``pairs`` value is text of the form ``"key:value,..."``, which ``parse_pairs`` reads.
+    ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
+    Whether a value can be changed when a training is started is the project's choice, not the trainer's.
+    """
+    name: str
+    type: HyperparameterType
+    default: Any
+    minimum: float | None = None
+    maximum: float | None = None
+    choices: list[str] | None = None
+    notes: str = ''
+    expert: bool = False
+
+
 @dataclass(**KWONLY_SLOTS)
 class TrainingStatus():
     id: str  # NOTE this must not be changed, but tests wont detect a change -> update tests!
@@ -33,6 +55,7 @@ class TrainingStatus():
     progress: Optional[float]
 
     pretrained_models: List[PretrainedModel] = field(default_factory=list)
+    hyperparameters: list[Hyperparameter] = field(default_factory=list)
     architecture: Optional[str] = None
     context: Optional[Context] = None
 
@@ -54,6 +77,8 @@ class Training():
 
     categories: List[Category]
     hyperparameters: Dict[str, Any]
+    # the declared defaults filled into `hyperparameters` for what the loop did not send; not reported back
+    hyperparameter_defaults: Dict[str, Any] = field(default_factory=dict)
 
     training_number: int
     training_state: str

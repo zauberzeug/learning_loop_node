@@ -30,6 +30,7 @@ from .image_metadata import ImageMetadata, ImagesMetadata
 from .socket_response import SocketResponse
 from .training import (
     Errors,
+    Hyperparameter,
     PretrainedModel,
     Training,
     TrainingError,
@@ -45,6 +46,6 @@ __all__ = [
     'AnnotationNodeStatus', 'Category', 'Context', 'DetectorStatus', 'ErrorConfiguration',
     'ModelInformation', 'NodeState', 'NodeStatus', 'ModelVersionResponse', 'ImagesMetadata',
     'SocketResponse',
-    'Errors', 'PretrainedModel', 'Training',
+    'Errors', 'Hyperparameter', 'PretrainedModel', 'Training',
     'TrainingError', 'TrainingOut', 'TrainingStateData', 'TrainingStatus',
 ]

@@ -5,7 +5,7 @@ import time
 from typing import Dict, List, Optional
 
 from learning_loop_node.data_classes import (BoxDetection, ClassificationDetection, Detections, ErrorConfiguration,
-                                             ModelInformation, Point, PointDetection, PretrainedModel,
+                                             Hyperparameter, ModelInformation, Point, PointDetection, PretrainedModel,
                                              SegmentationDetection, Shape, TrainingStateData)
 from learning_loop_node.enums import CategoryType
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
@@ -104,6 +104,24 @@ class MockTrainerLogic(TrainerLogic):
             PretrainedModel(name='small', label='Small', description='a small model'),
             PretrainedModel(name='medium', label='Medium', description='a medium model'),
             PretrainedModel(name='large', label='Large', description='a large model')]
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return [
+            Hyperparameter(name='resolution', type='int', default=832, minimum=32, maximum=4096,
+                           notes='Image size the model is trained on'),
+            Hyperparameter(name='epochs', type='int', default=100, minimum=1, notes='Passes over the training set'),
+            Hyperparameter(name='learning_rate', type='float', default=0.01, minimum=0.0, maximum=1.0,
+                           notes='Step size of the optimizer'),
+            Hyperparameter(name='fliplr', type='bool', default=True, notes='Flip half of the images horizontally'),
+            Hyperparameter(name='flipud', type='bool', default=False, notes='Flip half of the images vertically'),
+            Hyperparameter(name='flip_label_pairs', type='pairs', default='',
+                           notes='Categories swapped by a horizontal flip, as "uuid:uuid,..."'),
+            Hyperparameter(name='use_amp', type='bool', default=False, expert=True,
+                           notes='Mixed precision, faster but less exact'),
+            Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True,
+                           notes='Algorithm that updates the weights'),
+        ]
 
     @property
     def training_progress(self) -> float:

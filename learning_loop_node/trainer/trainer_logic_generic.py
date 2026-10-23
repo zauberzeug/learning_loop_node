@@ -13,6 +13,7 @@ from fastapi.encoders import jsonable_encoder
 from ..data_classes import (
     Context,
     Errors,
+    Hyperparameter,
     PretrainedModel,
     Training,
     TrainingOut,
@@ -26,7 +27,8 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, HyperparameterMismatchError, NodeNeedsRestartError, TrainingRefusedError
+from .hyperparameters import filled_in_defaults, resolve, warn_about_undeclared
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 
@@ -125,9 +127,13 @@ class TrainerLogicGeneric(ABC):
     @property
     def hyperparameters_for_state_sync(self) -> Optional[Dict]:
         """Used in sync_confusion_matrix and send_status to provide information about the training configuration.
+
+        The declared defaults filled in for what the loop did not send are left out, unless the trainer changed them.
         """
         if self._training:
-            return self._training.hyperparameters
+            defaults = self._training.hyperparameter_defaults
+            return {name: value for name, value in self._training.hyperparameters.items()
+                    if name not in defaults or value != defaults[name]}
         return None
 
     @property
@@ -176,6 +182,12 @@ class TrainerLogicGeneric(ABC):
         """
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        """Returns the hyperparameters this trainer accepts; an empty list leaves them unchecked."""
+        raise NotImplementedError
+
     # ---------------------------------------- METHODS ----------------------------------------
 
     # NOTE: Trainings are started by the Learning Loop via the begin_training event
@@ -194,6 +206,7 @@ class TrainerLogicGeneric(ABC):
                                 progress=self.general_progress)
 
         status.pretrained_models = self.provided_pretrained_models
+        status.hyperparameters = self.provided_hyperparameters
         status.architecture = self.model_architecture
 
         if self._training:
@@ -214,9 +227,20 @@ class TrainerLogicGeneric(ABC):
 
     def _init_from_last_training(self) -> None:
         """Initializes a new training object from the last training saved on disc via last_training_io.
+
+        The hyperparameters are resolved again, since the training may have been saved before this trainer declared
+        them. If one no longer fits, the training continues with the values it was saved with, since it already runs
+        with them.
         """
         self._training = self.last_training_io.load()
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
+        saved = self._training.hyperparameters
+        try:
+            self._training.hyperparameters = resolve(self.provided_hyperparameters, saved)
+            self._training.hyperparameter_defaults.update(filled_in_defaults(self.provided_hyperparameters, saved))
+        except CriticalError as e:
+            logger.warning('restored training does not fit the declared hyperparameters, continuing with the saved '
+                           'values: %s', e)
         logger.info('restored training: \n%s', self._training)
         self._active_training_io = ActiveTrainingIO(
             self._training.training_folder, self.node.loop_communicator, self._training.context)
@@ -224,13 +248,15 @@ class TrainerLogicGeneric(ABC):
     async def begin_training(self, organization: str, project: str, training_config: Dict) -> None:
         """Called on `begin_training` event from the Learning Loop.
 
-        The training slot is taken before anything is set up, so a refused training leaves the
-        previous training folders in place.
+        The hyperparameters are resolved and the training slot is taken before anything is set up, so a refused
+        training leaves the previous training folders in place.
 
         :raise TrainingRefusedError: if a training is active or a sibling node holds the training slot.
+        :raise HyperparameterMismatchError: if a hyperparameter does not fit its declaration.
         """
         if self.training_active:
             raise TrainingRefusedError(f'training {self.training.id} is still active')
+        training_config, defaults = self._with_resolved_hyperparameters(training_config)
         context = Context(organization=organization, project=project)
         self.training_slot.claim(self._slot_claim(context, training_config.get('training_number')))
         try:
@@ -238,7 +264,27 @@ class TrainerLogicGeneric(ABC):
         except Exception:
             self.training_slot.release()
             raise
+        self.training.hyperparameter_defaults = defaults
         self._begin_training_task()
+
+    def _with_resolved_hyperparameters(self, training_config: dict) -> tuple[dict, dict[str, Any]]:
+        """Returns ``training_config`` with its hyperparameters resolved against the declared ones, and the
+        defaults filled in.
+
+        A config without a hyperparameters dict is returned as it is, for ``Training.generate_training`` to reject.
+
+        :raise HyperparameterMismatchError: if a hyperparameter does not fit its declaration.
+        """
+        declared = self.provided_hyperparameters
+        received = training_config.get('hyperparameters')
+        if not declared or not isinstance(received, dict):
+            return training_config, {}
+        try:
+            resolved = resolve(declared, received)
+        except CriticalError as e:
+            raise HyperparameterMismatchError(str(e)) from e
+        warn_about_undeclared(declared, received)
+        return {**training_config, 'hyperparameters': resolved}, filled_in_defaults(declared, received)
 
     def _begin_training_task(self) -> None:
         # NOTE: Task object is used to potentially cancel the task

@@ -9,6 +9,13 @@ class TrainingRefusedError(Exception):
     """Raised when a trainer cannot take on a training it was asked to begin; nothing was set up."""
 
 
+class HyperparameterMismatchError(Exception):
+    """Raised when a training's hyperparameters do not fit the trainer's declaration; nothing was set up.
+
+    Unlike a refusal, the training would fail on any trainer of the same declaration.
+    """
+
+
 class TrainingSlotTakenError(TrainingRefusedError):
     """Raised when a sibling node holds the training slot."""
 
