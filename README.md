@@ -81,9 +81,10 @@ Example usage:
 To use the **SocketIO** inference EPs, the caller needs to connect to the detector node's SocketIO server and emit the `detect` or `batch_detect` event with the image data and image metadata. The `detect` endpoint receives a dictionary, with the following entries:
 
 - `image`: The image data as dictionary with the following keys:
-  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
-  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
-  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+  - `format`: `raw` (default) or `jpeg`
+  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`), or the JPEG-encoded image for format `jpeg`
+  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.) (raw only)
+  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`) (raw only)
 - `camera_id`: optional camera identifier (string) used to improve the autoupload filtering
 - `tags`: optional list of tags to add to the image in the learning loop
 - `source`: optional source string
@@ -93,6 +94,8 @@ To use the **SocketIO** inference EPs, the caller needs to connect to the detect
 The `batch_detect` endpoint receives a dictionary, with the same entries as the `detect` endpoint, except that the `image` entry is replaced by:
 
 - `images`: List of image data dictionaries, each with the same structure as the `image` entry in the `detect` endpoint
+
+Sending a camera's JPEG as it is (`format: 'jpeg'`) saves the bandwidth of a raw pixel array and lets the detector upload the very bytes it received instead of a re-encoded copy.
 
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
 
@@ -111,9 +114,10 @@ Example:
 The detector also has a **SocketIO** upload endpoint that can be used to upload images and detections to the learning loop. The function receives a dictionary, with the following entries:
 
 - `image`: the image data as dictionary with the following keys:
-  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
-  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
-  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+  - `format`: `raw` (default) or `jpeg`
+  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`), or the JPEG-encoded image for format `jpeg`
+  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.) (raw only)
+  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`) (raw only)
 - `metadata`: a dictionary representing the image metadata. If metadata contains detections and/or annotations, UUIDs for the classes are automatically determined based on the category names. Metadata should follow the schema of the `ImageMetadata` data class.
 - `upload_priority`: Optional boolean flag to prioritize the upload (defaults to False)
 
