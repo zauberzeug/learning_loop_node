@@ -1,8 +1,10 @@
 """Which images a training selects its models on.
 
-A node selects models (best checkpoint, early stopping, confidence threshold) on the `val` images
-of `Training.image_data` if there are any, and reads `test` only for the counts it reports. Without
-`val` images it selects on `test`, as every node did before validation sets existed.
+A node selects models (best checkpoint, early stopping, confidence threshold) on
+`Training.val_images()` and reads `Training.test_images()` only for the counts it reports. It never
+decides between the two itself: `val_images()` always holds a set to select on, which is the test
+images unless the training has `val` images of its own. A node may notice that both hold the same
+images and spare itself a second pass, but nothing more.
 
 Where the `val` images come from, in this order:
 
@@ -10,7 +12,8 @@ Where the `val` images come from, in this order:
 2. The `compute_validation_set` hyperparameter is true: `assign_validation_set` moves about a tenth of the
    train images to `val`, chosen by a hash of the image id, so an image stays on its side when new
    images arrive or a training is continued.
-3. Otherwise there are no `val` images.
+3. Otherwise there are no `val` images and `val_images()` falls back to the test images, so the
+   model is selected on the test set as every node did before validation sets existed.
 """
 
 import hashlib

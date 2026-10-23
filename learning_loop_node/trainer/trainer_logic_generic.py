@@ -424,7 +424,7 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
-                train_image_count = len(self.training.train_images()) + len(self.training.val_images())
+                train_image_count = self.training.train_image_count() + self.training.val_image_count()
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,

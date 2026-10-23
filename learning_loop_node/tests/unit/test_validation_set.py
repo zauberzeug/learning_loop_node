@@ -81,23 +81,29 @@ def test_compute_validation_set_rejects_anything_but_a_boolean(value):
         compute_validation_set({COMPUTE_VALIDATION_SET: value})
 
 
+def training_with(images: list[dict]) -> Training:
+    return Training(id='t', context=Context(organization='o', project='p'), project_folder='', images_folder='',
+                    training_folder='', categories=[], hyperparameters={}, training_number=1,
+                    training_state='', model_variant='', image_data=images)
+
+
 def test_training_hands_out_its_images_by_set():
-    training = Training(id='t', context=Context(organization='o', project='p'), project_folder='', images_folder='',
-                        training_folder='', categories=[], hyperparameters={}, training_number=1,
-                        training_state='', model_variant='',
-                        image_data=[image('a', 'train'), image('b', 'val'), image('c', 'test')])
+    training = training_with([image('a', 'train'), image('b', 'val'), image('c', 'test')])
 
     assert [i['id'] for i in training.train_images()] == ['a']
     assert [i['id'] for i in training.val_images()] == ['b']
     assert [i['id'] for i in training.test_images()] == ['c']
-    assert (training.train_image_count(), training.test_image_count()) == (1, 1)
+    assert (training.train_image_count(), training.val_image_count(), training.test_image_count()) == (1, 1, 1)
 
 
-async def test_the_loop_counts_the_val_images_as_train_images():
-    training = Training(id='t', context=Context(organization='o', project='p'), project_folder='', images_folder='',
-                        training_folder='', categories=[], hyperparameters={}, training_number=1,
-                        training_state='', model_variant='',
-                        image_data=[image('a', 'train'), image('b', 'val'), image('c', 'test')])
+def test_without_val_images_the_training_selects_on_the_test_images():
+    training = training_with([image('a', 'train'), image('c', 'test')])
+
+    assert [i['id'] for i in training.val_images()] == ['c']
+    assert training.val_image_count() == 0
+
+
+async def sync_training(training: Training) -> dict:
     sio_client = SimpleNamespace(connected=True, call=AsyncMock(return_value={'success': True}))
     trainer = SimpleNamespace(node=SimpleNamespace(sio_client=sio_client, uuid='n', name='node'), training=training,
                               errors=MagicMock(), hyperparameters_for_state_sync={}, _on_metrics_published=MagicMock(),
@@ -105,5 +111,16 @@ async def test_the_loop_counts_the_val_images_as_train_images():
 
     await TrainerLogicGeneric._sync_training(trainer)  # type: ignore[arg-type]
 
-    sent = sio_client.call.call_args.args[1][2]
+    return sio_client.call.call_args.args[1][2]
+
+
+async def test_the_loop_counts_the_val_images_as_train_images():
+    sent = await sync_training(training_with([image('a', 'train'), image('b', 'val'), image('c', 'test')]))
+
     assert (sent['train_image_count'], sent['test_image_count']) == (2, 1)
+
+
+async def test_the_loop_never_counts_the_test_images_a_training_selects_on_as_train_images():
+    sent = await sync_training(training_with([image('a', 'train'), image('c', 'test')]))
+
+    assert (sent['train_image_count'], sent['test_image_count']) == (1, 1)
