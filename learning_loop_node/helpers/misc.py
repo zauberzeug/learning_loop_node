@@ -10,7 +10,7 @@ import sys
 from dataclasses import asdict
 from glob import glob
 from time import perf_counter
-from typing import Any, Coroutine, Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Coroutine, Dict, List, Literal, Optional, Tuple, TypeVar, Union, get_args
 from uuid import UUID, uuid4
 
 import numpy as np
@@ -226,6 +226,9 @@ ImageData = Union[np.ndarray, bytes]
 JPEG bytes are decoded where the pixels are needed and stored as they are when the image is uploaded.
 """
 
+ImageFormat = Literal['raw', 'jpeg']
+"""How the `bytes` of an image dict are encoded: a pixel array in C order described by `dtype` and `shape`, or a JPEG."""
+
 
 def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
     """Convert jpg bytes to numpy array."""
@@ -241,6 +244,14 @@ def numpy_array_to_jpg_bytes(image_array: np.ndarray) -> bytes:
     return jpg_bytes
 
 
+def image_format_of(image_data: Dict) -> ImageFormat:
+    """The format an image dict declares, 'raw' if it declares none."""
+    image_format = image_data.get('format', 'raw')
+    if image_format not in get_args(ImageFormat):
+        raise ValueError(f'unknown image format: {image_format}')
+    return image_format
+
+
 def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     """
     Convert image dict to numpy array.
@@ -251,12 +262,8 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     - dtype: data type of the pixel values (raw only)
     - shape: shape of the image (height, width, channels) (raw only)
     """
-
-    image_format = image_data.get('format', 'raw')
-    if image_format == 'jpeg':
+    if image_format_of(image_data) == 'jpeg':
         return jpg_bytes_to_numpy_array(image_data['bytes'])
-    if image_format != 'raw':
-        raise ValueError(f'unknown image format: {image_format}')
 
     image_bytes = image_data['bytes']
     image_dtype = image_data['dtype']
@@ -266,6 +273,6 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
 
 def image_from_dict(image_data: Dict) -> ImageData:
     """The image of an image dict as received: the JPEG bytes for format 'jpeg', the pixel array otherwise."""
-    if image_data.get('format', 'raw') == 'jpeg':
+    if image_format_of(image_data) == 'jpeg':
         return image_data['bytes']
     return numpy_image_from_dict(image_data)

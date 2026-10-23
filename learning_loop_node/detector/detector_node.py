@@ -6,9 +6,10 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, List, Literal, Optional, Sequence, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
 import socketio
