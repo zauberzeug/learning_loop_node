@@ -107,11 +107,7 @@ class Training():
         return self._images_of_set('train')
 
     def val_images(self) -> list[dict]:
-        """The images to select models on: the `val` images if there are any, else the test images.
-
-        See `validation_set` for where `val` images come from. A node always selects on these and
-        reports on `test_images()`; it may treat the two as one set when they hold the same images.
-        """
+        """The images to select models on: the `val` images if there are any, else the test images."""
         return self._images_of_set('val') or self.test_images()
 
     def test_images(self) -> list[dict]:

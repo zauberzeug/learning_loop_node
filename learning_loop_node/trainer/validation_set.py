@@ -13,7 +13,7 @@ Where the `val` images come from, in this order:
    train images to `val`, chosen by a hash of the image id, so an image stays on its side when new
    images arrive or a training is continued.
 3. Otherwise there are no `val` images and `val_images()` falls back to the test images, so the
-   model is selected on the test set as every node did before validation sets existed.
+   model is selected on the test set.
 """
 
 import hashlib
@@ -32,10 +32,7 @@ VALIDATION_FRACTION = 0.1
 
 
 def compute_validation_set(hyperparameters: Mapping[str, Any]) -> bool:
-    """Whether `compute_validation_set` is set, defaulting to false; anything but a boolean is a CriticalError.
-
-    The loop types a boolean hyperparameter before it sends it, so a string here is a misconfigured project.
-    """
+    """Whether `compute_validation_set` is set, defaulting to false; anything but a boolean is a CriticalError."""
     value = hyperparameters.get(COMPUTE_VALIDATION_SET, False)
     if not isinstance(value, bool):
         raise CriticalError(f"'{COMPUTE_VALIDATION_SET}' must be true or false, got {value!r}")
