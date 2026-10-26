@@ -29,6 +29,7 @@ from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
+from .validation_set import assign_validation_set
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -328,7 +329,7 @@ class TrainerLogicGeneric(ABC):
     async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
         '''
         Perform a training state and handle errors.
-        - If the loop sends a StopTraining event, this will raise a CancelledError.
+        - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
           The state is retried after a wait until the training is aborted.
@@ -377,11 +378,11 @@ class TrainerLogicGeneric(ABC):
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        """Downloads images to the images_folder and saves annotations to training.data.image_data.
-        """
+        """Downloads images to the images_folder and saves annotations to training.data.image_data."""
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
+        assign_validation_set(image_data, self.training.hyperparameters)
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
@@ -421,11 +422,12 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
+                sets = [image['set'] for image in self.training.image_data or []]
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,
-                                           train_image_count=self.training.train_image_count(),
-                                           test_image_count=self.training.test_image_count(),
+                                           train_image_count=sets.count('train') + sets.count('val'),
+                                           test_image_count=sets.count('test'),
                                            hyperparameters=self.hyperparameters_for_state_sync,
                                            best_epoch=new_best_model.epoch)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
@@ -516,12 +518,17 @@ class TrainerLogicGeneric(ABC):
 
     async def on_shutdown(self) -> None:
         self.shutdown_event.set()
-        await self.stop()
-        await self.stop()
+        await self.abort()
 
-    async def stop(self):
-        """Stop the training. Default is to abort.
-        """
+    async def stop(self) -> None:
+        """Stop a running training but keep its model. In every other state a stop does nothing."""
+        if not self.training_active or self.training.training_state != TrainerState.TrainingRunning:
+            logger.info('Received stop in state %s. This is ignored.', self.training.training_state if self.training_active else None)
+            return
+        await self._stop_running_training()
+
+    async def _stop_running_training(self) -> None:
+        """End the running training so it winds down with its model. This base class cannot, so it aborts."""
         await self.abort()
 
     async def abort(self):
