@@ -87,20 +87,16 @@ def training_with(images: list[dict]) -> Training:
                     training_state='', model_variant='', image_data=images)
 
 
-def test_training_hands_out_its_images_by_set():
+def test_training_selects_on_its_val_images():
     training = training_with([image('a', 'train'), image('b', 'val'), image('c', 'test')])
 
-    assert [i['id'] for i in training.train_images()] == ['a']
     assert [i['id'] for i in training.val_images()] == ['b']
-    assert [i['id'] for i in training.test_images()] == ['c']
-    assert (training.train_image_count(), training.val_image_count(), training.test_image_count()) == (1, 1, 1)
 
 
 def test_without_val_images_the_training_selects_on_the_test_images():
     training = training_with([image('a', 'train'), image('c', 'test')])
 
     assert [i['id'] for i in training.val_images()] == ['c']
-    assert training.val_image_count() == 0
 
 
 async def sync_training(training: Training) -> dict:

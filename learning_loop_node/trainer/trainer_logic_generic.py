@@ -424,12 +424,12 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
-                train_image_count = self.training.train_image_count() + self.training.val_image_count()
+                sets = [image['set'] for image in self.training.image_data or []]
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,
-                                           train_image_count=train_image_count,
-                                           test_image_count=self.training.test_image_count(),
+                                           train_image_count=sets.count('train') + sets.count('val'),
+                                           test_image_count=sets.count('test'),
                                            hyperparameters=self.hyperparameters_for_state_sync,
                                            best_epoch=new_best_model.epoch)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.

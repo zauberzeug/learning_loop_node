@@ -1,7 +1,7 @@
 """Which images a training selects its models on.
 
 A node selects models (best checkpoint, early stopping, confidence threshold) on
-`Training.val_images()` and reads `Training.test_images()` only for the counts it reports. It never
+`Training.val_images()` and reads the `test` images only for the counts it reports. It never
 decides between the two itself: `val_images()` always holds a set to select on, which is the test
 images unless the training has `val` images of its own. A node may notice that both hold the same
 images and spare itself a second pass, but nothing more.

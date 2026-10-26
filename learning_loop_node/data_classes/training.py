@@ -103,29 +103,13 @@ class Training():
         assert self.image_data is not None, 'Image data not set'
         return [image['id'] for image in self.image_data]
 
-    def train_images(self) -> list[dict]:
-        return self._images_of_set('train')
-
     def val_images(self) -> list[dict]:
         """The images to select models on: the `val` images if there are any, else the test images.
 
         See `validation_set` for where `val` images come from. A node always selects on these and
-        reports on `test_images()`; it may treat the two as one set when they hold the same images.
+        reports on the test images; it may treat the two as one set when they hold the same images.
         """
-        return self._images_of_set('val') or self.test_images()
-
-    def test_images(self) -> list[dict]:
-        return self._images_of_set('test')
-
-    def train_image_count(self) -> int:
-        return len(self.train_images())
-
-    def val_image_count(self) -> int:
-        """The number of `val` images; 0 if `val_images()` falls back to the test images."""
-        return len(self._images_of_set('val'))
-
-    def test_image_count(self) -> int:
-        return len(self.test_images())
+        return self._images_of_set('val') or self._images_of_set('test')
 
     def _images_of_set(self, set_name: str) -> list[dict]:
         assert self.image_data is not None, 'Image data not set'
