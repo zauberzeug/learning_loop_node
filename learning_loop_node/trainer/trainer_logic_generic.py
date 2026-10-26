@@ -33,7 +33,15 @@ from .training_slot import TrainingSlot, training_slot_from_env
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
+BASE_RETRY_DELAY = 5  # seconds before the first retry of a failed state
+MAX_RETRY_DELAY = 300  # seconds
+
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
+
+
+def _retry_delay(failures: int) -> float:
+    """The wait before the next attempt of a state that has failed `failures` times in a row."""
+    return min(BASE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_RETRY_DELAY)
 
 
 class TrainerLogicGeneric(ABC):
@@ -45,6 +53,7 @@ class TrainerLogicGeneric(ABC):
         # '/{context.organization}/projects/{context.project}/models/{model_id}/{model_format}/file'
         self.model_format: str = model_format
         self.errors = Errors()
+        self._state_failures: Dict[str, int] = {}  # failed attempts in a row, by error key
 
         self.training_task: Optional[asyncio.Task] = None
         self.shutdown_event: asyncio.Event = asyncio.Event()
@@ -264,6 +273,7 @@ class TrainerLogicGeneric(ABC):
         Either via `begin_training` or `try_continue_run_if_incomplete`.
         """
         self.errors.reset_all()
+        self._state_failures.clear()
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
@@ -321,8 +331,11 @@ class TrainerLogicGeneric(ABC):
         - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+          The state is retried after a wait until the training is aborted.
         '''
 
+        if failures := self._state_failures.get(error_key):
+            await asyncio.sleep(_retry_delay(failures))
         await asyncio.sleep(0.1)
         logger.info('Performing state: %s', state_during)
         previous_state = self.training.training_state
@@ -351,6 +364,7 @@ class TrainerLogicGeneric(ABC):
             print('Error in %s - Exception: %s', state_during, e, flush=True)
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state_during, e)
+            self._state_failures[error_key] = self._state_failures.get(error_key, 0) + 1
             self.training.training_state = previous_state
             return
         else:
@@ -359,6 +373,7 @@ class TrainerLogicGeneric(ABC):
                 self.errors.reset(error_key)
             self.training.training_state = state_after
 
+        self._state_failures.pop(error_key, None)
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
@@ -440,10 +455,13 @@ class TrainerLogicGeneric(ABC):
         Note that with the latest trainers the conversion to (.wts) is done by the trainer.
         The conversion from .wts to .engine is done by the detector (needs to be done on target hardware).
         Note that trainer may train with different classes, which is why we send an initial model.json file.
+        A format the loop already stores counts as uploaded.
+        The model UUID is kept beside the upload progress, so a retry after a restart still knows it.
 
         :return: The new model UUID.
-        :raise CriticalError: If the latest model files cannot be obtained.
-        :raise Exception: If the response for the model upload attempt is invalid.
+        :raise CriticalError: If the latest model files cannot be obtained,
+            or the model is uploaded but its UUID is unknown.
+        :raise ModelUploadFailedError: If the loop could not store a model file; the state is retried.
         """
 
         files = await self._get_latest_model_files()
@@ -456,20 +474,21 @@ class TrainerLogicGeneric(ABC):
 
         already_uploaded_formats = self.active_training_io.load_model_upload_progress()
 
-        model_uuid = None
         for file_format in [f for f in files if f not in already_uploaded_formats]:
             _files = files[file_format] + [self._dump_categories_to_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
             model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            if model_uuid is not None:
+                self.active_training_io.save_uploaded_model_uuid(model_uuid)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
 
-        if not model_uuid:
-            raise Exception('Invalid response for model upload attempt')
-
-        return model_uuid
+        try:
+            return self.active_training_io.load_uploaded_model_uuid()
+        except FileNotFoundError as e:
+            raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
 
     def _dump_categories_to_json(self) -> str:
         """Dumps the categories to a json file and returns the path to the file.
