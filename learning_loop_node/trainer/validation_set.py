@@ -30,19 +30,16 @@ COMPUTE_VALIDATION_SET = 'compute_validation_set'
 
 VALIDATION_FRACTION = 0.1
 
-BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'false': False, '0': False, 'no': False}
-
 
 def compute_validation_set(hyperparameters: Mapping[str, Any]) -> bool:
-    """Whether `compute_validation_set` is set, defaulting to false; anything but a boolean is a CriticalError."""
-    value = hyperparameters.get(COMPUTE_VALIDATION_SET)
-    if value is None or value == '':
-        return False
-    if not isinstance(value, str):
-        return bool(value)
-    if (key := value.strip().lower()) not in BOOL_STRINGS:
+    """Whether `compute_validation_set` is set, defaulting to false; anything but a boolean is a CriticalError.
+
+    The loop types a boolean hyperparameter before it sends it, so a string here is a misconfigured project.
+    """
+    value = hyperparameters.get(COMPUTE_VALIDATION_SET, False)
+    if not isinstance(value, bool):
         raise CriticalError(f"'{COMPUTE_VALIDATION_SET}' must be true or false, got {value!r}")
-    return BOOL_STRINGS[key]
+    return value
 
 
 def assign_validation_set(image_data: list[dict], hyperparameters: Mapping[str, Any]) -> None:

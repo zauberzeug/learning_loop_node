@@ -67,15 +67,13 @@ def test_a_single_train_image_fails_the_training():
         assign_validation_set([image('a', 'train')], {COMPUTE_VALIDATION_SET: True})
 
 
-@pytest.mark.parametrize('value, expected', [(None, False), ('', False), (False, False), (True, True),
-                                             ('true', True), (' True ', True), ('false', False), ('1', True),
-                                             ('no', False)])
+@pytest.mark.parametrize('value, expected', [(None, False), (False, False), (True, True)])
 def test_compute_validation_set_accepts_booleans(value, expected):
     hyperparameters = {} if value is None else {COMPUTE_VALIDATION_SET: value}
     assert compute_validation_set(hyperparameters) == expected
 
 
-@pytest.mark.parametrize('value', ['ture', 'on', '2'])
+@pytest.mark.parametrize('value', ['true', '', 1, None])
 def test_compute_validation_set_rejects_anything_but_a_boolean(value):
     with pytest.raises(CriticalError, match=COMPUTE_VALIDATION_SET):
         compute_validation_set({COMPUTE_VALIDATION_SET: value})
