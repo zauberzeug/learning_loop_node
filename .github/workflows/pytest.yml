@@ -2,6 +2,13 @@ name: Run Tests
 
 on: [push]
 
+# the integration suites share one preview loop and create and delete projects by fixed names, so
+# two runs at once -- a second push, another branch -- delete each other's project mid-test. GitHub
+# keeps one pending run per group and cancels an older pending one when a third arrives.
+concurrency:
+  group: preview-learning-loop
+  cancel-in-progress: false
+
 jobs:
   unit:
     runs-on: ubuntu-latest
