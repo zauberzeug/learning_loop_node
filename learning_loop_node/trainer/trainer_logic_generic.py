@@ -386,7 +386,6 @@ class TrainerLogicGeneric(ABC):
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
-        # test before validation: an empty val_images() falling back to an empty test set is a missing test set
         for set_name, images in (('train', self.training.train_images()),
                                  ('test', self.training.test_images()),
                                  ('validation', self.training.val_images())):
