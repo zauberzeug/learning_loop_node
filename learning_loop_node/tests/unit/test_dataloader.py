@@ -7,7 +7,7 @@ from ...trainer import dataloader
 from ...trainer.dataloader import (
     MAX_DATALOADER_WORKERS,
     MIN_DATALOADER_WORKERS,
-    RESERVED_CPUS,
+    TRAINING_PROCESS_CPUS,
     available_cpus,
     default_dataloader_workers,
 )
@@ -15,7 +15,8 @@ from ...trainer.dataloader import (
 PretendCpus = Callable[..., None]
 
 
-@pytest.mark.parametrize(('cpus', 'workers'), [(1, 2), (4, 2), (6, 4), (10, 8), (18, 16), (24, 16), (128, 16)])
+@pytest.mark.parametrize(('cpus', 'workers'), [(1, 0), (2, 0), (4, 2), (8, 6), (10, 8), (16, 8), (20, 12), (24, 16),
+                                               (128, 16)])
 def test_the_workers_leave_cpus_to_the_training_within_bounds(pretend_cpus: PretendCpus, cpus: int, workers: int):
     pretend_cpus(cpus)
     assert default_dataloader_workers() == workers
@@ -25,8 +26,9 @@ def test_the_bounds_hold_for_every_machine(pretend_cpus: PretendCpus):
     for cpus in range(1, 200):
         pretend_cpus(cpus)
         workers = default_dataloader_workers()
-        assert MIN_DATALOADER_WORKERS <= workers <= MAX_DATALOADER_WORKERS
-        assert workers == MIN_DATALOADER_WORKERS or workers <= cpus - RESERVED_CPUS
+        assert 0 <= workers <= MAX_DATALOADER_WORKERS
+        assert workers == 0 or workers <= cpus - TRAINING_PROCESS_CPUS
+        assert workers >= min(MIN_DATALOADER_WORKERS, cpus - TRAINING_PROCESS_CPUS)
 
 
 def test_the_affinity_decides_not_the_host(pretend_cpus: PretendCpus, monkeypatch: pytest.MonkeyPatch):

@@ -31,7 +31,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 1)      | Detector (opt.)           | 0            |
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            | 10           |
 | VRAM_LIMIT_GB            | -            | GPU memory (GB) a training may use; the batch size is probed against it (`--vram-limit-gb`, trainers built with `node_parser(vram_limit=True)`) | Trainer (opt.) | 0 (whole card) |
-| DATALOADER_WORKERS       | -            | Dataloader worker processes a training uses (`--dataloader-workers`, trainers built with `node_parser(dataloader_workers=True)`) | Trainer (opt.) | available CPUs − 2, between 2 and 16 |
+| DATALOADER_WORKERS       | -            | Dataloader worker processes a training uses (`--dataloader-workers`, trainers built with `node_parser(dataloader_workers=True)`) | Trainer (opt.) | available CPUs − 8, between 8 and 16; fewer than 10 CPUs: CPUs − 2 |
 | RESTART_AFTER_TRAINING   | -            | Restart the trainer after training (set to 1)                | Trainer (opt.)            | 0            |
 | KEEP_OLD_TRAININGS       | -            | Do not delete old trainings (set to 1)                       | Trainer (opt.)            | 0            |
 | TRAINER_IDLE_TIMEOUT_SEC | -            | Automatically shutdown trainer after timeout (in seconds)    | Trainer (opt.)            | 0 (disabled) |
