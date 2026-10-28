@@ -7,7 +7,7 @@ from ...data_classes import Context, Training, TrainingStateData
 from ...trainer.exceptions import CriticalError
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.validation_set import (COMPUTE_VALIDATION_SET, VALIDATION_FRACTION, assign_validation_set,
-                                       compute_validation_set)
+                                       compute_validation_set, require_test_images)
 
 TRAIN_IMAGE_COUNT = 200
 
@@ -65,6 +65,16 @@ def test_at_least_one_image_is_split_off():
 def test_a_single_train_image_fails_the_training():
     with pytest.raises(CriticalError, match='too few'):
         assign_validation_set([image('a', 'train')], {COMPUTE_VALIDATION_SET: True})
+
+
+@pytest.mark.parametrize('images', [[image('a', 'train')], [image('a', 'train'), image('b', 'val')]])
+def test_a_training_without_test_images_fails(images):
+    with pytest.raises(CriticalError, match='no test images'):
+        require_test_images(images)
+
+
+def test_a_training_with_test_images_passes():
+    require_test_images(image_data())
 
 
 @pytest.mark.parametrize('value, expected', [(None, False), (False, False), (True, True)])

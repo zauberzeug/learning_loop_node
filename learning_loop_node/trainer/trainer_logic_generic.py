@@ -29,7 +29,7 @@ from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
-from .validation_set import assign_validation_set
+from .validation_set import assign_validation_set, require_test_images
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -382,6 +382,7 @@ class TrainerLogicGeneric(ABC):
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
+        require_test_images(image_data)
         assign_validation_set(image_data, self.training.hyperparameters)
 
         self.training.image_data = image_data

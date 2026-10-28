@@ -14,6 +14,9 @@ Where the `val` images come from, in this order:
    images arrive or a training is continued.
 3. Otherwise there are no `val` images and `val_images()` falls back to the test images, so the
    model is selected on the test set.
+
+A training without test images fails before it starts (`require_test_images`): it would have
+nothing to select its models on, or nothing to report their counts on.
 """
 
 import hashlib
@@ -37,6 +40,13 @@ def compute_validation_set(hyperparameters: Mapping[str, Any]) -> bool:
     if not isinstance(value, bool):
         raise CriticalError(f"'{COMPUTE_VALIDATION_SET}' must be true or false, got {value!r}")
     return value
+
+
+def require_test_images(image_data: list[dict]) -> None:
+    """Raise a CriticalError if none of the images is a test image."""
+    if not any(image['set'] == 'test' for image in image_data):
+        raise CriticalError('The training has no test images to select its models on or to report them on, '
+                            'add test images')
 
 
 def assign_validation_set(image_data: list[dict], hyperparameters: Mapping[str, Any]) -> None:
