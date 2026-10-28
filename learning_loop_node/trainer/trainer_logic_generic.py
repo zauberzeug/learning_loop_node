@@ -29,7 +29,7 @@ from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
-from .validation_set import assign_validation_set, require_train_and_test_images
+from .validation_set import assign_validation_set
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -382,11 +382,16 @@ class TrainerLogicGeneric(ABC):
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
-        require_train_and_test_images(image_data)
         assign_validation_set(image_data, self.training.hyperparameters)
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
+        # test before validation: an empty val_images() falling back to an empty test set is a missing test set
+        for set_name, images in (('train', self.training.train_images()),
+                                 ('test', self.training.test_images()),
+                                 ('validation', self.training.val_images())):
+            if not images:
+                raise CriticalError(f'The training has no {set_name} images')
 
     async def _download_model(self) -> None:
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.

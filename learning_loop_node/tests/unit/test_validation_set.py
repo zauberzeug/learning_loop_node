@@ -1,13 +1,14 @@
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from ...data_classes import Context, Training, TrainingStateData
+from ...trainer import trainer_logic_generic
 from ...trainer.exceptions import CriticalError
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.validation_set import (COMPUTE_VALIDATION_SET, VALIDATION_FRACTION, assign_validation_set,
-                                       compute_validation_set, require_train_and_test_images)
+                                       compute_validation_set)
 
 TRAIN_IMAGE_COUNT = 200
 
@@ -67,21 +68,6 @@ def test_a_single_train_image_fails_the_training():
         assign_validation_set([image('a', 'train')], {COMPUTE_VALIDATION_SET: True})
 
 
-@pytest.mark.parametrize('images, missing', [
-    ([image('a', 'train')], 'test'),
-    ([image('a', 'train'), image('b', 'val')], 'test'),
-    ([image('c', 'test')], 'train'),
-    ([image('b', 'val'), image('c', 'test')], 'train'),
-])
-def test_a_training_without_train_or_test_images_fails(images, missing):
-    with pytest.raises(CriticalError, match=f'no {missing} images'):
-        require_train_and_test_images(images)
-
-
-def test_a_training_without_val_images_passes():
-    require_train_and_test_images(image_data())
-
-
 @pytest.mark.parametrize('value, expected', [(None, False), (False, False), (True, True)])
 def test_compute_validation_set_accepts_booleans(value, expected):
     hyperparameters = {} if value is None else {COMPUTE_VALIDATION_SET: value}
@@ -112,6 +98,41 @@ def test_without_val_images_the_training_selects_on_the_test_images():
     training = training_with([image('a', 'train'), image('c', 'test')])
 
     assert [i['id'] for i in training.val_images()] == ['c']
+
+
+async def prepare(images: list[dict], hyperparameters: dict | None = None) -> Training:
+    training = training_with([])
+    training.hyperparameters = hyperparameters or {}
+    trainer = SimpleNamespace(node=SimpleNamespace(data_exchanger=MagicMock()), training=training)
+    downloader = MagicMock(download_training_data=AsyncMock(return_value=(images, 0)))
+    with patch.object(trainer_logic_generic, 'TrainingsDownloader', return_value=downloader):
+        await TrainerLogicGeneric._prepare(trainer)  # type: ignore[arg-type]
+    return training
+
+
+@pytest.mark.parametrize('images, missing', [
+    ([image('a', 'train')], 'test'),
+    ([image('a', 'train'), image('b', 'val')], 'test'),
+    ([image('c', 'test')], 'train'),
+    ([image('b', 'val'), image('c', 'test')], 'train'),
+])
+async def test_preparing_a_training_without_train_or_test_images_fails(images, missing):
+    with pytest.raises(CriticalError, match=f'no {missing} images'):
+        await prepare(images)
+
+
+async def test_preparing_a_training_without_val_images_succeeds():
+    training = await prepare(image_data())
+
+    assert training.image_data == image_data()
+
+
+async def test_preparing_splits_off_the_validation_set_before_the_check():
+    training = await prepare([image('a', 'train'), image('b', 'train'), image('c', 'test')],
+                             {COMPUTE_VALIDATION_SET: True})
+
+    assert training.image_data is not None
+    assert len(ids(training.image_data, 'train')) == 1 and len(ids(training.image_data, 'val')) == 1
 
 
 async def sync_training(training: Training) -> dict:

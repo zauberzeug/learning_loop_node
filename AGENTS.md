@@ -80,8 +80,8 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 selects on `Training.val_images()`, which falls back to the test images when the training has no
 `val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
-training without train or test images with a `CriticalError`, so it ends before its model is
-downloaded or its training starts. That is an early exit, not a guarantee to build on: a node that
+training with a `CriticalError` when one of the three accessors returns no image, so it ends
+before its model is downloaded or its training starts. That is an early exit, not a guarantee to build on: a node that
 filters the images further checks for itself that each set still holds some.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
