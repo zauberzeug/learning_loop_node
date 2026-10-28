@@ -2,8 +2,7 @@
 
 The loop sends only what the project sets, plus what the job overrides. Everything else comes from
 the trainer's declared defaults, so after :func:`resolve` a training holds the full set it runs
-with. What it reports back to the loop leaves out the defaults :func:`filled_in_defaults` names, so the
-loop shows a training's hyperparameters as the project and the job set them.
+with, and that is what gets reported back to the loop.
 """
 
 import contextlib
@@ -47,15 +46,6 @@ def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> 
         else:
             resolved[hyperparameter.name] = _check(hyperparameter, _coerce(hyperparameter, value))
     return resolved
-
-
-def filled_in_defaults(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> dict[str, Any]:
-    """The declared defaults :func:`resolve` fills in for the hyperparameters ``received`` leaves unset, by name.
-
-    ``declared`` is trusted to have passed :func:`check_declaration`.
-    """
-    return {h.name: _coerce(h, h.default) for h in declared
-            if h.default is not None and _is_unset(h, received.get(h.name))}
 
 
 def check_declaration(declared: Sequence[Hyperparameter]) -> None:
