@@ -56,3 +56,16 @@ class ImageMetadata():
 @dataclass(**KWONLY_SLOTS)
 class ImagesMetadata():
     items: List[ImageMetadata] = field(default_factory=list, metadata={'description': 'List of image metadata'})
+
+
+@dataclass(**KWONLY_SLOTS)
+class ImageOverrides():
+    """What a single image of a batch sets in place of, or in addition to, the values of the batch."""
+    camera_id: Optional[str] = field(default=None, metadata={
+        'description': 'Camera the image was taken with; replaces the camera ID of the batch'})
+    tags: List[str] = field(default_factory=list, metadata={
+        'description': 'Tags added to the tags of the batch'})
+    source: Optional[str] = field(default=None, metadata={
+        'description': 'Source of the image; replaces the source of the batch'})
+    creation_date: Optional[str] = field(default=None, metadata={
+        'description': 'Creation date of the image; replaces the creation date of the batch'})

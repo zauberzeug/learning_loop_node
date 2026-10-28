@@ -9,6 +9,7 @@ import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
+from itertools import repeat
 from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
@@ -22,6 +23,7 @@ from ..data_classes import (
     Context,
     DetectorStatus,
     ImageMetadata,
+    ImageOverrides,
     ImagesMetadata,
     ModelInformation,
     ModelVersionResponse,
@@ -272,10 +274,16 @@ class DetectorNode(Node):
 
             Data dict follows the schema of the detect endpoint,
             but 'images' is a list of image dicts.
+            Each image dict may also carry its own:
+            - camera_id: replaces the camera_id of the batch
+            - tags: added to the tags of the batch
+            - source: replaces the source of the batch
+            - creation_date: replaces the creation_date of the batch
             """
             try:
                 images_data = data['images']
                 images = [image_from_dict(image) for image in images_data]
+                overrides = [_image_overrides(image) for image in images_data]
             except Exception:
                 self.log.exception('could not parse images from socketio')
                 return {'error': 'could not parse images from data'}
@@ -288,6 +296,7 @@ class DetectorNode(Node):
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
                     creation_date=data.get('creation_date', None),
+                    overrides=overrides,
                 )
                 return jsonable_encoder(asdict(det))
             except DetectorUnavailableError as e:
@@ -666,7 +675,8 @@ class DetectorNode(Node):
                                    camera_id: Optional[str] = None,
                                    source: Optional[str] = None,
                                    autoupload: str = 'filtered',
-                                   creation_date: Optional[str] = None) -> ImagesMetadata:
+                                   creation_date: Optional[str] = None,
+                                   overrides: Optional[Sequence[ImageOverrides]] = None) -> ImagesMetadata:
         """
         Processing function for the detector node when a batch inference is requested via SocketIO.
 
@@ -674,27 +684,30 @@ class DetectorNode(Node):
         cares about uploading to the loop and returns the detections as a list of ImageMetadata.
         Each image is a pixel array or JPEG bytes; JPEG bytes are decoded for the inference
         and stored as they are if the image is uploaded.
+        The values of the batch apply to every image, unless its entry in `overrides` sets its own.
         Raises exception if no model is loaded.
         """
+        if overrides is not None and len(overrides) != len(images):
+            raise ValueError(f'got {len(overrides)} overrides for {len(images)} images')
         _unwrap_detector(self._detector)  # fails fast, before the decode
         arrays = await asyncio.gather(*(_pixel_array(image) for image in images))
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
             all_detections = await run.io_bound(detector.logic.batch_evaluate, arrays)
 
-        for metadata in all_detections.items:
-            metadata.tags.extend(tags)
-            metadata.source = source
-            metadata.created = creation_date
+        for detections, image, own in zip(all_detections.items, images, overrides or repeat(ImageOverrides())):
+            detections.tags.extend([*tags, *own.tags])
+            detections.source = own.source if own.source is not None else source
+            detections.created = own.creation_date if own.creation_date is not None else creation_date
+            image_camera_id = own.camera_id if own.camera_id is not None else camera_id
 
-        for detections, image in zip(all_detections.items, images):
             fix_shape_detections(detections)
             n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
             n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
             self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
 
             if autoupload == 'filtered':
-                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, image))
+                background_tasks.create(self.relevance_filter.may_upload_detections(detections, image_camera_id, image))
             elif autoupload == 'all':
                 background_tasks.create(self.outbox.save(image, detections))
             elif autoupload == 'disabled':
@@ -783,6 +796,17 @@ async def _pixel_array(image: ImageData) -> np.ndarray:
     if isinstance(image, np.ndarray):
         return image
     return await run.io_bound(jpg_bytes_to_numpy_array, image)
+
+
+def _image_overrides(image_data: Dict) -> ImageOverrides:
+    """The values an image dict of a batch sets for itself; missing or `None` ones leave the batch's in place."""
+    tags = image_data.get('tags') or []
+    if not isinstance(tags, list):
+        raise ValueError(f'tags of an image must be a list, got {type(tags).__name__}')
+    return ImageOverrides(camera_id=image_data.get('camera_id'),
+                          tags=tags,
+                          source=image_data.get('source'),
+                          creation_date=image_data.get('creation_date'))
 
 
 def _unwrap_detector(state: '_DetectorState') -> _ActiveDetector:

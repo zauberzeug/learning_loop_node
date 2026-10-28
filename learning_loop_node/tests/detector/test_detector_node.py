@@ -1,14 +1,14 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import List, Literal, Tuple
+from typing import Coroutine, List, Literal, Optional, Tuple
 
 import numpy as np
 import pytest
 
-from learning_loop_node.data_classes import ModelInformation
+from learning_loop_node.data_classes import ImageOverrides, ModelInformation
 from learning_loop_node.detector import detector_node as detector_node_module
-from learning_loop_node.detector.detector_node import DetectorNode
+from learning_loop_node.detector.detector_node import DetectorNode, _image_overrides
 
 from ..test_helper import DETECTOR_PROJECT, project_name
 from .conftest import MockDetectorLogic
@@ -134,3 +134,80 @@ class _RecordingFactory:
     async def build(self, model_info: ModelInformation) -> MockDetectorLogic:
         self.model_info = model_info
         return MockDetectorLogic(model_info)
+
+
+class FilterCalls:
+    """Records the camera id, source and tags of every image the relevance filter is asked about."""
+
+    def __init__(self) -> None:
+        self.calls: List[Tuple[Optional[str], Optional[str], List[str]]] = []
+        self._tasks: List[Coroutine] = []
+
+    async def may_upload_detections(self, image_metadata, cam_id, image) -> List[str]:  # pylint: disable=unused-argument
+        self.calls.append((cam_id, image_metadata.source, list(image_metadata.tags)))
+        return []
+
+    async def settle(self) -> None:
+        """Run the background tasks the node created."""
+        for task in self._tasks:
+            await task
+        self._tasks.clear()
+
+
+@pytest.fixture
+def filter_calls(detector_node: DetectorNode, monkeypatch) -> FilterCalls:
+    recorder = FilterCalls()
+    monkeypatch.setattr(detector_node.relevance_filter, 'may_upload_detections', recorder.may_upload_detections)
+    monkeypatch.setattr(detector_node_module.background_tasks, 'create',
+                        lambda coroutine, *args, **kwargs: recorder._tasks.append(coroutine))  # pylint: disable=protected-access
+    return recorder
+
+
+def _images(count: int) -> List[np.ndarray]:
+    return [np.zeros((10, 10, 3), dtype=np.uint8) for _ in range(count)]
+
+
+async def test_batch_images_carry_their_own_camera_source_and_tags(detector_node: DetectorNode, filter_calls: FilterCalls):
+    """Each image of a batch keeps its camera for the relevance filter, and its source and tags for the loop."""
+    result = await detector_node.get_batch_detections(
+        images=_images(3),
+        tags=['robot'],
+        camera_id='batch_cam',
+        source='robot',
+        creation_date='2024-01-01T00:00:00',
+        autoupload='filtered',
+        overrides=[ImageOverrides(camera_id='cam_a', source='robot/cam_a', tags=['cam_a']),
+                   ImageOverrides(camera_id='cam_b', source='robot/cam_b', creation_date='2024-02-02T00:00:00'),
+                   ImageOverrides()],
+    )
+    await filter_calls.settle()
+
+    assert filter_calls.calls == [('cam_a', 'robot/cam_a', ['robot', 'cam_a']),
+                                  ('cam_b', 'robot/cam_b', ['robot']),
+                                  ('batch_cam', 'robot', ['robot'])], 'what an image does not set comes from the batch'
+    assert [item.created for item in result.items] == \
+        ['2024-01-01T00:00:00', '2024-02-02T00:00:00', '2024-01-01T00:00:00']
+
+
+async def test_batch_without_overrides_applies_the_batch_values_to_every_image(detector_node: DetectorNode,
+                                                                               filter_calls: FilterCalls):
+    await detector_node.get_batch_detections(images=_images(2), tags=['robot'], camera_id='batch_cam', source='robot')
+    await filter_calls.settle()
+
+    assert filter_calls.calls == [('batch_cam', 'robot', ['robot'])] * 2
+
+
+async def test_batch_rejects_overrides_that_do_not_match_the_images(detector_node: DetectorNode):
+    with pytest.raises(ValueError):
+        await detector_node.get_batch_detections(images=_images(2), tags=[], overrides=[ImageOverrides()])
+
+
+@pytest.mark.parametrize('image_data', [{}, {'tags': None}, {'tags': []}])
+def test_an_image_without_tags_adds_none(image_data: dict):
+    assert _image_overrides(image_data) == ImageOverrides()
+
+
+@pytest.mark.parametrize('tags', ['cam_a', ('cam_a',), 7])
+def test_an_image_with_tags_that_are_no_list_is_rejected(tags):
+    with pytest.raises(ValueError):
+        _image_overrides({'tags': tags})
