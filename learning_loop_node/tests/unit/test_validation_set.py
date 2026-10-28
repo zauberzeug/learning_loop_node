@@ -7,7 +7,7 @@ from ...data_classes import Context, Training, TrainingStateData
 from ...trainer.exceptions import CriticalError
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.validation_set import (COMPUTE_VALIDATION_SET, VALIDATION_FRACTION, assign_validation_set,
-                                       compute_validation_set, require_test_images)
+                                       compute_validation_set, require_train_and_test_images)
 
 TRAIN_IMAGE_COUNT = 200
 
@@ -67,14 +67,19 @@ def test_a_single_train_image_fails_the_training():
         assign_validation_set([image('a', 'train')], {COMPUTE_VALIDATION_SET: True})
 
 
-@pytest.mark.parametrize('images', [[image('a', 'train')], [image('a', 'train'), image('b', 'val')]])
-def test_a_training_without_test_images_fails(images):
-    with pytest.raises(CriticalError, match='no test images'):
-        require_test_images(images)
+@pytest.mark.parametrize('images, missing', [
+    ([image('a', 'train')], 'test'),
+    ([image('a', 'train'), image('b', 'val')], 'test'),
+    ([image('c', 'test')], 'train'),
+    ([image('b', 'val'), image('c', 'test')], 'train'),
+])
+def test_a_training_without_train_or_test_images_fails(images, missing):
+    with pytest.raises(CriticalError, match=f'no {missing} images'):
+        require_train_and_test_images(images)
 
 
-def test_a_training_with_test_images_passes():
-    require_test_images(image_data())
+def test_a_training_without_val_images_passes():
+    require_train_and_test_images(image_data())
 
 
 @pytest.mark.parametrize('value, expected', [(None, False), (False, False), (True, True)])
