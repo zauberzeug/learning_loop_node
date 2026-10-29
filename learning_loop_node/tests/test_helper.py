@@ -42,20 +42,30 @@ def project_name(name: str) -> str:
     return f'{name}_{suffix}' if suffix else name
 
 
+# the projects whose delete timed out in this session; the loop goes on deleting after the client gave up
+_timed_out_deletes: set[str] = set()
+
+
 async def delete_project(loop_communicator: LoopCommunicator, project: str, *, keep_images: bool = False,
-                         timeout: float = 75) -> None:
+                         timeout: int = 75) -> None:
     """Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
 
-    A fresh per-run project normally does not exist yet, so a quick lookup comes first and the delete is only sent
-    for a project that is really there. A delete on the loop can take up to a minute before it answers, so the
-    default timeout outlasts that and a failure carries the loop's own answer instead of a bare ReadTimeout."""
+    A project that does not exist answers 404 at once, and a delete on the loop can take up to a minute before it
+    answers, so the default timeout outlasts that and a failure carries the loop's own answer instead of a bare
+    ReadTimeout. After a timeout the loop is still deleting, and a second delete would only block on the first and
+    on every delete after it, so a later call for the same project fails at once without sending one.
+
+    `keep_images` only holds for a bare name, which the next run reuses together with its images; a suffixed name is
+    never created again, so its images would stay on the loop for good."""
     path = f'/zauberzeug/projects/{project}'
+    if project in _timed_out_deletes:
+        pytest.fail(f'deleting {path} on {loop_communicator.host} timed out before, not sending another delete',
+                    pytrace=False)
+    keep_images = keep_images and not os.environ.get(TEST_PROJECT_SUFFIX)
     try:
-        response = await loop_communicator.get(path, timeout=10)
-        if response.status_code == 404:
-            return
         response = await loop_communicator.delete(path + ('?keep_images=true' if keep_images else ''), timeout=timeout)
     except httpx.TimeoutException:
+        _timed_out_deletes.add(project)
         pytest.fail(f'deleting {path} on {loop_communicator.host} took longer than {timeout} s', pytrace=False)
     if response.status_code not in (200, 404):
         pytest.fail(f'deleting {path} on {loop_communicator.host} answered {response.status_code}: {response.text}',
