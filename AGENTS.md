@@ -188,10 +188,9 @@ around every test, so tests never touch `/data`. The `general` suite generates a
 theirs alike; the detector suite starts the node in a forked uvicorn process on
 `GLOBALS.detector_port`. The bare names of those projects live in `test_helper.py` and nowhere
 else, and a suite uses one through `test_helper.project_name`: CI appends `LOOP_TEST_PROJECT_SUFFIX`
-(run id, attempt, job index), so the matrix entries and the runs of two branches can run at once
-without deleting each other's project, and `tests/cleanup_test_projects.py` — the last step of
-every CI job — deletes those whose run is over. A new suite that creates a project adds its name
-there.
+(run id, attempt, job index), so the runs of two branches cannot delete each other's project, and
+`tests/cleanup_test_projects.py` — the last step of every CI job — deletes those whose run is over.
+A new suite that creates a project adds its name there.
 
 There is no `.pre-commit-config.yaml` here and no ruff in the project environment. Lint with:
 

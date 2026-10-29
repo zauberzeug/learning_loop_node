@@ -38,8 +38,9 @@ jobs:
       LOOP_TEST_PROJECT_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}_${{ strategy.job-index }}
     strategy:
       fail-fast: false
-      # the entries run side by side: each creates and deletes only its own projects, and the
-      # shared zauberzeug/demo project is only read from and appended to
+      # the entries have their own projects, but two project deletes at once still block each other
+      # on the loop and both time out; one entry at a time until the loop no longer does that
+      max-parallel: 1
       matrix:
         # the floor requires-python promises, and the version every node ships with; the unit
         # job covers 3.11 and 3.13 too
