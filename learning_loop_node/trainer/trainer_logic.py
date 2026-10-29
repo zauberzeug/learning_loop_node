@@ -167,6 +167,10 @@ class TrainerLogic(TrainerLogicGeneric):
         if self._executor and self._executor.is_running():
             await self.executor.stop_and_wait()
 
+    def _stop_was_requested(self) -> bool:
+        """Whether a stop came after the training process had started; not kept across a restart."""
+        return self._stop_requested
+
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 
     @abstractmethod

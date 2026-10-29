@@ -33,9 +33,14 @@ VALIDATION_FRACTION = 0.1
 
 def compute_validation_set(hyperparameters: Mapping[str, Any]) -> bool:
     """Whether `compute_validation_set` is set, defaulting to false; anything but a boolean is a CriticalError."""
-    value = hyperparameters.get(COMPUTE_VALIDATION_SET, False)
+    return bool_hyperparameter(hyperparameters, COMPUTE_VALIDATION_SET)
+
+
+def bool_hyperparameter(hyperparameters: Mapping[str, Any], name: str) -> bool:
+    """Whether the hyperparameter `name` is set, defaulting to false; anything but a boolean is a CriticalError."""
+    value = hyperparameters.get(name, False)
     if not isinstance(value, bool):
-        raise CriticalError(f"'{COMPUTE_VALIDATION_SET}' must be true or false, got {value!r}")
+        raise CriticalError(f"'{name}' must be true or false, got {value!r}")
     return value
 
 

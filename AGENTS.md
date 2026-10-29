@@ -82,6 +82,15 @@ selects on `Training.val_images()`, which falls back to the test images when the
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
 training when one of them is empty; a node that filters them further needs to check its own sets.
 
+`trainer/training_results.py` holds the results a training uploads beside its model. A trainer
+names its result files by part in `_get_training_results` (default: none); `_upload_model` sends
+the parts after the model formats, each as one zip that keeps the paths inside the training folder,
+to `trainings/<n>/training_results/<part>`. `core` is always sent and carries a
+`meta.json` about where the results come from; `examples` and `logs` only if the `upload_examples`
+and `upload_logs` hyperparameters are true, which `_prepare` checks so a typo ends the training
+before it has run. The results are optional: a part the loop does not store is skipped, only a part
+that got no answer is sent again.
+
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
 setting into the cap that holds the process to it and remembers it as the budget a probe in the
