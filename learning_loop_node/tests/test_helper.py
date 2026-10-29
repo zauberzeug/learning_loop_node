@@ -3,8 +3,8 @@ import os
 import shutil
 import time
 import zipfile
+from collections.abc import Callable
 from glob import glob
-from typing import Callable
 
 import httpx
 import pytest
@@ -22,9 +22,9 @@ from ..data_classes.image_metadata import ImageMetadata
 from ..loop_communication import LoopCommunicator
 
 TEST_PROJECT_SUFFIX = 'LOOP_TEST_PROJECT_SUFFIX'
+DELETE_TIMEOUT = 75  # outlasts the loop's own 60 s limit, so its answer comes through
 
-# every project a suite creates and deletes on the loop, by its bare name -- the one place they are spelled out;
-# a suite passes its name through project_name, and cleanup_test_projects sweeps exactly these
+# the projects the suites create and delete on the loop; cleanup_test_projects sweeps exactly these
 GENERAL_PROJECT = 'pytest_nodelib_general'
 ANNOTATOR_PROJECT = 'pytest_nodelib_annotator'
 MOCK_TRAINER_PROJECT_1 = 'pytest_mock_trainer_test1'
@@ -33,40 +33,32 @@ TEST_PROJECTS = (GENERAL_PROJECT, ANNOTATOR_PROJECT, MOCK_TRAINER_PROJECT_1, MOC
 
 
 def project_name(name: str) -> str:
-    """The name of a project a suite creates and deletes on the shared loop.
-
-    CI sets `LOOP_TEST_PROJECT_SUFFIX` to `<run id>_<run attempt>_<job index>`, so two runs at once -- two branches
-    pushed close together -- each get their own project instead of deleting each other's, and `cleanup_test_projects`
-    can tell from the name whether the run that created it is over. Locally the bare name is used."""
+    """Append `LOOP_TEST_PROJECT_SUFFIX`, which CI sets per job, so concurrent runs never share a project."""
     suffix = os.environ.get(TEST_PROJECT_SUFFIX)
     return f'{name}_{suffix}' if suffix else name
 
 
-# the projects whose delete timed out in this session; the loop goes on deleting after the client gave up
 _timed_out_deletes: set[str] = set()
 
 
-async def delete_project(loop_communicator: LoopCommunicator, project: str, *, keep_images: bool = False,
-                         timeout: int = 75) -> None:
-    """Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
+async def delete_project(loop_communicator: LoopCommunicator, project: str, *, keep_images: bool = False) -> None:
+    """
+    Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
 
-    A project that does not exist answers 404 at once, and a delete on the loop can take up to a minute before it
-    answers, so the default timeout outlasts that and a failure carries the loop's own answer instead of a bare
-    ReadTimeout. After a timeout the loop is still deleting, and a second delete would only block on the first and
-    on every delete after it, so a later call for the same project fails at once without sending one.
-
-    `keep_images` only holds for a bare name, which the next run reuses together with its images; a suffixed name is
-    never created again, so its images would stay on the loop for good."""
+    The loop goes on deleting after a timeout, so a later call for the same project fails at once instead of sending
+    a delete that would block on it. `keep_images` only applies to a bare name; a suffixed one is never reused.
+    """
     path = f'/zauberzeug/projects/{project}'
     if project in _timed_out_deletes:
         pytest.fail(f'deleting {path} on {loop_communicator.host} timed out before, not sending another delete',
                     pytrace=False)
     keep_images = keep_images and not os.environ.get(TEST_PROJECT_SUFFIX)
     try:
-        response = await loop_communicator.delete(path + ('?keep_images=true' if keep_images else ''), timeout=timeout)
+        response = await loop_communicator.delete(path + ('?keep_images=true' if keep_images else ''),
+                                                  timeout=DELETE_TIMEOUT)
     except httpx.TimeoutException:
         _timed_out_deletes.add(project)
-        pytest.fail(f'deleting {path} on {loop_communicator.host} took longer than {timeout} s', pytrace=False)
+        pytest.fail(f'deleting {path} on {loop_communicator.host} took longer than {DELETE_TIMEOUT} s', pytrace=False)
     if response.status_code not in (200, 404):
         pytest.fail(f'deleting {path} on {loop_communicator.host} answered {response.status_code}: {response.text}',
                     pytrace=False)

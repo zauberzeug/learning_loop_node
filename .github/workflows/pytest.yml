@@ -29,17 +29,13 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
-      actions: read # the cleanup step asks whether the run that left a project behind is over
+      actions: read # the cleanup step looks up the run that left a project behind
     env:
-      # the suites share one Learning Loop instance and create and delete their projects there; the
-      # suffix gives every job of every run its own (pytest_nodelib_general_<suffix>, ...), so two
-      # runs at once -- two branches pushed close together -- cannot delete each other's project.
-      # cleanup_test_projects reads the run back out of the name, keep the format in step
+      # one set of projects per job on the shared loop; cleanup_test_projects parses this format
       LOOP_TEST_PROJECT_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}_${{ strategy.job-index }}
     strategy:
       fail-fast: false
-      # the entries have their own projects, but two project deletes at once still block each other
-      # on the loop and both time out; one entry at a time until the loop no longer does that
+      # two project deletes at once block each other on the loop
       max-parallel: 1
       matrix:
         # the floor requires-python promises, and the version every node ships with; the unit
@@ -91,8 +87,7 @@ jobs:
           LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
         run: uv run --no-sync python -m pytest mock_trainer -v
       - name: clean up test projects
-        # always() also runs after a cancellation, when no teardown deleted this job's projects; it
-        # also sweeps those of earlier runs that are over, which a lost runner never got to delete
+        # always() also runs after a cancellation
         if: always()
         continue-on-error: true
         timeout-minutes: 10
