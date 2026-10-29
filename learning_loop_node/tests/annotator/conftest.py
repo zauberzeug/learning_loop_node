@@ -7,9 +7,9 @@ import pytest
 
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
-from ..test_helper import delete_project, project_name
+from ..test_helper import ANNOTATOR_PROJECT, delete_project, project_name
 
-PROJECT = project_name('pytest_nodelib_annotator')
+PROJECT = project_name(ANNOTATOR_PROJECT)
 
 
 @pytest.fixture()

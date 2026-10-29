@@ -16,9 +16,9 @@ from ...data_classes import (
     UserInput,
 )
 from ...enums import AnnotationEventType, CategoryType
-from ..test_helper import project_name
+from ..test_helper import ANNOTATOR_PROJECT, project_name
 
-PROJECT = project_name('pytest_nodelib_annotator')
+PROJECT = project_name(ANNOTATOR_PROJECT)
 
 
 class MockedAnnotatatorLogic(AnnotatorLogic):

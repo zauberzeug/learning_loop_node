@@ -23,6 +23,14 @@ from ..loop_communication import LoopCommunicator
 
 TEST_PROJECT_SUFFIX = 'LOOP_TEST_PROJECT_SUFFIX'
 
+# every project a suite creates and deletes on the loop, by its bare name -- the one place they are spelled out;
+# a suite passes its name through project_name, and cleanup_test_projects sweeps exactly these
+GENERAL_PROJECT = 'pytest_nodelib_general'
+ANNOTATOR_PROJECT = 'pytest_nodelib_annotator'
+MOCK_TRAINER_PROJECT_1 = 'pytest_mock_trainer_test1'
+MOCK_TRAINER_PROJECT_2 = 'pytest_mock_trainer_test2'
+TEST_PROJECTS = (GENERAL_PROJECT, ANNOTATOR_PROJECT, MOCK_TRAINER_PROJECT_1, MOCK_TRAINER_PROJECT_2)
+
 
 def project_name(name: str) -> str:
     """The name of a project a suite creates and deletes on the shared loop.
@@ -39,9 +47,8 @@ async def delete_project(loop_communicator: LoopCommunicator, project: str, *, k
     """Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
 
     A fresh per-run project normally does not exist yet, so a quick lookup comes first and the delete is only sent
-    for a project that is really there. The loop deletes a project only once no other request is running anywhere
-    on it, and gives up with a 500 after 60 s, so the default timeout outlasts that and the failure carries the
-    loop's own reason instead of a bare ReadTimeout."""
+    for a project that is really there. A delete on the loop can take up to a minute before it answers, so the
+    default timeout outlasts that and a failure carries the loop's own answer instead of a bare ReadTimeout."""
     path = f'/zauberzeug/projects/{project}'
     try:
         response = await loop_communicator.get(path, timeout=10)

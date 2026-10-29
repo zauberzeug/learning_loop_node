@@ -7,7 +7,7 @@ from ...globals import GLOBALS
 from ...helpers.misc import create_image_folder, create_project_folder, create_training_folder, delete_corrupt_images
 from .. import test_helper
 
-PROJECT = test_helper.project_name('pytest_nodelib_general')
+PROJECT = test_helper.project_name(test_helper.GENERAL_PROJECT)
 
 # Used by all Nodes
 

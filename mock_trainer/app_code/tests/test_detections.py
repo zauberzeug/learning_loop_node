@@ -11,7 +11,7 @@ from learning_loop_node.trainer.trainer_node import TrainerNode
 
 from ..mock_trainer_logic import MockTrainerLogic
 
-PROJECT = test_helper.project_name('pytest_mock_trainer_test1')
+PROJECT = test_helper.project_name(test_helper.MOCK_TRAINER_PROJECT_1)
 
 
 @pytest.mark.usefixtures('setup_test_project1')

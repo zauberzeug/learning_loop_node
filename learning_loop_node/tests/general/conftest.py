@@ -9,9 +9,9 @@ from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
-from ..test_helper import delete_project, project_name
+from ..test_helper import GENERAL_PROJECT, delete_project, project_name
 
-PROJECT = project_name('pytest_nodelib_general')
+PROJECT = project_name(GENERAL_PROJECT)
 
 
 @pytest.fixture(autouse=True, scope='function')

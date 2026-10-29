@@ -18,13 +18,12 @@ from typing import Optional
 import httpx
 
 from ..loop_communication import LoopCommunicator
-from .test_helper import TEST_PROJECT_SUFFIX
+from .test_helper import TEST_PROJECT_SUFFIX, TEST_PROJECTS
 
 ORGANIZATION = 'zauberzeug'
-# the projects the suites create and delete -- only these are ever swept, so a project of another repository's
-# CI that happens to follow the same naming is left alone
-PROJECTS = ('pytest_nodelib_general', 'pytest_nodelib_annotator', 'pytest_mock_trainer_test1', 'pytest_mock_trainer_test2')
-SUFFIXED = re.compile(rf'^(?:{"|".join(PROJECTS)})_(?P<run_id>\d+)_(?P<attempt>\d+)_\d+$')
+# only the suites' own projects are ever swept, so a project of another repository's CI that happens to follow the
+# same naming is left alone
+SUFFIXED = re.compile(rf'^(?:{"|".join(TEST_PROJECTS)})_(?P<run_id>\d+)_(?P<attempt>\d+)_\d+$')
 
 
 async def run_status(client: httpx.AsyncClient, run_id: str) -> Optional[dict]:
@@ -57,7 +56,7 @@ async def main() -> None:
                   if p['organization_id'] == ORGANIZATION and SUFFIXED.match(p['project_id'])}
         logging.info('%d test projects listed', len(listed))
         # this job's own are deleted by name too, in case the listing does not show them
-        own = {f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in PROJECTS}
+        own = {f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in TEST_PROJECTS}
         runs: dict = {}
         for project in sorted(listed | own):
             run_id = SUFFIXED.match(project)['run_id']  # type: ignore[index]

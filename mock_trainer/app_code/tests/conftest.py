@@ -5,10 +5,15 @@ import pytest
 
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.loop_communication import LoopCommunicator
-from learning_loop_node.tests.test_helper import delete_project, project_name
+from learning_loop_node.tests.test_helper import (
+    MOCK_TRAINER_PROJECT_1,
+    MOCK_TRAINER_PROJECT_2,
+    delete_project,
+    project_name,
+)
 
-PROJECT1 = project_name('pytest_mock_trainer_test1')
-PROJECT2 = project_name('pytest_mock_trainer_test2')
+PROJECT1 = project_name(MOCK_TRAINER_PROJECT_1)
+PROJECT2 = project_name(MOCK_TRAINER_PROJECT_2)
 
 # pylint: disable=redefined-outer-name
 
