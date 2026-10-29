@@ -79,7 +79,8 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 `trainer/validation_set.py` decides which images a training selects its models on. A node always
 selects on `Training.val_images()`, which falls back to the test images when the training has no
 `val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
-splits through these accessors and never filters `image_data` on `set` itself.
+splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
+training when one of them is empty; a node that filters them further needs to check its own sets.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
