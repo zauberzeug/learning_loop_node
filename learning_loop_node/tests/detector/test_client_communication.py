@@ -48,6 +48,16 @@ async def test_sio_detect(test_detector_node, sio_client):
     assert result['classification_detections'][0]['category_id'] == 'some_id_4'
 
 
+async def test_sio_detect_as_jpeg(test_detector_node, sio_client):
+    with open(test_image_path, 'rb') as f:
+        jpeg_bytes = f.read()
+
+    await asyncio.sleep(5)
+    result = await sio_client.call('detect', {'image': {'format': 'jpeg', 'bytes': jpeg_bytes}})
+    assert len(result['box_detections']) == 1
+    assert result['box_detections'][0]['category_name'] == 'some_category_name'
+
+
 @pytest.mark.parametrize('grouping_key', ['mac', 'camera_id'])
 def test_rest_detect(test_detector_node: DetectorNode, grouping_key: str):
     image = {('file', open(test_image_path, 'rb'))}
