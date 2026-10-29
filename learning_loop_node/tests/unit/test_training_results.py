@@ -36,9 +36,9 @@ def no_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.parametrize(('hyperparameters', 'parts'), [
     ({}, ['core']),
     ({'upload_examples': True}, ['core', 'examples']),
-    ({'upload_logs': 'true'}, ['core', 'logs']),
-    ({'upload_examples': 'yes', 'upload_logs': 1}, ['core', 'examples', 'logs']),
-    ({'upload_examples': 'false', 'upload_logs': False}, ['core']),
+    ({'upload_logs': True}, ['core', 'logs']),
+    ({'upload_examples': True, 'upload_logs': True}, ['core', 'examples', 'logs']),
+    ({'upload_examples': False, 'upload_logs': False}, ['core']),
 ])
 def test_core_is_always_uploaded_and_first_the_other_parts_only_if_asked_for(hyperparameters: dict, parts: list[str]):
     assert parts_to_upload({'examples': [], 'logs': [], 'core': []}, hyperparameters) == parts
@@ -46,7 +46,7 @@ def test_core_is_always_uploaded_and_first_the_other_parts_only_if_asked_for(hyp
 
 def test_a_malformed_upload_flag_is_a_critical_error():
     with pytest.raises(CriticalError):
-        parts_to_upload(ALL_PARTS, {'upload_examples': 'ja'})
+        parts_to_upload(ALL_PARTS, {'upload_examples': 'true'})
 
 
 def test_the_zip_keeps_the_paths_inside_the_training_folder(tmp_path: Path):

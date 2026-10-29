@@ -27,7 +27,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, ModelAlreadyUploadedError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_results import CORE, OPTIONAL_PARTS, meta, parts_to_upload, write_zip
 from .training_slot import TrainingSlot, training_slot_from_env
@@ -36,21 +36,15 @@ from .validation_set import assign_validation_set, bool_hyperparameter
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
 
-STATE_RETRY_DELAY = 5  # seconds before the first retry of a failed state, doubled for every further one
-MAX_STATE_RETRY_DELAY = 300  # seconds
+BASE_RETRY_DELAY = 5  # seconds before the first retry of a failed state
+MAX_RETRY_DELAY = 300  # seconds
 
 logger = logging.getLogger('learning_loop_node.trainer_logic_generic')
-
-# The states after the training has run, which upload its model and detections.
-_WIND_DOWN_STATES = frozenset({TrainerState.TrainingFinished, TrainerState.ConfusionMatrixSyncing,
-                               TrainerState.ConfusionMatrixSynced, TrainerState.TrainModelUploading,
-                               TrainerState.TrainModelUploaded, TrainerState.Detecting, TrainerState.Detected,
-                               TrainerState.DetectionUploading, TrainerState.ReadyForCleanup})
 
 
 def _retry_delay(failures: int) -> float:
     """The wait before the next attempt of a state that has failed `failures` times in a row."""
-    return min(STATE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_STATE_RETRY_DELAY)
+    return min(BASE_RETRY_DELAY * 2 ** min(failures - 1, 16), MAX_RETRY_DELAY)
 
 
 class TrainerLogicGeneric(ABC):
@@ -73,8 +67,6 @@ class TrainerLogicGeneric(ABC):
         self._training: Optional[Training] = None
         self._active_training_io: Optional[ActiveTrainingIO] = None
         self._environment_vars = EnvironmentVars()
-        # whether the last attempt of the current state failed, so it is being retried
-        self._state_failed: bool = False
         self.training_slot = training_slot or training_slot_from_env()
 
     # ---------------------------------------- PROPERTIES TO AVOID CHECKING FOR NONE ----------------------------------------
@@ -285,7 +277,6 @@ class TrainerLogicGeneric(ABC):
         """
         self.errors.reset_all()
         self._state_failures.clear()
-        self._state_failed = False
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
@@ -343,10 +334,7 @@ class TrainerLogicGeneric(ABC):
         - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
-          The next attempt waits `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`,
-          so a loop that cannot answer is not asked over and over. The state is retried until it succeeds or the training
-          is aborted, so a finished training is not dropped because the loop is down for a while.
-          It stays marked as failed until an attempt succeeds, so a stop during its retries aborts.
+          The state is retried after a wait until the training is aborted.
         '''
 
         if failures := self._state_failures.get(error_key):
@@ -381,7 +369,6 @@ class TrainerLogicGeneric(ABC):
             logger.exception('Error in %s - Exception: %s', state_during, e)
             self._state_failures[error_key] = self._state_failures.get(error_key, 0) + 1
             self.training.training_state = previous_state
-            self._state_failed = True
             return
         else:
             logger.info('Successfully finished state: %s', state_during)
@@ -390,12 +377,11 @@ class TrainerLogicGeneric(ABC):
             self.training.training_state = state_after
 
         self._state_failures.pop(error_key, None)
-        self._state_failed = False
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
-        Moves part of the train images to `val` if `separate_testset` asks for it (see `validation_set`).
+        Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
         A malformed `upload_examples` or `upload_logs` ends the training here rather than after it has run.
         """
         for hyperparameter in OPTIONAL_PARTS.values():
@@ -443,16 +429,12 @@ class TrainerLogicGeneric(ABC):
         try:
             new_best_model = self._get_new_best_training_state()
             if new_best_model:
-                # NOTE: the loop has no validation set yet, so the val images split off the train images
-                # (see `validation_set`) are reported as train images, which they are in the loop.
-                # TODO: rework once the loop offers a dedicated validation set: report a separate
-                # `val_image_count` then, which the loop stores and shows next to the train and test counts.
-                train_image_count = len(self.training.train_images()) + len(self.training.val_images())
+                sets = [image['set'] for image in self.training.image_data or []]
                 new_training = TrainingOut(trainer_id=self.node.uuid,
                                            trainer_name=self.node.name,
                                            confusion_matrix=new_best_model.confusion_matrix,
-                                           train_image_count=train_image_count,
-                                           test_image_count=self.training.test_image_count(),
+                                           train_image_count=sets.count('train') + sets.count('val'),
+                                           test_image_count=sets.count('test'),
                                            hyperparameters=self.hyperparameters_for_state_sync,
                                            best_epoch=new_best_model.epoch)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
@@ -489,6 +471,7 @@ class TrainerLogicGeneric(ABC):
         :return: The new model UUID.
         :raise CriticalError: If the latest model files cannot be obtained,
             or the model is uploaded but its UUID is unknown.
+        :raise ModelUploadFailedError: If the loop could not store a model file; the state is retried.
         """
 
         files = await self._get_latest_model_files()
@@ -505,11 +488,9 @@ class TrainerLogicGeneric(ABC):
             _files = files[file_format] + [self._dump_model_json()]
             assert len([f for f in _files if 'model.json' in f]) == 1, "model.json must be included exactly once"
 
-            try:
-                model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            model_uuid = await self.node.data_exchanger.upload_model_get_uuid(context, _files, self.training.training_number, file_format)
+            if model_uuid is not None:
                 self.active_training_io.save_uploaded_model_uuid(model_uuid)
-            except ModelAlreadyUploadedError:
-                logger.warning('The loop already stores the model in format %s, counting it as uploaded', file_format)
 
             already_uploaded_formats.append(file_format)
             self.active_training_io.save_model_upload_progress(already_uploaded_formats)
@@ -579,20 +560,14 @@ class TrainerLogicGeneric(ABC):
         await self.abort()
 
     async def stop(self) -> None:
-        """Stop the training but keep its model.
+        """Stop a running training but keep its model. In every other state a stop does nothing."""
+        if not self.training_active or self.training.training_state != TrainerState.TrainingRunning:
+            logger.info('Received stop in state %s. This is ignored.', self.training.training_state if self.training_active else None)
+            return
+        await self._stop_running_training()
 
-        Once the training has run, the states that upload its model and detections are left to finish.
-        Before that this base class aborts, as it cannot end a running training; `TrainerLogic` ends its
-        training process instead. A state that is failing and being retried would never finish, and a
-        shutdown must not wait for the upload, so both abort in any state.
-        """
-        if not self.training_active:
-            return
-        if (self.training.training_state in _WIND_DOWN_STATES and not self._state_failed
-                and not self.shutdown_event.is_set()):
-            logger.info('Stop in state %s: the training has already run, letting its upload finish',
-                        self.training.training_state)
-            return
+    async def _stop_running_training(self) -> None:
+        """End the running training so it winds down with its model. This base class cannot, so it aborts."""
         await self.abort()
 
     async def abort(self):

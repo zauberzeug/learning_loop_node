@@ -107,17 +107,11 @@ class Training():
         return self._images_of_set('train')
 
     def val_images(self) -> list[dict]:
-        """The images to select models on; empty if the training selects on the test images (see `validation_set`)."""
-        return self._images_of_set('val')
+        """The images to select models on: the `val` images if there are any, else the test images."""
+        return self._images_of_set('val') or self.test_images()
 
     def test_images(self) -> list[dict]:
         return self._images_of_set('test')
-
-    def train_image_count(self) -> int:
-        return len(self.train_images())
-
-    def test_image_count(self) -> int:
-        return len(self.test_images())
 
     def _images_of_set(self, set_name: str) -> list[dict]:
         assert self.image_data is not None, 'Image data not set'

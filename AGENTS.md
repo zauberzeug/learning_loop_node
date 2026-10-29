@@ -34,24 +34,17 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
-  ordinary exception records the error and rewinds to the previous state, which is retried after
-  `STATE_RETRY_DELAY`, twice as long after every further failure up to `MAX_STATE_RETRY_DELAY`; a
-  `CriticalError` jumps to `ReadyForCleanup`. A model upload the loop answers with 409 already
-  holds that format and counts as done, with the model id the 409 names (loops before
-  zauberzeug/loop#445 name none). Only a client error other than 408 and 429 ends the training
-  (a 429 is first retried by `LoopCommunicator`). Any other failed upload, e.g. a server error
-  (`ModelUploadFailedError`) or a timeout, keeps the training for as long as it takes, until the
-  loop takes the model or the training is aborted. Every transition is persisted through
+  ordinary exception records the error and rewinds to the previous state (retried after a growing
+  wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. The loop's
-  `stop_training` keeps the model: `stop` lets the upload and detection states finish, while
-  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. Before the training
-  has run, `stop` aborts too, and so does a stop while a state is failing and being retried, which
-  would otherwise never finish. A running training only `TrainerLogic` can stop without aborting,
-  by ending its training process; a stop before that process has started still aborts, and a
-  training process that fails after a stop is not retried but winds down with the model it has. A
+  `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
+  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
+  stops a running training by ending its training process, so the remaining states upload the
+  model; a training process that fails after a stop is not retried but winds down with the model
+  it has. Before that process has started, and in a trainer without one, a stop aborts. A
   concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
   `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
@@ -83,13 +76,10 @@ that fits, around a `fits` predicate the trainer supplies — none of it imports
 brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
-`trainer/validation_set.py` decides which images a training selects its models on. A node uses
-the `val` images of `image_data` (`Training.val_images()`) for best model, early stopping and
-confidence threshold if there are any, and reads `test` only for the counts it reports; without
-them it selects on `test`, as before. `_prepare` calls `assign_validation_set` right after the
-download: a `val` set the loop sent is used as it is; otherwise the `separate_testset`
-hyperparameter moves a hash-chosen tenth of the train images to `val`, so the nodes never split
-anything themselves and need no change once the loop offers a dedicated validation set.
+`trainer/validation_set.py` decides which images a training selects its models on. A node always
+selects on `Training.val_images()`, which falls back to the test images when the training has no
+`val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
+splits through these accessors and never filters `image_data` on `set` itself.
 
 `trainer/training_results.py` holds the results a training uploads beside its model. A trainer
 names its result files by part in `_get_training_results` (default: none); `_upload_model` sends

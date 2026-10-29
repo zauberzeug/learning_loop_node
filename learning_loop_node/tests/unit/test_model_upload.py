@@ -12,8 +12,8 @@ from ...data_exchanger import DataExchanger
 from ...enums import TrainerState
 from ...globals import GLOBALS
 from ...loop_communication import LoopCommunicator
-from ...trainer.exceptions import CriticalError, ModelAlreadyUploadedError, ModelUploadFailedError
-from ...trainer.trainer_logic_generic import STATE_RETRY_DELAY
+from ...trainer.exceptions import CriticalError, ModelUploadFailedError
+from ...trainer.trainer_logic_generic import BASE_RETRY_DELAY
 from ...trainer.trainer_node import TrainerNode
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
@@ -35,14 +35,10 @@ def retry_delays_fixture(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     return delays
 
 
-@pytest.mark.parametrize(('status', 'error'), [
-    (409, ModelAlreadyUploadedError),
-    (404, CriticalError),
-    (413, CriticalError),
-])
-async def test_a_refused_upload_tells_the_trainer_to_skip_or_give_up(status: int, error: type[Exception]):
+@pytest.mark.parametrize('status', [404, 413])
+async def test_a_refused_upload_tells_the_trainer_to_give_up(status: int):
     communicator = _communicator(httpx.Response(status, text='no'))
-    with pytest.raises(error):
+    with pytest.raises(CriticalError):
         await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
     assert communicator.put.await_count == 1
 
@@ -65,11 +61,15 @@ async def test_a_stored_format_returns_the_model_id_the_loop_names():
     assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') == MODEL_ID
 
 
-@pytest.mark.parametrize('detail', [{'message': 'exists', 'id': None}, {'message': 'exists', 'id': ''}, 'exists'])
-async def test_a_stored_format_without_a_valid_id_counts_as_naming_none(detail: object):
-    communicator = _communicator(httpx.Response(409, json={'detail': detail}))
-    with pytest.raises(ModelAlreadyUploadedError):
-        await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format')
+@pytest.mark.parametrize('response', [
+    httpx.Response(409, json={'detail': {'message': 'exists', 'id': None}}),
+    httpx.Response(409, json={'detail': {'message': 'exists', 'id': ''}}),
+    httpx.Response(409, json={'detail': 'exists'}),
+    httpx.Response(409, text='exists'),
+])
+async def test_a_stored_format_without_a_valid_id_returns_none(response: httpx.Response):
+    communicator = _communicator(response)
+    assert await DataExchanger(None, communicator).upload_model_get_uuid(CONTEXT, [], 1, 'some_format') is None
 
 
 async def test_a_rate_limit_is_left_to_the_communicator(retry_delays: list[float]):
@@ -92,7 +92,7 @@ async def test_a_rate_limit_is_left_to_the_communicator(retry_delays: list[float
 
 
 async def test_a_format_the_loop_already_stores_counts_as_uploaded(trainer: TestingTrainerLogic):
-    _answer_uploads(trainer, ModelAlreadyUploadedError(), MODEL_ID)
+    _answer_uploads(trainer, None, MODEL_ID)
 
     assert await trainer._upload_model_return_new_model_uuid(CONTEXT) == MODEL_ID
     assert trainer.active_training_io.load_model_upload_progress() == ['first', 'second']
@@ -105,12 +105,12 @@ async def test_a_retry_after_a_restart_still_knows_the_model_id(trainer: Testing
     assert trainer.active_training_io.load_model_upload_progress() == ['first']
 
     trainer._init_from_last_training()
-    _answer_uploads(trainer, ModelAlreadyUploadedError())
+    _answer_uploads(trainer, None)
     assert await trainer._upload_model_return_new_model_uuid(CONTEXT) == MODEL_ID
 
 
 async def test_an_uploaded_model_without_a_known_id_ends_the_training(trainer: TestingTrainerLogic):
-    _answer_uploads(trainer, ModelAlreadyUploadedError(), ModelAlreadyUploadedError())
+    _answer_uploads(trainer, None, None)
 
     with pytest.raises(CriticalError):
         await trainer._upload_model_return_new_model_uuid(CONTEXT)
@@ -159,7 +159,7 @@ async def test_the_wait_before_the_next_upload_grows_up_to_its_limit(
 
 
 async def test_a_model_upload_that_keeps_failing_keeps_the_training(trainer: TestingTrainerLogic):
-    """600 attempts at the longest wait take about two days, longer than the full disk of Trello 1235 lasted."""
+    """600 failed attempts at the longest wait span about two days, and the training still waits for the loop."""
     trainer.node.data_exchanger.loop_communicator = _communicator(*[httpx.Response(500)] * 600)
 
     for _ in range(600):
@@ -203,7 +203,7 @@ def _communicator(*responses: httpx.Response) -> Mock:
     return Mock(put=AsyncMock(side_effect=responses))
 
 
-def _answer_uploads(trainer: TestingTrainerLogic, *answers: str | Exception) -> None:
+def _answer_uploads(trainer: TestingTrainerLogic, *answers: str | Exception | None) -> None:
     trainer.node.data_exchanger.upload_model_get_uuid = AsyncMock(side_effect=answers)
 
 
@@ -215,4 +215,4 @@ async def _perform_upload_state(trainer: TestingTrainerLogic) -> None:
 
 def _upload_waits(delays: list[float]) -> list[float]:
     """The waits before an upload attempt, without the short sleeps of `_perform_state`."""
-    return [delay for delay in delays if delay >= STATE_RETRY_DELAY]
+    return [delay for delay in delays if delay >= BASE_RETRY_DELAY]
