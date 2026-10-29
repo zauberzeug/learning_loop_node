@@ -12,7 +12,7 @@ from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...enums import TrainerState
 from ...globals import GLOBALS
-from ...trainer.exceptions import CriticalError, ModelUploadFailedError
+from ...trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsRefusedError
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_results import META_FILE, parts_to_upload, write_zip
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
@@ -87,13 +87,14 @@ async def test_accepted_results_are_stored_beside_the_latest_model():
 
 
 @pytest.mark.parametrize(('status', 'error'), [
-    (404, CriticalError),
-    (413, CriticalError),
+    (404, TrainingResultsRefusedError),
+    (413, TrainingResultsRefusedError),
+    (422, TrainingResultsRefusedError),
+    (500, TrainingResultsRefusedError),
+    (503, TrainingResultsRefusedError),
     (408, ModelUploadFailedError),
-    (500, ModelUploadFailedError),
-    (507, ModelUploadFailedError),
 ])
-async def test_results_the_loop_does_not_store_are_answered_like_a_model(status: int, error: type[Exception]):
+async def test_any_answer_but_success_refuses_the_results_except_a_408(status: int, error: type[Exception]):
     communicator = _communicator(httpx.Response(status, text='no'))
 
     with pytest.raises(error):
@@ -131,10 +132,11 @@ async def test_a_trainer_without_results_uploads_only_its_model(trainer: Testing
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
 
 
-async def test_results_the_loop_cannot_store_keep_the_training_and_are_sent_again_later(trainer: TestingTrainerLogic):
+@pytest.mark.parametrize('no_answer', [httpx.ReadTimeout('no answer'), httpx.Response(408)])
+async def test_results_that_got_no_answer_keep_the_training_and_are_sent_again_later(
+        trainer: TestingTrainerLogic, no_answer: Exception | httpx.Response):
     trainer.training.hyperparameters['upload_logs'] = True
-    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, ACCEPTED_RESULTS, httpx.Response(507),
-                                 ACCEPTED_RESULTS)
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, ACCEPTED_RESULTS, no_answer, ACCEPTED_RESULTS)
     trainer.node.data_exchanger.loop_communicator = communicator
 
     await _perform_upload_state(trainer)
@@ -151,13 +153,19 @@ async def test_results_the_loop_cannot_store_keep_the_training_and_are_sent_agai
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
 
 
-async def test_rejected_results_end_the_training_like_a_rejected_model(trainer: TestingTrainerLogic):
-    trainer.node.data_exchanger.loop_communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, httpx.Response(404))
+async def test_refused_results_are_skipped_and_the_training_goes_on(trainer: TestingTrainerLogic):
+    trainer.training.hyperparameters['upload_logs'] = True
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, httpx.Response(413, text='too large'),
+                                 ACCEPTED_RESULTS)
+    trainer.node.data_exchanger.loop_communicator = communicator
 
     await _perform_upload_state(trainer)
 
-    assert trainer.training.training_state == TrainerState.ReadyForCleanup
-    assert trainer.training.model_uuid_for_detecting is None
+    assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core', 'training_results/logs']
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.model_uuid_for_detecting == MODEL_ID
+    assert not trainer.errors.has_error_for('upload_model')
+    assert 'training_results/core' in trainer.active_training_io.load_model_upload_progress()
 
 
 @pytest.fixture(name='trainer')

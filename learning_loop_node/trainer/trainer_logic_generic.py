@@ -27,7 +27,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError, TrainingResultsRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_results import CORE, OPTIONAL_PARTS, meta, parts_to_upload, write_zip
 from .training_slot import TrainingSlot, training_slot_from_env
@@ -502,9 +502,10 @@ class TrainerLogicGeneric(ABC):
 
     async def _upload_training_results(self, context: Context, model_uuid: str) -> None:
         """Upload the parts of `_get_training_results` the hyperparameters ask for (see `training_results`).
-        The loop answers as it does the model upload, so a failed part keeps the training and is sent again
-        with the model upload state. A part the loop stored is recorded beside the uploaded formats and is
-        not sent again.
+        The results are optional: a part the loop refuses is logged and skipped, and the training goes on.
+        Only a part that got no answer fails the state, which is retried with the model upload state and
+        keeps the training until the loop answers or the training is stopped. A part the loop answered is
+        recorded beside the uploaded formats and is not sent again.
         """
         training_folder = Path(self.training.training_folder)
         results = self._get_training_results(training_folder)
@@ -515,8 +516,11 @@ class TrainerLogicGeneric(ABC):
             zip_path = training_folder / 'training_results' / f'{part}.zip'
             part_meta = self._training_results_meta(model_uuid) if part == CORE else None
             await asyncio.to_thread(write_zip, results[part], training_folder, zip_path, part_meta)
-            await self.node.data_exchanger.upload_training_results(context, self.training.training_number, part,
-                                                                   str(zip_path))
+            try:
+                await self.node.data_exchanger.upload_training_results(context, self.training.training_number,
+                                                                       part, str(zip_path))
+            except TrainingResultsRefusedError as e:
+                logger.warning('Skipping the %s results of training %s: %s', part, self.training.training_number, e)
             uploaded.append(progress_key)
             self.active_training_io.save_model_upload_progress(uploaded)
 

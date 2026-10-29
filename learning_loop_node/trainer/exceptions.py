@@ -6,9 +6,15 @@ class CriticalError(Exception):
 
 
 class ModelUploadFailedError(Exception):
-    """Raised when the loop could not store an uploaded model or its training results, e.g. because it answered
-    with a server error.
+    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error, or
+    gave up waiting for a part of the training's results.
     Unlike a CriticalError it keeps the training, so the upload is tried again later.
+    """
+
+
+class TrainingResultsRefusedError(Exception):
+    """Raised when the loop answered the upload of a part of a training's results with anything but success.
+    The results are optional: the trainer logs the answer, records the part as done and goes on with the training.
     """
 
 

@@ -14,7 +14,7 @@ import aiofiles  # type: ignore
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image, is_valid_uuid4
 from .loop_communication import LoopCommunicator
-from .trainer.exceptions import CriticalError, ModelUploadFailedError
+from .trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsRefusedError
 
 logger = logging.getLogger(__name__)
 
@@ -209,20 +209,21 @@ class DataExchanger():
 
     async def upload_training_results(self, context: Context, training_number: int, part: str, zip_path: str) -> None:
         """Used by the trainers. Stores one part of a training's results beside its latest model.
-        The loop answers like the model upload, and a part sent again replaces the stored one.
+        A part sent again replaces the stored one. The results are optional, so an answer from the loop is final,
+        whatever it says; only an upload that got no answer is worth sending again.
 
-        :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
-        :raise ModelUploadFailedError: If the loop could not store the results, e.g. on a server error.
+        :raise TrainingResultsRefusedError: If the loop answered with anything but success (other than 408).
+        :raise ModelUploadFailedError: If the loop answered 408, having given up waiting for the upload.
         """
         path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
                 f'/models/latest/training_results/{part}')
         response = await self.loop_communicator.put(path, files=[zip_path], timeout=60*10)
+        if response.status_code == HTTPStatus.REQUEST_TIMEOUT:
+            raise ModelUploadFailedError(f'The loop gave up waiting for the {part} results of training '
+                                         f'{training_number}: {response.status_code} {response.text}')
         if response.status_code != HTTPStatus.OK:
-            logger.error('Could not upload the %s results of training %s: %s %s',
-                         part, training_number, response.status_code, response.text)
-            error = CriticalError if _rejects_upload(response.status_code) else ModelUploadFailedError
-            raise error(f'Could not upload the {part} results of training {training_number}: '
-                        f'{response.status_code} {response.text}')
+            raise TrainingResultsRefusedError(f'The loop refused the {part} results of training {training_number}: '
+                                              f'{response.status_code} {response.text}')
         logger.info('Uploaded the %s results of training %s', part, training_number)
 
 

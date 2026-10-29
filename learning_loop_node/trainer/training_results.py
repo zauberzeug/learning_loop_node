@@ -1,11 +1,12 @@
 """The results of a training — metrics, curves, logs — uploaded to the loop together with its model.
 
 A trainer names its result files in `_get_training_results`, grouped into parts. The parts are uploaded
-right after the model formats, in the same state and with the same answers as the model upload, so
-every uploaded model gets its results and an upload that fails is tried again like the model's.
-`core` is always uploaded; `examples` and `logs` only if the training's `upload_examples` and
-`upload_logs` hyperparameters ask for them. Each part goes up as one zip that keeps the paths inside
-the training folder, and `core` additionally holds `meta.json`, where the results come from.
+right after the model formats, in the same state, so every uploaded model gets its results. They are
+optional: a part the loop refuses is skipped and the training goes on, and only a part that got no
+answer is sent again. `core` is always uploaded; `examples` and `logs` only if the training's
+`upload_examples` and `upload_logs` hyperparameters ask for them. Each part goes up as one zip that
+keeps the paths inside the training folder, and `core` additionally holds `meta.json`, where the
+results come from.
 """
 import json
 import logging
