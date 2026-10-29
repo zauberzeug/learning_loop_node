@@ -17,6 +17,7 @@ from ...trainer.hyperparameters import check_declaration, parse_pairs, resolve, 
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import AlwaysFreeSlot
+from ...trainer.validation_set import COMPUTE_VALIDATION_SET
 from .test_training_slot import TRAINING_CONFIG, _Trainer, _with_node
 
 # pylint: disable=protected-access,redefined-outer-name
@@ -156,9 +157,11 @@ def test_a_malformed_pair_is_a_critical_error(value: Any):
 
 def test_only_names_neither_the_trainer_nor_the_library_knows_are_warned_about(caplog: pytest.LogCaptureFixture):
     with caplog.at_level(logging.WARNING):
-        warn_about_undeclared(DECLARED, {'epochs': 7, REQUESTED_BATCH_SIZE: 16, 'batch_size': 16})
+        warn_about_undeclared(DECLARED, {'epochs': 7, REQUESTED_BATCH_SIZE: 16, COMPUTE_VALIDATION_SET: True,
+                                         'batch_size': 16})
     assert 'batch_size' in caplog.text
     assert REQUESTED_BATCH_SIZE not in caplog.text
+    assert COMPUTE_VALIDATION_SET not in caplog.text
 
 
 def test_the_declaration_survives_the_trip_to_the_loop():

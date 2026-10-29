@@ -9,6 +9,7 @@ from learning_loop_node.data_classes import (BoxDetection, ClassificationDetecti
                                              SegmentationDetection, Shape, TrainingStateData)
 from learning_loop_node.enums import CategoryType
 from learning_loop_node.trainer.trainer_logic import TrainerLogic
+from learning_loop_node.trainer.validation_set import COMPUTE_VALIDATION_SET_HYPERPARAMETER
 
 from . import progress_simulator
 
@@ -121,6 +122,7 @@ class MockTrainerLogic(TrainerLogic):
                            notes='Mixed precision, faster but less exact'),
             Hyperparameter(name='optimizer', type='str', default='sgd', choices=['sgd', 'adam', 'adamw'], expert=True,
                            notes='Algorithm that updates the weights'),
+            COMPUTE_VALIDATION_SET_HYPERPARAMETER,
         ]
 
     @property

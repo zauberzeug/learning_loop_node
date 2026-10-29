@@ -15,10 +15,11 @@ from ..data_classes import Hyperparameter
 from ..data_classes.training import HyperparameterType
 from .batch_size import REQUESTED_BATCH_SIZE
 from .exceptions import CriticalError
+from .validation_set import COMPUTE_VALIDATION_SET
 
 logger = logging.getLogger(__name__)
 
-LIBRARY_NAMES = (REQUESTED_BATCH_SIZE,)
+LIBRARY_NAMES = (REQUESTED_BATCH_SIZE, COMPUTE_VALIDATION_SET)
 """Hyperparameters the library reads itself, so a trainer that does not declare them still uses them."""
 
 BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'on': True,
