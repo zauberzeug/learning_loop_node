@@ -229,7 +229,9 @@ metrics per epoch, the evaluation curves and the confusion matrix. The trainer d
 they are; a trainer that names none uploads only its model. The results are always uploaded, the
 examples and the raw training log only if the training's `upload_examples` and `upload_logs`
 hyperparameters are true (both default to false). The results are sent right after the model, in
-the same state and with the same retries, so every uploaded model gets its results.
+the same state and with the same retries, so every uploaded model gets its results. The Learning Loop
+stores up to 5 GiB of results per training and refuses more, which ends the training: name only
+results, never the dataset.
 
 ### Several trainers on one GPU
 
