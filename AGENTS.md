@@ -34,17 +34,22 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
   upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
-  ordinary exception records the error and rewinds to the previous state (retried on the next
-  cycle), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
+  ordinary exception records the error and rewinds to the previous state (retried after a growing
+  wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. Every trainer
   declares the hyperparameters it accepts (`provided_hyperparameters`); `trainer/hyperparameters.py`
   resolves the sent values when a training begins or resumes, and a value that does not fit fails a
-  new training rather than refusing it. A concrete trainer
-  implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
-  `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
+  new training rather than refusing it. The loop's
+  `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
+  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
+  stops a running training by ending its training process, so the remaining states upload the
+  model; a training process that fails after a stop is not retried but winds down with the model
+  it has. Before that process has started, and in a trainer without one, a stop aborts. A
+  concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
+  `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
   the GPU when several trainers share one (`TRAINING_SLOT_LOCK`, an `flock` on a mounted file):
   `begin_training` takes it before setting anything up and refuses the training if a sibling holds
@@ -73,6 +78,11 @@ one item ahead of the bookkeeping. `find_batch_size` probes for the largest powe
 that fits, around a `fits` predicate the trainer supplies — none of it imports torch, so a node
 brings its own way of running a step. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
+
+`trainer/validation_set.py` decides which images a training selects its models on. A node always
+selects on `Training.val_images()`, which falls back to the test images when the training has no
+`val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
+splits through these accessors and never filters `image_data` on `set` itself.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
