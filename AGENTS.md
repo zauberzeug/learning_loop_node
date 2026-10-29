@@ -130,6 +130,18 @@ A trainer that probes opts into the budget flag with `node_parser(vram_limit=Tru
 spawns declares the same flag with `add_vram_limit_argument`, and the node passes the value on
 explicitly; that script calls `limit_cuda_memory` itself.
 
+`trainer/dataloader.py` decides how many dataloader workers a training runs, so the nodes stop
+hardcoding their own. A trainer opts in with `node_parser(dataloader_workers=True)`, which adds
+`--dataloader-workers` / `DATALOADER_WORKERS`, defaulting to `default_dataloader_workers`: the CPUs
+this process may run on (`available_cpus` — its affinity, capped by a cgroup v2 quota such as
+`docker run --cpus`; `os.cpu_count()` would report the host's CPUs inside a container) minus
+`RESERVED_CPUS` (8) for the training process, the node and other services, at least
+`MIN_DATALOADER_WORKERS` (8) and at most `MAX_DATALOADER_WORKERS` (16). The floor never takes more
+than `TRAINING_PROCESS_CPUS` (2) from the training process, so a machine with fewer than ten CPUs
+gets fewer than eight workers, and one with two CPUs or fewer loads in the training process
+(`0`). The node passes the parsed value to its own loaders, and to a script it spawns, as it does
+the VRAM limit.
+
 It imports torch, the package does **not** declare it, and only a trainer imports the module — so
 the library keeps working where nothing trains. Its unit test installs a stand-in under the name
 `torch`, which covers the arithmetic, the guards and the search; whether the cap holds, and what
