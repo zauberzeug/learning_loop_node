@@ -15,6 +15,7 @@ from ...data_classes import (
     ToolOutput,
     UserInput,
 )
+from ...data_exchanger import DataExchanger
 from ...enums import AnnotationEventType, CategoryType
 from ..test_helper import ANNOTATOR_PROJECT, project_name
 
@@ -32,12 +33,12 @@ class MockedAnnotatatorLogic(AnnotatorLogic):
         return True
 
 
-def default_user_input() -> UserInput:
+def default_user_input(image_uuid: str) -> UserInput:
     annotation_data = AnnotationData(
         coordinate=Point(x=0, y=0),
         event_type=AnnotationEventType.LeftMouseDown,
         context=Context(organization='zauberzeug', project=PROJECT),
-        image_uuid='10f7d7d2-4076-7006-af37-fa28a6a848ae',
+        image_uuid=image_uuid,
         category=Category(id='some_id', name='category_1', description='',
                           hotkey='', color='', type=CategoryType.Segmentation)
     )
@@ -56,7 +57,10 @@ async def test_image_download():
     assert os.path.exists(image_folder) is False or len(os.listdir(image_folder)) == 0
 
     node = AnnotatorNode(name="", uuid="", annotator_logic=MockedAnnotatatorLogic())
-    user_input = default_user_input()
+    # the generator derives image ids from the project name, which CI suffixes per job
+    image_uuids = await DataExchanger(Context(organization='zauberzeug', project=PROJECT),
+                                      node.loop_communicator).fetch_image_uuids()
+    user_input = default_user_input(image_uuids[0])
     await node._ensure_sio_connection()  # This is required as the node is not "started"
     _ = await node._handle_user_input(jsonable_encoder(asdict(user_input)))
 
