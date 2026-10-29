@@ -87,10 +87,8 @@ the parts after the model formats, each as one zip that keeps the paths inside t
 to `trainings/<n>/models/latest/training_results/<part>`. `core` is always sent and carries a
 `meta.json` about where the results come from; `examples` and `logs` only if the `upload_examples`
 and `upload_logs` hyperparameters are true, which `_prepare` checks so a typo ends the training
-before it has run. The results are optional: a part the loop refuses, with whatever status, is
-logged and skipped (`TrainingResultsRefusedError`), and a part the loop answered is recorded in the
-model upload progress and not sent again. Only a part that got no answer, a timeout or a 408, fails
-the state, which is retried like the model upload until the loop answers or the training is stopped.
+before it has run. The results are optional: a part the loop refuses is skipped, only a part that got
+no answer is sent again.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
