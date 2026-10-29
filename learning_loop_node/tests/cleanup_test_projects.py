@@ -7,7 +7,8 @@ there. CI runs this as the last step of every job, `if: always()`, so it also ru
 
 The loop keeps no creation time for a project, so the run named in its suffix decides whether it is stale --
 it is deleted once that run is completed, or has been re-run since. A run still in progress keeps its
-projects, and so does a run this repository does not know.
+projects, and so does a run this repository does not know or that cannot be looked up. The job's own projects go
+first; a delete that times out ends the sweep, because the loop is still deleting and the next one would block.
 """
 import asyncio
 import logging
@@ -38,27 +39,39 @@ async def main() -> None:
         listed = {p['project_id'] for p in response.json()['projects']
                   if p['organization_id'] == ORGANIZATION and SUFFIXED.match(p['project_id'])}
         logger.info('%d test projects listed', len(listed))
-        # this job's own are deleted by name too, in case the listing does not show them
-        own = {f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in TEST_PROJECTS}
-        runs: dict = {}
-        for project in sorted(listed | own):
-            run_id = SUFFIXED.match(project)['run_id']  # type: ignore[index]
-            if run_id not in runs:
-                runs[run_id] = await run_status(github, run_id)
-            if not is_stale(project, runs[run_id]):
-                logger.info('keeping %s', project)
-                continue
+        # this job's own come first and go by name, in case the listing does not show them; its tests are over, so
+        # they need no lookup and a failing one cannot keep them
+        own = [f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in TEST_PROJECTS]
+        for project in own + await stale_projects(github, listed - set(own)):
             try:
                 response = await loop_communicator.delete(f'/{ORGANIZATION}/projects/{project}', timeout=75)
             except httpx.TimeoutException:
-                # a delete can hang on the loop; the next run's sweep tries again, the others go on now
-                logger.warning('deleting %s timed out', project)
-                continue
+                # the loop goes on deleting after the client gave up, and another delete now would only block on it
+                logger.warning('deleting %s timed out, the remaining projects are left to the next sweep', project)
+                break
             logger.info('deleting %s: %s %s', project, response.status_code,
                          response.text if response.status_code not in (200, 404) else '')
     finally:
         await github.aclose()
         await loop_communicator.shutdown()
+
+
+async def stale_projects(client: httpx.AsyncClient, projects: set[str]) -> list[str]:
+    runs: dict[str, dict | None] = {}
+    stale = []
+    for project in sorted(projects):
+        run_id = SUFFIXED.match(project)['run_id']  # type: ignore[index]
+        if run_id not in runs:
+            try:
+                runs[run_id] = await run_status(client, run_id)
+            except httpx.HTTPError:
+                logger.exception('looking up run %s failed, keeping its projects', run_id)
+                runs[run_id] = None
+        if is_stale(project, runs[run_id]):
+            stale.append(project)
+        else:
+            logger.info('keeping %s', project)
+    return stale
 
 
 async def run_status(client: httpx.AsyncClient, run_id: str) -> dict | None:
@@ -72,8 +85,6 @@ async def run_status(client: httpx.AsyncClient, run_id: str) -> dict | None:
 def is_stale(project: str, run: dict | None) -> bool:
     match = SUFFIXED.match(project)
     assert match is not None
-    if project.endswith(f'_{os.environ[TEST_PROJECT_SUFFIX]}'):
-        return True  # this job's own, and its tests are over
     if run is None:
         return False
     return run['status'] == 'completed' or int(match['attempt']) < run['run_attempt']
