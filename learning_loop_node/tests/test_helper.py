@@ -3,8 +3,11 @@ import os
 import shutil
 import time
 import zipfile
+from collections.abc import Callable
 from glob import glob
-from typing import Callable
+
+import httpx
+import pytest
 
 from ..data_classes import (
     BoxDetection,
@@ -17,6 +20,48 @@ from ..data_classes import (
 )
 from ..data_classes.image_metadata import ImageMetadata
 from ..loop_communication import LoopCommunicator
+
+TEST_PROJECT_SUFFIX = 'LOOP_TEST_PROJECT_SUFFIX'
+DELETE_TIMEOUT = 75  # outlasts the loop's own 60 s limit, so its answer comes through
+
+# the projects the suites create and delete on the loop; cleanup_test_projects sweeps exactly these
+GENERAL_PROJECT = 'pytest_nodelib_general'
+ANNOTATOR_PROJECT = 'pytest_nodelib_annotator'
+MOCK_TRAINER_PROJECT_1 = 'pytest_mock_trainer_test1'
+MOCK_TRAINER_PROJECT_2 = 'pytest_mock_trainer_test2'
+TEST_PROJECTS = (GENERAL_PROJECT, ANNOTATOR_PROJECT, MOCK_TRAINER_PROJECT_1, MOCK_TRAINER_PROJECT_2)
+
+
+def project_name(name: str) -> str:
+    """Append `LOOP_TEST_PROJECT_SUFFIX`, which CI sets per job, so concurrent runs never share a project."""
+    suffix = os.environ.get(TEST_PROJECT_SUFFIX)
+    return f'{name}_{suffix}' if suffix else name
+
+
+_timed_out_deletes: set[str] = set()
+
+
+async def delete_project(loop_communicator: LoopCommunicator, project: str, *, keep_images: bool = False) -> None:
+    """
+    Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
+
+    The loop goes on deleting after a timeout, so a later call for the same project fails at once instead of sending
+    a delete that would block on it. `keep_images` only applies to a bare name; a suffixed one is never reused.
+    """
+    path = f'/zauberzeug/projects/{project}'
+    if project in _timed_out_deletes:
+        pytest.fail(f'deleting {path} on {loop_communicator.host} timed out before, not sending another delete',
+                    pytrace=False)
+    keep_images = keep_images and not os.environ.get(TEST_PROJECT_SUFFIX)
+    try:
+        response = await loop_communicator.delete(path + ('?keep_images=true' if keep_images else ''),
+                                                  timeout=DELETE_TIMEOUT)
+    except httpx.TimeoutException:
+        _timed_out_deletes.add(project)
+        pytest.fail(f'deleting {path} on {loop_communicator.host} took longer than {DELETE_TIMEOUT} s', pytrace=False)
+    if response.status_code not in (200, 404):
+        pytest.fail(f'deleting {path} on {loop_communicator.host} answered {response.status_code}: {response.text}',
+                    pytrace=False)
 
 
 def get_files_in_folder(folder: str):
