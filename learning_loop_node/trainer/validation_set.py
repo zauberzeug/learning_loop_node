@@ -21,12 +21,19 @@ import logging
 from collections.abc import Mapping
 from typing import Any
 
+from ..data_classes import Hyperparameter
 from .exceptions import CriticalError
 
 logger = logging.getLogger(__name__)
 
 COMPUTE_VALIDATION_SET = 'compute_validation_set'
 """The hyperparameter that asks to split a validation set off the train images when the loop sent none."""
+
+COMPUTE_VALIDATION_SET_HYPERPARAMETER = Hyperparameter(
+    name=COMPUTE_VALIDATION_SET, type='bool', default=False,
+    notes='Split about a tenth of the train images off to select the models on, so the test set is only reported on; '
+          'a validation set sent by the loop is used either way')
+"""The declaration of `compute_validation_set`, for a trainer to list among its `provided_hyperparameters`."""
 
 VALIDATION_FRACTION = 0.1
 

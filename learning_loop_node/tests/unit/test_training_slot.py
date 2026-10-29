@@ -8,11 +8,11 @@ import sys
 import time
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TypeVar
 
 import pytest
 
-from ...data_classes import PretrainedModel, TrainingStateData
-from ...globals import GLOBALS
+from ...data_classes import Hyperparameter, PretrainedModel, TrainingStateData
 from ...helpers.misc import ensure_socket_response
 from ...trainer.exceptions import TrainingRefusedError, TrainingSlotTakenError
 from ...trainer.io_helpers import LastTrainingIO
@@ -248,6 +248,10 @@ class _Trainer(TrainerLogicGeneric):
     def provided_pretrained_models(self) -> list[PretrainedModel]:
         return []
 
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return []
+
     async def _train(self) -> None:
         pass
 
@@ -267,29 +271,20 @@ class _Trainer(TrainerLogicGeneric):
         pass
 
 
-def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
-    trainer = _Trainer('mocked', training_slot=slot)
+_T = TypeVar('_T', bound=TrainerLogicGeneric)
+
+
+def _with_node(trainer: _T) -> _T:
     trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
+    trainer._last_training_io = LastTrainingIO('node-uuid')
     return trainer
 
 
+def _trainer_with(slot: FileTrainingSlot) -> _Trainer:
+    return _with_node(_Trainer('mocked', training_slot=slot))
+
+
 TRAINING_CONFIG = {'model_variant': 'small', 'categories': [], 'training_number': 7, 'hyperparameters': {}}
-
-
-@pytest.fixture
-def data_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setattr(GLOBALS, 'data_folder', str(tmp_path / 'data'))
-    return tmp_path / 'data'
-
-
-@pytest.fixture
-def started(monkeypatch: pytest.MonkeyPatch) -> list[TrainerLogicGeneric]:
-    trainers: list[TrainerLogicGeneric] = []
-
-    def record(trainer: TrainerLogicGeneric) -> None:
-        trainers.append(trainer)
-    monkeypatch.setattr(TrainerLogicGeneric, '_begin_training_task', record)
-    return trainers
 
 
 def test_an_idle_trainer_reports_blocked_while_a_sibling_holds_the_slot(lock_path: Path):
@@ -375,9 +370,7 @@ class _TrainerFailingCleanup(_Trainer):
 
 async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_path: Path, data_folder: Path,
                                                                           started: list):
-    trainer = _TrainerFailingCleanup('mocked', training_slot=FileTrainingSlot(lock_path))
-    trainer._node = SimpleNamespace(uuid='node-uuid', name='node', loop_communicator=None)  # type: ignore[assignment]
-    trainer._last_training_io = LastTrainingIO('node-uuid')
+    trainer = _with_node(_TrainerFailingCleanup('mocked', training_slot=FileTrainingSlot(lock_path)))
     await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
     trainer.training.training_state = 'ready_for_cleanup'
 
@@ -392,7 +385,6 @@ async def test_a_training_that_fails_to_clean_up_does_not_wedge_the_node(lock_pa
 async def test_a_resumed_training_waits_for_the_slot_and_reports_waiting_meanwhile(lock_path: Path, data_folder: Path,
                                                                                    started: list):
     trainer = _trainer_with(FileTrainingSlot(lock_path))
-    trainer._last_training_io = LastTrainingIO('node-uuid')
     await trainer.begin_training('zauberzeug', 'demo', TRAINING_CONFIG)
     trainer.training.training_state = 'ready_for_cleanup'
     trainer.training_slot.release()  # a restarted node has its training back, but not the slot
