@@ -424,6 +424,11 @@ class TrainerLogicGeneric(ABC):
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
+        for set_name, images in (('train', self.training.train_images()),
+                                 ('test', self.training.test_images()),
+                                 ('validation', self.training.val_images())):
+            if not images:
+                raise CriticalError(f'The training has no {set_name} images')
 
     async def _download_model(self) -> None:
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
