@@ -13,35 +13,18 @@ import asyncio
 import logging
 import os
 import re
-from typing import Optional
 
 import httpx
 
 from ..loop_communication import LoopCommunicator
 from .test_helper import TEST_PROJECT_SUFFIX, TEST_PROJECTS
 
+logger = logging.getLogger('cleanup_test_projects')
+
 ORGANIZATION = 'zauberzeug'
 # only the suites' own projects are ever swept, so a project of another repository's CI that happens to follow the
 # same naming is left alone
 SUFFIXED = re.compile(rf'^(?:{"|".join(TEST_PROJECTS)})_(?P<run_id>\d+)_(?P<attempt>\d+)_\d+$')
-
-
-async def run_status(client: httpx.AsyncClient, run_id: str) -> Optional[dict]:
-    response = await client.get(f'/repos/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{run_id}')
-    if response.status_code == 404:
-        return None
-    response.raise_for_status()
-    return response.json()
-
-
-def is_stale(project: str, run: Optional[dict]) -> bool:
-    match = SUFFIXED.match(project)
-    assert match is not None
-    if project.endswith(f'_{os.environ[TEST_PROJECT_SUFFIX]}'):
-        return True  # this job's own, and its tests are over
-    if run is None:
-        return False
-    return run['status'] == 'completed' or int(match['attempt']) < run['run_attempt']
 
 
 async def main() -> None:
@@ -54,7 +37,7 @@ async def main() -> None:
         response.raise_for_status()
         listed = {p['project_id'] for p in response.json()['projects']
                   if p['organization_id'] == ORGANIZATION and SUFFIXED.match(p['project_id'])}
-        logging.info('%d test projects listed', len(listed))
+        logger.info('%d test projects listed', len(listed))
         # this job's own are deleted by name too, in case the listing does not show them
         own = {f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in TEST_PROJECTS}
         runs: dict = {}
@@ -63,19 +46,37 @@ async def main() -> None:
             if run_id not in runs:
                 runs[run_id] = await run_status(github, run_id)
             if not is_stale(project, runs[run_id]):
-                logging.info('keeping %s', project)
+                logger.info('keeping %s', project)
                 continue
             try:
                 response = await loop_communicator.delete(f'/{ORGANIZATION}/projects/{project}', timeout=75)
             except httpx.TimeoutException:
                 # a delete can hang on the loop; the next run's sweep tries again, the others go on now
-                logging.warning('deleting %s timed out', project)
+                logger.warning('deleting %s timed out', project)
                 continue
-            logging.info('deleting %s: %s %s', project, response.status_code,
+            logger.info('deleting %s: %s %s', project, response.status_code,
                          response.text if response.status_code not in (200, 404) else '')
     finally:
         await github.aclose()
         await loop_communicator.shutdown()
+
+
+async def run_status(client: httpx.AsyncClient, run_id: str) -> dict | None:
+    response = await client.get(f'/repos/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{run_id}')
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return response.json()
+
+
+def is_stale(project: str, run: dict | None) -> bool:
+    match = SUFFIXED.match(project)
+    assert match is not None
+    if project.endswith(f'_{os.environ[TEST_PROJECT_SUFFIX]}'):
+        return True  # this job's own, and its tests are over
+    if run is None:
+        return False
+    return run['status'] == 'completed' or int(match['attempt']) < run['run_attempt']
 
 
 if __name__ == '__main__':
