@@ -12,7 +12,7 @@ from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...enums import TrainerState
 from ...globals import GLOBALS
-from ...trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsRefusedError
+from ...trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsUploadFailedError
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_results import META_FILE, parts_to_upload, write_zip
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
@@ -87,14 +87,14 @@ async def test_accepted_results_are_stored_beside_the_latest_model():
 
 
 @pytest.mark.parametrize(('status', 'error'), [
-    (404, TrainingResultsRefusedError),
-    (413, TrainingResultsRefusedError),
-    (422, TrainingResultsRefusedError),
-    (500, TrainingResultsRefusedError),
-    (503, TrainingResultsRefusedError),
+    (404, TrainingResultsUploadFailedError),
+    (413, TrainingResultsUploadFailedError),
+    (422, TrainingResultsUploadFailedError),
+    (500, TrainingResultsUploadFailedError),
+    (503, TrainingResultsUploadFailedError),
     (408, ModelUploadFailedError),
 ])
-async def test_any_answer_but_success_refuses_the_results_except_a_408(status: int, error: type[Exception]):
+async def test_any_answer_but_success_fails_the_results_except_a_408(status: int, error: type[Exception]):
     communicator = _communicator(httpx.Response(status, text='no'))
 
     with pytest.raises(error):
@@ -153,7 +153,7 @@ async def test_results_that_got_no_answer_keep_the_training_and_are_sent_again_l
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
 
 
-async def test_refused_results_are_skipped_and_the_training_goes_on(trainer: TestingTrainerLogic):
+async def test_results_the_loop_does_not_store_are_skipped_and_the_training_goes_on(trainer: TestingTrainerLogic):
     trainer.training.hyperparameters['upload_logs'] = True
     communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, httpx.Response(413, text='too large'),
                                  ACCEPTED_RESULTS)

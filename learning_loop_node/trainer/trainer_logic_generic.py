@@ -27,7 +27,7 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError, TrainingResultsRefusedError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError, TrainingResultsUploadFailedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_results import CORE, OPTIONAL_PARTS, meta, parts_to_upload, write_zip
 from .training_slot import TrainingSlot, training_slot_from_env
@@ -502,7 +502,7 @@ class TrainerLogicGeneric(ABC):
 
     async def _upload_training_results(self, context: Context, model_uuid: str) -> None:
         """Upload the parts of `_get_training_results` the hyperparameters ask for (see `training_results`).
-        The results are optional: a part the loop refuses is logged and skipped. Only a part that got no answer
+        The results are optional: a part the loop does not store is logged and skipped. Only a part that got no answer
         fails the state, so it is sent again with the model upload. A part the loop answered is recorded beside
         the uploaded formats and is not sent again.
         """
@@ -518,7 +518,7 @@ class TrainerLogicGeneric(ABC):
             try:
                 await self.node.data_exchanger.upload_training_results(context, self.training.training_number,
                                                                        part, str(zip_path))
-            except TrainingResultsRefusedError as e:
+            except TrainingResultsUploadFailedError as e:
                 logger.warning('Skipping the %s results of training %s: %s', part, self.training.training_number, e)
             uploaded.append(progress_key)
             self.active_training_io.save_model_upload_progress(uploaded)

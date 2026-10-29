@@ -14,7 +14,7 @@ import aiofiles  # type: ignore
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image, is_valid_uuid4
 from .loop_communication import LoopCommunicator
-from .trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsRefusedError
+from .trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsUploadFailedError
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ class DataExchanger():
         The results are optional, so an answer from the loop is final, whatever it says; only an upload that got
         no answer is worth sending again.
 
-        :raise TrainingResultsRefusedError: If the loop answered with anything but success (other than 408).
+        :raise TrainingResultsUploadFailedError: If the loop answered with anything but success (other than 408).
         :raise ModelUploadFailedError: If the loop answered 408, having given up waiting for the upload.
         """
         path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
@@ -223,8 +223,8 @@ class DataExchanger():
             raise ModelUploadFailedError(f'The loop gave up waiting for the {part} results of training '
                                          f'{training_number}: {response.status_code} {response.text}')
         if response.status_code != HTTPStatus.OK:
-            raise TrainingResultsRefusedError(f'The loop refused the {part} results of training {training_number}: '
-                                              f'{response.status_code} {response.text}')
+            raise TrainingResultsUploadFailedError(f'The loop did not store the {part} results of training '
+                                                   f'{training_number}: {response.status_code} {response.text}')
         logger.info('Uploaded the %s results of training %s', part, training_number)
 
 

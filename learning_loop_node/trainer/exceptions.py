@@ -12,7 +12,7 @@ class ModelUploadFailedError(Exception):
     """
 
 
-class TrainingResultsRefusedError(Exception):
+class TrainingResultsUploadFailedError(Exception):
     """Raised when the loop answered the upload of a part of a training's results with anything but success.
     The answer is final: sending the part again would get the same answer.
     """
