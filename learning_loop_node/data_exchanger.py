@@ -208,9 +208,10 @@ class DataExchanger():
         return uploaded_model['id']
 
     async def upload_training_results(self, context: Context, training_number: int, part: str, zip_path: str) -> None:
-        """Used by the trainers. Stores one part of a training's results beside its latest model.
-        A part sent again replaces the stored one. The results are optional, so an answer from the loop is final,
-        whatever it says; only an upload that got no answer is worth sending again.
+        """Store one part of a training's results beside its latest model; a part sent again replaces the stored one.
+
+        The results are optional, so an answer from the loop is final, whatever it says; only an upload that got
+        no answer is worth sending again.
 
         :raise TrainingResultsRefusedError: If the loop answered with anything but success (other than 408).
         :raise ModelUploadFailedError: If the loop answered 408, having given up waiting for the upload.

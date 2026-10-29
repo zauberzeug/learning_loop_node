@@ -382,7 +382,7 @@ class TrainerLogicGeneric(ABC):
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
         Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
-        A malformed `upload_examples` or `upload_logs` ends the training here rather than after it has run.
+        A malformed `upload_examples` or `upload_logs` ends the training here, before it has run.
         """
         for hyperparameter in OPTIONAL_PARTS.values():
             bool_hyperparameter(self.training.hyperparameters, hyperparameter)
@@ -502,10 +502,9 @@ class TrainerLogicGeneric(ABC):
 
     async def _upload_training_results(self, context: Context, model_uuid: str) -> None:
         """Upload the parts of `_get_training_results` the hyperparameters ask for (see `training_results`).
-        The results are optional: a part the loop refuses is logged and skipped, and the training goes on.
-        Only a part that got no answer fails the state, which is retried with the model upload state and
-        keeps the training until the loop answers or the training is stopped. A part the loop answered is
-        recorded beside the uploaded formats and is not sent again.
+        The results are optional: a part the loop refuses is logged and skipped. Only a part that got no answer
+        fails the state, so it is sent again with the model upload. A part the loop answered is recorded beside
+        the uploaded formats and is not sent again.
         """
         training_folder = Path(self.training.training_folder)
         results = self._get_training_results(training_folder)

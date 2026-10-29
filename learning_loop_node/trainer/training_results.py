@@ -67,7 +67,7 @@ def _archive_name(path: Path, training_folder: Path) -> str:
 
 def meta(*, node_name: str, node_uuid: str, organization: str, project: str, training_number: int, model_uuid: str,
          start_time: float, stop_requested: bool, hyperparameters: Mapping[str, Any]) -> dict[str, Any]:
-    """Where the results come from. Partly known to the loop already, kept here so the results explain themselves."""
+    """Where the results come from, so they explain themselves without the loop's database."""
     return {
         'node_name': node_name,
         'node_uuid': node_uuid,

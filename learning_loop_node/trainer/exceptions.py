@@ -14,7 +14,7 @@ class ModelUploadFailedError(Exception):
 
 class TrainingResultsRefusedError(Exception):
     """Raised when the loop answered the upload of a part of a training's results with anything but success.
-    The results are optional: the trainer logs the answer, records the part as done and goes on with the training.
+    The answer is final: sending the part again would get the same answer.
     """
 
 
