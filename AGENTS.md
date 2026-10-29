@@ -184,13 +184,10 @@ python -m pytest learning_loop_node/tests/trainer -v -k <test_name>      # one t
 
 An autouse fixture repoints `GLOBALS.data_folder` at `/tmp/learning_loop_lib_data` and wipes it
 around every test, so tests never touch `/data`. The `general` suite generates and deletes a real
-`zauberzeug/pytest_nodelib_general` project on the loop, and the `annotator` and `mock_trainer`
-suites generate their own; the detector suite starts the node in a forked uvicorn process on
-`GLOBALS.detector_port`. The bare names of those projects live in `test_helper.py` and nowhere
-else, and a suite uses one through `test_helper.project_name`: CI appends `LOOP_TEST_PROJECT_SUFFIX`
-(run id, attempt, job index), so the runs of two branches cannot delete each other's project, and
-`tests/cleanup_test_projects.py` — the last step of every CI job — deletes those whose run is over.
-A new suite that creates a project adds its name there.
+`zauberzeug/pytest_nodelib_general` project on the loop; the detector suite starts the node in a
+forked uvicorn process on `GLOBALS.detector_port`. A suite that creates a project on the loop
+declares its bare name in `test_helper.py` and builds the real name with `test_helper.project_name`,
+so every CI job gets its own copy and the cleanup step can sweep it.
 
 There is no `.pre-commit-config.yaml` here and no ruff in the project environment. Lint with:
 
