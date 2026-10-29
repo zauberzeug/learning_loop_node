@@ -217,7 +217,7 @@ class DataExchanger():
         :raise ModelUploadFailedError: If the loop answered 408, having given up waiting for the upload.
         """
         path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
-                f'/models/latest/training_results/{part}')
+                f'/training_results/{part}')
         response = await self.loop_communicator.put(path, files=[zip_path], timeout=60*10)
         if response.status_code == HTTPStatus.REQUEST_TIMEOUT:
             raise ModelUploadFailedError(f'The loop gave up waiting for the {part} results of training '

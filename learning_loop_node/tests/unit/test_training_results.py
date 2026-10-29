@@ -81,7 +81,7 @@ async def test_accepted_results_are_stored_beside_the_latest_model():
     await DataExchanger(None, communicator).upload_training_results(CONTEXT, 3, 'core', '/tmp/core.zip')
 
     assert communicator.put.await_args.args[0] == \
-        '/zauberzeug/projects/demo/trainings/3/models/latest/training_results/core'
+        '/zauberzeug/projects/demo/trainings/3/training_results/core'
     assert communicator.put.await_args.kwargs['files'] == ['/tmp/core.zip']
     assert communicator.put.await_args.kwargs['timeout'] == 600
 
