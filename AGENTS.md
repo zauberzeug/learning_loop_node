@@ -153,10 +153,7 @@ drift apart again.
 
 A detector filters at `model_info.conf_threshold`. `_build_and_swap_detector` hands the factory
 the node's `conf_threshold` there when one is set (`--conf-threshold`, declared by
-`node_parser(conf_threshold=True)`); otherwise it is the value the trainer put into `model.json`,
-or `DEFAULT_CONF_THRESHOLD` for a model without one. The node replaces it only in its copy, so
-the file keeps the trainer's value. The flag has no default of its own, because any default would
-override every model's threshold.
+`node_parser(conf_threshold=True)`);
 
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the
