@@ -12,13 +12,14 @@ from argparse import Action, Namespace
 import configargparse
 import uvicorn
 
+from ..detector.postprocess import DEFAULT_CONF_THRESHOLD
 from ..trainer.batch_size import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
 
 logger = logging.getLogger(__name__)
 
 
 def node_parser(*, description: str, legacy_env_prefix: str = '',
-                vram_limit: bool = False) -> configargparse.ArgumentParser:
+                vram_limit: bool = False, conf_threshold: bool = False) -> configargparse.ArgumentParser:
     """Build the parser for a node, pre-loaded with the settings every node has.
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
@@ -26,6 +27,9 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
         current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
     :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`.
+    :param conf_threshold: Add ``--conf-threshold`` for
+        :func:`~learning_loop_node.detector.postprocess.resolve_conf_threshold`. It is unset by
+        default: any default here would override the threshold the trainer chose for the model.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',
@@ -33,6 +37,10 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
     parser.add_argument('--port', type=int, default=80, env_var='NODE_PORT', help='Port to bind to')
     if vram_limit:
         parser.add_argument(VRAM_LIMIT_GB_FLAG, type=float, default=0, help=VRAM_LIMIT_GB_HELP)
+    if conf_threshold:
+        parser.add_argument('--conf-threshold', type=float, default=None,
+                            help='Minimum confidence for detections (default: the one the trainer chose for the '
+                                 f'model, else {DEFAULT_CONF_THRESHOLD})')
     return parser
 
 

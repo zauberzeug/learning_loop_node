@@ -28,6 +28,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           | 0.3          |
 | MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           | 0.6          |
 | MAX_OUTBOX_SIZE          | -            | max. number of non-priority images queued for upload         | Detector (opt.)           | 1000         |
+| CONF_THRESHOLD           | -            | minimum confidence of a detection, overriding the model's    | Detector (opt.)           | model's, 0.2 |
 | EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 1)      | Detector (opt.)           | 0            |
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            | 10           |
 | VRAM_LIMIT_GB            | -            | GPU memory (GB) a training may use; the batch size is probed against it (`--vram-limit-gb`, trainers built with `node_parser(vram_limit=True)`) | Trainer (opt.) | 0 (whole card) |
@@ -316,4 +317,4 @@ After a short time the converted model should be available as well.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
   - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, `resolution_x`` resolution_y` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
-  - `conf_threshold` (optional): the minimum confidence the trainer chose for this model's detections
+  - `conf_threshold` (optional): the minimum confidence the trainer chose for this model's detections; a detector filters at it unless its `CONF_THRESHOLD` is set, and at 0.2 for a model without one
