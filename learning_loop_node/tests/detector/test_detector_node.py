@@ -1,10 +1,16 @@
+import json
+from dataclasses import asdict
+from pathlib import Path
 from typing import List, Literal, Tuple
 
 import numpy as np
 import pytest
 
+from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.detector import detector_node as detector_node_module
 from learning_loop_node.detector.detector_node import DetectorNode
+
+from .conftest import MockDetectorLogic
 
 
 @pytest.mark.asyncio
@@ -96,3 +102,32 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
                     assert np.array_equal(value, expected)
                 else:
                     assert value == expected
+
+
+@pytest.mark.parametrize('node_conf_threshold, expected', [(0.35, 0.35), (None, 0.6)])
+async def test_the_factory_gets_the_conf_threshold_of_the_node_else_the_models(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, node_conf_threshold: float | None, expected: float):
+    monkeypatch.setenv('LOOP_ORGANIZATION', 'zauberzeug')
+    monkeypatch.setenv('LOOP_PROJECT', 'demo')
+    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project='demo', version='0.0',
+                                  conf_threshold=0.6)
+    (tmp_path / 'model.json').write_text(json.dumps(asdict(model_info)))
+    factory = _RecordingFactory()
+    node = DetectorNode(name='test_node', detector_factory=factory, conf_threshold=node_conf_threshold)
+
+    await node._build_and_swap_detector(str(tmp_path))  # pylint: disable=protected-access
+
+    assert factory.model_info is not None
+    assert factory.model_info.conf_threshold == expected
+    assert json.loads((tmp_path / 'model.json').read_text())['conf_threshold'] == 0.6
+
+
+class _RecordingFactory:
+    model_format = 'mock'
+
+    def __init__(self) -> None:
+        self.model_info: ModelInformation | None = None
+
+    async def build(self, model_info: ModelInformation) -> MockDetectorLogic:
+        self.model_info = model_info
+        return MockDetectorLogic(model_info)

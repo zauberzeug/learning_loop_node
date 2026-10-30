@@ -20,7 +20,6 @@ from .geometry import clip_box, clip_point
 logger = logging.getLogger(__name__)
 
 MIN_BOX_SIZE: int = 2
-DEFAULT_CONF_THRESHOLD: float = 0.2
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)
@@ -34,24 +33,6 @@ class Prediction:
     height: float
     category_index: int
     confidence: float
-
-
-def resolve_conf_threshold(configured: float | None, model_info: ModelInformation) -> float:
-    """The confidence a detector filters the detections of this model at.
-
-    ``configured``, the node's ``--conf-threshold``, wins, so a deployment can always override the
-    model; unset, it is the ``conf_threshold`` the trainer chose for the model, and
-    :data:`DEFAULT_CONF_THRESHOLD` for a model that carries none.
-    """
-    if configured is not None:
-        threshold, source = configured, 'configured'
-    elif model_info.conf_threshold is not None:
-        threshold, source = model_info.conf_threshold, 'chosen by the trainer'
-    else:
-        threshold, source = DEFAULT_CONF_THRESHOLD, 'default'
-    logger.info('Filtering detections of model %s below a confidence of %s (%s)',
-                model_info.version, threshold, source)
-    return threshold
 
 
 def post_process(

@@ -3,13 +3,11 @@ import pytest
 
 from ...data_classes import Category, ModelInformation
 from ...detector.postprocess import (
-    DEFAULT_CONF_THRESHOLD,
     Prediction,
     bbox_iou,
     non_max_suppression,
     post_process,
     predictions_from_xyxy,
-    resolve_conf_threshold,
     to_detections,
     to_image_metadata,
 )
@@ -17,24 +15,6 @@ from ...enums import CategoryType
 
 BOX = Category(id='uuid-box', name='car', type=CategoryType.Box)
 POINT = Category(id='uuid-point', name='weed', type=CategoryType.Point)
-
-
-# --- the confidence to filter at ---
-
-def test_a_configured_conf_threshold_overrides_the_models():
-    assert resolve_conf_threshold(0.3, model_information(conf_threshold=0.6)) == 0.3
-
-
-def test_a_configured_conf_threshold_of_zero_is_still_configured():
-    assert resolve_conf_threshold(0.0, model_information(conf_threshold=0.6)) == 0.0
-
-
-def test_unconfigured_the_conf_threshold_of_the_model_applies():
-    assert resolve_conf_threshold(None, model_information(conf_threshold=0.6)) == 0.6
-
-
-def test_a_model_without_a_conf_threshold_gets_the_default():
-    assert resolve_conf_threshold(None, model_information()) == DEFAULT_CONF_THRESHOLD
 
 
 # --- iou and suppression ---
@@ -163,7 +143,6 @@ def test_trainer_and_detector_paths_agree_on_the_same_detections():
         [(d.x, d.y, d.category_id) for d in metadata.point_detections]
 
 
-def model_information(*categories: Category, conf_threshold: float | None = None) -> ModelInformation:
+def model_information(*categories: Category) -> ModelInformation:
     return ModelInformation(id='model-uuid', host='localhost', organization='zauberzeug',
-                            project='pytest', version='1.2', categories=list(categories or (BOX, POINT)),
-                            conf_threshold=conf_threshold)
+                            project='pytest', version='1.2', categories=list(categories or (BOX, POINT)))

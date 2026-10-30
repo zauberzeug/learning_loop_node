@@ -149,10 +149,14 @@ predictions into the loop's dataclasses. A node should import them rather than w
 every node repository had grown its own drifting copy, which is why they live here. Note the two
 containers: `to_image_metadata` builds what a **detector** node reports, `to_detections` what a
 **trainer**'s auto-detection pass reports. Both go through one routine, so the two paths cannot
-drift apart again. `resolve_conf_threshold` picks the confidence a detector filters at: its
-`--conf-threshold` (declared by `node_parser(conf_threshold=True)`), else the `conf_threshold` the
-trainer put into `model.json`, else `DEFAULT_CONF_THRESHOLD`. The flag has no default of its own,
-because any default would override every model's threshold.
+drift apart again.
+
+A detector filters at `model_info.conf_threshold`. `_build_and_swap_detector` hands the factory
+the node's `conf_threshold` there when one is set (`--conf-threshold`, declared by
+`node_parser(conf_threshold=True)`); otherwise it is the value the trainer put into `model.json`,
+or `DEFAULT_CONF_THRESHOLD` for a model without one. The node replaces it only in its copy, so
+the file keeps the trainer's value. The flag has no default of its own, because any default would
+override every model's threshold.
 
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the

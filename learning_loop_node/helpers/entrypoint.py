@@ -12,7 +12,7 @@ from argparse import Action, Namespace
 import configargparse
 import uvicorn
 
-from ..detector.postprocess import DEFAULT_CONF_THRESHOLD
+from ..data_classes.general import DEFAULT_CONF_THRESHOLD
 from ..trainer.batch_size import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,8 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
         current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
     :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`.
-    :param conf_threshold: Add ``--conf-threshold`` for
-        :func:`~learning_loop_node.detector.postprocess.resolve_conf_threshold`. It is unset by
+    :param conf_threshold: Add ``--conf-threshold`` for the ``conf_threshold`` of a
+        :class:`~learning_loop_node.detector.detector_node.DetectorNode`. It is unset by
         default: any default here would override the threshold the trainer chose for the model.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
