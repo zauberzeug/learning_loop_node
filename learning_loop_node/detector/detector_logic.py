@@ -10,6 +10,7 @@ class DetectorLogicFactory(Protocol):
 
     The factory controls how the detector is constructed — implementations
     can build synchronously or offload heavy work to a thread pool.
+    `model_info.conf_threshold` is the confidence the detector should filter at.
     """
     @property
     def model_format(self) -> str: ...

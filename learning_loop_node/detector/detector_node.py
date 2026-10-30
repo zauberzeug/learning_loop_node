@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, Union
 
@@ -50,9 +50,11 @@ from .rest import upload as rest_upload
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector_factory: DetectorLogicFactory,
-                 uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
+                 uuid: Optional[str] = None, use_backdoor_controls: bool = False,
+                 conf_threshold: Optional[float] = None) -> None:
         super().__init__(name, uuid=uuid, node_type='detector', needs_login=False, needs_sio=False)
         self._detector_factory = detector_factory
+        self._conf_threshold = conf_threshold
         self.node_version: Optional[str] = os.environ.get('NODE_VERSION')
         self._detector: _DetectorState = _Initializing()
         self._exclusive_model_build: bool = os.environ.get('EXCLUSIVE_MODEL_BUILD', '0').lower() in ('1', 'true')
@@ -538,6 +540,8 @@ class DetectorNode(Node):
         """Load ModelInformation from model_dir, build a new DetectorLogic via the factory,
         then atomically swap self._detector when ready.
         The old detector continues to serve requests until the swap.
+        A `conf_threshold` given to the node replaces the model's in what the factory receives;
+        the model.json on disk keeps the trainer's.
 
         If EXCLUSIVE_MODEL_BUILD is set and a detector is active, the old detector is torn down
         first (freeing e.g. GPU VRAM) and detections are rejected until the new one is ready.
@@ -547,6 +551,10 @@ class DetectorNode(Node):
         if model_info is None:
             logging.warning('No model.json found in %s', model_dir)
             raise Exception('model.json not found')
+        if self._conf_threshold is not None:
+            model_info = replace(model_info, conf_threshold=self._conf_threshold)
+        self.log.info('Set confidence threshold for model %s to %s%s', model_info.version,
+                      model_info.conf_threshold, ' (set on the node)' if self._conf_threshold is not None else '')
 
         if self._exclusive_model_build and isinstance(self._detector, _ActiveDetector):
             async with self.detection_lock:

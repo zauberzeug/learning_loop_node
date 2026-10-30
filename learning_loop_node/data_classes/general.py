@@ -12,6 +12,8 @@ from ..enums import CategoryType
 
 KWONLY_SLOTS = {'kw_only': True, 'slots': True} if sys.version_info >= (3, 10) else {}
 
+DEFAULT_CONF_THRESHOLD = 0.2
+
 
 @dataclass(**KWONLY_SLOTS)
 class Category():
@@ -59,8 +61,9 @@ class ModelInformation():
         default=None, metadata={"description": "The path of the parent directory of the model in the file system."})
     model_size: Optional[str] = field(default=None, metadata={
                                       "description": "The size of the model (i.e. the specification or variant of the model architecture)."})
-    conf_threshold: Optional[float] = field(default=None, metadata={
-        "description": "The minimum confidence the trainer chose for the detections of this model, if it chose one."})
+    conf_threshold: float = field(default=DEFAULT_CONF_THRESHOLD, metadata={
+        "description": "The minimum confidence for the detections of this model: the one the trainer chose, if it "
+                       "chose one. A detector node's own setting overrides it."})
 
     @property
     def context(self):
