@@ -553,7 +553,7 @@ class DetectorNode(Node):
             raise Exception('model.json not found')
         if self._conf_threshold is not None:
             model_info = replace(model_info, conf_threshold=self._conf_threshold)
-        self.log.info('Filtering detections of model %s below a confidence of %s%s', model_info.version,
+        self.log.info('Set confidence threshold for model %s to %s%s', model_info.version,
                       model_info.conf_threshold, ' (set on the node)' if self._conf_threshold is not None else '')
 
         if self._exclusive_model_build and isinstance(self._detector, _ActiveDetector):
