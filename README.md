@@ -28,7 +28,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           | 0.3          |
 | MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           | 0.6          |
 | MAX_OUTBOX_SIZE          | -            | max. number of non-priority images queued for upload         | Detector (opt.)           | 1000         |
-| CONF_THRESHOLD           | -            | minimum confidence of a detection, overriding the model's    | Detector (opt.)           | model's, 0.2 |
+| CONF_THRESHOLD           | -            | minimum confidence of a detection, overriding the model's (`--conf-threshold`, detectors built with `node_parser(conf_threshold=True)`) | Detector (opt.) | model's, 0.2 |
 | EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 1)      | Detector (opt.)           | 0            |
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            | 10           |
 | VRAM_LIMIT_GB            | -            | GPU memory (GB) a training may use; the batch size is probed against it (`--vram-limit-gb`, trainers built with `node_parser(vram_limit=True)`) | Trainer (opt.) | 0 (whole card) |
