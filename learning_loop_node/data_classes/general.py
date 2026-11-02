@@ -62,8 +62,8 @@ class ModelInformation():
     model_size: Optional[str] = field(default=None, metadata={
                                       "description": "The size of the model (i.e. the specification or variant of the model architecture)."})
     conf_threshold: float = field(default=DEFAULT_CONF_THRESHOLD, metadata={
-        "description": "The minimum confidence for the detections of this model: the one the trainer chose, if it "
-                       "chose one. A detector node's own setting overrides it."})
+        "description": "The minimum confidence for the detections of this model: Loaded from the model if available. "
+                       "A detector node's own setting overrides it."})
 
     @property
     def context(self):
@@ -83,6 +83,8 @@ class ModelInformation():
             except Exception as exc:
                 raise Exception(f"could not read model information from file '{model_info_file_path}'") from exc
             try:
+                # a null is a value the writer did not determine, so it reads as if the key were absent
+                content = {key: value for key, value in content.items() if value is not None}
                 model_information = from_dict(data_class=ModelInformation, data=content)
                 model_information.model_root_path = model_root_path
             except Exception as exc:

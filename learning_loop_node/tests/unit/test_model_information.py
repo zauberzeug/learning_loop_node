@@ -27,6 +27,15 @@ def test_a_model_without_a_conf_threshold_gets_the_default(tmp_path):
     assert model_information.conf_threshold == DEFAULT_CONF_THRESHOLD
 
 
+def test_a_null_conf_threshold_reads_as_the_default(tmp_path):
+    (tmp_path / 'model.json').write_text(json.dumps({**MODEL_JSON, 'conf_threshold': None}))
+
+    model_information = ModelInformation.load_from_disk(str(tmp_path))
+
+    assert model_information is not None
+    assert model_information.conf_threshold == DEFAULT_CONF_THRESHOLD
+
+
 def test_model_json_carries_the_trainers_model_metadata():
     trainer = SimpleNamespace(_training=SimpleNamespace(categories=[Category(id='c1', name='weed')]),
                               _get_model_metadata=lambda: {'conf_threshold': 0.37})
@@ -36,3 +45,14 @@ def test_model_json_carries_the_trainers_model_metadata():
 
     assert content['conf_threshold'] == 0.37
     assert [c['id'] for c in content['categories']] == ['c1']
+
+
+def test_model_json_leaves_out_metadata_the_trainer_did_not_determine():
+    trainer = SimpleNamespace(_training=SimpleNamespace(categories=[Category(id='c1', name='weed')]),
+                              _get_model_metadata=lambda: {'conf_threshold': None, 'model_size': 'n'})
+
+    with open(TrainerLogicGeneric._dump_model_json(trainer)) as f:  # type: ignore[arg-type]
+        content = json.load(f)
+
+    assert 'conf_threshold' not in content
+    assert content['model_size'] == 'n'

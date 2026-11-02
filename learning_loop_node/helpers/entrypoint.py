@@ -28,8 +28,8 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
     :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`.
     :param conf_threshold: Add ``--conf-threshold`` for the ``conf_threshold`` of a
-        :class:`~learning_loop_node.detector.detector_node.DetectorNode`. It is unset by
-        default: any default here would override the threshold the trainer chose for the model.
+        :class:`~learning_loop_node.detector.detector_node.DetectorNode`. It has no default:
+        one would override the threshold the trainer chose for the model.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',

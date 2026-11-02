@@ -540,8 +540,6 @@ class DetectorNode(Node):
         """Load ModelInformation from model_dir, build a new DetectorLogic via the factory,
         then atomically swap self._detector when ready.
         The old detector continues to serve requests until the swap.
-        A `conf_threshold` given to the node replaces the model's in what the factory receives;
-        the model.json on disk keeps the trainer's.
 
         If EXCLUSIVE_MODEL_BUILD is set and a detector is active, the old detector is torn down
         first (freeing e.g. GPU VRAM) and detections are rejected until the new one is ready.
