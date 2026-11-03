@@ -57,9 +57,9 @@ async def test_image_download():
     assert os.path.exists(image_folder) is False or len(os.listdir(image_folder)) == 0
 
     node = AnnotatorNode(name="", uuid="", annotator_logic=MockedAnnotatatorLogic())
-    # the generator derives image ids from the project name, which CI suffixes per job
-    image_uuids = await DataExchanger(Context(organization='zauberzeug', project=PROJECT),
-                                      node.loop_communicator).fetch_image_uuids()
+    # the generator derives image ids from the project name
+    context = Context(organization='zauberzeug', project=PROJECT)
+    image_uuids = await DataExchanger(context, node.loop_communicator).fetch_image_uuids()
     user_input = default_user_input(image_uuids[0])
     await node._ensure_sio_connection()  # This is required as the node is not "started"
     _ = await node._handle_user_input(jsonable_encoder(asdict(user_input)))

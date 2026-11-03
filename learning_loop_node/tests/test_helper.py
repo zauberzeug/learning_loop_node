@@ -33,7 +33,7 @@ TEST_PROJECTS = (GENERAL_PROJECT, ANNOTATOR_PROJECT, MOCK_TRAINER_PROJECT_1, MOC
 
 
 def project_name(name: str) -> str:
-    """Append `LOOP_TEST_PROJECT_SUFFIX`, which CI sets per job, so concurrent runs never share a project."""
+    """Append `LOOP_TEST_PROJECT_SUFFIX` if set; CI sets it per job."""
     suffix = os.environ.get(TEST_PROJECT_SUFFIX)
     return f'{name}_{suffix}' if suffix else name
 
