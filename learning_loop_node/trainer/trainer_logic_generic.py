@@ -540,10 +540,11 @@ class TrainerLogicGeneric(ABC):
         return False
 
     def _dump_model_json(self) -> str:
-        """Dumps the categories and the trainer's model metadata to a json file and returns the path to the file.
-        """
-        content = {'categories': [asdict(c) for c in self._training.categories],
-                   **self._get_model_metadata()} if self._training else None
+        """Dump the categories and the trainer's model metadata to a json file and return its path."""
+        content = None
+        if self._training:
+            content = {'categories': [asdict(c) for c in self._training.categories],
+                       **{key: value for key, value in self._get_model_metadata().items() if value is not None}}
         json_path = '/tmp/model.json'
         with open(json_path, 'w') as f:
             json.dump(content, f)
@@ -670,9 +671,11 @@ class TrainerLogicGeneric(ABC):
         return {}
 
     def _get_model_metadata(self) -> dict[str, Any]:
-        """Called when the files of `_get_latest_model_files` are uploaded.
-        Returns values the trainer determined for this model, merged into its model.json.
+        """Return the values the trainer determined for this model, to be merged into its model.json.
+
+        Called when the files of `_get_latest_model_files` are uploaded.
         The keys must be fields of `ModelInformation` (e.g. `conf_threshold`) so detectors can read them.
+        A value of `None` is left out of the file.
         """
         return {}
 
