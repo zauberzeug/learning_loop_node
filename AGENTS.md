@@ -79,7 +79,8 @@ brings its own way of running a step. `macro_f1` scores the confusion matrix
 `trainer/validation_set.py` decides which images a training selects its models on. A node always
 selects on `Training.val_images()`, which falls back to the test images when the training has no
 `val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
-splits through these accessors and never filters `image_data` on `set` itself.
+splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
+training when one of them is empty; a node that filters them further needs to check its own sets.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
@@ -149,6 +150,10 @@ every node repository had grown its own drifting copy, which is why they live he
 containers: `to_image_metadata` builds what a **detector** node reports, `to_detections` what a
 **trainer**'s auto-detection pass reports. Both go through one routine, so the two paths cannot
 drift apart again.
+
+A detector filters at `model_info.conf_threshold`. `_build_and_swap_detector` hands the factory
+the node's `conf_threshold` there when one is set (`--conf-threshold`, declared by
+`node_parser(conf_threshold=True)`);
 
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the

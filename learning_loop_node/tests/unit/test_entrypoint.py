@@ -4,7 +4,7 @@ from ...helpers.entrypoint import node_parser
 
 MANAGED = ('WEIGHT_TYPE', 'MY_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT',
            'MY_DETECTOR_HOST', 'MY_DETECTOR_PORT', 'MY_DETECTOR_NODE_HOST', 'VRAM_LIMIT_GB',
-           'MY_DETECTOR_VRAM_LIMIT_GB')
+           'MY_DETECTOR_VRAM_LIMIT_GB', 'CONF_THRESHOLD')
 
 
 def test_every_node_gets_a_host_and_a_port():
@@ -115,6 +115,19 @@ def test_the_vram_limit_is_still_read_under_a_legacy_prefix(monkeypatch: pytest.
     monkeypatch.setenv('MY_DETECTOR_VRAM_LIMIT_GB', '6')
     args = _parser(vram_limit=True, legacy_env_prefix='MY_DETECTOR_').parse_args([])
     assert args.vram_limit_gb == 6.0
+
+
+def test_a_node_that_does_not_detect_has_no_conf_threshold():
+    assert not hasattr(_parser().parse_args([]), 'conf_threshold')
+
+
+def test_the_conf_threshold_is_unset_so_the_model_can_bring_its_own():
+    assert _parser(conf_threshold=True).parse_args([]).conf_threshold is None
+
+
+def test_the_conf_threshold_is_read_from_its_variable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('CONF_THRESHOLD', '0.35')
+    assert _parser(conf_threshold=True).parse_args([]).conf_threshold == 0.35
 
 
 @pytest.fixture(autouse=True)
