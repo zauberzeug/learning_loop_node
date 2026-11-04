@@ -12,6 +12,7 @@ from argparse import Action, ArgumentTypeError, Namespace
 import configargparse
 import uvicorn
 
+from ..data_classes.general import DEFAULT_CONF_THRESHOLD
 from ..trainer.batch_size import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
 from ..trainer.dataloader import DATALOADER_WORKERS_FLAG, DATALOADER_WORKERS_HELP, default_dataloader_workers
 
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def node_parser(*, description: str, legacy_env_prefix: str = '', vram_limit: bool = False,
-                dataloader_workers: bool = False) -> configargparse.ArgumentParser:
+                dataloader_workers: bool = False, conf_threshold: bool = False) -> configargparse.ArgumentParser:
     """Build the parser for a node, pre-loaded with the settings every node has.
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
@@ -29,6 +30,9 @@ def node_parser(*, description: str, legacy_env_prefix: str = '', vram_limit: bo
     :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`.
     :param dataloader_workers: Add :data:`~learning_loop_node.trainer.dataloader.DATALOADER_WORKERS_FLAG`,
         defaulting to :func:`~learning_loop_node.trainer.dataloader.default_dataloader_workers`.
+    :param conf_threshold: Add ``--conf-threshold`` for the ``conf_threshold`` of a
+        :class:`~learning_loop_node.detector.detector_node.DetectorNode`. It has no default:
+        one would override the threshold the trainer chose for the model.
     """
     parser = _NodeArgumentParser(description=description, legacy_env_prefix=legacy_env_prefix)
     parser.add_argument('--host', default='0.0.0.0', env_var='NODE_HOST',
@@ -39,6 +43,10 @@ def node_parser(*, description: str, legacy_env_prefix: str = '', vram_limit: bo
     if dataloader_workers:
         parser.add_argument(DATALOADER_WORKERS_FLAG, type=_worker_count, default=default_dataloader_workers(),
                             help=DATALOADER_WORKERS_HELP)
+    if conf_threshold:
+        parser.add_argument('--conf-threshold', type=float, default=None,
+                            help='Minimum confidence for detections (default: the one the trainer chose for the '
+                                 f'model, else {DEFAULT_CONF_THRESHOLD})')
     return parser
 
 

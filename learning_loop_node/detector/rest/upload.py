@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, List, Optional
 from fastapi import APIRouter, File, Query, Request, UploadFile
 
 from ...data_classes.image_metadata import ImageMetadata, ImagesMetadata
-from ...helpers.misc import jpg_bytes_to_numpy_array
 
 if TYPE_CHECKING:
     from ..detector_node import DetectorNode
@@ -29,14 +28,8 @@ async def upload_image(request: Request,
     """
     node: 'DetectorNode' = request.app
 
-    files_bytes = [await file.read() for file in files]
-    image_metadatas = []
-    images = []
-    for file_bytes in files_bytes:
-        images.append(jpg_bytes_to_numpy_array(file_bytes))
-        image_metadatas.append(ImageMetadata(source=source, created=creation_date))
-
-    images_metadata = ImagesMetadata(items=image_metadatas)
+    images = [await file.read() for file in files]
+    images_metadata = ImagesMetadata(items=[ImageMetadata(source=source, created=creation_date) for _ in images])
 
     await node.upload_images(images=images,
                              images_metadata=images_metadata,

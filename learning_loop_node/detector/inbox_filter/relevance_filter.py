@@ -1,8 +1,7 @@
 from typing import Dict, List, Optional
 
-import numpy as np
-
 from ...data_classes.image_metadata import ImageMetadata
+from ...helpers.misc import ImageData
 from ..outbox import Outbox
 from .cam_observation_history import CamObservationHistory
 
@@ -17,7 +16,7 @@ class RelevanceFilter():
     async def may_upload_detections(self,
                                     image_metadata: ImageMetadata,
                                     cam_id: Optional[str],
-                                    image: np.ndarray) -> List[str]:
+                                    image: ImageData) -> List[str]:
         """Check if the detection should be uploaded to the outbox.
         If so, upload it and return the list of causes for the upload.
         """
