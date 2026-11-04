@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from ...helpers.entrypoint import node_parser
@@ -126,6 +128,15 @@ def test_the_workers_default_to_what_the_machine_allows(monkeypatch: pytest.Monk
     monkeypatch.setattr(dataloader.os, 'sched_getaffinity', lambda _: set(range(10)), raising=False)
     monkeypatch.setattr(dataloader, 'CGROUP_CPU_MAX', dataloader.Path('/nonexistent/cpu.max'))
     assert _parser(dataloader_workers=True).parse_args([]).dataloader_workers == 8
+
+
+def test_the_help_shows_the_workers_default_of_this_machine(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                            capsys: pytest.CaptureFixture[str]):
+    monkeypatch.setattr(dataloader.os, 'sched_getaffinity', lambda _: set(range(20)), raising=False)
+    monkeypatch.setattr(dataloader, 'CGROUP_CPU_MAX', tmp_path / 'cpu.max')
+    with pytest.raises(SystemExit):
+        _parser(dataloader_workers=True).parse_args(['--help'])
+    assert 'Default on this machine: 12.' in ' '.join(capsys.readouterr().out.split())
 
 
 def test_the_workers_are_read_from_their_variable(monkeypatch: pytest.MonkeyPatch):
