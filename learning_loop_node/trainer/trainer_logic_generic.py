@@ -27,9 +27,9 @@ from ..helpers.misc import (
     is_valid_uuid4,
 )
 from .downloader import TrainingsDownloader
-from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError, TrainingResultsUploadFailedError
+from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
-from .training_results import CORE, OPTIONAL_PARTS, meta, parts_to_upload, write_zip
+from .training_results import OPTIONAL_PARTS, meta, upload_results
 from .training_slot import TrainingSlot, training_slot_from_env
 from .validation_set import assign_validation_set, bool_hyperparameter
 
@@ -459,11 +459,13 @@ class TrainerLogicGeneric(ABC):
 
     async def _upload_model(self) -> None:
         """Uploads the latest model and then its training results to the Learning Loop.
+        The results never fail the state (see `training_results`).
         """
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
-        await self._upload_training_results(self.training.context, new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
+        await upload_results(self.training, self._get_training_results, self._training_results_meta(new_model_uuid),
+                             self.node.data_exchanger)
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
@@ -504,29 +506,6 @@ class TrainerLogicGeneric(ABC):
             return self.active_training_io.load_uploaded_model_uuid()
         except FileNotFoundError as e:
             raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
-
-    async def _upload_training_results(self, context: Context, model_uuid: str) -> None:
-        """Upload the parts of `_get_training_results` the hyperparameters ask for (see `training_results`).
-        The results are optional: a part the loop does not store is logged and skipped. Only a part that got no answer
-        fails the state, so it is sent again with the model upload. A part the loop answered is recorded beside
-        the uploaded formats and is not sent again.
-        """
-        training_folder = Path(self.training.training_folder)
-        results = self._get_training_results(training_folder)
-        uploaded = self.active_training_io.load_model_upload_progress()
-        for part in parts_to_upload(results, self.training.hyperparameters):
-            if (progress_key := f'training_results/{part}') in uploaded:
-                continue
-            zip_path = training_folder / 'training_results' / f'{part}.zip'
-            part_meta = self._training_results_meta(model_uuid) if part == CORE else None
-            await asyncio.to_thread(write_zip, results[part], training_folder, zip_path, part_meta)
-            try:
-                await self.node.data_exchanger.upload_training_results(context, self.training.training_number,
-                                                                       part, str(zip_path))
-            except TrainingResultsUploadFailedError as e:
-                logger.warning('Skipping the %s results of training %s: %s', part, self.training.training_number, e)
-            uploaded.append(progress_key)
-            self.active_training_io.save_model_upload_progress(uploaded)
 
     def _training_results_meta(self, model_uuid: str) -> dict[str, Any]:
         return meta(node_name=self.node.name, node_uuid=self.node.uuid,

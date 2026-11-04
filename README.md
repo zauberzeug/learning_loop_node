@@ -229,11 +229,10 @@ Together with its model, a trainer uploads the results of the training to the Le
 metrics per epoch, the evaluation curves and the confusion matrix. The trainer decides which files
 they are; a trainer that names none uploads only its model. The results are always uploaded, the
 examples and the raw training log only if the training's `upload_examples` and `upload_logs`
-hyperparameters are true (both default to false). The results are sent right after the model, in
-the same state, so every uploaded model gets its results. They are optional: results the Learning
-Loop does not store, e.g. beyond the 5 GiB it keeps per training, are logged and skipped and the
-training goes on without them. Only an upload that gets no answer is sent again, so results too large for the
-connection delay the training until it is stopped: name only results, never the dataset.
+hyperparameters are true (both default to false). The results are sent right after the model and
+never stop the training: results the Learning Loop does not store, e.g. beyond the 5 GiB it keeps
+per training, are logged and skipped, and a part that gets no answer is sent up to three times and
+then skipped as well. Name only results, never the dataset.
 
 ### Several trainers on one GPU
 

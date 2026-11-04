@@ -6,8 +6,7 @@ class CriticalError(Exception):
 
 
 class ModelUploadFailedError(Exception):
-    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error, or
-    gave up waiting for a part of the training's results.
+    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error.
     Unlike a CriticalError it keeps the training, so the upload is tried again later.
     """
 
@@ -16,6 +15,10 @@ class TrainingResultsUploadFailedError(Exception):
     """Raised when the loop answered the upload of a part of a training's results with anything but success.
     The answer is final: sending the part again would get the same answer.
     """
+
+
+class TrainingResultsNotAnsweredError(Exception):
+    """Raised when the loop gave up waiting for a part of a training's results (408); the part may be sent again."""
 
 
 class TrainingRefusedError(Exception):

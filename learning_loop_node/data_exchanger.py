@@ -14,7 +14,12 @@ import aiofiles  # type: ignore
 from .data_classes import Context
 from .helpers.misc import create_resource_paths, create_task, is_valid_image, is_valid_uuid4
 from .loop_communication import LoopCommunicator
-from .trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsUploadFailedError
+from .trainer.exceptions import (
+    CriticalError,
+    ModelUploadFailedError,
+    TrainingResultsNotAnsweredError,
+    TrainingResultsUploadFailedError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -210,18 +215,15 @@ class DataExchanger():
     async def upload_training_results(self, context: Context, training_number: int, part: str, zip_path: str) -> None:
         """Store one part of a training's results beside its latest model; a part sent again replaces the stored one.
 
-        The results are optional, so an answer from the loop is final, whatever it says; only an upload that got
-        no answer is worth sending again.
-
         :raise TrainingResultsUploadFailedError: If the loop answered with anything but success (other than 408).
-        :raise ModelUploadFailedError: If the loop answered 408, having given up waiting for the upload.
+        :raise TrainingResultsNotAnsweredError: If the loop answered 408, having given up waiting for the upload.
         """
         path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
                 f'/training_results/{part}')
         response = await self.loop_communicator.put(path, files=[zip_path], timeout=60*10)
         if response.status_code == HTTPStatus.REQUEST_TIMEOUT:
-            raise ModelUploadFailedError(f'The loop gave up waiting for the {part} results of training '
-                                         f'{training_number}: {response.status_code} {response.text}')
+            raise TrainingResultsNotAnsweredError(f'The loop gave up waiting for the {part} results of training '
+                                                  f'{training_number}: {response.status_code} {response.text}')
         if response.status_code != HTTPStatus.OK:
             raise TrainingResultsUploadFailedError(f'The loop did not store the {part} results of training '
                                                    f'{training_number}: {response.status_code} {response.text}')

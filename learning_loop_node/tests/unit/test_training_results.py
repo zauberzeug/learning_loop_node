@@ -12,9 +12,9 @@ from ...data_classes import Context
 from ...data_exchanger import DataExchanger
 from ...enums import TrainerState
 from ...globals import GLOBALS
-from ...trainer.exceptions import CriticalError, ModelUploadFailedError, TrainingResultsUploadFailedError
+from ...trainer.exceptions import CriticalError, TrainingResultsNotAnsweredError, TrainingResultsUploadFailedError
 from ...trainer.trainer_node import TrainerNode
-from ...trainer.training_results import META_FILE, parts_to_upload, write_zip
+from ...trainer.training_results import MAX_ATTEMPTS, META_FILE, parts_to_upload, upload_results, write_zip
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
@@ -92,7 +92,7 @@ async def test_accepted_results_are_stored_beside_the_latest_model():
     (422, TrainingResultsUploadFailedError),
     (500, TrainingResultsUploadFailedError),
     (503, TrainingResultsUploadFailedError),
-    (408, ModelUploadFailedError),
+    (408, TrainingResultsNotAnsweredError),
 ])
 async def test_any_answer_but_success_fails_the_results_except_a_408(status: int, error: type[Exception]):
     communicator = _communicator(httpx.Response(status, text='no'))
@@ -133,7 +133,7 @@ async def test_a_trainer_without_results_uploads_only_its_model(trainer: Testing
 
 
 @pytest.mark.parametrize('no_answer', [httpx.ReadTimeout('no answer'), httpx.Response(408)])
-async def test_results_that_got_no_answer_keep_the_training_and_are_sent_again_later(
+async def test_a_part_that_got_no_answer_is_sent_again_in_the_same_state(
         trainer: TestingTrainerLogic, no_answer: Exception | httpx.Response):
     trainer.training.hyperparameters['upload_logs'] = True
     communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, ACCEPTED_RESULTS, no_answer, ACCEPTED_RESULTS)
@@ -141,16 +141,57 @@ async def test_results_that_got_no_answer_keep_the_training_and_are_sent_again_l
 
     await _perform_upload_state(trainer)
 
-    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
-    assert trainer.errors.has_error_for('upload_model')
-    assert trainer.training.model_uuid_for_detecting is None
-
-    await _perform_upload_state(trainer)
-
     assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core', 'training_results/logs',
                                       'training_results/logs']
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
+    assert not trainer.errors.has_error_for('upload_model')
+
+
+async def test_a_part_that_never_gets_an_answer_is_skipped_and_the_training_goes_on(trainer: TestingTrainerLogic):
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, *[httpx.ReadTimeout('no answer')] * MAX_ATTEMPTS)
+    trainer.node.data_exchanger.loop_communicator = communicator
+
+    await _perform_upload_state(trainer)
+
+    assert _uploads(communicator) == ['first/file', 'second/file'] + ['training_results/core'] * MAX_ATTEMPTS
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.model_uuid_for_detecting == MODEL_ID
+
+
+async def test_a_failing_results_hook_does_not_stop_the_training(trainer: TestingTrainerLogic):
+    def broken_hook(_: Path) -> dict[str, list[Path]]:
+        raise RuntimeError('bug in the trainer')
+    trainer._get_training_results = broken_hook  # type: ignore[method-assign]
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL)
+    trainer.node.data_exchanger.loop_communicator = communicator
+
+    await _perform_upload_state(trainer)
+
+    assert _uploads(communicator) == ['first/file', 'second/file']
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.model_uuid_for_detecting == MODEL_ID
+
+
+async def test_a_malformed_upload_flag_at_upload_time_skips_the_results(trainer: TestingTrainerLogic):
+    trainer.training.hyperparameters['upload_logs'] = 'true'  # a training prepared before the flag was checked
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL)
+    trainer.node.data_exchanger.loop_communicator = communicator
+
+    await _perform_upload_state(trainer)
+
+    assert _uploads(communicator) == ['first/file', 'second/file']
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+
+
+async def test_parts_that_are_done_are_not_sent_again(trainer: TestingTrainerLogic):
+    trainer.training.hyperparameters['upload_logs'] = True
+    communicator = _communicator(ACCEPTED_RESULTS, httpx.Response(413, text='too large'))
+
+    for _ in range(2):
+        await upload_results(trainer.training, trainer._get_training_results, {}, DataExchanger(None, communicator))
+
+    assert _uploads(communicator) == ['training_results/core', 'training_results/logs']
 
 
 async def test_results_the_loop_does_not_store_are_skipped_and_the_training_goes_on(trainer: TestingTrainerLogic):
@@ -165,7 +206,6 @@ async def test_results_the_loop_does_not_store_are_skipped_and_the_training_goes
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
     assert not trainer.errors.has_error_for('upload_model')
-    assert 'training_results/core' in trainer.active_training_io.load_model_upload_progress()
 
 
 @pytest.fixture(name='trainer')
