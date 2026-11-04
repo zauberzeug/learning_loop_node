@@ -46,18 +46,25 @@ RETRY_DELAY = 5  # seconds before the second attempt, doubled before each furthe
 logger = logging.getLogger(__name__)
 
 
-async def upload_results(training: Training, get_results: Callable[[Path], Mapping[str, list[Path]]],
-                         get_meta: Callable[[], dict[str, Any]], data_exchanger: DataExchanger) -> None:
+def check_hyperparameters(hyperparameters: Mapping[str, Any]) -> None:
+    """Raise a CriticalError if `upload_examples` or `upload_logs` is set to anything but a boolean."""
+    for name in OPTIONAL_PARTS.values():
+        bool_hyperparameter(hyperparameters, name)
+
+
+async def upload_results(training: Training, *, model_uuid: str, node_name: str, node_uuid: str,
+                         get_results: Callable[[Path], Mapping[str, list[Path]]], stop_requested: Callable[[], bool],
+                         data_exchanger: DataExchanger) -> None:
     """Upload the parts of `get_results(training_folder)` the training's hyperparameters ask for; never raises.
 
-    `get_meta` returns the content of `meta.json` in `core`.
     A part is recorded as done once it is answered or skipped, so a second call sends only the parts left.
     """
     training_folder = Path(training.training_folder)
     try:
         results = get_results(training_folder)
-        parts = parts_to_upload(results, training.hyperparameters)
-        meta_content = get_meta()
+        parts = _parts_to_upload(results, training.hyperparameters)
+        meta_content = _meta(training, model_uuid=model_uuid, node_name=node_name, node_uuid=node_uuid,
+                             stop_requested=stop_requested())
     except Exception:
         logger.exception('Skipping the results of training %s', training.training_number)
         return
@@ -74,14 +81,49 @@ async def upload_results(training: Training, get_results: Callable[[Path], Mappi
         _save_done(results_folder, done)
 
 
-def parts_to_upload(results: Mapping[str, list[Path]], hyperparameters: Mapping[str, Any]) -> list[str]:
+def _parts_to_upload(results: Mapping[str, list[Path]], hyperparameters: Mapping[str, Any]) -> list[str]:
     """The parts of `results` to upload, in upload order: `core` first, the optional ones only if asked for."""
     parts = [part for part in results
              if part not in OPTIONAL_PARTS or bool_hyperparameter(hyperparameters, OPTIONAL_PARTS[part])]
     return sorted(parts, key=lambda part: part != CORE)
 
 
-def write_zip(files: list[Path], training_folder: Path, zip_path: Path, meta: dict[str, Any] | None = None) -> None:
+def _meta(training: Training, *, model_uuid: str, node_name: str, node_uuid: str,
+          stop_requested: bool) -> dict[str, Any]:
+    """Where the results come from, so they explain themselves without the loop's database."""
+    return {
+        'node_name': node_name,
+        'node_uuid': node_uuid,
+        'organization': training.context.organization,
+        'project': training.context.project,
+        'training_number': training.training_number,
+        'model_uuid': model_uuid,
+        'start_time': datetime.fromtimestamp(training.start_time, timezone.utc).isoformat(),
+        'uploaded_at': datetime.now(timezone.utc).isoformat(),
+        'stop_requested': stop_requested,
+        'learning_loop_node_version': _library_version(),
+        'hyperparameters': dict(training.hyperparameters),
+    }
+
+
+async def _upload_part(training: Training, part: str, files: list[Path], part_meta: dict[str, Any] | None,
+                       data_exchanger: DataExchanger) -> None:
+    """Zip and send one part; send it again while it gets no answer, up to `MAX_ATTEMPTS` times."""
+    training_folder = Path(training.training_folder)
+    zip_path = training_folder / RESULTS_FOLDER / f'{part}.zip'
+    await asyncio.to_thread(_write_zip, files, training_folder, zip_path, part_meta)
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            await data_exchanger.upload_training_results(training.context, training.training_number, part,
+                                                         str(zip_path))
+            return
+        except (TrainingResultsNotAnsweredError, httpx.TransportError):
+            if attempt == MAX_ATTEMPTS:
+                raise
+            await asyncio.sleep(RETRY_DELAY * 2 ** (attempt - 1))
+
+
+def _write_zip(files: list[Path], training_folder: Path, zip_path: Path, meta: dict[str, Any] | None) -> None:
     """Zip `files` into `zip_path`, keeping their paths relative to `training_folder`; directories go in as a whole.
 
     A file that does not exist is logged and left out: a trainer may name results a stopped training never wrote.
@@ -99,41 +141,6 @@ def write_zip(files: list[Path], training_folder: Path, zip_path: Path, meta: di
         if meta is not None:
             zipf.writestr(META_FILE, json.dumps(meta, indent=1))
     os.replace(partial, zip_path)
-
-
-def meta(*, node_name: str, node_uuid: str, organization: str, project: str, training_number: int, model_uuid: str,
-         start_time: float, stop_requested: bool, hyperparameters: Mapping[str, Any]) -> dict[str, Any]:
-    """Where the results come from, so they explain themselves without the loop's database."""
-    return {
-        'node_name': node_name,
-        'node_uuid': node_uuid,
-        'organization': organization,
-        'project': project,
-        'training_number': training_number,
-        'model_uuid': model_uuid,
-        'start_time': datetime.fromtimestamp(start_time, timezone.utc).isoformat(),
-        'uploaded_at': datetime.now(timezone.utc).isoformat(),
-        'stop_requested': stop_requested,
-        'learning_loop_node_version': _library_version(),
-        'hyperparameters': dict(hyperparameters),
-    }
-
-
-async def _upload_part(training: Training, part: str, files: list[Path], part_meta: dict[str, Any] | None,
-                       data_exchanger: DataExchanger) -> None:
-    """Zip and send one part; send it again while it gets no answer, up to `MAX_ATTEMPTS` times."""
-    training_folder = Path(training.training_folder)
-    zip_path = training_folder / RESULTS_FOLDER / f'{part}.zip'
-    await asyncio.to_thread(write_zip, files, training_folder, zip_path, part_meta)
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        try:
-            await data_exchanger.upload_training_results(training.context, training.training_number, part,
-                                                         str(zip_path))
-            return
-        except (TrainingResultsNotAnsweredError, httpx.TransportError):
-            if attempt == MAX_ATTEMPTS:
-                raise
-            await asyncio.sleep(RETRY_DELAY * 2 ** (attempt - 1))
 
 
 def _load_done(results_folder: Path) -> list[str]:

@@ -1,7 +1,7 @@
 import asyncio
 import json
 import zipfile
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
@@ -14,7 +14,7 @@ from ...enums import TrainerState
 from ...globals import GLOBALS
 from ...trainer.exceptions import CriticalError, TrainingResultsNotAnsweredError, TrainingResultsUploadFailedError
 from ...trainer.trainer_node import TrainerNode
-from ...trainer.training_results import MAX_ATTEMPTS, META_FILE, parts_to_upload, upload_results, write_zip
+from ...trainer.training_results import MAX_ATTEMPTS, META_FILE, check_hyperparameters, upload_results
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
@@ -23,7 +23,6 @@ CONTEXT = Context(organization='zauberzeug', project='demo')
 MODEL_ID = '6f1c7a52-4b1e-4e0a-9d3f-2b8c5e7a9d10'
 ACCEPTED_MODEL = httpx.Response(200, json={'id': MODEL_ID})
 ACCEPTED_RESULTS = httpx.Response(200, json={})
-ALL_PARTS = {'core': [], 'examples': [], 'logs': []}
 
 
 @pytest.fixture(autouse=True)
@@ -40,31 +39,34 @@ def no_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     ({'upload_examples': True, 'upload_logs': True}, ['core', 'examples', 'logs']),
     ({'upload_examples': False, 'upload_logs': False}, ['core']),
 ])
-def test_core_is_always_uploaded_and_first_the_other_parts_only_if_asked_for(hyperparameters: dict, parts: list[str]):
-    assert parts_to_upload({'examples': [], 'logs': [], 'core': []}, hyperparameters) == parts
+async def test_core_is_always_uploaded_and_first_the_other_parts_only_if_asked_for(
+        trainer: TestingTrainerLogic, hyperparameters: dict, parts: list[str]):
+    trainer.training.hyperparameters.update(hyperparameters)
+    communicator = _communicator(*[ACCEPTED_RESULTS] * 3)
+
+    await _upload_results(trainer, communicator, lambda _: {'examples': [], 'logs': [], 'core': []})
+
+    assert _uploads(communicator) == [f'training_results/{part}' for part in parts]
 
 
 def test_a_malformed_upload_flag_is_a_critical_error():
     with pytest.raises(CriticalError):
-        parts_to_upload(ALL_PARTS, {'upload_examples': 'true'})
+        check_hyperparameters({'upload_examples': 'true'})
 
 
-def test_the_zip_keeps_the_paths_inside_the_training_folder(tmp_path: Path):
-    training_folder = tmp_path / 'training'
-    (training_folder / 'result' / 'examples').mkdir(parents=True)
-    (training_folder / 'result' / 'results.csv').write_text('epoch\n1\n')
-    (training_folder / 'result' / 'examples' / 'a.png').write_text('png')
+async def test_the_zip_keeps_the_paths_inside_the_training_folder(trainer: TestingTrainerLogic):
+    training_folder = Path(trainer.training.training_folder)
     (training_folder / 'hyp.yaml').write_text('lr: 1')
+
+    await _upload_results(trainer, _communicator(ACCEPTED_RESULTS), lambda folder: {'core': [
+        folder / 'result' / 'results.csv', folder / 'result' / 'examples', folder / 'hyp.yaml',
+        folder / 'missing.json']})
+
     zip_path = training_folder / 'training_results' / 'core.zip'
-
-    write_zip([training_folder / 'result' / 'results.csv', training_folder / 'result' / 'examples',
-               training_folder / 'hyp.yaml', training_folder / 'missing.json'],
-              training_folder, zip_path, meta={'node_name': 'test'})
-
     with zipfile.ZipFile(zip_path) as zipf:
         assert sorted(zipf.namelist()) == ['hyp.yaml', META_FILE, 'result/examples/a.png', 'result/results.csv']
         assert zipf.read('result/results.csv') == b'epoch\n1\n'
-        assert json.loads(zipf.read(META_FILE)) == {'node_name': 'test'}
+        assert json.loads(zipf.read(META_FILE))['model_uuid'] == MODEL_ID
     assert not zip_path.with_name('core.zip.partial').exists()
 
 
@@ -202,7 +204,7 @@ async def test_parts_that_are_done_are_not_sent_again(trainer: TestingTrainerLog
     communicator = _communicator(ACCEPTED_RESULTS, httpx.Response(413, text='too large'))
 
     for _ in range(2):
-        await upload_results(trainer.training, trainer._get_training_results, dict, DataExchanger(None, communicator))
+        await _upload_results(trainer, communicator)
 
     assert _uploads(communicator) == ['training_results/core', 'training_results/logs']
 
@@ -248,6 +250,13 @@ async def trainer_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
 
 def _communicator(*responses: httpx.Response) -> Mock:
     return Mock(put=AsyncMock(side_effect=responses))
+
+
+async def _upload_results(trainer: TestingTrainerLogic, communicator: Mock,
+                          get_results: Callable[[Path], dict[str, list[Path]]] | None = None) -> None:
+    await upload_results(trainer.training, model_uuid=MODEL_ID, node_name='test', node_uuid=trainer.node.uuid,
+                         get_results=get_results or trainer._get_training_results, stop_requested=lambda: False,
+                         data_exchanger=DataExchanger(None, communicator))
 
 
 def _uploads(communicator: Mock) -> list[str]:

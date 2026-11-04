@@ -26,12 +26,12 @@ from ..helpers.misc import (
     delete_all_training_folders,
     is_valid_uuid4,
 )
+from . import training_results
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, NodeNeedsRestartError, TrainingRefusedError
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
-from .training_results import OPTIONAL_PARTS, meta, upload_results
 from .training_slot import TrainingSlot, training_slot_from_env
-from .validation_set import assign_validation_set, bool_hyperparameter
+from .validation_set import assign_validation_set
 
 if TYPE_CHECKING:
     from .trainer_node import TrainerNode
@@ -384,8 +384,7 @@ class TrainerLogicGeneric(ABC):
         Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
         A malformed `upload_examples` or `upload_logs` ends the training here, before it has run.
         """
-        for hyperparameter in OPTIONAL_PARTS.values():
-            bool_hyperparameter(self.training.hyperparameters, hyperparameter)
+        training_results.check_hyperparameters(self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
@@ -464,8 +463,10 @@ class TrainerLogicGeneric(ABC):
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
-        await upload_results(self.training, self._get_training_results,
-                             lambda: self._training_results_meta(new_model_uuid), self.node.data_exchanger)
+        await training_results.upload_results(self.training, model_uuid=new_model_uuid, node_name=self.node.name,
+                                              node_uuid=self.node.uuid, get_results=self._get_training_results,
+                                              stop_requested=self._stop_was_requested,
+                                              data_exchanger=self.node.data_exchanger)
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
@@ -506,13 +507,6 @@ class TrainerLogicGeneric(ABC):
             return self.active_training_io.load_uploaded_model_uuid()
         except FileNotFoundError as e:
             raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
-
-    def _training_results_meta(self, model_uuid: str) -> dict[str, Any]:
-        return meta(node_name=self.node.name, node_uuid=self.node.uuid,
-                    organization=self.training.context.organization, project=self.training.context.project,
-                    training_number=self.training.training_number, model_uuid=model_uuid,
-                    start_time=self.training.start_time, stop_requested=self._stop_was_requested(),
-                    hyperparameters=self.training.hyperparameters)
 
     def _stop_was_requested(self) -> bool:
         """Whether the training was stopped after its training process had started; this base class cannot tell."""
