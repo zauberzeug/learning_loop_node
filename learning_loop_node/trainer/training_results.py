@@ -47,15 +47,17 @@ logger = logging.getLogger(__name__)
 
 
 async def upload_results(training: Training, get_results: Callable[[Path], Mapping[str, list[Path]]],
-                         meta_content: dict[str, Any], data_exchanger: DataExchanger) -> None:
+                         get_meta: Callable[[], dict[str, Any]], data_exchanger: DataExchanger) -> None:
     """Upload the parts of `get_results(training_folder)` the training's hyperparameters ask for; never raises.
 
+    `get_meta` returns the content of `meta.json` in `core`.
     A part is recorded as done once it is answered or skipped, so a second call sends only the parts left.
     """
     training_folder = Path(training.training_folder)
     try:
         results = get_results(training_folder)
         parts = parts_to_upload(results, training.hyperparameters)
+        meta_content = get_meta()
     except Exception:
         logger.exception('Skipping the results of training %s', training.training_number)
         return

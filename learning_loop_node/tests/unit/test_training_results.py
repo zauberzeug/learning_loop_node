@@ -173,6 +173,19 @@ async def test_a_failing_results_hook_does_not_stop_the_training(trainer: Testin
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
 
 
+async def test_a_failing_meta_does_not_stop_the_training(trainer: TestingTrainerLogic):
+    def broken_stop_flag() -> bool:
+        raise RuntimeError('bug in the trainer')
+    trainer._stop_was_requested = broken_stop_flag  # type: ignore[method-assign]
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL)
+    trainer.node.data_exchanger.loop_communicator = communicator
+
+    await _perform_upload_state(trainer)
+
+    assert _uploads(communicator) == ['first/file', 'second/file']
+    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+
+
 async def test_a_malformed_upload_flag_at_upload_time_skips_the_results(trainer: TestingTrainerLogic):
     trainer.training.hyperparameters['upload_logs'] = 'true'  # a training prepared before the flag was checked
     communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL)
@@ -189,7 +202,7 @@ async def test_parts_that_are_done_are_not_sent_again(trainer: TestingTrainerLog
     communicator = _communicator(ACCEPTED_RESULTS, httpx.Response(413, text='too large'))
 
     for _ in range(2):
-        await upload_results(trainer.training, trainer._get_training_results, {}, DataExchanger(None, communicator))
+        await upload_results(trainer.training, trainer._get_training_results, dict, DataExchanger(None, communicator))
 
     assert _uploads(communicator) == ['training_results/core', 'training_results/logs']
 

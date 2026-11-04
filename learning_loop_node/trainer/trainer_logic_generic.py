@@ -464,8 +464,8 @@ class TrainerLogicGeneric(ABC):
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
-        await upload_results(self.training, self._get_training_results, self._training_results_meta(new_model_uuid),
-                             self.node.data_exchanger)
+        await upload_results(self.training, self._get_training_results,
+                             lambda: self._training_results_meta(new_model_uuid), self.node.data_exchanger)
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
