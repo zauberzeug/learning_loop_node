@@ -62,8 +62,9 @@ def test_a_quota_larger_than_the_affinity_does_not_add_cpus(pretend_cpus: Preten
     assert available_cpus() == 4
 
 
-def test_an_unreadable_quota_is_no_quota(pretend_cpus: PretendCpus):
-    pretend_cpus(8, quota='garbage')
+@pytest.mark.parametrize('quota', ['garbage', 'garbage 100000', '100000 0'])
+def test_an_unreadable_quota_is_no_quota(pretend_cpus: PretendCpus, quota: str):
+    pretend_cpus(8, quota=quota)
     assert available_cpus() == 8
 
 
