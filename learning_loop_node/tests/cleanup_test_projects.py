@@ -16,7 +16,7 @@ import re
 import httpx
 
 from ..loop_communication import LoopCommunicator
-from .test_helper import DELETE_TIMEOUT, TEST_PROJECT_SUFFIX, TEST_PROJECTS
+from .test_helper import DELETE_TIMEOUT, TEST_PROJECTS, project_name
 
 logger = logging.getLogger('learning_loop_node.tests.cleanup_test_projects')
 
@@ -35,7 +35,7 @@ async def main() -> None:
         listed = {p['project_id'] for p in response.json()['projects']
                   if p['organization_id'] == ORGANIZATION and SUFFIXED.match(p['project_id'])}
         logger.info('%d test projects listed', len(listed))
-        own = [f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in TEST_PROJECTS]
+        own = [project_name(project) for project in TEST_PROJECTS]
         for project in own + await stale_projects(github, listed - set(own)):
             try:
                 response = await loop_communicator.delete(f'/{ORGANIZATION}/projects/{project}',
