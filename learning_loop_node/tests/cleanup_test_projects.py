@@ -6,7 +6,7 @@ CI runs this as the last step of every job, also after a cancellation:
 
 The job's own projects go first. Any other is deleted once the run named in its suffix is completed or has been
 re-run since; a run in progress or one that cannot be looked up keeps its projects. A delete that times out ends the
-sweep, since the loop goes on deleting and the next delete would block on it.
+sweep.
 """
 import asyncio
 import logging
@@ -35,7 +35,6 @@ async def main() -> None:
         listed = {p['project_id'] for p in response.json()['projects']
                   if p['organization_id'] == ORGANIZATION and SUFFIXED.match(p['project_id'])}
         logger.info('%d test projects listed', len(listed))
-        # by name, in case the listing misses them
         own = [f'{project}_{os.environ[TEST_PROJECT_SUFFIX]}' for project in TEST_PROJECTS]
         for project in own + await stale_projects(github, listed - set(own)):
             try:

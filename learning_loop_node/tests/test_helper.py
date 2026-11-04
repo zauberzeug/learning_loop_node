@@ -22,7 +22,7 @@ from ..data_classes.image_metadata import ImageMetadata
 from ..loop_communication import LoopCommunicator
 
 TEST_PROJECT_SUFFIX = 'LOOP_TEST_PROJECT_SUFFIX'
-DELETE_TIMEOUT = 75  # outlasts the loop's own 60 s limit, so its answer comes through
+DELETE_TIMEOUT = 75  # outlasts the loop's own 60 s limit
 
 # the projects the suites create and delete on the loop; cleanup_test_projects sweeps exactly these
 GENERAL_PROJECT = 'pytest_nodelib_general'
@@ -45,8 +45,8 @@ async def delete_project(loop_communicator: LoopCommunicator, project: str, *, k
     """
     Delete `zauberzeug/<project>` if it exists, or fail the test saying why.
 
-    The loop goes on deleting after a timeout, so a later call for the same project fails at once instead of sending
-    a delete that would block on it. `keep_images` only applies to a bare name; a suffixed one is never reused.
+    After a timeout, a later call for the same project fails at once without sending another delete. `keep_images`
+    only applies to a bare name.
     """
     path = f'/zauberzeug/projects/{project}'
     if project in _timed_out_deletes:
