@@ -2,7 +2,10 @@
 
 CI runs this as the last step of every job, also after a cancellation:
 
-    python -m learning_loop_node.tests.cleanup_test_projects
+    python -m learning_loop_node.tests.cleanup_test_projects [bare project name ...]
+
+Without names it sweeps `TEST_PROJECTS`; other repositories pass their own through the reusable workflow
+`.github/workflows/cleanup-test-projects.yml`.
 
 The job's own projects go first. Any other is deleted once the run named in its suffix is completed or has been
 re-run since; a run in progress or one that cannot be looked up keeps its projects. A delete that times out ends the
@@ -12,6 +15,7 @@ import asyncio
 import logging
 import os
 import re
+import sys
 
 import httpx
 
@@ -21,10 +25,16 @@ from .test_helper import DELETE_TIMEOUT, TEST_PROJECTS, project_name
 logger = logging.getLogger('learning_loop_node.tests.cleanup_test_projects')
 
 ORGANIZATION = 'zauberzeug'
-SUFFIXED = re.compile(rf'^(?:{"|".join(TEST_PROJECTS)})_(?P<run_id>\d+)_(?P<attempt>\d+)_\d+$')
 
 
-async def main() -> None:
+def suffixed(projects: list[str]) -> re.Pattern:
+    """Match `<name>_<run id>_<run attempt>` with an optional `_<job index>`."""
+    names = '|'.join(re.escape(project) for project in projects)
+    return re.compile(rf'^(?:{names})_(?P<run_id>\d+)_(?P<attempt>\d+)(?:_\d+)?$')
+
+
+async def main(projects: list[str]) -> None:
+    pattern = suffixed(projects)
     loop_communicator = LoopCommunicator()
     github = httpx.AsyncClient(base_url='https://api.github.com', timeout=30,
                                headers={'Authorization': f'Bearer {os.environ["GITHUB_TOKEN"]}',
@@ -33,10 +43,10 @@ async def main() -> None:
         response = await loop_communicator.get('/projects')
         response.raise_for_status()
         listed = {p['project_id'] for p in response.json()['projects']
-                  if p['organization_id'] == ORGANIZATION and SUFFIXED.match(p['project_id'])}
+                  if p['organization_id'] == ORGANIZATION and pattern.match(p['project_id'])}
         logger.info('%d test projects listed', len(listed))
-        own = [project_name(project) for project in TEST_PROJECTS]
-        for project in own + await stale_projects(github, listed - set(own)):
+        own = [project_name(project) for project in projects]
+        for project in own + await stale_projects(github, pattern, listed - set(own)):
             try:
                 response = await loop_communicator.delete(f'/{ORGANIZATION}/projects/{project}',
                                                           timeout=DELETE_TIMEOUT)
@@ -50,10 +60,10 @@ async def main() -> None:
         await loop_communicator.shutdown()
 
 
-async def stale_projects(client: httpx.AsyncClient, projects: set[str]) -> list[str]:
+async def stale_projects(client: httpx.AsyncClient, pattern: re.Pattern, projects: set[str]) -> list[str]:
     by_run: dict[str, list[re.Match]] = {}
     for project in sorted(projects):
-        match = SUFFIXED.match(project)
+        match = pattern.match(project)
         assert match is not None
         by_run.setdefault(match['run_id'], []).append(match)
     stale = []
@@ -79,4 +89,4 @@ async def run_status(client: httpx.AsyncClient, run_id: str) -> dict:
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(message)s')
-    asyncio.run(main())
+    asyncio.run(main(sys.argv[1:] or list(TEST_PROJECTS)))
