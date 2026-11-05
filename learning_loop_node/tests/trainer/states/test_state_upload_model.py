@@ -5,8 +5,11 @@ from pytest_mock import MockerFixture
 from ....data_classes import Context
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
+from ...test_helper import TRAINER_PROJECT, project_name
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
+
+PROJECT = project_name(TRAINER_PROJECT)
 
 # pylint: disable=protected-access
 
@@ -102,7 +105,7 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     trainer._init_from_last_training()
 
     # pylint: disable=protected-access
-    await trainer._upload_model_return_new_model_uuid(Context(organization='zauberzeug', project='demo'))
+    await trainer._upload_model_return_new_model_uuid(Context(organization='zauberzeug', project=PROJECT))
 
 
 def mock_upload_model_for_training(mocker, return_value):

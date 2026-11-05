@@ -10,7 +10,10 @@ from learning_loop_node.data_classes import ModelInformation
 from learning_loop_node.detector import detector_node as detector_node_module
 from learning_loop_node.detector.detector_node import DetectorNode
 
+from ..test_helper import DETECTOR_PROJECT, project_name
 from .conftest import MockDetectorLogic
+
+PROJECT = project_name(DETECTOR_PROJECT)
 
 
 @pytest.mark.asyncio
@@ -108,8 +111,8 @@ async def test_get_detections(detector_node: DetectorNode, monkeypatch):
 async def test_the_factory_gets_the_conf_threshold_of_the_node_else_the_models(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, node_conf_threshold: float | None, expected: float):
     monkeypatch.setenv('LOOP_ORGANIZATION', 'zauberzeug')
-    monkeypatch.setenv('LOOP_PROJECT', 'demo')
-    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project='demo', version='0.0',
+    monkeypatch.setenv('LOOP_PROJECT', PROJECT)
+    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project=PROJECT, version='0.0',
                                   conf_threshold=0.6)
     (tmp_path / 'model.json').write_text(json.dumps(asdict(model_info)))
     factory = _RecordingFactory()

@@ -1,9 +1,10 @@
 import asyncio
+import contextlib
 import os
 import shutil
 import time
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine, Generator
 from glob import glob
 
 import httpx
@@ -29,7 +30,17 @@ GENERAL_PROJECT = 'pytest_nodelib_general'
 ANNOTATOR_PROJECT = 'pytest_nodelib_annotator'
 MOCK_TRAINER_PROJECT_1 = 'pytest_mock_trainer_test1'
 MOCK_TRAINER_PROJECT_2 = 'pytest_mock_trainer_test2'
-TEST_PROJECTS = (GENERAL_PROJECT, ANNOTATOR_PROJECT, MOCK_TRAINER_PROJECT_1, MOCK_TRAINER_PROJECT_2)
+DETECTOR_PROJECT = 'pytest_nodelib_detector'
+TRAINER_PROJECT = 'pytest_nodelib_trainer'
+MOCK_DETECTOR_PROJECT = 'pytest_mock_detector'
+TEST_PROJECTS = (GENERAL_PROJECT, ANNOTATOR_PROJECT, MOCK_TRAINER_PROJECT_1, MOCK_TRAINER_PROJECT_2,
+                 DETECTOR_PROJECT, TRAINER_PROJECT, MOCK_DETECTOR_PROJECT)
+
+# the generator gives every project the models 1.1 and 1.2 with the same fixed ids; detectors deploy 1.1
+SUITE_PROJECT_CONFIGURATION = {
+    'inbox': 0, 'annotate': 0, 'review': 0, 'complete': 3, 'image_style': 'beautiful',
+    'box_categories': 2, 'point_categories': 2, 'segmentation_categories': 2, 'thumbs': False, 'tags': 0,
+    'trainings': 1, 'box_detections': 3, 'box_annotations': 0, 'deployment_target': True}
 
 
 def project_name(name: str) -> str:
@@ -62,6 +73,48 @@ async def delete_project(loop_communicator: LoopCommunicator, project: str, *, k
     if response.status_code not in (200, 404):
         pytest.fail(f'deleting {path} on {loop_communicator.host} answered {response.status_code}: {response.text}',
                     pytrace=False)
+
+
+@contextlib.contextmanager
+def suite_project(project: str) -> Generator[None, None, None]:
+    """
+    Generate `zauberzeug/<project>` for the block and delete it afterwards.
+
+    Runs on an event loop of its own, so a session-scoped fixture needs no session-scoped event loop.
+    """
+    _run_on_own_loop(_generate_project(project))
+    try:
+        yield
+    finally:
+        _run_on_own_loop(_delete_project(project))
+
+
+async def _generate_project(project: str) -> None:
+    loop_communicator = LoopCommunicator()
+    try:
+        await delete_project(loop_communicator, project)
+        await asyncio.sleep(1)
+        response = await loop_communicator.post('/zauberzeug/projects/generator',
+                                                json={'project_name': project, **SUITE_PROJECT_CONFIGURATION})
+        assert response.status_code == 200, f'generating {project} answered {response.status_code}: {response.text}'
+    finally:
+        await loop_communicator.shutdown()
+
+
+async def _delete_project(project: str) -> None:
+    loop_communicator = LoopCommunicator()
+    try:
+        await delete_project(loop_communicator, project)
+    finally:
+        await loop_communicator.shutdown()
+
+
+def _run_on_own_loop(coroutine: Coroutine) -> None:
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(coroutine)
+    finally:
+        loop.close()
 
 
 def get_files_in_folder(folder: str):
