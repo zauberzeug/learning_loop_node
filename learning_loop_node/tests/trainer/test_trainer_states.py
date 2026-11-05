@@ -5,11 +5,14 @@ from ...data_classes import Context, Training
 from ...enums import TrainerState
 from ...trainer.io_helpers import LastTrainingIO
 from ...trainer.trainer_node import TrainerNode
+from ..test_helper import TRAINER_PROJECT, project_name
 from .testing_trainer_logic import TestingTrainerLogic
+
+PROJECT = project_name(TRAINER_PROJECT)
 
 
 def create_training() -> Training:
-    context = Context(organization='zauberzeug', project='demo')
+    context = Context(organization='zauberzeug', project=PROJECT)
     training = Training(
         id=str(uuid4()),
         context=context,
