@@ -59,13 +59,13 @@ class ImagesMetadata():
 
 
 @dataclass(**KWONLY_SLOTS)
-class BatchImageMetadata:
-    """What a single image of a batch sets in place of, or in addition to, the values of the batch."""
+class CaptureMetadata:
+    """Where an image comes from and how it is tagged."""
     camera_id: str | None = field(default=None, metadata={
-        'description': 'Camera the image was taken with; replaces the camera ID of the batch'})
+        'description': 'Camera the image was taken with; selects the history of the relevance filter'})
     tags: list[str] = field(default_factory=list, metadata={
-        'description': 'Tags added to the tags of the batch'})
+        'description': 'Tags of the image'})
     source: str | None = field(default=None, metadata={
-        'description': 'Source of the image; replaces the source of the batch'})
+        'description': 'Source of the image'})
     creation_date: str | None = field(default=None, metadata={
-        'description': 'Creation date of the image; replaces the creation date of the batch'})
+        'description': 'Creation date of the image'})

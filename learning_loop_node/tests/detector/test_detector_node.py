@@ -7,9 +7,9 @@ from typing import List, Literal, Tuple
 import numpy as np
 import pytest
 
-from learning_loop_node.data_classes import BatchImageMetadata, ImageMetadata, ModelInformation
+from learning_loop_node.data_classes import CaptureMetadata, ImageMetadata, ModelInformation
 from learning_loop_node.detector import detector_node as detector_node_module
-from learning_loop_node.detector.detector_node import DetectorNode, _batch_image_metadata
+from learning_loop_node.detector.detector_node import DetectorNode, _capture_metadata
 from learning_loop_node.helpers.misc import ImageData
 
 from ..test_helper import DETECTOR_PROJECT, project_name
@@ -138,34 +138,21 @@ class _RecordingFactory:
         return MockDetectorLogic(model_info)
 
 
-async def test_batch_images_carry_their_own_camera_source_and_tags(detector_node: DetectorNode,
-                                                                   filter_calls: '_FilterCalls'):
+async def test_each_image_of_a_batch_is_filtered_and_tagged_with_its_own_metadata(detector_node: DetectorNode,
+                                                                                   filter_calls: '_FilterCalls'):
     result = await detector_node.get_batch_detections(
-        images=_images(3),
-        tags=['robot'],
-        camera_id='batch_cam',
-        source='robot',
-        creation_date='2024-01-01T00:00:00',
-        autoupload='filtered',
-        image_metadata=[BatchImageMetadata(camera_id='cam_a', source='robot/cam_a', tags=['cam_a']),
-                        BatchImageMetadata(camera_id='cam_b', source='robot/cam_b', creation_date='2024-02-02T00:00:00'),
-                        BatchImageMetadata()],
+        images=_images(2),
+        capture_metadata=[
+            CaptureMetadata(camera_id='cam_a', tags=['robot', 'cam_a'], source='robot/cam_a',
+                               creation_date='2024-01-01T00:00:00'),
+            CaptureMetadata(camera_id='cam_b', tags=['robot'], source='robot/cam_b',
+                               creation_date='2024-02-02T00:00:00'),
+        ],
     )
     await filter_calls.settle()
 
-    assert filter_calls.calls == [('cam_a', 'robot/cam_a', ['robot', 'cam_a']),
-                                  ('cam_b', 'robot/cam_b', ['robot']),
-                                  ('batch_cam', 'robot', ['robot'])], 'what an image does not set comes from the batch'
-    assert [item.created for item in result.items] == \
-        ['2024-01-01T00:00:00', '2024-02-02T00:00:00', '2024-01-01T00:00:00']
-
-
-async def test_batch_without_image_metadata_applies_the_batch_values_to_every_image(detector_node: DetectorNode,
-                                                                                    filter_calls: '_FilterCalls'):
-    await detector_node.get_batch_detections(images=_images(2), tags=['robot'], camera_id='batch_cam', source='robot')
-    await filter_calls.settle()
-
-    assert filter_calls.calls == [('batch_cam', 'robot', ['robot'])] * 2
+    assert filter_calls.calls == [('cam_a', 'robot/cam_a', ['robot', 'cam_a']), ('cam_b', 'robot/cam_b', ['robot'])]
+    assert [item.created for item in result.items] == ['2024-01-01T00:00:00', '2024-02-02T00:00:00']
 
 
 async def test_sio_batch_detect_reads_the_values_an_image_dict_sets(detector_node: DetectorNode,
@@ -181,20 +168,36 @@ async def test_sio_batch_detect_reads_the_values_an_image_dict_sets(detector_nod
     assert filter_calls.calls == [('cam_a', 'robot', ['robot', 'cam_a']), ('batch_cam', 'robot', ['robot'])]
 
 
-async def test_batch_rejects_image_metadata_that_does_not_match_the_images(detector_node: DetectorNode):
+async def test_batch_rejects_capture_metadata_that_does_not_match_the_images(detector_node: DetectorNode):
     with pytest.raises(ValueError):
-        await detector_node.get_batch_detections(images=_images(2), tags=[], image_metadata=[BatchImageMetadata()])
+        await detector_node.get_batch_detections(images=_images(2), capture_metadata=[CaptureMetadata()])
 
 
-@pytest.mark.parametrize('image_data', [{}, {'tags': None}, {'tags': []}])
-def test_an_image_without_tags_adds_none(image_data: dict):
-    assert _batch_image_metadata(image_data) == BatchImageMetadata()
+_BATCH = {'camera_id': 'batch_cam', 'tags': ['robot'], 'source': 'robot', 'creation_date': '2024-01-01T00:00:00'}
+
+
+def test_an_image_replaces_the_values_of_the_batch_and_adds_its_tags():
+    image_data = {'camera_id': 'cam_a', 'tags': ['cam_a'], 'source': 'robot/cam_a',
+                  'creation_date': '2024-02-02T00:00:00'}
+    assert _capture_metadata(_BATCH, image_data) == CaptureMetadata(
+        camera_id='cam_a', tags=['robot', 'cam_a'], source='robot/cam_a', creation_date='2024-02-02T00:00:00')
+
+
+@pytest.mark.parametrize('image_data', [{}, {'camera_id': None, 'tags': None, 'source': None, 'creation_date': None},
+                                        {'tags': []}])
+def test_what_an_image_does_not_set_comes_from_the_batch(image_data: dict):
+    assert _capture_metadata(_BATCH, image_data) == CaptureMetadata(
+        camera_id='batch_cam', tags=['robot'], source='robot', creation_date='2024-01-01T00:00:00')
+
+
+def test_what_neither_sets_stays_unset():
+    assert _capture_metadata({}, {}) == CaptureMetadata()
 
 
 @pytest.mark.parametrize('tags', ['cam_a', ('cam_a',), 7])
 def test_an_image_with_tags_that_are_no_list_is_rejected(tags: object):
     with pytest.raises(ValueError):
-        _batch_image_metadata({'tags': tags})
+        _capture_metadata({}, {'tags': tags})
 
 
 class _FilterCalls:
