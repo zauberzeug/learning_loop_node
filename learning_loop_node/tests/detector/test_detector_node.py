@@ -1,14 +1,16 @@
 import json
+from collections.abc import Coroutine
 from dataclasses import asdict
 from pathlib import Path
-from typing import Coroutine, List, Literal, Optional, Tuple
+from typing import List, Literal, Tuple
 
 import numpy as np
 import pytest
 
-from learning_loop_node.data_classes import ImageOverrides, ModelInformation
+from learning_loop_node.data_classes import ImageMetadata, ImageOverrides, ModelInformation
 from learning_loop_node.detector import detector_node as detector_node_module
 from learning_loop_node.detector.detector_node import DetectorNode, _image_overrides
+from learning_loop_node.helpers.misc import ImageData
 
 from ..test_helper import DETECTOR_PROJECT, project_name
 from .conftest import MockDetectorLogic
@@ -136,39 +138,8 @@ class _RecordingFactory:
         return MockDetectorLogic(model_info)
 
 
-class FilterCalls:
-    """Records the camera id, source and tags of every image the relevance filter is asked about."""
-
-    def __init__(self) -> None:
-        self.calls: List[Tuple[Optional[str], Optional[str], List[str]]] = []
-        self._tasks: List[Coroutine] = []
-
-    async def may_upload_detections(self, image_metadata, cam_id, image) -> List[str]:  # pylint: disable=unused-argument
-        self.calls.append((cam_id, image_metadata.source, list(image_metadata.tags)))
-        return []
-
-    async def settle(self) -> None:
-        """Run the background tasks the node created."""
-        for task in self._tasks:
-            await task
-        self._tasks.clear()
-
-
-@pytest.fixture
-def filter_calls(detector_node: DetectorNode, monkeypatch) -> FilterCalls:
-    recorder = FilterCalls()
-    monkeypatch.setattr(detector_node.relevance_filter, 'may_upload_detections', recorder.may_upload_detections)
-    monkeypatch.setattr(detector_node_module.background_tasks, 'create',
-                        lambda coroutine, *args, **kwargs: recorder._tasks.append(coroutine))  # pylint: disable=protected-access
-    return recorder
-
-
-def _images(count: int) -> List[np.ndarray]:
-    return [np.zeros((10, 10, 3), dtype=np.uint8) for _ in range(count)]
-
-
-async def test_batch_images_carry_their_own_camera_source_and_tags(detector_node: DetectorNode, filter_calls: FilterCalls):
-    """Each image of a batch keeps its camera for the relevance filter, and its source and tags for the loop."""
+async def test_batch_images_carry_their_own_camera_source_and_tags(detector_node: DetectorNode,
+                                                                   filter_calls: '_FilterCalls'):
     result = await detector_node.get_batch_detections(
         images=_images(3),
         tags=['robot'],
@@ -190,11 +161,24 @@ async def test_batch_images_carry_their_own_camera_source_and_tags(detector_node
 
 
 async def test_batch_without_overrides_applies_the_batch_values_to_every_image(detector_node: DetectorNode,
-                                                                               filter_calls: FilterCalls):
+                                                                               filter_calls: '_FilterCalls'):
     await detector_node.get_batch_detections(images=_images(2), tags=['robot'], camera_id='batch_cam', source='robot')
     await filter_calls.settle()
 
     assert filter_calls.calls == [('batch_cam', 'robot', ['robot'])] * 2
+
+
+async def test_sio_batch_detect_reads_the_values_an_image_dict_sets(detector_node: DetectorNode,
+                                                                    filter_calls: '_FilterCalls'):
+    batch_detect = detector_node.sio.handlers['/']['batch_detect']
+    image = {'bytes': _images(1)[0].tobytes(order='C'), 'dtype': 'uint8', 'shape': (10, 10, 3)}
+
+    result = await batch_detect('sid', {'images': [{**image, 'camera_id': 'cam_a', 'tags': ['cam_a']}, image],
+                                        'camera_id': 'batch_cam', 'tags': ['robot'], 'source': 'robot'})
+    await filter_calls.settle()
+
+    assert len(result['items']) == 2
+    assert filter_calls.calls == [('cam_a', 'robot', ['robot', 'cam_a']), ('batch_cam', 'robot', ['robot'])]
 
 
 async def test_batch_rejects_overrides_that_do_not_match_the_images(detector_node: DetectorNode):
@@ -208,6 +192,40 @@ def test_an_image_without_tags_adds_none(image_data: dict):
 
 
 @pytest.mark.parametrize('tags', ['cam_a', ('cam_a',), 7])
-def test_an_image_with_tags_that_are_no_list_is_rejected(tags):
+def test_an_image_with_tags_that_are_no_list_is_rejected(tags: object):
     with pytest.raises(ValueError):
         _image_overrides({'tags': tags})
+
+
+class _FilterCalls:
+    """Records the camera id, source and tags of every image the relevance filter is asked about."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str | None, str | None, list[str]]] = []
+        self._tasks: list[Coroutine] = []
+
+    def create_task(self, coroutine: Coroutine, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+        self._tasks.append(coroutine)
+
+    async def may_upload_detections(self, image_metadata: ImageMetadata, cam_id: str | None,
+                                    image: ImageData) -> list[str]:  # pylint: disable=unused-argument
+        self.calls.append((cam_id, image_metadata.source, list(image_metadata.tags)))
+        return []
+
+    async def settle(self) -> None:
+        """Run the background tasks the node created."""
+        for task in self._tasks:
+            await task
+        self._tasks.clear()
+
+
+@pytest.fixture
+def filter_calls(detector_node: DetectorNode, monkeypatch: pytest.MonkeyPatch) -> _FilterCalls:
+    recorder = _FilterCalls()
+    monkeypatch.setattr(detector_node.relevance_filter, 'may_upload_detections', recorder.may_upload_detections)
+    monkeypatch.setattr(detector_node_module.background_tasks, 'create', recorder.create_task)
+    return recorder
+
+
+def _images(count: int) -> list[np.ndarray]:
+    return [np.zeros((10, 10, 3), dtype=np.uint8) for _ in range(count)]

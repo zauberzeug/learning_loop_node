@@ -9,7 +9,6 @@ import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
-from itertools import repeat
 from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
@@ -676,7 +675,7 @@ class DetectorNode(Node):
                                    source: Optional[str] = None,
                                    autoupload: str = 'filtered',
                                    creation_date: Optional[str] = None,
-                                   overrides: Optional[Sequence[ImageOverrides]] = None) -> ImagesMetadata:
+                                   overrides: Sequence[ImageOverrides] | None = None) -> ImagesMetadata:
         """
         Processing function for the detector node when a batch inference is requested via SocketIO.
 
@@ -687,7 +686,9 @@ class DetectorNode(Node):
         The values of the batch apply to every image, unless its entry in `overrides` sets its own.
         Raises exception if no model is loaded.
         """
-        if overrides is not None and len(overrides) != len(images):
+        if overrides is None:
+            overrides = [ImageOverrides()] * len(images)
+        elif len(overrides) != len(images):
             raise ValueError(f'got {len(overrides)} overrides for {len(images)} images')
         _unwrap_detector(self._detector)  # fails fast, before the decode
         arrays = await asyncio.gather(*(_pixel_array(image) for image in images))
@@ -695,7 +696,7 @@ class DetectorNode(Node):
             detector = _unwrap_detector(self._detector)
             all_detections = await run.io_bound(detector.logic.batch_evaluate, arrays)
 
-        for detections, image, own in zip(all_detections.items, images, overrides or repeat(ImageOverrides())):
+        for detections, image, own in zip(all_detections.items, images, overrides):
             detections.tags.extend([*tags, *own.tags])
             detections.source = own.source if own.source is not None else source
             detections.created = own.creation_date if own.creation_date is not None else creation_date
@@ -798,7 +799,7 @@ async def _pixel_array(image: ImageData) -> np.ndarray:
     return await run.io_bound(jpg_bytes_to_numpy_array, image)
 
 
-def _image_overrides(image_data: Dict) -> ImageOverrides:
+def _image_overrides(image_data: dict) -> ImageOverrides:
     """The values an image dict of a batch sets for itself; missing or `None` ones leave the batch's in place."""
     tags = image_data.get('tags') or []
     if not isinstance(tags, list):
