@@ -1,10 +1,13 @@
+from pathlib import Path
+
 import pytest
 
 from ...helpers.entrypoint import node_parser
+from ...trainer import dataloader
 
 MANAGED = ('WEIGHT_TYPE', 'MY_DETECTOR_WEIGHT_TYPE', 'HOST', 'NODE_HOST', 'NODE_PORT', 'PORT',
            'MY_DETECTOR_HOST', 'MY_DETECTOR_PORT', 'MY_DETECTOR_NODE_HOST', 'VRAM_LIMIT_GB',
-           'MY_DETECTOR_VRAM_LIMIT_GB', 'CONF_THRESHOLD')
+           'MY_DETECTOR_VRAM_LIMIT_GB', 'DATALOADER_WORKERS', 'CONF_THRESHOLD')
 
 
 def test_every_node_gets_a_host_and_a_port():
@@ -115,6 +118,45 @@ def test_the_vram_limit_is_still_read_under_a_legacy_prefix(monkeypatch: pytest.
     monkeypatch.setenv('MY_DETECTOR_VRAM_LIMIT_GB', '6')
     args = _parser(vram_limit=True, legacy_env_prefix='MY_DETECTOR_').parse_args([])
     assert args.vram_limit_gb == 6.0
+
+
+def test_a_node_that_loads_no_data_has_no_worker_setting():
+    assert not hasattr(_parser().parse_args([]), 'dataloader_workers')
+
+
+def test_the_workers_default_to_what_the_machine_allows(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(dataloader.os, 'sched_getaffinity', lambda _: set(range(10)), raising=False)
+    monkeypatch.setattr(dataloader, 'CGROUP_CPU_MAX', dataloader.Path('/nonexistent/cpu.max'))
+    assert _parser(dataloader_workers=True).parse_args([]).dataloader_workers == 8
+
+
+def test_the_help_shows_the_workers_default_of_this_machine(monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+                                                            capsys: pytest.CaptureFixture[str]):
+    monkeypatch.setattr(dataloader.os, 'sched_getaffinity', lambda _: set(range(20)), raising=False)
+    monkeypatch.setattr(dataloader, 'CGROUP_CPU_MAX', tmp_path / 'cpu.max')
+    with pytest.raises(SystemExit):
+        _parser(dataloader_workers=True).parse_args(['--help'])
+    assert 'Default on this machine: 12.' in ' '.join(capsys.readouterr().out.split())
+
+
+def test_the_workers_are_read_from_their_variable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('DATALOADER_WORKERS', '6')
+    assert _parser(dataloader_workers=True).parse_args([]).dataloader_workers == 6
+
+
+def test_the_workers_flag_beats_its_variable(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv('DATALOADER_WORKERS', '6')
+    assert _parser(dataloader_workers=True).parse_args(['--dataloader-workers', '3']).dataloader_workers == 3
+
+
+def test_zero_workers_load_in_the_training_process():
+    assert _parser(dataloader_workers=True).parse_args(['--dataloader-workers', '0']).dataloader_workers == 0
+
+
+def test_a_negative_worker_count_is_refused(capsys: pytest.CaptureFixture[str]):
+    with pytest.raises(SystemExit):
+        _parser(dataloader_workers=True).parse_args(['--dataloader-workers', '-1'])
+    assert 'must be >= 0, got -1' in capsys.readouterr().err
 
 
 def test_a_node_that_does_not_detect_has_no_conf_threshold():

@@ -7,19 +7,20 @@ and ``NODE_PORT``: the bare ``HOST`` is the address of the loop.
 
 import logging
 import os
-from argparse import Action, Namespace
+from argparse import Action, ArgumentTypeError, Namespace
 
 import configargparse
 import uvicorn
 
 from ..data_classes.general import DEFAULT_CONF_THRESHOLD
 from ..trainer.batch_size import VRAM_LIMIT_GB_FLAG, VRAM_LIMIT_GB_HELP
+from ..trainer.dataloader import DATALOADER_WORKERS_FLAG, DATALOADER_WORKERS_HELP, default_dataloader_workers
 
 logger = logging.getLogger(__name__)
 
 
-def node_parser(*, description: str, legacy_env_prefix: str = '',
-                vram_limit: bool = False, conf_threshold: bool = False) -> configargparse.ArgumentParser:
+def node_parser(*, description: str, legacy_env_prefix: str = '', vram_limit: bool = False,
+                dataloader_workers: bool = False, conf_threshold: bool = False) -> configargparse.ArgumentParser:
     """Build the parser for a node, pre-loaded with the settings every node has.
 
     :param legacy_env_prefix: A prefix an earlier version of this node required, e.g.
@@ -27,6 +28,8 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
         current name (``MY_DETECTOR_NODE_HOST``) and the prefix on the flag it was originally
         applied to (``MY_DETECTOR_HOST``). Leave empty for a node that never used one.
     :param vram_limit: Add :data:`~learning_loop_node.trainer.batch_size.VRAM_LIMIT_GB_FLAG`.
+    :param dataloader_workers: Add :data:`~learning_loop_node.trainer.dataloader.DATALOADER_WORKERS_FLAG`,
+        defaulting to :func:`~learning_loop_node.trainer.dataloader.default_dataloader_workers`.
     :param conf_threshold: Add ``--conf-threshold`` for the ``conf_threshold`` of a
         :class:`~learning_loop_node.detector.detector_node.DetectorNode`. It has no default:
         one would override the threshold the trainer chose for the model.
@@ -37,6 +40,9 @@ def node_parser(*, description: str, legacy_env_prefix: str = '',
     parser.add_argument('--port', type=int, default=80, env_var='NODE_PORT', help='Port to bind to')
     if vram_limit:
         parser.add_argument(VRAM_LIMIT_GB_FLAG, type=float, default=0, help=VRAM_LIMIT_GB_HELP)
+    if dataloader_workers:
+        parser.add_argument(DATALOADER_WORKERS_FLAG, type=_worker_count, default=default_dataloader_workers(),
+                            help=DATALOADER_WORKERS_HELP)
     if conf_threshold:
         parser.add_argument('--conf-threshold', type=float, default=None,
                             help='Minimum confidence for detections (default: the one the trainer chose for the '
@@ -52,6 +58,14 @@ def run_node(app: str, args: Namespace) -> None:
     reload = os.getenv('UVICORN_RELOAD', 'FALSE').lower() in ('true', '1')
     logger.info('Uvicorn reload is set to: %s', reload)
     uvicorn.run(app, host=args.host, port=args.port, lifespan='on', reload=reload)
+
+
+def _worker_count(value: str) -> int:
+    """0 loads in the training process itself, as PyTorch's ``num_workers=0`` does."""
+    count = int(value)
+    if count < 0:
+        raise ArgumentTypeError(f'must be >= 0, got {count}')
+    return count
 
 
 class _NodeArgumentParser(configargparse.ArgumentParser):
