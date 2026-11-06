@@ -26,7 +26,6 @@ class TrainerLogic(TrainerLogicGeneric):
         self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
         self._process_started: bool = False
-        self._stop_requested: bool = False
         self.start_training_task: Optional[Coroutine] = None
         self.inference_batch_size = self._environment_vars.inference_batch_size
 
@@ -166,10 +165,6 @@ class TrainerLogic(TrainerLogicGeneric):
         self._stop_requested = True
         if self._executor and self._executor.is_running():
             await self.executor.stop_and_wait()
-
-    def _stop_was_requested(self) -> bool:
-        """Whether a stop came after the training process had started; not kept across a restart."""
-        return self._stop_requested
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------
 

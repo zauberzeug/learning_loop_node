@@ -14,6 +14,7 @@ from ...enums import TrainerState
 from ...globals import GLOBALS
 from ...trainer.exceptions import CriticalError, TrainingResultsNotAnsweredError, TrainingResultsUploadFailedError
 from ...trainer.trainer_node import TrainerNode
+from ...trainer import training_results
 from ...trainer.training_results import MAX_ATTEMPTS, META_FILE, check_hyperparameters, upload_results
 from ..trainer.testing_trainer_logic import TestingTrainerLogic
 
@@ -70,6 +71,39 @@ async def test_the_zip_keeps_the_paths_inside_the_training_folder(trainer: Testi
     assert not zip_path.with_name('core.zip.partial').exists()
 
 
+async def test_the_zip_leaves_out_the_results_folder_itself(trainer: TestingTrainerLogic):
+    training_folder = Path(trainer.training.training_folder)
+    (training_folder / 'training_results').mkdir()
+    (training_folder / 'training_results' / 'examples.zip').write_text('an earlier part')
+
+    await _upload_results(trainer, _communicator(ACCEPTED_RESULTS), lambda folder: {'core': [folder]})
+
+    with zipfile.ZipFile(training_folder / 'training_results' / 'core.zip') as zipf:
+        assert not [name for name in zipf.namelist() if name.startswith('training_results/')]
+        assert 'result/results.csv' in zipf.namelist()
+
+
+async def test_paths_outside_the_training_folder_keep_their_named_directory(trainer: TestingTrainerLogic,
+                                                                           tmp_path: Path):
+    for run in ('a', 'b'):
+        (tmp_path / 'runs' / run).mkdir(parents=True)
+        (tmp_path / 'runs' / run / 'curve.png').write_text(run)
+
+    await _upload_results(trainer, _communicator(ACCEPTED_RESULTS),
+                          lambda _: {'core': [tmp_path / 'runs' / 'a', tmp_path / 'runs' / 'b']})
+
+    with zipfile.ZipFile(Path(trainer.training.training_folder) / 'training_results' / 'core.zip') as zipf:
+        assert sorted(n for n in zipf.namelist() if n != META_FILE) == ['a/curve.png', 'b/curve.png']
+
+
+async def test_compressed_files_are_stored_and_the_others_compressed(trainer: TestingTrainerLogic):
+    await _upload_results(trainer, _communicator(ACCEPTED_RESULTS), lambda folder: {'core': [folder / 'result']})
+
+    with zipfile.ZipFile(Path(trainer.training.training_folder) / 'training_results' / 'core.zip') as zipf:
+        assert zipf.getinfo('result/examples/a.png').compress_type == zipfile.ZIP_STORED
+        assert zipf.getinfo('result/results.csv').compress_type == zipfile.ZIP_DEFLATED
+
+
 async def test_a_malformed_upload_flag_ends_the_training_before_it_has_run(trainer: TestingTrainerLogic):
     trainer.training.hyperparameters['upload_logs'] = 'sometimes'
 
@@ -92,11 +126,12 @@ async def test_accepted_results_are_stored_beside_the_latest_model():
     (404, TrainingResultsUploadFailedError),
     (413, TrainingResultsUploadFailedError),
     (422, TrainingResultsUploadFailedError),
-    (500, TrainingResultsUploadFailedError),
-    (503, TrainingResultsUploadFailedError),
     (408, TrainingResultsNotAnsweredError),
+    (500, TrainingResultsNotAnsweredError),
+    (502, TrainingResultsNotAnsweredError),
+    (503, TrainingResultsNotAnsweredError),
 ])
-async def test_any_answer_but_success_fails_the_results_except_a_408(status: int, error: type[Exception]):
+async def test_a_client_error_is_final_and_a_408_or_server_error_counts_as_no_answer(status: int, error: type[Exception]):
     communicator = _communicator(httpx.Response(status, text='no'))
 
     with pytest.raises(error):
@@ -134,7 +169,7 @@ async def test_a_trainer_without_results_uploads_only_its_model(trainer: Testing
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
 
 
-@pytest.mark.parametrize('no_answer', [httpx.ReadTimeout('no answer'), httpx.Response(408)])
+@pytest.mark.parametrize('no_answer', [httpx.ReadTimeout('no answer'), httpx.Response(408), httpx.Response(503)])
 async def test_a_part_that_got_no_answer_is_sent_again_in_the_same_state(
         trainer: TestingTrainerLogic, no_answer: Exception | httpx.Response):
     trainer.training.hyperparameters['upload_logs'] = True
@@ -176,9 +211,7 @@ async def test_a_failing_results_hook_does_not_stop_the_training(trainer: Testin
 
 
 async def test_a_failing_meta_does_not_stop_the_training(trainer: TestingTrainerLogic):
-    def broken_stop_flag() -> bool:
-        raise RuntimeError('bug in the trainer')
-    trainer._stop_was_requested = broken_stop_flag  # type: ignore[method-assign]
+    trainer.training.start_time = None  # type: ignore[assignment]
     communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL)
     trainer.node.data_exchanger.loop_communicator = communicator
 
@@ -188,15 +221,37 @@ async def test_a_failing_meta_does_not_stop_the_training(trainer: TestingTrainer
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
 
 
-async def test_a_malformed_upload_flag_at_upload_time_skips_the_results(trainer: TestingTrainerLogic):
+async def test_a_malformed_upload_flag_at_upload_time_skips_only_its_part(trainer: TestingTrainerLogic):
     trainer.training.hyperparameters['upload_logs'] = 'true'  # a training prepared before the flag was checked
-    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL)
+    communicator = _communicator(ACCEPTED_MODEL, ACCEPTED_MODEL, ACCEPTED_RESULTS)
     trainer.node.data_exchanger.loop_communicator = communicator
 
     await _perform_upload_state(trainer)
 
-    assert _uploads(communicator) == ['first/file', 'second/file']
+    assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core']
     assert trainer.training.training_state == TrainerState.TrainModelUploaded
+
+
+async def test_a_part_of_another_name_is_left_out(trainer: TestingTrainerLogic):
+    communicator = _communicator(ACCEPTED_RESULTS)
+
+    await _upload_results(trainer, communicator, lambda folder: {'core': [], 'log': [], '../escape': []})
+
+    assert _uploads(communicator) == ['training_results/core']
+    assert not (Path(trainer.training.training_folder) / 'escape.zip').exists()
+
+
+async def test_a_failing_record_of_done_parts_does_not_stop_the_upload(trainer: TestingTrainerLogic,
+                                                                       monkeypatch: pytest.MonkeyPatch):
+    def full_disk(*_) -> None:
+        raise OSError(28, 'No space left on device')
+    monkeypatch.setattr(training_results, '_save_done', full_disk)
+    trainer.training.hyperparameters['upload_logs'] = True
+    communicator = _communicator(ACCEPTED_RESULTS, ACCEPTED_RESULTS)
+
+    await _upload_results(trainer, communicator)
+
+    assert _uploads(communicator) == ['training_results/core', 'training_results/logs']
 
 
 async def test_parts_that_are_done_are_not_sent_again(trainer: TestingTrainerLogic):
@@ -255,7 +310,7 @@ def _communicator(*responses: httpx.Response) -> Mock:
 async def _upload_results(trainer: TestingTrainerLogic, communicator: Mock,
                           get_results: Callable[[Path], dict[str, list[Path]]] | None = None) -> None:
     await upload_results(trainer.training, model_uuid=MODEL_ID, node_name='test', node_uuid=trainer.node.uuid,
-                         get_results=get_results or trainer._get_training_results, stop_requested=lambda: False,
+                         get_results=get_results or trainer._get_training_results, stop_requested=False,
                          data_exchanger=DataExchanger(None, communicator))
 
 

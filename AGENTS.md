@@ -33,7 +33,7 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
-  upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
+  upload model and its training results (`trainer/training_results.py`) → detect → upload detections → cleanup. `_perform_state` wraps each step: an
   ordinary exception records the error and rewinds to the previous state (retried after a growing
   wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
@@ -81,16 +81,6 @@ selects on `Training.val_images()`, which falls back to the test images when the
 `val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
 training when one of them is empty; a node that filters them further needs to check its own sets.
-
-`trainer/training_results.py` holds the results a training uploads beside its model. A trainer
-names its result files by part in `_get_training_results` (default: none); `_upload_model` sets
-the model for detecting and then hands them to `upload_results`, which never raises and sends
-each part as one zip that keeps the paths inside the training folder,
-to `trainings/<n>/training_results/<part>`. `core` is always sent and carries a
-`meta.json` about where the results come from; `examples` and `logs` only if the `upload_examples`
-and `upload_logs` hyperparameters are true, which `_prepare` checks so a typo ends the training
-before it has run. A part the loop does not store is skipped, a part that got no answer is sent up
-to `MAX_ATTEMPTS` times, and the parts that are done are recorded in `training_results/`.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`

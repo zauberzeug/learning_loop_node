@@ -57,6 +57,7 @@ class TrainerLogicGeneric(ABC):
         self.model_format: str = model_format
         self.errors = Errors()
         self._state_failures: Dict[str, int] = {}  # failed attempts in a row, by error key
+        self._stop_requested: bool = False  # set by a trainer that stopped its training process; not kept on restart
 
         self.training_task: Optional[asyncio.Task] = None
         self.shutdown_event: asyncio.Event = asyncio.Event()
@@ -465,7 +466,7 @@ class TrainerLogicGeneric(ABC):
         self.training.model_uuid_for_detecting = new_model_uuid
         await training_results.upload_results(self.training, model_uuid=new_model_uuid, node_name=self.node.name,
                                               node_uuid=self.node.uuid, get_results=self._get_training_results,
-                                              stop_requested=self._stop_was_requested,
+                                              stop_requested=self._stop_requested,
                                               data_exchanger=self.node.data_exchanger)
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
@@ -507,10 +508,6 @@ class TrainerLogicGeneric(ABC):
             return self.active_training_io.load_uploaded_model_uuid()
         except FileNotFoundError as e:
             raise CriticalError('The model is uploaded, but the loop never answered with its id') from e
-
-    def _stop_was_requested(self) -> bool:
-        """Whether the training was stopped after its training process had started; this base class cannot tell."""
-        return False
 
     def _dump_model_json(self) -> str:
         """Dump the categories and the trainer's model metadata to a json file and return its path."""
