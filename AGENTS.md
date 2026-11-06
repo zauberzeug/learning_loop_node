@@ -158,6 +158,10 @@ containers: `to_image_metadata` builds what a **detector** node reports, `to_det
 **trainer**'s auto-detection pass reports. Both go through one routine, so the two paths cannot
 drift apart again.
 
+A detector filters at `model_info.conf_threshold`. `_build_and_swap_detector` hands the factory
+the node's `conf_threshold` there when one is set (`--conf-threshold`, declared by
+`node_parser(conf_threshold=True)`);
+
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the
 `current_model` symlink, `outbox/`, and the per-project training folders.
@@ -191,9 +195,13 @@ python -m pytest learning_loop_node/tests/trainer -v -k <test_name>      # one t
 ```
 
 An autouse fixture repoints `GLOBALS.data_folder` at `/tmp/learning_loop_lib_data` and wipes it
-around every test, so tests never touch `/data`. The `general` suite generates and deletes a real
-`zauberzeug/pytest_nodelib_general` project on the loop; the detector suite starts the node in a
-forked uvicorn process on `GLOBALS.detector_port`.
+around every test, so tests never touch `/data`. The suites that talk to the loop generate and
+delete their own projects there (`general` per test, `detector` and `trainer` once per session
+through `test_helper.suite_project`); the detector suite starts the node in a forked uvicorn
+process on `GLOBALS.detector_port`. A suite that creates a project on the loop declares its bare
+name in `test_helper.py` and builds the real name with `test_helper.project_name`, so every CI job
+gets its own copy and the cleanup step can sweep it. Other repositories sweep their own test
+projects by calling `.github/workflows/cleanup-test-projects.yml` with their bare names.
 
 There is no `.pre-commit-config.yaml` here and no ruff in the project environment. Lint with:
 

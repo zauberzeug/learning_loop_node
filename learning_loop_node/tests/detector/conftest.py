@@ -22,7 +22,10 @@ from learning_loop_node.detector.detector_logic import DetectorLogic
 from ...detector.detector_node import DetectorNode
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
+from ..test_helper import DETECTOR_PROJECT, project_name, suite_project
 from .testing_detector import TestingDetectorFactory
+
+PROJECT = project_name(DETECTOR_PROJECT)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,10 +35,17 @@ log_to_stderr(logging.INFO)
 detector_port = GLOBALS.detector_port
 
 
+@pytest.fixture(autouse=True, scope='session')
+def suite_loop_project():
+    """The suite's own project on the loop, generated once per session."""
+    with suite_project(PROJECT):
+        yield
+
+
 @contextlib.contextmanager
 def dummy_model_on_disk():
     """Write a minimal model.json into a temporary model directory. Yields the directory path."""
-    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project='demo', version='0.0')
+    model_info = ModelInformation(id='test', host='', organization='zauberzeug', project=PROJECT, version='0.0')
     model_dir = os.path.join(GLOBALS.data_folder, 'models', model_info.version)
     os.makedirs(model_dir, exist_ok=True)
     with open(os.path.join(model_dir, 'model.json'), 'w') as f:
@@ -66,7 +76,7 @@ async def test_detector_node():
     """Initializes and runs a detector testnode. Note that the running instance and the one the function returns are not the same instances!"""
 
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = PROJECT
 
     with dummy_model_on_disk() as model_dir:
         os.symlink(model_dir, os.path.join(GLOBALS.data_folder, 'current_model'))  # for subprocess on_startup
@@ -172,7 +182,7 @@ class MockDetectorFactory:
 @pytest.fixture
 async def detector_node():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = PROJECT
     with dummy_model_on_disk() as model_dir:
         node = DetectorNode(name="test_node", detector_factory=MockDetectorFactory())
         await node._build_and_swap_detector(model_dir)

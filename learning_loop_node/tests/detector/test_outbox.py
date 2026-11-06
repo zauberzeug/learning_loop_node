@@ -8,6 +8,9 @@ from PIL import Image
 
 from ...detector.outbox import Outbox
 from ...globals import GLOBALS
+from ..test_helper import DETECTOR_PROJECT, project_name
+
+PROJECT = project_name(DETECTOR_PROJECT)
 
 # pylint: disable=redefined-outer-name
 
@@ -15,7 +18,7 @@ from ...globals import GLOBALS
 @pytest.fixture()
 async def test_outbox():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = PROJECT
     shutil.rmtree(f'{GLOBALS.data_folder}/outbox', ignore_errors=True)
     test_outbox = Outbox()
 
@@ -26,10 +29,10 @@ async def test_outbox():
 
 
 @pytest.fixture(autouse=True, scope='session')
-async def fix_upload_bug():
+async def fix_upload_bug(suite_loop_project):  # pylint: disable=unused-argument
     """ This is a workaround for an upload bug that causes the SECOND upload to fail on the CI server. """
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = PROJECT
     shutil.rmtree(f'{GLOBALS.data_folder}/outbox', ignore_errors=True)
     test_outbox = Outbox()
 

@@ -7,13 +7,15 @@ from ... import test_helper
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
+PROJECT = test_helper.project_name(test_helper.TRAINER_PROJECT)
+
 # pylint: disable=protected-access
 
 
 async def test_downloading_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    model_id = await test_helper.get_latest_model_id(project='demo')
+    model_id = await test_helper.get_latest_model_id(project=PROJECT)
     create_active_training_file(trainer,
                                 base_model_uuid=model_id,
                                 training_state=TrainerState.DataDownloaded)
