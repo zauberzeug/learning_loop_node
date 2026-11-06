@@ -39,7 +39,10 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
-  training or refuses it with an error, and a refused training has set nothing up. The loop's
+  training or refuses it with an error, and a refused training has set nothing up. Every trainer
+  declares the hyperparameters it accepts (`provided_hyperparameters`); `trainer/hyperparameters.py`
+  resolves the sent values when a training begins or resumes, and a value that does not fit fails a
+  new training rather than refusing it. The loop's
   `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
   `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
   stops a running training by ending its training process, so the remaining states upload the
@@ -81,6 +84,10 @@ selects on `Training.val_images()`, which falls back to the test images when the
 `val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
 training when one of them is empty; a node that filters them further needs to check its own sets.
+
+`compute_validation_set` is a hyperparameter the library reads itself, like `max_batch_size`, so neither
+counts as undeclared; a trainer lists `COMPUTE_VALIDATION_SET_HYPERPARAMETER` among its own so the loop
+offers it as a switch.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
