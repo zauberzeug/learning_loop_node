@@ -232,9 +232,7 @@ only its model. `core` is always uploaded, the examples and the raw training log
 training's `upload_examples` and `upload_logs` hyperparameters are true (both default to false).
 The results are sent right after the model and never stop the training: results the Learning Loop
 does not store, e.g. beyond the 5 GiB it keeps per training, are logged and skipped, and a part
-that gets no answer or a server error is sent up to three times and then skipped as well. Detecting
-starts once the results are sent or skipped; an upload that hangs until its 10-minute timeout each
-time delays it by up to 30 minutes per part. Name only results, never the dataset.
+that gets no answer or a server error is sent up to three times.
 
 ### Several trainers on one GPU
 
