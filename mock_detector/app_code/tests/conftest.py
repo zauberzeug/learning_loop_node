@@ -16,12 +16,22 @@ import uvicorn
 from learning_loop_node.data_classes import Category, ModelInformation
 from learning_loop_node.detector.detector_node import DetectorNode
 from learning_loop_node.globals import GLOBALS
+from learning_loop_node.tests.test_helper import MOCK_DETECTOR_PROJECT, project_name, suite_project
 
 from ..mock_detector import MockDetectorFactory
+
+PROJECT = project_name(MOCK_DETECTOR_PROJECT)
 
 logging.basicConfig(level=logging.INFO)
 
 detector_port = GLOBALS.detector_port
+
+
+@pytest.fixture(autouse=True, scope='session')
+def suite_loop_project():
+    """The suite's own project on the loop, generated once per session."""
+    with suite_project(PROJECT):
+        yield
 
 
 @pytest.fixture()
@@ -48,7 +58,7 @@ async def sio() -> AsyncGenerator:
 @pytest.fixture()
 async def test_detector_node():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = PROJECT
 
     model_info = ModelInformation(
         id='some_uuid', host='some_host', organization='zauberzeug', project='test', version='0.0',
