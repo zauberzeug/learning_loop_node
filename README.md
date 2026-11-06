@@ -96,6 +96,8 @@ The `batch_detect` endpoint receives a dictionary, with the same entries as the 
 
 - `images`: List of image data dictionaries, each with the same structure as the `image` entry in the `detect` endpoint
 
+The entries `camera_id`, `tags`, `source` and `creation_date` apply to every image of the batch. An image data dictionary may also carry its own: its `tags` are added to those of the batch, while its `camera_id`, `source` and `creation_date` replace those of the batch. This way a batch can hold images of several cameras, each filtered and uploaded as its own camera's.
+
 Sending a camera's JPEG as it is (`format: 'jpeg'`) saves the bandwidth of a raw pixel array and spares the detector a re-encode for the upload.
 
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).

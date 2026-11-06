@@ -1,4 +1,5 @@
 import json
+from collections.abc import Coroutine
 from dataclasses import asdict
 from pathlib import Path
 from typing import List, Literal, Tuple
@@ -6,9 +7,10 @@ from typing import List, Literal, Tuple
 import numpy as np
 import pytest
 
-from learning_loop_node.data_classes import ModelInformation
+from learning_loop_node.data_classes import CaptureMetadata, ImageMetadata, ModelInformation
 from learning_loop_node.detector import detector_node as detector_node_module
-from learning_loop_node.detector.detector_node import DetectorNode
+from learning_loop_node.detector.detector_node import DetectorNode, _capture_metadata
+from learning_loop_node.helpers.misc import ImageData
 
 from ..test_helper import DETECTOR_PROJECT, project_name
 from .conftest import MockDetectorLogic
@@ -134,3 +136,99 @@ class _RecordingFactory:
     async def build(self, model_info: ModelInformation) -> MockDetectorLogic:
         self.model_info = model_info
         return MockDetectorLogic(model_info)
+
+
+async def test_each_image_of_a_batch_is_filtered_and_tagged_with_its_own_metadata(detector_node: DetectorNode,
+                                                                                   filter_calls: '_FilterCalls'):
+    result = await detector_node.get_batch_detections(
+        images=_images(2),
+        capture_metadata=[
+            CaptureMetadata(camera_id='cam_a', tags=['robot', 'cam_a'], source='robot/cam_a',
+                               creation_date='2024-01-01T00:00:00'),
+            CaptureMetadata(camera_id='cam_b', tags=['robot'], source='robot/cam_b',
+                               creation_date='2024-02-02T00:00:00'),
+        ],
+    )
+    await filter_calls.settle()
+
+    assert filter_calls.calls == [('cam_a', 'robot/cam_a', ['robot', 'cam_a']), ('cam_b', 'robot/cam_b', ['robot'])]
+    assert [item.created for item in result.items] == ['2024-01-01T00:00:00', '2024-02-02T00:00:00']
+
+
+async def test_sio_batch_detect_reads_the_values_an_image_dict_sets(detector_node: DetectorNode,
+                                                                    filter_calls: '_FilterCalls'):
+    batch_detect = detector_node.sio.handlers['/']['batch_detect']
+    image = {'bytes': _images(1)[0].tobytes(order='C'), 'dtype': 'uint8', 'shape': (10, 10, 3)}
+
+    result = await batch_detect('sid', {'images': [{**image, 'camera_id': 'cam_a', 'tags': ['cam_a']}, image],
+                                        'camera_id': 'batch_cam', 'tags': ['robot'], 'source': 'robot'})
+    await filter_calls.settle()
+
+    assert len(result['items']) == 2
+    assert filter_calls.calls == [('cam_a', 'robot', ['robot', 'cam_a']), ('batch_cam', 'robot', ['robot'])]
+
+
+async def test_batch_rejects_capture_metadata_that_does_not_match_the_images(detector_node: DetectorNode):
+    with pytest.raises(ValueError):
+        await detector_node.get_batch_detections(images=_images(2), capture_metadata=[CaptureMetadata()])
+
+
+_BATCH = {'camera_id': 'batch_cam', 'tags': ['robot'], 'source': 'robot', 'creation_date': '2024-01-01T00:00:00'}
+
+
+def test_an_image_replaces_the_values_of_the_batch_and_adds_its_tags():
+    image_data = {'camera_id': 'cam_a', 'tags': ['cam_a'], 'source': 'robot/cam_a',
+                  'creation_date': '2024-02-02T00:00:00'}
+    assert _capture_metadata(_BATCH, image_data) == CaptureMetadata(
+        camera_id='cam_a', tags=['robot', 'cam_a'], source='robot/cam_a', creation_date='2024-02-02T00:00:00')
+
+
+@pytest.mark.parametrize('image_data', [{}, {'camera_id': None, 'tags': None, 'source': None, 'creation_date': None},
+                                        {'tags': []}])
+def test_what_an_image_does_not_set_comes_from_the_batch(image_data: dict):
+    assert _capture_metadata(_BATCH, image_data) == CaptureMetadata(
+        camera_id='batch_cam', tags=['robot'], source='robot', creation_date='2024-01-01T00:00:00')
+
+
+def test_what_neither_sets_stays_unset():
+    assert _capture_metadata({}, {}) == CaptureMetadata()
+
+
+@pytest.mark.parametrize('tags', ['cam_a', ('cam_a',), 7])
+def test_an_image_with_tags_that_are_no_list_is_rejected(tags: object):
+    with pytest.raises(ValueError):
+        _capture_metadata({}, {'tags': tags})
+
+
+class _FilterCalls:
+    """Records the camera id, source and tags of every image the relevance filter is asked about."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str | None, str | None, list[str]]] = []
+        self._tasks: list[Coroutine] = []
+
+    def create_task(self, coroutine: Coroutine, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+        self._tasks.append(coroutine)
+
+    async def may_upload_detections(self, image_metadata: ImageMetadata, cam_id: str | None,
+                                    image: ImageData) -> list[str]:  # pylint: disable=unused-argument
+        self.calls.append((cam_id, image_metadata.source, list(image_metadata.tags)))
+        return []
+
+    async def settle(self) -> None:
+        """Run the background tasks the node created."""
+        for task in self._tasks:
+            await task
+        self._tasks.clear()
+
+
+@pytest.fixture
+def filter_calls(detector_node: DetectorNode, monkeypatch: pytest.MonkeyPatch) -> _FilterCalls:
+    recorder = _FilterCalls()
+    monkeypatch.setattr(detector_node.relevance_filter, 'may_upload_detections', recorder.may_upload_detections)
+    monkeypatch.setattr(detector_node_module.background_tasks, 'create', recorder.create_task)
+    return recorder
+
+
+def _images(count: int) -> list[np.ndarray]:
+    return [np.zeros((10, 10, 3), dtype=np.uint8) for _ in range(count)]

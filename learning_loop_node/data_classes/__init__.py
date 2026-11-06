@@ -26,7 +26,7 @@ from .general import (
     NodeState,
     NodeStatus,
 )
-from .image_metadata import ImageMetadata, ImagesMetadata
+from .image_metadata import CaptureMetadata, ImageMetadata, ImagesMetadata
 from .socket_response import SocketResponse
 from .training import (
     Errors,
@@ -44,7 +44,7 @@ __all__ = [
     'BoxDetection', 'ClassificationDetection', 'ImageMetadata', 'Observation', 'Point', 'PointDetection',
     'SegmentationDetection', 'Shape', 'Detections',
     'AnnotationNodeStatus', 'Category', 'Context', 'DetectorStatus', 'ErrorConfiguration',
-    'ModelInformation', 'NodeState', 'NodeStatus', 'ModelVersionResponse', 'ImagesMetadata',
+    'ModelInformation', 'NodeState', 'NodeStatus', 'ModelVersionResponse', 'ImagesMetadata', 'CaptureMetadata',
     'SocketResponse',
     'Errors', 'Hyperparameter', 'PretrainedModel', 'Training',
     'TrainingError', 'TrainingOut', 'TrainingStateData', 'TrainingStatus',
