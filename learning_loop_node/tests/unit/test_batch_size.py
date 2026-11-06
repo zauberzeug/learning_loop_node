@@ -3,50 +3,108 @@ from collections.abc import Callable
 import pytest
 
 from ...trainer.batch_size import (
+    BATCH_SIZE_SEARCH,
     MIN_TRAIN_STEPS_PER_EPOCH,
     REQUESTED_BATCH_SIZE,
+    BatchSizeSearch,
     batch_count,
     dataset_limit,
     find_batch_size,
     is_out_of_memory,
     no_gpu_batch_size,
     requested_batch_size,
+    requested_batch_size_search,
     smaller_pot,
 )
 from ...trainer.exceptions import InsufficientMemoryError
 
+POWER = BatchSizeSearch.POWER
+
+
+# --- binsearch, the default ---
+
+def test_a_binsearch_bisects_between_the_last_size_that_fit_and_the_first_that_did_not():
+    fits, calls = _recording(20)
+    assert find_batch_size(fits, limit=64) == 20
+    assert calls == [1, 2, 4, 8, 16, 32, 24, 20, 22, 21]
+
+
+def test_a_binsearch_doubles_up_to_the_limit_itself():
+    fits, calls = _recording(1024)
+    assert find_batch_size(fits, limit=48) == 48
+    assert calls == [1, 2, 4, 8, 16, 32, 48], 'the limit is tried as named, not rounded down'
+
+
+def test_a_binsearch_bisects_below_a_limit_that_does_not_fit():
+    fits, calls = _recording(40)
+    assert find_batch_size(fits, limit=48) == 40
+    assert calls == [1, 2, 4, 8, 16, 32, 48, 40, 44, 42, 41]
+
+
+def test_a_binsearch_from_a_minimum_rejoins_the_powers_of_two():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=3) == 16
+    assert ran[:5] == [3, 4, 8, 16, 32]
+
+
+def test_a_binsearch_keeps_a_minimum_above_the_limit():
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(64, ran), limit=2, minimum=8) == 8
+    assert ran == [8]
+
+
+@pytest.mark.parametrize('capacity', range(1, 130))
+def test_a_binsearch_finds_exactly_what_fits(capacity: int):
+    assert find_batch_size(_fits_up_to(capacity), limit=512) == capacity
+
+
+@pytest.mark.parametrize('limit', range(1, 70))
+def test_a_binsearch_never_exceeds_the_limit(limit: int):
+    ran: list[int] = []
+    assert find_batch_size(_fits_up_to(40, ran), limit=limit) == min(40, limit)
+    assert max(ran) <= limit
+
+
+def test_a_binsearch_never_tries_a_size_twice():
+    ran: list[int] = []
+    find_batch_size(_fits_up_to(100, ran), limit=1000)
+    assert len(ran) == len(set(ran))
+
+
+# --- power, the fallback ---
+
 
 def test_the_search_doubles_up_to_the_limit():
     fits, calls = _recording(1024)
-    assert find_batch_size(fits, limit=16) == 16
+    assert find_batch_size(fits, limit=16, search=POWER) == 16
     assert calls == [1, 2, 4, 8, 16]
 
 
 def test_the_search_backs_off_to_the_last_size_that_fit():
     fits, calls = _recording(20)
-    assert find_batch_size(fits, limit=64) == 16
+    assert find_batch_size(fits, limit=64, search=POWER) == 16
     assert calls == [1, 2, 4, 8, 16, 32]  # probes 32, fails, keeps 16
 
 
 def test_a_limit_that_is_not_a_power_of_two_is_rounded_down():
-    assert find_batch_size(_fits_up_to(1024), limit=48) == 32
-    assert find_batch_size(_fits_up_to(1024), limit=1) == 1
+    assert find_batch_size(_fits_up_to(1024), limit=48, search=POWER) == 32
+    assert find_batch_size(_fits_up_to(1024), limit=1, search=POWER) == 1
 
 
 def test_a_minimum_keeps_the_search_off_the_sizes_below_it():
     ran: list[int] = []
-    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=2) == 16
+    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=2, search=POWER) == 16
     assert ran == [2, 4, 8, 16, 32], 'the smallest trial is the minimum, not one'
 
 
 def test_a_minimum_that_is_not_a_power_of_two_is_tried_as_named():
     ran: list[int] = []
-    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=3) == 16
+    assert find_batch_size(_fits_up_to(16, ran), limit=64, minimum=3, search=POWER) == 16
     assert ran == [3, 4, 8, 16, 32], 'never below the minimum, then back on powers of two'
 
 
 def test_a_minimum_that_fits_is_kept_when_the_next_power_of_two_does_not():
-    assert find_batch_size(_fits_up_to(6, []), limit=64, minimum=6) == 6
+    assert find_batch_size(_fits_up_to(6, []), limit=64, minimum=6, search=POWER) == 6
 
 
 def test_a_minimum_that_does_not_fit_reports_its_own_size():
@@ -62,30 +120,41 @@ def test_a_minimum_above_the_limit_still_gets_tried():
 
 def test_a_named_candidate_that_fits_is_used_as_named():
     ran: list[int] = []
-    assert find_batch_size(_fits_up_to(24, ran), limit=24, candidate=24) == 24
+    assert find_batch_size(_fits_up_to(24, ran), limit=24, candidate=24, search=POWER) == 24
     assert ran == [1, 2, 4, 8, 16, 24], 'tried only after the doubling reached its ceiling'
 
 
 def test_a_named_candidate_that_does_not_fit_leaves_the_power_of_two():
-    assert find_batch_size(_fits_up_to(16, []), limit=24, candidate=24) == 16
+    assert find_batch_size(_fits_up_to(16, []), limit=24, candidate=24, search=POWER) == 16
 
 
 def test_a_candidate_is_not_tried_when_memory_stopped_the_doubling_earlier():
     ran: list[int] = []
-    assert find_batch_size(_fits_up_to(4, ran), limit=24, candidate=24) == 4
+    assert find_batch_size(_fits_up_to(4, ran), limit=24, candidate=24, search=POWER) == 4
     assert 24 not in ran, 'if 16 does not fit, 24 cannot'
 
 
 def test_a_candidate_above_the_limit_is_ignored():
     ran: list[int] = []
-    assert find_batch_size(_fits_up_to(64, ran), limit=16, candidate=24) == 16
+    assert find_batch_size(_fits_up_to(64, ran), limit=16, candidate=24, search=POWER) == 16
     assert 24 not in ran
 
 
 def test_a_candidate_that_is_already_a_power_of_two_changes_nothing():
     ran: list[int] = []
-    assert find_batch_size(_fits_up_to(64, ran), limit=16, candidate=16) == 16
+    assert find_batch_size(_fits_up_to(64, ran), limit=16, candidate=16, search=POWER) == 16
     assert ran.count(16) == 1, 'the doubling already tried it'
+
+
+def test_a_search_that_does_not_exist_is_refused_before_anything_runs():
+    fits, calls = _recording(1024)
+    with pytest.raises(ValueError, match="unknown batch size search 'linear'"):
+        find_batch_size(fits, limit=64, search='linear')  # type: ignore[arg-type]
+    assert not calls
+
+
+def test_a_search_spelled_as_its_value_is_accepted():
+    assert find_batch_size(_fits_up_to(20), limit=64, search='power') == 16  # type: ignore[arg-type]
 
 
 def test_a_machine_that_cannot_take_one_sample_is_an_error():
@@ -97,11 +166,12 @@ def test_a_machine_that_cannot_take_one_sample_is_an_error():
 
 @pytest.mark.parametrize('capacity', range(1, 130))
 def test_the_result_is_always_the_largest_power_of_two_that_fits(capacity: int):
-    assert find_batch_size(_fits_up_to(capacity), limit=512) == smaller_pot(capacity)
+    assert find_batch_size(_fits_up_to(capacity), limit=512, search=POWER) == smaller_pot(capacity)
 
 
 def test_equal_hardware_yields_an_equal_recipe():
-    assert find_batch_size(_fits_up_to(37), limit=512) == find_batch_size(_fits_up_to(39), limit=512)
+    assert (find_batch_size(_fits_up_to(37), limit=512, search=POWER)
+            == find_batch_size(_fits_up_to(39), limit=512, search=POWER))
 
 
 def test_smaller_pot():
@@ -139,6 +209,21 @@ def test_a_batch_size_is_read_whatever_the_loop_spelled_it_as(value: object, exp
 def test_a_batch_size_that_is_not_a_number_is_an_error():
     with pytest.raises(ValueError):
         requested_batch_size({REQUESTED_BATCH_SIZE: 'lots'})
+
+
+@pytest.mark.parametrize('empty', [{}, {BATCH_SIZE_SEARCH: None}, {BATCH_SIZE_SEARCH: ''}])
+def test_an_unfilled_search_means_binsearch(empty: dict):
+    assert requested_batch_size_search(empty) == BatchSizeSearch.BINSEARCH
+
+
+@pytest.mark.parametrize('value', ['power', 'binsearch'])
+def test_a_search_is_read_by_its_name(value: str):
+    assert requested_batch_size_search({BATCH_SIZE_SEARCH: value}).value == value
+
+
+def test_a_search_that_does_not_exist_is_an_error():
+    with pytest.raises(ValueError, match="batch_size_search must be one of binsearch, power, got 'linear'"):
+        requested_batch_size_search({BATCH_SIZE_SEARCH: 'linear'})
 
 
 def test_the_dataset_limit_keeps_enough_steps_per_epoch():
