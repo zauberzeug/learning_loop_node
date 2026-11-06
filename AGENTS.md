@@ -212,8 +212,8 @@ uvx ruff check .
 A clean tree already reports several hundred ruff findings, so a clean run is not a reachable goal.
 Compare the count on the files you touched, before and after.
 
-`.github/workflows/pytest.yml` runs the suites (the `unit` job first, without secrets),
-`publish.yml` releases to PyPI on a tagged release.
+`.github/workflows/ci.yml` runs the suites on every push (the `unit` job first, without secrets);
+on a `v*` tag it builds and publishes to PyPI only after `all-green` passed.
 
 ## Working in this repository
 

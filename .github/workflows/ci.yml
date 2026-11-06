@@ -1,4 +1,4 @@
-name: Run Tests
+name: CI
 
 on: [push]
 
@@ -114,6 +114,40 @@ jobs:
           echo "unit: ${{ needs.unit.result }}, pytest: ${{ needs.pytest.result }}"
           [ "${{ needs.unit.result }}" = success ] || exit 1
           [ "${{ needs.pytest.result }}" = success ] || exit 1
+
+  build:
+    # a release tag is a push too, so it runs the suites first and only a green run is published
+    needs:
+      - all-green
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: set version
+        run: uv version "${GITHUB_REF_NAME}"
+      - name: build
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    # publishes exactly the files the build job produced
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: astral-sh/setup-uv@v3
+      - name: publish
+        run: uv publish --token "${{ secrets.PYPI_API_TOKEN }}" dist/*
 
   slack:
     needs:
