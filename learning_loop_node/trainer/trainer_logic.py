@@ -26,7 +26,6 @@ class TrainerLogic(TrainerLogicGeneric):
         self._detection_progress: Optional[float] = None
         self._executor: Optional[Executor] = None
         self._process_started: bool = False
-        self._stop_requested: bool = False
         self.start_training_task: Optional[Coroutine] = None
         self.inference_batch_size = self._environment_vars.inference_batch_size
 

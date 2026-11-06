@@ -33,7 +33,7 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
-  upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
+  upload model and its training results (`trainer/training_results.py`) → detect → upload detections → cleanup. `_perform_state` wraps each step: an
   ordinary exception records the error and rewinds to the previous state (retried after a growing
   wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
