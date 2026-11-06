@@ -19,10 +19,10 @@ from socketio import AsyncClient
 
 from ..data_classes import (
     AboutResponse,
+    BatchImageMetadata,
     Context,
     DetectorStatus,
     ImageMetadata,
-    ImageOverrides,
     ImagesMetadata,
     ModelInformation,
     ModelVersionResponse,
@@ -282,7 +282,7 @@ class DetectorNode(Node):
             try:
                 images_data = data['images']
                 images = [image_from_dict(image) for image in images_data]
-                overrides = [_image_overrides(image) for image in images_data]
+                image_metadata = [_batch_image_metadata(image) for image in images_data]
             except Exception:
                 self.log.exception('could not parse images from socketio')
                 return {'error': 'could not parse images from data'}
@@ -295,7 +295,7 @@ class DetectorNode(Node):
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
                     creation_date=data.get('creation_date', None),
-                    overrides=overrides,
+                    image_metadata=image_metadata,
                 )
                 return jsonable_encoder(asdict(det))
             except DetectorUnavailableError as e:
@@ -675,7 +675,7 @@ class DetectorNode(Node):
                                    source: Optional[str] = None,
                                    autoupload: str = 'filtered',
                                    creation_date: Optional[str] = None,
-                                   overrides: Sequence[ImageOverrides] | None = None) -> ImagesMetadata:
+                                   image_metadata: Sequence[BatchImageMetadata] | None = None) -> ImagesMetadata:
         """
         Processing function for the detector node when a batch inference is requested via SocketIO.
 
@@ -683,20 +683,20 @@ class DetectorNode(Node):
         cares about uploading to the loop and returns the detections as a list of ImageMetadata.
         Each image is a pixel array or JPEG bytes; JPEG bytes are decoded for the inference
         and stored as they are if the image is uploaded.
-        The values of the batch apply to every image, unless its entry in `overrides` sets its own.
+        The values of the batch apply to every image, unless its entry in `image_metadata` sets its own.
         Raises exception if no model is loaded.
         """
-        if overrides is None:
-            overrides = [ImageOverrides()] * len(images)
-        elif len(overrides) != len(images):
-            raise ValueError(f'got {len(overrides)} overrides for {len(images)} images')
+        if image_metadata is None:
+            image_metadata = [BatchImageMetadata()] * len(images)
+        elif len(image_metadata) != len(images):
+            raise ValueError(f'got {len(image_metadata)} image metadata for {len(images)} images')
         _unwrap_detector(self._detector)  # fails fast, before the decode
         arrays = await asyncio.gather(*(_pixel_array(image) for image in images))
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
             all_detections = await run.io_bound(detector.logic.batch_evaluate, arrays)
 
-        for detections, image, own in zip(all_detections.items, images, overrides):
+        for detections, image, own in zip(all_detections.items, images, image_metadata):
             detections.tags.extend([*tags, *own.tags])
             detections.source = own.source if own.source is not None else source
             detections.created = own.creation_date if own.creation_date is not None else creation_date
@@ -799,15 +799,15 @@ async def _pixel_array(image: ImageData) -> np.ndarray:
     return await run.io_bound(jpg_bytes_to_numpy_array, image)
 
 
-def _image_overrides(image_data: dict) -> ImageOverrides:
+def _batch_image_metadata(image_data: dict) -> BatchImageMetadata:
     """The values an image dict of a batch sets for itself; missing or `None` ones leave the batch's in place."""
     tags = image_data.get('tags') or []
     if not isinstance(tags, list):
         raise ValueError(f'tags of an image must be a list, got {type(tags).__name__}')
-    return ImageOverrides(camera_id=image_data.get('camera_id'),
-                          tags=tags,
-                          source=image_data.get('source'),
-                          creation_date=image_data.get('creation_date'))
+    return BatchImageMetadata(camera_id=image_data.get('camera_id'),
+                              tags=tags,
+                              source=image_data.get('source'),
+                              creation_date=image_data.get('creation_date'))
 
 
 def _unwrap_detector(state: '_DetectorState') -> _ActiveDetector:

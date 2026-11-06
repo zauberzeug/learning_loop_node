@@ -59,7 +59,7 @@ class ImagesMetadata():
 
 
 @dataclass(**KWONLY_SLOTS)
-class ImageOverrides:
+class BatchImageMetadata:
     """What a single image of a batch sets in place of, or in addition to, the values of the batch."""
     camera_id: str | None = field(default=None, metadata={
         'description': 'Camera the image was taken with; replaces the camera ID of the batch'})
