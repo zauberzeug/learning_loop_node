@@ -33,7 +33,7 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
-  upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
+  upload model and its training results (`trainer/training_results.py`) → detect → upload detections → cleanup. `_perform_state` wraps each step: an
   ordinary exception records the error and rewinds to the previous state (retried after a growing
   wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
@@ -41,9 +41,8 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. Every trainer
   declares the hyperparameters it accepts (`provided_hyperparameters`); `trainer/hyperparameters.py`
-  resolves the sent values when a training begins or resumes, with the defaults of the training's
-  model variant (`default_by_variant`), and a value that does not fit fails a new training rather
-  than refusing it. The loop's
+  resolves the sent values when a training begins or resumes, and a value that does not fit fails a
+  new training rather than refusing it. The loop's
   `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
   `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
   stops a running training by ending its training process, so the remaining states upload the
