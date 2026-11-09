@@ -6,6 +6,7 @@ import sys
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Coroutine, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
@@ -26,6 +27,7 @@ from ..helpers.misc import (
     delete_all_training_folders,
     is_valid_uuid4,
 )
+from . import training_results
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, HyperparameterMismatchError, NodeNeedsRestartError, TrainingRefusedError
 from .hyperparameters import resolve, warn_about_undeclared
@@ -57,6 +59,7 @@ class TrainerLogicGeneric(ABC):
         self.model_format: str = model_format
         self.errors = Errors()
         self._state_failures: Dict[str, int] = {}  # failed attempts in a row, by error key
+        self._stop_requested: bool = False  # set by a trainer that stopped its training process; not kept on restart
 
         self.training_task: Optional[asyncio.Task] = None
         self.shutdown_event: asyncio.Event = asyncio.Event()
@@ -416,7 +419,11 @@ class TrainerLogicGeneric(ABC):
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        """Downloads images to the images_folder and saves annotations to training.data.image_data."""
+        """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
+        A malformed `upload_examples` or `upload_logs` ends the training here, before it has run.
+        """
+        training_results.check_hyperparameters(self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
         downloader = TrainingsDownloader(self.node.data_exchanger)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
@@ -489,11 +496,16 @@ class TrainerLogicGeneric(ABC):
         self.errors.reset(error_key)
 
     async def _upload_model(self) -> None:
-        """Uploads the latest model to the Learning Loop.
+        """Uploads the latest model and then its training results to the Learning Loop.
+        The results never fail the state (see `training_results`).
         """
         new_model_uuid = await self._upload_model_return_new_model_uuid(self.training.context)
         logger.info('Successfully uploaded model and received new model id: %s', new_model_uuid)
         self.training.model_uuid_for_detecting = new_model_uuid
+        await training_results.upload_results(self.training, model_uuid=new_model_uuid, node_name=self.node.name,
+                                              node_uuid=self.node.uuid, get_results=self._get_training_results,
+                                              stop_requested=self._stop_requested,
+                                              data_exchanger=self.node.data_exchanger)
 
     async def _upload_model_return_new_model_uuid(self, context: Context) -> str:
         """Upload model files, usually pytorch model (.pt) hyp.yaml and the converted .wts file.
@@ -657,6 +669,14 @@ class TrainerLogicGeneric(ABC):
         If the function returns an empty dict, something went wrong and the model upload will be skipped.
         """
         raise NotImplementedError
+
+    def _get_training_results(self, training_folder: Path) -> dict[str, list[Path]]:
+        """Called when the model is uploaded. Returns the result files of the training by part, stored beside the model.
+        The parts are `core` (always uploaded) and `examples` and `logs` (uploaded only if `upload_examples` and
+        `upload_logs` are true); see `training_results`. Directories go in as a whole. Name only results, never the
+        dataset. Default: no results, and nothing is uploaded.
+        """
+        return {}
 
     def _get_model_metadata(self) -> dict[str, Any]:
         """Return the values the trainer determined for this model, to be merged into its model.json.

@@ -11,6 +11,18 @@ class ModelUploadFailedError(Exception):
     """
 
 
+class TrainingResultsUploadFailedError(Exception):
+    """Raised when the loop answered the upload of a part of a training's results with a client error other than 408.
+    The answer is final: sending the part again would get the same answer.
+    """
+
+
+class TrainingResultsNotAnsweredError(Exception):
+    """Raised when the loop gave up waiting for a part of a training's results (408) or answered with a server error;
+    the part may be sent again.
+    """
+
+
 class TrainingRefusedError(Exception):
     """Raised when a trainer cannot take on a training it was asked to begin; nothing was set up."""
 
