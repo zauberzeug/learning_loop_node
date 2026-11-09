@@ -225,6 +225,17 @@ Trainers fetch the images and anntoations from the Learning Loop to train new mo
 
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
+### Training results
+
+Together with its model, a trainer uploads the results of the training to the Learning Loop, e.g. the
+metrics per epoch, the evaluation curves and the confusion matrix. The trainer decides which files
+they are, grouped into the parts `core`, `examples` and `logs`; a trainer that names none uploads
+only its model. `core` is always uploaded, the examples and the raw training log only if the
+training's `upload_examples` and `upload_logs` hyperparameters are true (both default to false).
+The results are sent right after the model and never stop the training: results the Learning Loop
+does not store, e.g. beyond the 5 GiB it keeps per training, are logged and skipped, and a part
+that gets no answer or a server error is sent up to three times.
+
 ### Several trainers on one GPU
 
 Trainers that share a GPU (say, one per model architecture on the same machine) coordinate through
