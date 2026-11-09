@@ -787,9 +787,9 @@ def _capture_metadata(batch_data: dict, image_data: dict) -> CaptureMetadata:
     if not isinstance(image_tags, list):
         raise ValueError(f'tags of an image must be a list, got {type(image_tags).__name__}')
     return CaptureMetadata(camera_id=_own_or_batch('camera_id', image_data, batch_data),
-                              tags=[*batch_data.get('tags', []), *image_tags],
-                              source=_own_or_batch('source', image_data, batch_data),
-                              creation_date=_own_or_batch('creation_date', image_data, batch_data))
+                           tags=[*batch_data.get('tags', []), *image_tags],
+                           source=_own_or_batch('source', image_data, batch_data),
+                           creation_date=_own_or_batch('creation_date', image_data, batch_data))
 
 
 def _own_or_batch(key: str, image_data: dict, batch_data: dict) -> str | None:

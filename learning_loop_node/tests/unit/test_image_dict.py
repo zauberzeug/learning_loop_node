@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from ...data_classes import CaptureMetadata
+from ...detector.detector_node import _capture_metadata
 from ...helpers.misc import image_from_dict, numpy_image_from_dict
 
 
@@ -41,6 +43,33 @@ def test_a_jpeg_is_rotated_as_its_orientation_tag_says():
 def test_an_unknown_format_is_rejected():
     with pytest.raises(ValueError):
         numpy_image_from_dict({'format': 'png', 'bytes': b''})
+
+
+_BATCH = {'camera_id': 'batch_cam', 'tags': ['robot'], 'source': 'robot', 'creation_date': '2024-01-01T00:00:00'}
+
+
+def test_an_image_replaces_the_values_of_the_batch_and_adds_its_tags():
+    image_data = {'camera_id': 'cam_a', 'tags': ['cam_a'], 'source': 'robot/cam_a',
+                  'creation_date': '2024-02-02T00:00:00'}
+    assert _capture_metadata(_BATCH, image_data) == CaptureMetadata(
+        camera_id='cam_a', tags=['robot', 'cam_a'], source='robot/cam_a', creation_date='2024-02-02T00:00:00')
+
+
+@pytest.mark.parametrize('image_data', [{}, {'camera_id': None, 'tags': None, 'source': None, 'creation_date': None},
+                                        {'tags': []}])
+def test_what_an_image_does_not_set_comes_from_the_batch(image_data: dict):
+    assert _capture_metadata(_BATCH, image_data) == CaptureMetadata(
+        camera_id='batch_cam', tags=['robot'], source='robot', creation_date='2024-01-01T00:00:00')
+
+
+def test_what_neither_sets_stays_unset():
+    assert _capture_metadata({}, {}) == CaptureMetadata()
+
+
+@pytest.mark.parametrize('tags', ['cam_a', ('cam_a',), 7])
+def test_an_image_with_tags_that_are_no_list_is_rejected(tags: object):
+    with pytest.raises(ValueError):
+        _capture_metadata({}, {'tags': tags})
 
 
 def _jpeg_bytes(array: np.ndarray) -> bytes:
