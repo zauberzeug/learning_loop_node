@@ -37,11 +37,11 @@ def for_variant(declared: Sequence[Hyperparameter], variant: str) -> list[Hyperp
 def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> dict[str, Any]:
     """Coerce and check ``received`` against ``declared`` and fill in the declared defaults.
 
-    ``declared`` is trusted to have passed :func:`check_declaration` and to be :func:`for_variant` the training's model
-    variant. Names the trainer does not declare are kept
-    unchanged: old project configurations still carry them, and a resolved training carries the values its trainer
-    reported. An unset hyperparameter with a default of ``None`` is left out, so the trainer's own fallback applies.
-    Resolving twice gives the same result.
+    ``declared`` is trusted to have passed :func:`check_declaration` and to be the declaration :func:`for_variant`
+    returns for the training's model variant. Names the trainer does not declare are kept unchanged: old project
+    configurations still carry them, and a resolved training carries the values its trainer reported. An unset
+    hyperparameter with a default of ``None`` is left out, so the trainer's own fallback applies. Resolving twice gives
+    the same result.
 
     :raises CriticalError: If a value cannot be coerced to its type, is out of range or not one of its choices.
     """
