@@ -41,8 +41,9 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
   training or refuses it with an error, and a refused training has set nothing up. Every trainer
   declares the hyperparameters it accepts (`provided_hyperparameters`); `trainer/hyperparameters.py`
-  resolves the sent values when a training begins or resumes, and a value that does not fit fails a
-  new training rather than refusing it. The loop's
+  resolves the sent values when a training begins or resumes, with the defaults of the training's
+  model variant (`default_by_variant`), and a value that does not fit fails a new training rather
+  than refusing it. The loop's
   `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
   `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
   stops a running training by ending its training process, so the remaining states upload the

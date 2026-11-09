@@ -6,9 +6,10 @@ with, and that is what gets reported back to the loop.
 """
 
 import contextlib
+import dataclasses
 import logging
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from typing import Any, get_args
 
 from ..data_classes import Hyperparameter
@@ -26,10 +27,18 @@ BOOL_STRINGS = {'true': True, '1': True, 'yes': True, 'on': True,
                 'false': False, '0': False, 'no': False, 'off': False}
 
 
+def for_variant(declared: Sequence[Hyperparameter], variant: str) -> list[Hyperparameter]:
+    """The declaration as it applies to a training of ``variant``: each default replaced by the variant's own."""
+    return [dataclasses.replace(h, default=h.default_by_variant[variant])
+            if h.default_by_variant and variant in h.default_by_variant else h
+            for h in declared]
+
+
 def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> dict[str, Any]:
     """Coerce and check ``received`` against ``declared`` and fill in the declared defaults.
 
-    ``declared`` is trusted to have passed :func:`check_declaration`. Names the trainer does not declare are kept
+    ``declared`` is trusted to have passed :func:`check_declaration` and to be :func:`for_variant` the training's model
+    variant. Names the trainer does not declare are kept
     unchanged: old project configurations still carry them, and a resolved training carries the values its trainer
     reported. An unset hyperparameter with a default of ``None`` is left out, so the trainer's own fallback applies.
     Resolving twice gives the same result.
@@ -49,19 +58,27 @@ def resolve(declared: Sequence[Hyperparameter], received: Mapping[str, Any]) -> 
     return resolved
 
 
-def check_declaration(declared: Sequence[Hyperparameter]) -> None:
+def check_declaration(declared: Sequence[Hyperparameter], variants: Collection[str] | None = None) -> None:
     """Check that ``declared`` is consistent, so that :func:`resolve` can rely on it.
 
     A trainer's declaration does not change while it runs, so the node checks it once, when it is built. A default of
     ``None`` stands for "the trainer decides" and is not checked.
 
-    :raises ValueError: If a name is declared twice, a hyperparameter contradicts itself or its default does not fit.
+    :param variants: The names of the trainer's model variants, which ``default_by_variant`` may name; ``None`` leaves
+        its keys unchecked.
+    :raises ValueError: If a name is declared twice, a hyperparameter contradicts itself, a default does not fit or
+        ``default_by_variant`` names a variant the trainer does not provide.
     """
     names = [h.name for h in declared]
     if duplicates := sorted({name for name in names if names.count(name) > 1}):
         raise ValueError(f'the trainer declares these hyperparameters twice: {", ".join(duplicates)}')
     for hyperparameter in declared:
         _check_one_declaration(hyperparameter)
+        for variant, default in (hyperparameter.default_by_variant or {}).items():
+            if variants is not None and variant not in variants:
+                raise ValueError(f"the trainer declares hyperparameter '{hyperparameter.name}' with a default for "
+                                 f"the unknown model variant {variant!r}")
+            _check_one_declaration(dataclasses.replace(hyperparameter, default=default))
 
 
 def parse_pairs(text: str) -> list[tuple[str, str]]:

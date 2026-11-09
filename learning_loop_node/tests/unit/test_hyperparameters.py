@@ -8,12 +8,12 @@ import pytest
 from dacite import from_dict
 from fastapi.encoders import jsonable_encoder
 
-from ...data_classes import Hyperparameter, TrainingStatus
+from ...data_classes import Hyperparameter, PretrainedModel, TrainingStatus
 from ...enums import TrainerState
 from ...helpers.misc import ensure_socket_response
 from ...trainer.batch_size import REQUESTED_BATCH_SIZE
 from ...trainer.exceptions import CriticalError, HyperparameterMismatchError
-from ...trainer.hyperparameters import check_declaration, parse_pairs, resolve, warn_about_undeclared
+from ...trainer.hyperparameters import check_declaration, for_variant, parse_pairs, resolve, warn_about_undeclared
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 from ...trainer.trainer_node import TrainerNode
 from ...trainer.training_slot import AlwaysFreeSlot
@@ -21,6 +21,12 @@ from ...trainer.validation_set import COMPUTE_VALIDATION_SET
 from .test_training_slot import TRAINING_CONFIG, _Trainer, _with_node
 
 # pylint: disable=protected-access,redefined-outer-name
+
+BY_VARIANT = [
+    Hyperparameter(name='scale', type='float', default=0.5, minimum=0, maximum=0.9,
+                   default_by_variant={'large': 0.9}),
+    Hyperparameter(name='mixup', type='float', default=None, default_by_variant={'small': 0.0, 'large': 0.1}),
+]
 
 DECLARED = [
     Hyperparameter(name='epochs', type='int', default=100, minimum=1),
@@ -123,6 +129,33 @@ def test_a_default_of_none_is_left_to_the_trainer():
     assert resolve(declared, {'learning_rate': ''}) == {}
 
 
+def test_a_variant_takes_its_own_default_and_the_others_the_common_one():
+    assert resolve(for_variant(BY_VARIANT, 'large'), {}) == {'scale': 0.9, 'mixup': 0.1}
+    assert resolve(for_variant(BY_VARIANT, 'small'), {}) == {'scale': 0.5, 'mixup': 0.0}
+    assert resolve(for_variant(BY_VARIANT, 'tiny'), {}) == {'scale': 0.5}
+
+
+def test_a_sent_value_wins_over_the_variants_default():
+    assert resolve(for_variant(BY_VARIANT, 'large'), {'scale': '0.2'}) == {'scale': 0.2, 'mixup': 0.1}
+
+
+def test_for_variant_leaves_the_declaration_itself_unchanged():
+    for_variant(BY_VARIANT, 'large')
+    assert BY_VARIANT[0].default == 0.5
+
+
+def test_a_variants_default_that_does_not_fit_is_rejected():
+    declaration = Hyperparameter(name='h', type='float', default=0.5, maximum=0.9, default_by_variant={'large': 1.5})
+    with pytest.raises(ValueError, match="the trainer declares hyperparameter 'h' with a default that does not fit"):
+        check_declaration([declaration])
+
+
+def test_a_default_for_a_variant_the_trainer_does_not_provide_is_rejected():
+    check_declaration(BY_VARIANT, ['small', 'large'])
+    with pytest.raises(ValueError, match="'scale' with a default for the unknown model variant 'large'"):
+        check_declaration(BY_VARIANT, ['small'])
+
+
 def test_undeclared_names_are_kept():
     resolved = resolve(DECLARED, {'flip_rl': True, 'batch_size': 16})
     assert resolved['flip_rl'] is True
@@ -166,7 +199,7 @@ def test_only_names_neither_the_trainer_nor_the_library_knows_are_warned_about(c
 
 def test_the_declaration_survives_the_trip_to_the_loop():
     status = TrainingStatus(id='1', name='trainer', state='idle', uptime=0, errors={}, progress=None,
-                            hyperparameters=DECLARED)
+                            hyperparameters=[*DECLARED, *BY_VARIANT])
     assert from_dict(data_class=TrainingStatus, data=jsonable_encoder(asdict(status))) == status
 
 
@@ -237,6 +270,27 @@ async def test_a_resumed_training_that_does_not_fit_continues_with_its_saved_val
     assert 'learning_rate' in caplog.text
 
 
+async def test_begin_training_resolves_with_the_defaults_of_the_trainings_variant(data_folder: Path,
+                                                                                  started: list[TrainerLogicGeneric]):
+    trainer = _with_node(_VariantTrainer('mocked', training_slot=AlwaysFreeSlot()))
+    await trainer.begin_training('zauberzeug', 'demo', {**_config({}), 'model_variant': 'large'})
+    assert trainer.training.hyperparameters == {'scale': 0.9, 'mixup': 0.1}
+
+
+async def test_a_resumed_training_is_resolved_with_the_defaults_of_its_variant(data_folder: Path,
+                                                                               started: list[TrainerLogicGeneric]):
+    await _saved_by_an_older_trainer({}, model_variant='large')
+    trainer = _with_node(_VariantTrainer('mocked', training_slot=AlwaysFreeSlot()))
+    assert await trainer.try_continue_run_if_incomplete()
+    assert trainer.training.hyperparameters == {'scale': 0.9, 'mixup': 0.1}
+
+
+def test_a_trainer_node_is_not_built_around_a_default_for_a_variant_it_does_not_provide():
+    with pytest.raises(ValueError, match="unknown model variant 'large'"):
+        TrainerNode(name='trainer', trainer_logic=_VariantTrainer('mocked', training_slot=AlwaysFreeSlot(),
+                                                                  variants=['small']))
+
+
 def test_a_trainer_node_is_not_built_around_a_declaration_that_contradicts_itself():
     with pytest.raises(ValueError, match="hyperparameter 'epochs'"):
         TrainerNode(name='trainer', trainer_logic=_BrokenTrainer('mocked', training_slot=AlwaysFreeSlot()))
@@ -256,10 +310,25 @@ class _BrokenTrainer(_Trainer):
         return [Hyperparameter(name='epochs', type='int', default=0, minimum=1)]
 
 
-async def _saved_by_an_older_trainer(hyperparameters: dict[str, Any]) -> None:
+class _VariantTrainer(_Trainer):
+
+    def __init__(self, *args: Any, variants: list[str] | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._variants = ['small', 'large'] if variants is None else variants
+
+    @property
+    def provided_pretrained_models(self) -> list[PretrainedModel]:
+        return [PretrainedModel(name=name, label=name, description='') for name in self._variants]
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return BY_VARIANT
+
+
+async def _saved_by_an_older_trainer(hyperparameters: dict[str, Any], model_variant: str = 'small') -> None:
     """Leaves a training behind that was begun before its trainer declared hyperparameters."""
     trainer = _with_node(_Trainer('mocked', training_slot=AlwaysFreeSlot()))
-    await trainer.begin_training('zauberzeug', 'demo', _config(hyperparameters))
+    await trainer.begin_training('zauberzeug', 'demo', {**_config(hyperparameters), 'model_variant': model_variant})
     trainer.training.training_state = TrainerState.TrainingRunning
     trainer.last_training_io.save(trainer.training)
 
