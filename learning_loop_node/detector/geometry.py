@@ -16,20 +16,25 @@ def clip_box(
 ) -> tuple[int, int, int, int]:
     """Clip a top-left-anchored box to the image bounds.
 
+    Both corners are clamped into the image, so the returned origin always lies inside it (or on
+    its far edge) and a box wholly outside the image comes back with a size of 0 rather than at
+    its out-of-bounds position.
+
     :return: The clipped ``(x1, y1, width, height)``; the size is never negative.
     """
-    x2 = x1 + width
-    y2 = y1 + height
-
-    clipped_x1 = round(max(0.0, x1))
-    clipped_y1 = round(max(0.0, y1))
-    clipped_x2 = round(min(float(img_width), x2))
-    clipped_y2 = round(min(float(img_height), y2))
+    clipped_x1 = round(_clamp(x1, img_width))
+    clipped_y1 = round(_clamp(y1, img_height))
+    clipped_x2 = round(_clamp(x1 + width, img_width))
+    clipped_y2 = round(_clamp(y1 + height, img_height))
 
     clipped_width = max(clipped_x2 - clipped_x1, 0)
     clipped_height = max(clipped_y2 - clipped_y1, 0)
 
     return clipped_x1, clipped_y1, clipped_width, clipped_height
+
+
+def _clamp(value: float, upper: int) -> float:
+    return min(max(0.0, value), float(upper))
 
 
 def clip_point(x: float, y: float, img_width: int, img_height: int) -> tuple[float, float]:
