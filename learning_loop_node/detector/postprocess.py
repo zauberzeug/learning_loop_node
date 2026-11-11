@@ -169,10 +169,10 @@ def _append_predictions(
     im_height: int,
     im_width: int,
 ) -> None:
-    """Resolve each prediction's category and append it to ``target``, clipped to the image.
+    """
+    Resolve each prediction's category and append it to ``target``, clipped to the image.
 
-    A prediction is skipped when it is too small, and a box also when too little of it lies inside
-    the image: clipping a box that lies wholly outside leaves it with no size at all.
+    A prediction is skipped when it is too small, a box also when it is too small after clipping.
     """
     skipped_predictions = []
 
@@ -191,7 +191,6 @@ def _append_predictions(
                 img_height=im_height,
             )
             if clipped_w <= MIN_BOX_SIZE or clipped_h <= MIN_BOX_SIZE:
-                # what is left inside the image is a sliver, or nothing for a box wholly outside it
                 skipped_predictions.append((category.name, prediction))
                 continue
             target.box_detections.append(
