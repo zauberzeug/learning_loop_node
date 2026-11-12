@@ -85,6 +85,13 @@ selects on `Training.val_images()`, which falls back to the test images when the
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
 training when one of them is empty; a node that filters them further needs to check its own sets.
 
+`trainer/subsets.py` narrows a set to the subsets the loop restricted it to (`Training.subsets`,
+`{set: [{uuid, name}]}` from the training config): the downloader skips the images of a restricted set
+that are in none of its subsets, matched by uuid so a rename in the loop changes nothing, before
+`assign_validation_set` runs, so the accessors above already
+hand out the restricted sets and a computed validation set comes from the restricted train images.
+`_sync_training` reports the applied subsets; the loop drops them from a model whose trainer does not.
+
 `compute_validation_set` is a hyperparameter the library reads itself, like `max_batch_size`, so neither
 counts as undeclared; a trainer lists `COMPUTE_VALIDATION_SET_HYPERPARAMETER` among its own so the loop
 offers it as a switch.

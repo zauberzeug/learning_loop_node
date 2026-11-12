@@ -85,6 +85,8 @@ class Training():
     start_time: float = field(default_factory=time.time)
 
     base_model_uuid: Optional[str] = None  # model uuid to continue training (is loaded from loop)
+    # {set: [{'uuid': ..., 'name': ...}]} of the subsets the loop restricted the sets to
+    subsets: dict[str, list[dict[str, str]]] = field(default_factory=dict)
 
     # NOTE: these are set later after the model has been uploaded
     image_data: Optional[List[Dict]] = None
@@ -105,6 +107,11 @@ class Training():
             raise ValueError('training_number missing or not an int')
         if 'model_variant' not in data or not isinstance(data['model_variant'], str):
             raise ValueError('model_variant missing or not a str')
+        subsets = data.get('subsets') or {}
+        if not isinstance(subsets, dict) or not all(
+                key in ('train', 'val', 'test') and isinstance(entries, list) and all(_is_subset(e) for e in entries)
+                for key, entries in subsets.items()):
+            raise ValueError("subsets not a dict from the sets train, val and test to lists of {'uuid', 'name'}")
 
         training_uuid = str(uuid4())
 
@@ -118,6 +125,7 @@ class Training():
             hyperparameters=data['hyperparameters'],
             training_number=data['training_number'],
             base_model_uuid=data.get('base_model_uuid', None),
+            subsets=subsets,
             model_variant=data['model_variant'],
             training_state=TrainerState.Initialized.value
         )
@@ -150,6 +158,7 @@ class TrainingOut():
     test_image_count: Optional[int] = None
     hyperparameters: Optional[Dict[str, Any]] = None
     best_epoch: Optional[int] = None
+    subsets: dict[str, list[dict[str, str]]] | None = None  # the applied `Training.subsets`; the loop checks them
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -195,3 +204,7 @@ class TrainingError(Exception):
 
     def __str__(self) -> str:
         return f'TrainingError: {self.cause}'
+
+
+def _is_subset(entry: Any) -> bool:
+    return isinstance(entry, dict) and isinstance(entry.get('uuid'), str) and isinstance(entry.get('name'), str)
