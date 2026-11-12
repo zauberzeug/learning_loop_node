@@ -16,6 +16,8 @@ from contextlib import asynccontextmanager
 from multiprocessing.queues import Queue as MPQueue
 from typing import Any, ParamSpec, TypeVar
 
+from .exceptions import UnexpectedWorkerExitError
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
@@ -55,9 +57,15 @@ async def _iterator_cpu_bound_inner(
             try:
                 item = await asyncio.to_thread(state_queue.get, True, 0.5)
             except queue.Empty:
-                if not process.is_alive():
-                    break
-                continue
+                if process.is_alive():
+                    continue
+                # Completion may have arrived between the timeout and the exit check.
+                try:
+                    item = await asyncio.to_thread(state_queue.get_nowait)
+                except queue.Empty as e:
+                    raise UnexpectedWorkerExitError(
+                        f'{process.name} exited with code {process.exitcode} without sending IteratorDone'
+                    ) from e
             match item:
                 case IteratorDone():
                     break
