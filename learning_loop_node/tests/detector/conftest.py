@@ -168,7 +168,7 @@ class MockDetectorLogic(DetectorLogic):
         return self.image_metadata
 
     def batch_evaluate(self, images: list[np.ndarray]) -> ImagesMetadata:
-        raise NotImplementedError()
+        return ImagesMetadata(items=[ImageMetadata() for _ in images])
 
 
 @final

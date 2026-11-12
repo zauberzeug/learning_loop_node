@@ -96,6 +96,8 @@ The `batch_detect` endpoint receives a dictionary, with the same entries as the 
 
 - `images`: List of image data dictionaries, each with the same structure as the `image` entry in the `detect` endpoint
 
+The entries `camera_id`, `tags`, `source` and `creation_date` apply to every image of the batch. An image data dictionary may also carry its own: its `tags` are added to those of the batch, while its `camera_id`, `source` and `creation_date` replace those of the batch. This way a batch can hold images of several cameras, each filtered and uploaded as its own camera's.
+
 Sending a camera's JPEG as it is (`format: 'jpeg'`) saves the bandwidth of a raw pixel array and spares the detector a re-encode for the upload.
 
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
@@ -222,6 +224,17 @@ The outbox mode can also be queried via:
 Trainers fetch the images and anntoations from the Learning Loop to train new models.
 
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
+
+### Training results
+
+Together with its model, a trainer uploads the results of the training to the Learning Loop, e.g. the
+metrics per epoch, the evaluation curves and the confusion matrix. The trainer decides which files
+they are, grouped into the parts `core`, `examples` and `logs`; a trainer that names none uploads
+only its model. `core` is always uploaded, the examples and the raw training log only if the
+training's `upload_examples` and `upload_logs` hyperparameters are true (both default to false).
+The results are sent right after the model and never stop the training: results the Learning Loop
+does not store, e.g. beyond the 5 GiB it keeps per training, are logged and skipped, and a part
+that gets no answer or a server error is sent up to three times.
 
 ### Several trainers on one GPU
 
