@@ -86,8 +86,9 @@ splits through these accessors and never filters `image_data` on `set` itself. `
 training when one of them is empty; a node that filters them further needs to check its own sets.
 
 `trainer/subsets.py` narrows a set to the subsets the loop restricted it to (`Training.subsets`,
-`{set: [subset names]}` from the training config): the downloader skips the images of a restricted set
-that are in none of its subsets, before `assign_validation_set` runs, so the accessors above already
+`{set: [{uuid, name}]}` from the training config): the downloader skips the images of a restricted set
+that are in none of its subsets, matched by uuid so a rename in the loop changes nothing, before
+`assign_validation_set` runs, so the accessors above already
 hand out the restricted sets and a computed validation set comes from the restricted train images.
 `_sync_training` reports the applied subsets; the loop drops them from a model whose trainer does not.
 

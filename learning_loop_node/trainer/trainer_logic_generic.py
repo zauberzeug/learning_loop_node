@@ -32,6 +32,7 @@ from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, HyperparameterMismatchError, NodeNeedsRestartError, TrainingRefusedError
 from .hyperparameters import resolve, warn_about_undeclared
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
+from .subsets import subset_names
 from .training_slot import TrainingSlot, training_slot_from_env
 from .validation_set import assign_validation_set
 
@@ -432,12 +433,12 @@ class TrainerLogicGeneric(ABC):
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
-        for set_name, images in (('train', self.training.train_images()),
-                                 ('test', self.training.test_images()),
-                                 ('validation', self.training.val_images())):
+        names = subset_names(self.training.subsets)
+        for set_name, key, images in (('train', 'train', self.training.train_images()),
+                                      ('test', 'test', self.training.test_images()),
+                                      ('validation', 'val', self.training.val_images())):
             if not images:
-                names = self.training.subsets.get(set_name)
-                in_subsets = f' in the subsets {", ".join(map(repr, names))}' if names else ''
+                in_subsets = f' in the subsets {", ".join(map(repr, names[key]))}' if names.get(key) else ''
                 raise CriticalError(f'The training has no {set_name} images{in_subsets}')
 
     async def _download_model(self) -> None:

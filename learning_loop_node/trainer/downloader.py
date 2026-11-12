@@ -10,9 +10,9 @@ from .subsets import restrict_to_subsets
 class TrainingsDownloader():
 
     def __init__(self, data_exchanger: DataExchanger, data_query_params: Optional[str] = 'state=complete',
-                 subsets: Mapping[str, Collection[str]] | None = None):
+                 subsets: Mapping[str, Collection[Mapping[str, str]]] | None = None):
         """
-        :param subsets: `{set: [subset names]}` of the restricted sets.
+        :param subsets: `{set: [{uuid, name}]}` of the restricted sets.
         """
         self.data_query_params = data_query_params
         self.data_exchanger = data_exchanger

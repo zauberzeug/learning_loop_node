@@ -85,7 +85,8 @@ class Training():
     start_time: float = field(default_factory=time.time)
 
     base_model_uuid: Optional[str] = None  # model uuid to continue training (is loaded from loop)
-    subsets: dict[str, list[str]] = field(default_factory=dict)  # {set: [subset names]} for the restricted sets
+    # {set: [{'uuid': ..., 'name': ...}]} of the subsets the loop restricted the sets to
+    subsets: dict[str, list[dict[str, str]]] = field(default_factory=dict)
 
     # NOTE: these are set later after the model has been uploaded
     image_data: Optional[List[Dict]] = None
@@ -108,9 +109,9 @@ class Training():
             raise ValueError('model_variant missing or not a str')
         subsets = data.get('subsets') or {}
         if not isinstance(subsets, dict) or not all(
-                key in ('train', 'val', 'test') and isinstance(names, list) and all(isinstance(n, str) for n in names)
-                for key, names in subsets.items()):
-            raise ValueError('subsets not a dict from the sets train, val and test to lists of subset names')
+                key in ('train', 'val', 'test') and isinstance(entries, list) and all(_is_subset(e) for e in entries)
+                for key, entries in subsets.items()):
+            raise ValueError("subsets not a dict from the sets train, val and test to lists of {'uuid', 'name'}")
 
         training_uuid = str(uuid4())
 
@@ -157,7 +158,7 @@ class TrainingOut():
     test_image_count: Optional[int] = None
     hyperparameters: Optional[Dict[str, Any]] = None
     best_epoch: Optional[int] = None
-    subsets: dict[str, list[str]] | None = None  # the applied `Training.subsets`; the loop checks them
+    subsets: dict[str, list[dict[str, str]]] | None = None  # the applied `Training.subsets`; the loop checks them
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -203,3 +204,7 @@ class TrainingError(Exception):
 
     def __str__(self) -> str:
         return f'TrainingError: {self.cause}'
+
+
+def _is_subset(entry: Any) -> bool:
+    return isinstance(entry, dict) and isinstance(entry.get('uuid'), str) and isinstance(entry.get('name'), str)

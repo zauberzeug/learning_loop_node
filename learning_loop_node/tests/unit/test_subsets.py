@@ -13,7 +13,12 @@ from ...trainer.exceptions import CriticalError
 from ...trainer.subsets import restrict_to_subsets
 from ...trainer.trainer_logic_generic import TrainerLogicGeneric
 
-SUBSETS = {'train': ['winter'], 'test': ['hard']}
+
+def subset(name: str) -> dict[str, str]:
+    return {'uuid': f'uuid-{name}', 'name': name}
+
+
+SUBSETS = {'train': [subset('winter')], 'test': [subset('hard')]}
 
 
 def image(image_id: str, image_set: str, *subsets: str) -> dict:
@@ -35,7 +40,14 @@ def test_a_restricted_set_keeps_the_images_in_its_subset():
 
 
 def test_a_set_restricted_to_several_subsets_keeps_the_images_in_any_of_them():
-    assert ids(restrict_to_subsets(image_data(), {'train': ['winter', 'summer']})) == ['a', 'b', 'c', 'v', 't', 'u']
+    assert ids(restrict_to_subsets(image_data(), {'train': [subset('winter'), subset('summer')]})) == \
+        ['a', 'b', 'c', 'v', 't', 'u']
+
+
+def test_an_image_matches_its_subset_by_uuid_after_a_rename():
+    renamed = [{**image('a', 'train', 'winter'), 'subsets': [{'id': 'uuid-winter', 'name': 'winter 2026'}]}]
+
+    assert ids(restrict_to_subsets(renamed, {'train': [subset('winter')]})) == ['a']
 
 
 def test_without_subsets_all_images_stay():
@@ -43,7 +55,7 @@ def test_without_subsets_all_images_stay():
 
 
 def test_an_image_without_subsets_is_in_none():
-    assert not restrict_to_subsets([{'id': 'a', 'set': 'train'}], {'train': ['winter']})
+    assert not restrict_to_subsets([{'id': 'a', 'set': 'train'}], {'train': [subset('winter')]})
 
 
 def generate(tmp_path: Path, **config) -> Training:
@@ -59,7 +71,8 @@ def test_a_config_without_subsets_restricts_nothing(tmp_path: Path):
     assert generate(tmp_path).subsets == {}
 
 
-@pytest.mark.parametrize('subsets', [['winter'], {'prepare': ['winter']}, {'train': 'winter'}, {'train': [1]}])
+@pytest.mark.parametrize('subsets', [[subset('winter')], {'prepare': [subset('winter')]}, {'train': 'winter'},
+                                     {'train': ['winter']}, {'train': [{'uuid': 'uuid-winter'}]}])
 def test_malformed_subsets_are_rejected(tmp_path: Path, subsets):
     with pytest.raises(ValueError, match='subsets'):
         generate(tmp_path, subsets=subsets)
@@ -89,13 +102,13 @@ async def test_the_downloader_skips_the_images_outside_the_subsets(tmp_path: Pat
     assert skipped == 0
 
 
-def restricted_training(subsets: dict[str, list[str]]) -> Training:
+def restricted_training(subsets: dict[str, list[dict[str, str]]]) -> Training:
     return Training(id='t', context=Context(organization='o', project='p'), project_folder='', images_folder='',
                     training_folder='', categories=[], hyperparameters={}, training_number=1,
                     training_state='', model_variant='', subsets=subsets)
 
 
-async def prepare(images: list[dict], subsets: dict[str, list[str]]) -> MagicMock:
+async def prepare(images: list[dict], subsets: dict[str, list[dict[str, str]]]) -> MagicMock:
     """Prepare a training restricted to ``subsets`` whose download yields ``images``; return the downloader class."""
     trainer = SimpleNamespace(node=SimpleNamespace(data_exchanger=MagicMock()), training=restricted_training(subsets))
     downloader = MagicMock(download_training_data=AsyncMock(return_value=(images, 0)))
@@ -116,7 +129,7 @@ async def test_preparing_names_the_subset_without_images():
 
 
 @pytest.mark.parametrize('subsets', [SUBSETS, {}])
-async def test_syncing_reports_the_applied_subsets(subsets: dict[str, list[str]]):
+async def test_syncing_reports_the_applied_subsets(subsets: dict[str, list[dict[str, str]]]):
     training = restricted_training(subsets)
     training.image_data = [image('a', 'train', 'winter'), image('t', 'test', 'hard')]
     sio_client = SimpleNamespace(connected=True, call=AsyncMock(return_value={'success': True}))
