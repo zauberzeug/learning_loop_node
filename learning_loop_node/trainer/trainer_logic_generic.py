@@ -30,7 +30,7 @@ from ..helpers.misc import (
 from . import training_results
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, HyperparameterMismatchError, NodeNeedsRestartError, TrainingRefusedError
-from .hyperparameters import resolve, warn_about_undeclared
+from .hyperparameters import for_variant, resolve, warn_about_undeclared
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .training_slot import TrainingSlot, training_slot_from_env
 from .validation_set import assign_validation_set
@@ -244,7 +244,8 @@ class TrainerLogicGeneric(ABC):
         self._training = self.last_training_io.load()
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
         try:
-            self._training.hyperparameters = resolve(self.provided_hyperparameters, self._training.hyperparameters)
+            declared = for_variant(self.provided_hyperparameters, self._training.model_variant)
+            self._training.hyperparameters = resolve(declared, self._training.hyperparameters)
         except CriticalError as e:
             logger.warning('restored training does not fit the declared hyperparameters, continuing with the saved '
                            'values: %s', e)
@@ -276,14 +277,16 @@ class TrainerLogicGeneric(ABC):
     def _with_resolved_hyperparameters(self, training_config: dict) -> dict:
         """Returns ``training_config`` with its hyperparameters resolved against the declared ones.
 
-        A config without a hyperparameters dict is returned as it is, for ``Training.generate_training`` to reject.
+        A config without a hyperparameters dict or a model variant is returned as it is, for
+        ``Training.generate_training`` to reject.
 
         :raise HyperparameterMismatchError: if a hyperparameter does not fit its declaration.
         """
-        declared = self.provided_hyperparameters
         received = training_config.get('hyperparameters')
-        if not declared or not isinstance(received, dict):
+        variant = training_config.get('model_variant')
+        if not self.provided_hyperparameters or not isinstance(received, dict) or not isinstance(variant, str):
             return training_config
+        declared = for_variant(self.provided_hyperparameters, variant)
         try:
             resolved = resolve(declared, received)
         except CriticalError as e:

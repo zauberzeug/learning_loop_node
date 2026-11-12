@@ -21,7 +21,8 @@ class TrainerNode(Node):
 
     def __init__(self, name: str, trainer_logic: TrainerLogicGeneric, uuid: Optional[str] = None, use_backdoor_controls: bool = False):
         """:raise ValueError: if the trainer declares hyperparameters that contradict themselves."""
-        check_declaration(trainer_logic.provided_hyperparameters)
+        variants = [model.name for model in trainer_logic.provided_pretrained_models]
+        check_declaration(trainer_logic.provided_hyperparameters, variants)
         super().__init__(name, uuid=uuid, node_type='trainer')
         trainer_logic._node = self
         self.trainer_logic = trainer_logic
