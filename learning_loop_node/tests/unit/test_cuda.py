@@ -17,11 +17,12 @@ from typing import Any
 
 import pytest
 
-from ...trainer.batch_size import MAX_BATCH_SIZE, NO_GPU_BATCH_SIZE
+from ...trainer.batch_size import MAX_BATCH_SIZE, NO_GPU_BATCH_SIZE, BatchSizeSearch
 from ...trainer.exceptions import InsufficientMemoryError
 
 MODULE = 'learning_loop_node.trainer.cuda'
 GIB = 1024**3
+POWER = BatchSizeSearch.POWER
 
 
 # --- the budget and the cap ---
@@ -110,13 +111,6 @@ def test_the_margin_is_a_share_of_the_whole_card_when_nothing_is_budgeted(load):
 
 # --- probing ---
 
-def test_the_probe_keeps_the_largest_size_that_fits(load):
-    cuda, fake = load()
-    ran: list[int] = []
-    assert cuda.probe_batch_size(_fits_up_to(16, fake, ran), limit=64) == 16
-    assert ran == [1, 2, 4, 8, 16, 32], 'only powers of two, and one trial past the answer'
-
-
 def test_the_probe_reserves_the_margin_before_it_measures(load):
     cuda, fake = load(total_gb=8.0)
 
@@ -126,10 +120,25 @@ def test_the_probe_reserves_the_margin_before_it_measures(load):
     cuda.probe_batch_size(run_batch, limit=2)
 
 
-def test_the_limit_is_rounded_down_to_a_power_of_two(load):
+def test_the_probe_bisects_by_default(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=12) == 8
+    assert cuda.probe_batch_size(_fits_up_to(20, fake, ran), limit=64) == 20
+    assert ran == [1, 2, 4, 8, 16, 32, 24, 20, 22, 21]
+
+
+def test_the_log_names_the_search(load, caplog):
+    cuda, fake = load()
+    with caplog.at_level(logging.INFO):
+        cuda.probe_batch_size(_fits_up_to(20, fake, []), limit=64, probe='probe')
+    assert 'probe: selected batch size 20 (upper bound 64, binsearch mode)' in caplog.text
+
+
+def test_a_limit_that_is_not_a_power_of_two_is_reached(load):
+    cuda, fake = load()
+    ran: list[int] = []
+    assert cuda.probe_batch_size(_fits_up_to(1024, fake, ran), limit=12) == 12
+    assert ran == [1, 2, 4, 8, 12]
 
 
 def test_an_unset_limit_stops_at_the_maximum(load):
@@ -164,21 +173,21 @@ def test_a_requested_size_that_does_not_fit_backs_off_instead_of_running_out_of_
 def test_a_requested_size_is_tried_even_when_it_is_not_a_power_of_two(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_built(_fits_up_to(24, fake, ran)), max_batch_size=24) == 24
+    assert cuda.measure_batch_size(_built(_fits_up_to(24, fake, ran)), max_batch_size=24, search=POWER) == 24
     assert _sizes(ran) == [1, 2, 4, 8, 16, 24], 'the named size only after the search reached its ceiling'
 
 
 def test_a_named_size_that_does_not_fit_falls_back_to_the_power_of_two_below_it(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_built(_fits_up_to(16, fake, ran)), max_batch_size=24) == 16
+    assert cuda.measure_batch_size(_built(_fits_up_to(16, fake, ran)), max_batch_size=24, search=POWER) == 16
     assert ran[-1] == 24, 'it was tried, and it did not fit'
 
 
 def test_a_named_size_is_not_tried_when_memory_stopped_the_search_earlier(load):
     cuda, fake = load()
     ran: list[int] = []
-    assert cuda.measure_batch_size(_built(_fits_up_to(4, fake, ran)), max_batch_size=24) == 4
+    assert cuda.measure_batch_size(_built(_fits_up_to(4, fake, ran)), max_batch_size=24, search=POWER) == 4
     assert 24 not in ran, 'if 16 does not fit, 24 cannot'
 
 
@@ -203,13 +212,23 @@ def test_the_settled_size_is_only_returned(load):
 def test_the_dataset_bounds_the_search_as_well(load):
     cuda, fake = load()
     # 80 samples leave room for 10 per step, rounded down to a power of two
-    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), sample_count=80) == 8
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), sample_count=80, search=POWER) == 8
+
+
+def test_a_binsearch_uses_the_dataset_bound_as_it_is(load):
+    cuda, fake = load()
+    assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), sample_count=80) == 10
+
+
+def test_a_requested_size_that_does_not_fit_is_bisected_below(load):
+    cuda, fake = load()
+    assert cuda.measure_batch_size(_built(_fits_up_to(20, fake, [])), max_batch_size=24) == 20
 
 
 def test_a_dataset_bound_is_never_used_as_a_candidate(load):
     cuda, fake = load()
     ran: list[int] = []
-    cuda.measure_batch_size(_built(_fits_up_to(1024, fake, ran)), sample_count=80)
+    cuda.measure_batch_size(_built(_fits_up_to(1024, fake, ran)), sample_count=80, search=POWER)
     assert 10 not in ran, 'samples // 8 is a heuristic, not a size anyone asked for'
 
 
@@ -225,7 +244,7 @@ def test_the_tighter_of_the_request_and_the_dataset_wins(load):
     assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), max_batch_size=4,
                                    sample_count=8000) == 4
     assert cuda.measure_batch_size(_built(_fits_up_to(1024, fake, [])), max_batch_size=512,
-                                   sample_count=80) == 8
+                                   sample_count=80) == 10
 
 
 def test_memory_still_decides_below_both_bounds(load):
@@ -418,7 +437,7 @@ def test_a_detection_pass_runs_once_per_size(load):
     cuda, fake = load()
     ran: list[int] = []
     cuda.probe_batch_size(_fits_up_to(2, fake, ran), limit=4)
-    assert ran == [1, 2, 4]
+    assert ran == [1, 2, 4, 3]
 
 
 # --- cleaning up after a trial that did not fit ---
@@ -428,7 +447,7 @@ def test_the_out_of_memory_hook_runs_after_every_failed_trial(load):
     ran: list[int] = []
     step = _Step(_fits_up_to(4, fake, ran))
     cuda.measure_batch_size(lambda: step, max_batch_size=32)
-    assert step.dropped == [8], 'once, after the single trial that went over'
+    assert step.dropped == [8, 6, 5], 'once after each trial that went over'
 
 
 def test_the_out_of_memory_hook_does_not_run_for_a_bug(load):
