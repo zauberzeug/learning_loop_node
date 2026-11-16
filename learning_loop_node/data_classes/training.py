@@ -32,6 +32,8 @@ class Hyperparameter:
     Plain data only, so it reaches the loop as it is. ``minimum`` and ``maximum`` apply to ``int`` and ``float``,
     ``choices`` to ``str``. A ``pairs`` value is text of the form ``"key:value,..."``, which ``parse_pairs`` reads.
     ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
+    ``default_by_variant`` holds the defaults of the model variants, named as in ``provided_pretrained_models``, whose
+    default differs from ``default``.
     Whether a value can be changed when a training is started is the project's choice, not the trainer's.
     """
     name: str
@@ -42,6 +44,7 @@ class Hyperparameter:
     choices: list[str] | None = None
     notes: str = ''
     expert: bool = False
+    default_by_variant: dict[str, Any] | None = None
 
 
 @dataclass(**KWONLY_SLOTS)
