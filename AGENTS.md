@@ -142,6 +142,11 @@ the library keeps working where nothing trains. Its unit test installs a stand-i
 `torch`, which covers the arithmetic, the guards and the search; whether the cap holds, and what
 a real step costs, can only be seen on a card.
 
+`trainer/dataloader.py` decides how many dataloader workers a training runs. A trainer opts in
+with `node_parser(dataloader_workers=True)` (`--dataloader-workers` / `DATALOADER_WORKERS`,
+defaulting to what the CPUs available to the container allow) and passes the value on to its
+loaders, and to a script it spawns, as it does the VRAM limit.
+
 `helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
 configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
 *and* an environment variable from one declaration — `--conf-threshold` reads
