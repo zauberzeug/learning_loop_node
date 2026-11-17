@@ -7,6 +7,7 @@ from learning_loop_node.data_classes import Context, Training
 from learning_loop_node.enums import TrainerState
 from learning_loop_node.globals import GLOBALS
 from learning_loop_node.trainer.executor import Executor
+from learning_loop_node.trainer.hyperparameters import resolve
 
 from ..mock_trainer_logic import MockTrainerLogic
 
@@ -52,3 +53,11 @@ async def test_get_new_model():
     mock_trainer._training.image_data = []
     model = mock_trainer._get_new_best_training_state()
     assert model is not None
+
+
+def test_the_declared_hyperparameters_accept_a_flip_configured_as_a_probability():
+    declared = MockTrainerLogic(model_format='mocked').provided_hyperparameters
+    resolved = resolve(declared, {'resolution': 832, 'fliplr': 0.5, 'flipud': 0.5})
+    assert resolved['resolution'] == 832
+    assert resolved['fliplr'] is True
+    assert resolved['flipud'] is True

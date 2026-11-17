@@ -10,9 +10,20 @@ def test_box_is_clipped_to_the_image_bounds():
     assert clip_box(x1=80, y1=80, width=40, height=40, img_width=100, img_height=100) == (80, 80, 20, 20)
 
 
-def test_box_fully_outside_the_image_collapses_to_zero_size():
-    # the corner is clamped at the lower bound only; the zero size is what marks the box empty
-    assert clip_box(x1=200, y1=200, width=10, height=10, img_width=100, img_height=100) == (200, 200, 0, 0)
+def test_box_wholly_below_the_image_collapses_onto_its_bottom_edge():
+    assert clip_box(x1=100, y1=793, width=50, height=20, img_width=1024, img_height=768) == (100, 768, 50, 0)
+
+
+def test_box_wholly_right_of_the_image_collapses_onto_its_right_edge():
+    assert clip_box(x1=1030, y1=100, width=50, height=20, img_width=1024, img_height=768) == (1024, 100, 0, 20)
+
+
+def test_box_wholly_below_and_right_of_the_image_collapses_onto_its_corner():
+    assert clip_box(x1=200, y1=200, width=10, height=10, img_width=100, img_height=100) == (100, 100, 0, 0)
+
+
+def test_box_wholly_above_and_left_of_the_image_collapses_onto_its_origin():
+    assert clip_box(x1=-50, y1=-40, width=20, height=20, img_width=100, img_height=100) == (0, 0, 0, 0)
 
 
 def test_box_corners_are_rounded():

@@ -33,15 +33,23 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 
 - **Trainer** — `TrainerLogicGeneric._training_loop` is a state machine over `TrainerState`
   (`enums/trainer.py`): download data → download base model → train → sync confusion matrix →
-  upload model → detect → upload detections → cleanup. `_perform_state` wraps each step: an
-  ordinary exception records the error and rewinds to the previous state (retried on the next
-  cycle), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
+  upload model and its training results (`trainer/training_results.py`) → detect → upload detections → cleanup. `_perform_state` wraps each step: an
+  ordinary exception records the error and rewinds to the previous state (retried after a growing
+  wait), a `CriticalError` jumps to `ReadyForCleanup`. Every transition is persisted through
   `LastTrainingIO`, so `try_continue_run_if_incomplete` resumes an interrupted training after a
   restart. The loop starts a training via the `begin_training` sio event, whose acknowledgement is
   a `SocketResponse` (`ensure_socket_response` wraps every handler): the trainer confirms the
-  training or refuses it with an error, and a refused training has set nothing up. A concrete trainer
-  implements `_train`, `_do_detections`, `_get_new_best_training_state`, `_on_metrics_published`,
-  `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
+  training or refuses it with an error, and a refused training has set nothing up. Every trainer
+  declares the hyperparameters it accepts (`provided_hyperparameters`); `trainer/hyperparameters.py`
+  resolves the sent values when a training begins or resumes, and a value that does not fit fails a
+  new training rather than refusing it. The loop's
+  `stop_training` (`stop`) acts only in `TrainingRunning` and does nothing in any other state;
+  `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
+  stops a running training by ending its training process, so the remaining states upload the
+  model; a training process that fails after a stop is not retried but winds down with the model
+  it has. Before that process has started, and in a trainer without one, a stop aborts. A
+  concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
+  `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use
   the GPU when several trainers share one (`TRAINING_SLOT_LOCK`, an `flock` on a mounted file):
   `begin_training` takes it before setting anything up and refuses the training if a sibling holds
@@ -75,6 +83,16 @@ training picks `power` through the `batch_size_search` hyperparameter (`BATCH_SI
 through `requested_batch_size_search`); Lightning's own margin on the binsearch result is left out,
 because the probe already reserves `SAFETY_MARGIN`. `macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
+
+`trainer/validation_set.py` decides which images a training selects its models on. A node always
+selects on `Training.val_images()`, which falls back to the test images when the training has no
+`val` images, and reads `Training.test_images()` only for the counts it reports. A node reads its
+splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
+training when one of them is empty; a node that filters them further needs to check its own sets.
+
+`compute_validation_set` is a hyperparameter the library reads itself, like `max_batch_size`, so neither
+counts as undeclared; a trainer lists `COMPUTE_VALIDATION_SET_HYPERPARAMETER` among its own so the loop
+offers it as a switch.
 
 `trainer/cuda.py` is the one exception to that framework independence, and holds everything
 about a batch-size probe that torch has to answer. `limit_cuda_memory` turns a `--vram-limit-gb`
@@ -125,22 +143,15 @@ A trainer that probes opts into the budget flag with `node_parser(vram_limit=Tru
 spawns declares the same flag with `add_vram_limit_argument`, and the node passes the value on
 explicitly; that script calls `limit_cuda_memory` itself.
 
-`trainer/dataloader.py` decides how many dataloader workers a training runs, so the nodes stop
-hardcoding their own. A trainer opts in with `node_parser(dataloader_workers=True)`, which adds
-`--dataloader-workers` / `DATALOADER_WORKERS`, defaulting to `default_dataloader_workers`: the CPUs
-this process may run on (`available_cpus` — its affinity, capped by a cgroup v2 quota such as
-`docker run --cpus`; `os.cpu_count()` would report the host's CPUs inside a container) minus
-`RESERVED_CPUS` (8) for the training process, the node and other services, at least
-`MIN_DATALOADER_WORKERS` (8) and at most `MAX_DATALOADER_WORKERS` (16). The floor never takes more
-than `TRAINING_PROCESS_CPUS` (2) from the training process, so a machine with fewer than ten CPUs
-gets fewer than eight workers, and one with two CPUs or fewer loads in the training process
-(`0`). The node passes the parsed value to its own loaders, and to a script it spawns, as it does
-the VRAM limit.
-
 It imports torch, the package does **not** declare it, and only a trainer imports the module — so
 the library keeps working where nothing trains. Its unit test installs a stand-in under the name
 `torch`, which covers the arithmetic, the guards and the search; whether the cap holds, and what
 a real step costs, can only be seen on a card.
+
+`trainer/dataloader.py` decides how many dataloader workers a training runs. A trainer opts in
+with `node_parser(dataloader_workers=True)` (`--dataloader-workers` / `DATALOADER_WORKERS`,
+defaulting to what the CPUs available to the container allow) and passes the value on to its
+loaders, and to a script it spawns, as it does the VRAM limit.
 
 `helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
 configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag
@@ -157,6 +168,10 @@ every node repository had grown its own drifting copy, which is why they live he
 containers: `to_image_metadata` builds what a **detector** node reports, `to_detections` what a
 **trainer**'s auto-detection pass reports. Both go through one routine, so the two paths cannot
 drift apart again.
+
+A detector filters at `model_info.conf_threshold`. `_build_and_swap_detector` hands the factory
+the node's `conf_threshold` there when one is set (`--conf-threshold`, declared by
+`node_parser(conf_threshold=True)`);
 
 All node state lives under `GLOBALS.data_folder` (`DATA_FOLDER`, default `/data`): `uuids.json`
 (the node uuid is derived from its name and reused across restarts), `models/` plus the
@@ -191,9 +206,13 @@ python -m pytest learning_loop_node/tests/trainer -v -k <test_name>      # one t
 ```
 
 An autouse fixture repoints `GLOBALS.data_folder` at `/tmp/learning_loop_lib_data` and wipes it
-around every test, so tests never touch `/data`. The `general` suite generates and deletes a real
-`zauberzeug/pytest_nodelib_general` project on the loop; the detector suite starts the node in a
-forked uvicorn process on `GLOBALS.detector_port`.
+around every test, so tests never touch `/data`. The suites that talk to the loop generate and
+delete their own projects there (`general` per test, `detector` and `trainer` once per session
+through `test_helper.suite_project`); the detector suite starts the node in a forked uvicorn
+process on `GLOBALS.detector_port`. A suite that creates a project on the loop declares its bare
+name in `test_helper.py` and builds the real name with `test_helper.project_name`, so every CI job
+gets its own copy and the cleanup step can sweep it. Other repositories sweep their own test
+projects by calling `.github/workflows/cleanup-test-projects.yml` with their bare names.
 
 There is no `.pre-commit-config.yaml` here and no ruff in the project environment. Lint with:
 

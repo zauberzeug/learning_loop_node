@@ -6,7 +6,8 @@ import os
 import shutil
 import subprocess
 import sys
-from dataclasses import asdict, dataclass
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, Union
 
@@ -18,6 +19,7 @@ from socketio import AsyncClient
 
 from ..data_classes import (
     AboutResponse,
+    CaptureMetadata,
     Context,
     DetectorStatus,
     ImageMetadata,
@@ -30,7 +32,7 @@ from ..data_exchanger import DataExchanger, DownloadError
 from ..enums import OperationMode, VersionMode
 from ..globals import GLOBALS
 from ..helpers import background_tasks, environment_reader, run
-from ..helpers.misc import numpy_image_from_dict
+from ..helpers.misc import ImageData, image_from_dict, jpg_bytes_to_numpy_array
 from ..node import Node
 from .categories import category_by_name
 from .detector_logic import DetectorLogic, DetectorLogicFactory
@@ -49,9 +51,11 @@ from .rest import upload as rest_upload
 class DetectorNode(Node):
 
     def __init__(self, name: str, detector_factory: DetectorLogicFactory,
-                 uuid: Optional[str] = None, use_backdoor_controls: bool = False) -> None:
+                 uuid: Optional[str] = None, use_backdoor_controls: bool = False,
+                 conf_threshold: Optional[float] = None) -> None:
         super().__init__(name, uuid=uuid, node_type='detector', needs_login=False, needs_sio=False)
         self._detector_factory = detector_factory
+        self._conf_threshold = conf_threshold
         self.node_version: Optional[str] = os.environ.get('NODE_VERSION')
         self._detector: _DetectorState = _Initializing()
         self._exclusive_model_build: bool = os.environ.get('EXCLUSIVE_MODEL_BUILD', '0').lower() in ('1', 'true')
@@ -230,9 +234,10 @@ class DetectorNode(Node):
 
             The data dict has the following schema:
             - image: The image data as dictionary:
-              - bytes: bytes of the ndarray
-              - dtype: data type of the ndarray
-              - shape: shape of the ndarray
+              - format: 'raw' (default) or 'jpeg' (optional)
+              - bytes: bytes of the ndarray, or the JPEG-encoded image for format 'jpeg'
+              - dtype: data type of the ndarray (raw only)
+              - shape: shape of the ndarray (raw only)
             - camera_id: Optional camera ID
             - tags: Optional list of tags
             - source: Optional source string
@@ -240,7 +245,7 @@ class DetectorNode(Node):
             - creation_date: Optional creation date in isoformat string
             """
             try:
-                image = numpy_image_from_dict(data['image'])
+                image = image_from_dict(data['image'])
             except Exception:
                 self.log.exception('could not parse image from socketio')
                 return {'error': 'could not parse image from data'}
@@ -252,7 +257,7 @@ class DetectorNode(Node):
                     tags=data.get('tags', []),
                     source=data.get('source', None),
                     autoupload=data.get('autoupload', 'filtered'),
-                    creation_date=data.get('creation_date', None)
+                    creation_date=data.get('creation_date', None),
                 )
                 return jsonable_encoder(asdict(det))
             except DetectorUnavailableError as e:
@@ -268,10 +273,16 @@ class DetectorNode(Node):
 
             Data dict follows the schema of the detect endpoint,
             but 'images' is a list of image dicts.
+            Each image dict may also carry its own:
+            - camera_id: replaces the camera_id of the batch
+            - tags: added to the tags of the batch
+            - source: replaces the source of the batch
+            - creation_date: replaces the creation_date of the batch
             """
             try:
                 images_data = data['images']
-                images = [numpy_image_from_dict(image) for image in images_data]
+                images = [image_from_dict(image) for image in images_data]
+                capture_metadata = [_capture_metadata(data, image) for image in images_data]
             except Exception:
                 self.log.exception('could not parse images from socketio')
                 return {'error': 'could not parse images from data'}
@@ -279,11 +290,8 @@ class DetectorNode(Node):
             try:
                 det = await self.get_batch_detections(
                     images=images,
-                    tags=data.get('tags', []),
-                    camera_id=data.get('camera_id', None),
-                    source=data.get('source', None),
+                    capture_metadata=capture_metadata,
                     autoupload=data.get('autoupload', 'filtered'),
-                    creation_date=data.get('creation_date', None)
                 )
                 return jsonable_encoder(asdict(det))
             except DetectorUnavailableError as e:
@@ -336,9 +344,11 @@ class DetectorNode(Node):
 
             The data dict must contain:
             - image: The image data as dictionary with the following keys:
-                - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
-                - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
-                - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+                - format: 'raw' (default) or 'jpeg' (optional)
+                - bytes: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`),
+                  or the JPEG-encoded image for format 'jpeg'
+                - dtype: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.) (raw only)
+                - shape: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`) (raw only)
             - metadata: The metadata for the image (optional). Besides detections and annotations it
               may carry `tags`, `source`, `created` and `state`. A `state` of e.g. "trash" makes the
               loop file the image into that state instead of its default one.
@@ -362,7 +372,7 @@ class DetectorNode(Node):
                 image_metadata = ImageMetadata()
 
             try:
-                image = numpy_image_from_dict(data['image'])
+                image = image_from_dict(data['image'])
             except Exception:
                 self.log.exception('could not parse image from socketio')
                 return {'error': 'could not parse image from data'}
@@ -543,6 +553,10 @@ class DetectorNode(Node):
         if model_info is None:
             logging.warning('No model.json found in %s', model_dir)
             raise Exception('model.json not found')
+        if self._conf_threshold is not None:
+            model_info = replace(model_info, conf_threshold=self._conf_threshold)
+        self.log.info('Set confidence threshold for model %s to %s%s', model_info.version,
+                      model_info.conf_threshold, ' (set on the node)' if self._conf_threshold is not None else '')
 
         if self._exclusive_model_build and isinstance(self._detector, _ActiveDetector):
             async with self.detection_lock:
@@ -607,7 +621,7 @@ class DetectorNode(Node):
             self.log.error('could not reload app')
 
     async def get_detections(self,
-                             image: np.ndarray,
+                             image: ImageData,
                              tags: List[str],
                              *,
                              camera_id: Optional[str] = None,
@@ -620,81 +634,81 @@ class DetectorNode(Node):
         Used when an image is received via REST or SocketIO.
         This function infers the detections from the image,
         cares about uploading to the loop and returns the detections as ImageMetadata object.
+        The image is a pixel array or JPEG bytes; JPEG bytes are decoded for the inference
+        and stored as they are if the image is uploaded.
         Raises exception if no model is loaded.
         """
+        _unwrap_detector(self._detector)  # fails fast, before the decode
+        array = await _pixel_array(image)
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
-            metadata = await run.io_bound(detector.logic.evaluate, image)
+            detections = await run.io_bound(detector.logic.evaluate, array)
 
-        metadata.tags.extend(tags)
-        metadata.source = source
-        metadata.created = creation_date
-
-        fix_shape_detections(metadata)
-        n_bo, n_cl = len(metadata.box_detections), len(metadata.classification_detections)
-        n_po, n_se = len(metadata.point_detections), len(metadata.segmentation_detections)
-        self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
-
-        if autoupload == 'filtered':
-            background_tasks.create(self.relevance_filter.may_upload_detections(metadata, camera_id, image))
-        elif autoupload == 'all':
-            background_tasks.create(self.outbox.save(image, metadata))
-        elif autoupload == 'disabled':
-            pass
-        else:
-            self.log.error('unknown autoupload value %s', autoupload)
-        return metadata
+        capture = CaptureMetadata(camera_id=camera_id, tags=tags, source=source, creation_date=creation_date)
+        self._finish_detection(detections, image, capture, autoupload)
+        return detections
 
     async def get_batch_detections(self,
-                                   images: List[np.ndarray],
-                                   tags: List[str],
+                                   images: Sequence[ImageData],
+                                   capture_metadata: Sequence[CaptureMetadata],
                                    *,
-                                   camera_id: Optional[str] = None,
-                                   source: Optional[str] = None,
-                                   autoupload: str = 'filtered',
-                                   creation_date: Optional[str] = None) -> ImagesMetadata:
+                                   autoupload: str = 'filtered') -> ImagesMetadata:
         """
         Processing function for the detector node when a batch inference is requested via SocketIO.
 
         This function infers the detections from all images,
         cares about uploading to the loop and returns the detections as a list of ImageMetadata.
+        Each image is a pixel array or JPEG bytes; JPEG bytes are decoded for the inference
+        and stored as they are if the image is uploaded.
+        `capture_metadata` holds the camera, tags, source and creation date of each image.
         Raises exception if no model is loaded.
         """
+        if len(capture_metadata) != len(images):
+            raise ValueError(f'got {len(capture_metadata)} capture metadata for {len(images)} images')
+        _unwrap_detector(self._detector)  # fails fast, before the decode
+        arrays = await asyncio.gather(*(_pixel_array(image) for image in images))
         async with self.detection_lock:
             detector = _unwrap_detector(self._detector)
-            all_detections = await run.io_bound(detector.logic.batch_evaluate, images)
+            all_detections = await run.io_bound(detector.logic.batch_evaluate, arrays)
 
-        for metadata in all_detections.items:
-            metadata.tags.extend(tags)
-            metadata.source = source
-            metadata.created = creation_date
-
-        for detections, image in zip(all_detections.items, images):
-            fix_shape_detections(detections)
-            n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
-            n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
-            self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
-
-            if autoupload == 'filtered':
-                background_tasks.create(self.relevance_filter.may_upload_detections(detections, camera_id, image))
-            elif autoupload == 'all':
-                background_tasks.create(self.outbox.save(image, detections))
-            elif autoupload == 'disabled':
-                pass
-            else:
-                self.log.error('unknown autoupload value %s', autoupload)
+        for detections, image, capture in zip(all_detections.items, images, capture_metadata):
+            self._finish_detection(detections, image, capture, autoupload)
         return all_detections
+
+    def _finish_detection(self,
+                          detections: ImageMetadata,
+                          image: ImageData,
+                          capture: CaptureMetadata,
+                          autoupload: str) -> None:
+        detections.tags.extend(capture.tags)
+        detections.source = capture.source
+        detections.created = capture.creation_date
+
+        fix_shape_detections(detections)
+        n_bo, n_cl = len(detections.box_detections), len(detections.classification_detections)
+        n_po, n_se = len(detections.point_detections), len(detections.segmentation_detections)
+        self.log.debug('Detected: %d boxes, %d points, %d segs, %d classes', n_bo, n_po, n_se, n_cl)
+
+        if autoupload == 'filtered':
+            background_tasks.create(
+                self.relevance_filter.may_upload_detections(detections, capture.camera_id, image))
+        elif autoupload == 'all':
+            background_tasks.create(self.outbox.save(image, detections))
+        elif autoupload == 'disabled':
+            pass
+        else:
+            self.log.error('unknown autoupload value %s', autoupload)
 
     async def upload_images(
             self, *,
-            images: List[np.ndarray],
+            images: Sequence[ImageData],
             images_metadata: Optional[ImagesMetadata] = None,
             upload_priority: bool = False
     ) -> None:
         """Save images to the outbox using an asyncio executor.
         Used by SIO and REST upload endpoints.
 
-        :param images: List of images to upload
+        :param images: List of images to upload, pixel arrays or JPEG bytes
         :param images_metadata: Optional metadata for all images
         :param upload_priority: Whether to upload the images with priority
         :raises ValueError: If the number of images and number of metadata items do not match
@@ -758,6 +772,30 @@ _DetectorState = Union[_Initializing, _Updating, _ActiveDetector]
 
 class DetectorUnavailableError(Exception):
     pass
+
+
+async def _pixel_array(image: ImageData) -> np.ndarray:
+    """The pixels of an image; JPEG bytes are decoded in a thread, as that takes a while for a camera image."""
+    if isinstance(image, np.ndarray):
+        return image
+    return await run.io_bound(jpg_bytes_to_numpy_array, image)
+
+
+def _capture_metadata(batch_data: dict, image_data: dict) -> CaptureMetadata:
+    """The values of one image dict of a batch: its own where it sets them, the batch's otherwise, and both tags."""
+    image_tags = image_data.get('tags') or []
+    if not isinstance(image_tags, list):
+        raise ValueError(f'tags of an image must be a list, got {type(image_tags).__name__}')
+    return CaptureMetadata(camera_id=_own_or_batch('camera_id', image_data, batch_data),
+                           tags=[*batch_data.get('tags', []), *image_tags],
+                           source=_own_or_batch('source', image_data, batch_data),
+                           creation_date=_own_or_batch('creation_date', image_data, batch_data))
+
+
+def _own_or_batch(key: str, image_data: dict, batch_data: dict) -> str | None:
+    """`None` counts as not set, so an image cannot clear a value of the batch."""
+    own = image_data.get(key)
+    return own if own is not None else batch_data.get(key)
 
 
 def _unwrap_detector(state: '_DetectorState') -> _ActiveDetector:

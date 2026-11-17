@@ -28,6 +28,7 @@ You can configure connection to our Learning Loop by specifying the following en
 | MIN_UNCERTAIN_THRESHOLD  | -            | smallest confidence (float) at which auto-upload will happen | Detector (opt.)           | 0.3          |
 | MAX_UNCERTAIN_THRESHOLD  | -            | largest confidence (float) at which auto-upload will happen  | Detector (opt.)           | 0.6          |
 | MAX_OUTBOX_SIZE          | -            | max. number of non-priority images queued for upload         | Detector (opt.)           | 1000         |
+| CONF_THRESHOLD           | -            | minimum confidence of a detection, overriding the model's (`--conf-threshold`, detectors built with `node_parser(conf_threshold=True)`) | Detector (opt.) | model's, 0.2 |
 | EXCLUSIVE_MODEL_BUILD    | -            | Reject detections during update to save VRAM (set to 1)      | Detector (opt.)           | 0            |
 | INFERENCE_BATCH_SIZE     | -            | Batch size of trainer when calculating detections            | Trainer (opt.)            | 10           |
 | VRAM_LIMIT_GB            | -            | GPU memory (GB) a training may use; the batch size is probed against it (`--vram-limit-gb`, trainers built with `node_parser(vram_limit=True)`) | Trainer (opt.) | 0 (whole card) |
@@ -82,9 +83,10 @@ Example usage:
 To use the **SocketIO** inference EPs, the caller needs to connect to the detector node's SocketIO server and emit the `detect` or `batch_detect` event with the image data and image metadata. The `detect` endpoint receives a dictionary, with the following entries:
 
 - `image`: The image data as dictionary with the following keys:
-  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
-  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
-  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+  - `format`: `raw` (default) or `jpeg`
+  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`), or the JPEG-encoded image for format `jpeg`
+  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.) (raw only)
+  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`) (raw only)
 - `camera_id`: optional camera identifier (string) used to improve the autoupload filtering
 - `tags`: optional list of tags to add to the image in the learning loop
 - `source`: optional source string
@@ -94,6 +96,10 @@ To use the **SocketIO** inference EPs, the caller needs to connect to the detect
 The `batch_detect` endpoint receives a dictionary, with the same entries as the `detect` endpoint, except that the `image` entry is replaced by:
 
 - `images`: List of image data dictionaries, each with the same structure as the `image` entry in the `detect` endpoint
+
+The entries `camera_id`, `tags`, `source` and `creation_date` apply to every image of the batch. An image data dictionary may also carry its own: its `tags` are added to those of the batch, while its `camera_id`, `source` and `creation_date` replace those of the batch. This way a batch can hold images of several cameras, each filtered and uploaded as its own camera's.
+
+Sending a camera's JPEG as it is (`format: 'jpeg'`) saves the bandwidth of a raw pixel array and spares the detector a re-encode for the upload.
 
 Example code can be found [in the rosys implementation](https://github.com/zauberzeug/rosys/blob/main/rosys/vision/detector_hardware.py).
 
@@ -112,9 +118,10 @@ Example:
 The detector also has a **SocketIO** upload endpoint that can be used to upload images and detections to the learning loop. The function receives a dictionary, with the following entries:
 
 - `image`: the image data as dictionary with the following keys:
-  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`)
-  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.)
-  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`)
+  - `format`: `raw` (default) or `jpeg`
+  - `bytes`: bytes of the ndarray (retrieved via `ndarray.tobytes(order='C')`), or the JPEG-encoded image for format `jpeg`
+  - `dtype`: data type of the ndarray as string (e.g. `uint8`, `float32`, etc.) (raw only)
+  - `shape`: shape of the ndarray as tuple of ints (e.g. `(480, 640, 3)`) (raw only)
 - `metadata`: a dictionary representing the image metadata. If metadata contains detections and/or annotations, UUIDs for the classes are automatically determined based on the category names. Metadata should follow the schema of the `ImageMetadata` data class.
 - `upload_priority`: Optional boolean flag to prioritize the upload (defaults to False)
 
@@ -219,6 +226,17 @@ Trainers fetch the images and anntoations from the Learning Loop to train new mo
 
 - if the command line tool "jpeginfo" is installed, the downloader will drop corrupted images automatically
 
+### Training results
+
+Together with its model, a trainer uploads the results of the training to the Learning Loop, e.g. the
+metrics per epoch, the evaluation curves and the confusion matrix. The trainer decides which files
+they are, grouped into the parts `core`, `examples` and `logs`; a trainer that names none uploads
+only its model. `core` is always uploaded, the examples and the raw training log only if the
+training's `upload_examples` and `upload_logs` hyperparameters are true (both default to false).
+The results are sent right after the model and never stop the training: results the Learning Loop
+does not store, e.g. beyond the 5 GiB it keeps per training, are logged and skipped, and a part
+that gets no answer or a server error is sent up to three times.
+
 ### Several trainers on one GPU
 
 Trainers that share a GPU (say, one per model architecture on the same machine) coordinate through
@@ -313,3 +331,4 @@ After a short time the converted model should be available as well.
 - Nodes add properties to `model.json`, which contains all the information which are needed by subsequent nodes. These are typically the properties:
   - `resolution`: resolution in which the model expects images (as `int`, since the resolution is mostly square - later, `resolution_x`` resolution_y` would also be conceivable or `resolutions` to give a list of possible resolutions)
   - `categories`: list of categories with name, id, (later also type), in the order in which they are used by the model -- this is neccessary to be robust about renamings
+  - `conf_threshold` (optional): the minimum confidence the trainer chose for this model's detections; a detector filters at it unless its `CONF_THRESHOLD` is set, and at 0.2 for a model without one

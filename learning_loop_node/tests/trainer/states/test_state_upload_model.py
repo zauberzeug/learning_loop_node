@@ -5,8 +5,11 @@ from pytest_mock import MockerFixture
 from ....data_classes import Context
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
+from ...test_helper import TRAINER_PROJECT, project_name
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
+
+PROJECT = project_name(TRAINER_PROJECT)
 
 # pylint: disable=protected-access
 
@@ -51,6 +54,27 @@ async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic)
     assert trainer.node.last_training_io.exists() is False
 
 
+async def test_stop_during_upload_lets_it_finish(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
+    trainer = test_initialized_trainer
+
+    async def slow_upload(*_):
+        await asyncio.sleep(0.5)
+        return 'new_model_id'
+    mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_get_uuid', side_effect=slow_upload)
+
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
+    trainer._init_from_last_training()
+
+    trainer._begin_training_task()
+
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
+    await trainer.stop()
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploaded, timeout=5, interval=0.001)
+
+    assert trainer_has_upload_model_error(trainer) is False
+    assert trainer.training.model_uuid_for_detecting == 'new_model_id'
+
+
 async def test_bad_server_response_content(test_initialized_trainer: TestingTrainerLogic):
     """Set the training state to confusion_matrix_synced and try to upload the model.
     This should fail because the server response is not a valid model id.
@@ -81,7 +105,7 @@ async def test_mock_loop_response_example(mocker: MockerFixture, test_initialize
     trainer._init_from_last_training()
 
     # pylint: disable=protected-access
-    await trainer._upload_model_return_new_model_uuid(Context(organization='zauberzeug', project='demo'))
+    await trainer._upload_model_return_new_model_uuid(Context(organization='zauberzeug', project=PROJECT))
 
 
 def mock_upload_model_for_training(mocker, return_value):

@@ -10,12 +10,12 @@ import sys
 from dataclasses import asdict
 from glob import glob
 from time import perf_counter
-from typing import Any, Coroutine, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Coroutine, Dict, List, Literal, Optional, Tuple, TypeVar, Union, get_args
 from uuid import UUID, uuid4
 
 import numpy as np
 import pynvml
-from PIL import Image
+from PIL import Image, ImageOps
 
 from ..data_classes.general import Context
 from ..data_classes.socket_response import SocketResponse
@@ -220,18 +220,33 @@ def create_training_folder(project_folder: str, trainings_id: str) -> str:
     return training_folder
 
 
+ImageData = Union[np.ndarray, bytes]
+"""An image as it was received: either a pixel array or a JPEG-encoded image."""
+
+ImageFormat = Literal['raw', 'jpeg']
+"""How the `bytes` of an image dict are encoded: a pixel array in C order described by `dtype` and `shape`, or a JPEG."""
+
+
 def jpg_bytes_to_numpy_array(jpg_bytes: bytes) -> np.ndarray:
-    """Convert jpg bytes to numpy array."""
-    image = Image.open(io.BytesIO(jpg_bytes))
+    """Decode image bytes into a pixel array, rotated as the EXIF orientation tag says."""
+    image = ImageOps.exif_transpose(Image.open(io.BytesIO(jpg_bytes)))
     return np.array(image)
 
 
 def numpy_array_to_jpg_bytes(image_array: np.ndarray) -> bytes:
-    """Convert jpg bytes to numpy array."""
+    """Encode a pixel array as JPEG."""
     buffer = io.BytesIO()
     Image.fromarray(image_array).save(buffer, format="JPEG")
     jpg_bytes = buffer.getvalue()
     return jpg_bytes
+
+
+def image_format_of(image_data: Dict) -> ImageFormat:
+    """The format an image dict declares, 'raw' if it declares none."""
+    image_format = image_data.get('format', 'raw')
+    if image_format not in get_args(ImageFormat):
+        raise ValueError(f'unknown image format: {image_format}')
+    return image_format
 
 
 def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
@@ -239,12 +254,22 @@ def numpy_image_from_dict(image_data: Dict) -> np.ndarray:
     Convert image dict to numpy array.
 
     The image_data dict should have the following keys:
-    - bytes: bytes of the image in C order (row-major)
-    - dtype: data type of the pixel values
-    - shape: shape of the image (height, width, channels)
+    - format: 'raw' (default) or 'jpeg' (optional)
+    - bytes: bytes of the image in C order (row-major), or the JPEG-encoded image for format 'jpeg'
+    - dtype: data type of the pixel values (raw only)
+    - shape: shape of the image (height, width, channels) (raw only)
     """
+    if image_format_of(image_data) == 'jpeg':
+        return jpg_bytes_to_numpy_array(image_data['bytes'])
 
     image_bytes = image_data['bytes']
     image_dtype = image_data['dtype']
     image_shape = image_data['shape']
     return np.frombuffer(image_bytes, dtype=image_dtype).reshape(image_shape, order='C')
+
+
+def image_from_dict(image_data: Dict) -> ImageData:
+    """The image of an image dict as received: the JPEG bytes for format 'jpeg', the pixel array otherwise."""
+    if image_format_of(image_data) == 'jpeg':
+        return image_data['bytes']
+    return numpy_image_from_dict(image_data)

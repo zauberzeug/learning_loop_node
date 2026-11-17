@@ -12,9 +12,16 @@ from typing import Any, Dict, List, Optional
 import aiofiles  # type: ignore
 
 from .data_classes import Context
-from .helpers.misc import create_resource_paths, create_task, is_valid_image
+from .helpers.misc import create_resource_paths, create_task, is_valid_image, is_valid_uuid4
 from .loop_communication import LoopCommunicator
-from .trainer.exceptions import CriticalError
+from .trainer.exceptions import (
+    CriticalError,
+    ModelUploadFailedError,
+    TrainingResultsNotAnsweredError,
+    TrainingResultsUploadFailedError,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class DownloadError(Exception):
@@ -171,20 +178,58 @@ class DataExchanger():
         logging.info('Downloaded model %s(%s) to %s.', model_uuid, model_format, target_folder)
         return created_files
 
-    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str:
+    async def upload_model_get_uuid(self, context: Context, files: List[str], training_number: Optional[int], mformat: str) -> str | None:
         """Used by the trainers. Function returns the new model uuid to use for detection.
+        A loop that already stores the model in this format answers 409 and should name the model's uuid there.
 
-        :return: The new model uuid.
-        :raise CriticalError: If the upload does not return status code 200.
+        :return: The new model uuid, or None if the loop already stores the model in this format but names no valid uuid.
+        :raise CriticalError: If the loop rejects the upload with a client error (other than 408 and 429).
+        :raise ModelUploadFailedError: If the loop could not store the model, e.g. on a server error.
         """
-        response = await self.loop_communicator.put(f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file', files=files)
-        if response.status_code != 200:
-            logging.error('Could not upload model for training %s, format %s: %s',
-                          training_number, mformat, response.text)
-            raise CriticalError(
-                f'Could not upload model for training {training_number}, format {mformat}: {response.text}')
+        path = f'/{context.organization}/projects/{context.project}/trainings/{training_number}/models/latest/{mformat}/file'
+        response = await self.loop_communicator.put(path, files=files)
+        if response.status_code == HTTPStatus.CONFLICT:
+            try:
+                stored_model_id = response.json()['detail']['id']
+            except (ValueError, KeyError, TypeError):  # older loops name no id
+                stored_model_id = None
+            if not is_valid_uuid4(stored_model_id):
+                logger.warning('The loop already stores the model of training %s in format %s, but names no id',
+                               training_number, mformat)
+                return None
+            logger.info('The loop already stores model %s of training %s in format %s',
+                        stored_model_id, training_number, mformat)
+            return stored_model_id
+        if response.status_code != HTTPStatus.OK:
+            logger.error('Could not upload model for training %s, format %s: %s %s',
+                         training_number, mformat, response.status_code, response.text)
+            error = CriticalError if _rejects_upload(response.status_code) else ModelUploadFailedError
+            raise error(
+                f'Could not upload model for training {training_number}, format {mformat}: {response.status_code} {response.text}')
 
         uploaded_model = response.json()
-        logging.info('Uploaded model for training %s, format %s. Response is: %s',
-                     training_number, mformat, uploaded_model)
+        logger.info('Uploaded model for training %s, format %s. Response is: %s',
+                    training_number, mformat, uploaded_model)
         return uploaded_model['id']
+
+    async def upload_training_results(self, context: Context, training_number: int, part: str, zip_path: str) -> None:
+        """Store one part of a training's results beside its latest model; a part sent again replaces the stored one.
+
+        :raise TrainingResultsUploadFailedError: If the loop answered with a client error other than 408.
+        :raise TrainingResultsNotAnsweredError: If the loop answered 408 or a server error.
+        """
+        path = (f'/{context.organization}/projects/{context.project}/trainings/{training_number}'
+                f'/training_results/{part}')
+        response = await self.loop_communicator.put(path, files=[zip_path], timeout=60*10)
+        if response.status_code == HTTPStatus.REQUEST_TIMEOUT or response.status_code >= 500:
+            raise TrainingResultsNotAnsweredError(f'The loop did not answer the upload of the {part} results of '
+                                                  f'training {training_number}: {response.status_code} {response.text}')
+        if response.status_code != HTTPStatus.OK:
+            raise TrainingResultsUploadFailedError(f'The loop did not store the {part} results of training '
+                                                   f'{training_number}: {response.status_code} {response.text}')
+        logger.info('Uploaded the %s results of training %s', part, training_number)
+
+
+def _rejects_upload(status_code: int) -> bool:
+    """A client error other than 408 and 429 answers the same however often the upload is sent."""
+    return 400 <= status_code < 500 and status_code not in (HTTPStatus.REQUEST_TIMEOUT, HTTPStatus.TOO_MANY_REQUESTS)

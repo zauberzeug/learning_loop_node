@@ -1,0 +1,65 @@
+name: Clean up test projects
+
+# Lets another repository sweep its test projects on the loop with this library's cleanup_test_projects.
+# Call it from a job that runs after the tests, also when they fail or are cancelled:
+#
+#   cleanup:
+#     needs: pytest
+#     if: always()
+#     permissions:
+#       contents: read
+#       actions: read
+#     uses: zauberzeug/learning_loop_node/.github/workflows/cleanup-test-projects.yml@main
+#     with:
+#       projects: pytest_my_project
+#     secrets: inherit
+#
+# The caller names its projects `<bare name>_<run id>_<run attempt>`, optionally followed by `_<job index>`.
+
+on:
+  workflow_call:
+    inputs:
+      projects:
+        description: space-separated bare names of the projects to sweep
+        required: true
+        type: string
+      ref:
+        description: learning_loop_node ref to run the sweep from
+        required: false
+        default: main
+        type: string
+    secrets:
+      LOOP_HOST:
+        required: true
+      LEARNING_LOOP_ADMIN_PASSWORD:
+        required: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read # cleanup_test_projects looks up runs
+    env:
+      LOOP_HOST: ${{ secrets.LOOP_HOST }}
+      LOOP_USERNAME: admin
+      LOOP_PASSWORD: ${{ secrets.LEARNING_LOOP_ADMIN_PASSWORD }}
+      # the github context is the caller's, so runs are looked up in the calling repository
+      GITHUB_TOKEN: ${{ github.token }}
+      # the caller's run is still in progress here, so its own projects need the suffix to be swept
+      LOOP_TEST_PROJECT_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: zauberzeug/learning_loop_node
+          ref: ${{ inputs.ref }}
+      - uses: astral-sh/setup-uv@v3
+      - name: install dependencies
+        # the sweep imports test_helper, which needs pytest
+        run: uv sync --extra dev --locked
+      - name: clean up test projects
+        env:
+          PROJECTS: ${{ inputs.projects }}
+        # unquoted on purpose: one argument per name
+        run: uv run --no-sync python -m learning_loop_node.tests.cleanup_test_projects $PROJECTS

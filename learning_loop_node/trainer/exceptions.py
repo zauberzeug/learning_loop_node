@@ -5,8 +5,33 @@ class CriticalError(Exception):
     """
 
 
+class ModelUploadFailedError(Exception):
+    """Raised when the loop could not store an uploaded model, e.g. because it answered with a server error.
+    Unlike a CriticalError it keeps the training, so the upload is tried again later.
+    """
+
+
+class TrainingResultsUploadFailedError(Exception):
+    """Raised when the loop answered the upload of a part of a training's results with a client error other than 408.
+    The answer is final: sending the part again would get the same answer.
+    """
+
+
+class TrainingResultsNotAnsweredError(Exception):
+    """Raised when the loop gave up waiting for a part of a training's results (408) or answered with a server error;
+    the part may be sent again.
+    """
+
+
 class TrainingRefusedError(Exception):
     """Raised when a trainer cannot take on a training it was asked to begin; nothing was set up."""
+
+
+class HyperparameterMismatchError(Exception):
+    """Raised when a training's hyperparameters do not fit the trainer's declaration; nothing was set up.
+
+    Unlike a refusal, the training would fail on any trainer of the same declaration.
+    """
 
 
 class TrainingSlotTakenError(TrainingRefusedError):

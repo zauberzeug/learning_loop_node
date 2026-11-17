@@ -56,3 +56,16 @@ class ImageMetadata():
 @dataclass(**KWONLY_SLOTS)
 class ImagesMetadata():
     items: List[ImageMetadata] = field(default_factory=list, metadata={'description': 'List of image metadata'})
+
+
+@dataclass(**KWONLY_SLOTS)
+class CaptureMetadata:
+    """Where an image comes from and how it is tagged."""
+    camera_id: str | None = field(default=None, metadata={
+        'description': 'Camera the image was taken with; selects the history of the relevance filter'})
+    tags: list[str] = field(default_factory=list, metadata={
+        'description': 'Tags of the image'})
+    source: str | None = field(default=None, metadata={
+        'description': 'Source of the image'})
+    creation_date: str | None = field(default=None, metadata={
+        'description': 'Creation date of the image'})

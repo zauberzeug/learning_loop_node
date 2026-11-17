@@ -2,7 +2,7 @@ import asyncio
 import time
 from typing import Dict, List, Optional
 
-from ...data_classes import Context, Detections, ModelInformation, PretrainedModel, TrainingStateData
+from ...data_classes import Context, Detections, Hyperparameter, ModelInformation, PretrainedModel, TrainingStateData
 from ...trainer.trainer_logic import TrainerLogic
 
 
@@ -28,6 +28,10 @@ class TestingTrainerLogic(TrainerLogic):
         return [PretrainedModel(name='small', label='Small', description='a small model'),
                 PretrainedModel(name='medium', label='Medium', description='a medium model'),
                 PretrainedModel(name='large', label='Large', description='a large model')]
+
+    @property
+    def provided_hyperparameters(self) -> list[Hyperparameter]:
+        return []
 
     # pylint: disable=unused-argument
     async def _start_training_from_base_model(self) -> None:

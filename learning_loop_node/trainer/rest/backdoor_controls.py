@@ -38,8 +38,7 @@ async def reset(request: Request):
     trainer_node: 'TrainerNode' = request.app
     async with trainer_node.repeat_loop_lock:
 
-        await trainer_node.trainer_logic.stop()  # NOTE first stop may only kill running training process
-        await trainer_node.trainer_logic.stop()
+        await trainer_node.trainer_logic.abort()
         trainer_node.last_training_io.delete()
         trainer_node.status.reset_all_errors()
 

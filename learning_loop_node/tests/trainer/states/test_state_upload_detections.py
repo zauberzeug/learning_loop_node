@@ -7,9 +7,11 @@ from ....data_classes import BoxDetection, Context, Detections
 from ....enums import TrainerState
 from ....loop_communication import LoopCommunicator
 from ....trainer.trainer_logic import TrainerLogic
-from ...test_helper import get_dummy_detections
+from ...test_helper import TRAINER_PROJECT, get_dummy_detections, project_name
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
+
+PROJECT = project_name(TRAINER_PROJECT)
 
 # pylint: disable=protected-access
 
@@ -20,7 +22,7 @@ def trainer_has_upload_detections_error(trainer: TrainerLogic):
 
 async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: int = 1, file_index: int = 0):
     loop_communicator = LoopCommunicator()
-    response = await loop_communicator.get('/zauberzeug/projects/demo/data')
+    response = await loop_communicator.get(f'/zauberzeug/projects/{PROJECT}/data')
     await loop_communicator.shutdown()
 
     assert response.status_code == 200, response

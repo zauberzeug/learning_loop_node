@@ -10,7 +10,10 @@ import pytest
 from ...data_classes import Context
 from ...globals import GLOBALS
 from ...trainer.trainer_node import TrainerNode
+from ..test_helper import TRAINER_PROJECT, project_name, suite_project
 from .testing_trainer_logic import TestingTrainerLogic
+
+PROJECT = project_name(TRAINER_PROJECT)
 
 # pylint: disable=protected-access
 
@@ -21,17 +24,24 @@ log_to_stderr(logging.INFO)
 icecream.install()
 
 
+@pytest.fixture(autouse=True, scope='session')
+def suite_loop_project():
+    """The suite's own project on the loop, generated once per session."""
+    with suite_project(PROJECT):
+        yield
+
+
 @pytest.fixture()
 async def test_initialized_trainer_node():
     os.environ['LOOP_ORGANIZATION'] = 'zauberzeug'
-    os.environ['LOOP_PROJECT'] = 'demo'
+    os.environ['LOOP_PROJECT'] = PROJECT
 
     trainer = TestingTrainerLogic()
     node = TrainerNode(name='test', trainer_logic=trainer, uuid='NOD30000-0000-0000-0000-000000000000')
     trainer._node = node
-    trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
+    trainer._init_new_training(context=Context(organization='zauberzeug', project=PROJECT),
                                training_config={'categories': [],
-                                                'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
+                                                'id': '00000000-0000-0000-0000-000000000012',  # model 1.2, fixed in every generated project
                                                 'training_number': 0,
                                                 'model_variant': '',
                                                 'hyperparameters': {
@@ -52,9 +62,9 @@ async def test_initialized_trainer():
 
     await node._on_startup()
     trainer._node = node
-    trainer._init_new_training(context=Context(organization='zauberzeug', project='demo'),
+    trainer._init_new_training(context=Context(organization='zauberzeug', project=PROJECT),
                                training_config={'categories': [],
-                                                'id': '00000000-0000-0000-0000-000000000012',  # version 1.2 of demo project
+                                                'id': '00000000-0000-0000-0000-000000000012',  # model 1.2, fixed in every generated project
                                                 'training_number': 0,
                                                 'model_variant': '',
                                                 'hyperparameters': {

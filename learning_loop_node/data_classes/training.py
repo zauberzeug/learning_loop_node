@@ -3,7 +3,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from uuid import uuid4
 
 from ..enums import TrainerState
@@ -22,6 +22,31 @@ class PretrainedModel():
     description: str
 
 
+HyperparameterType = Literal['int', 'float', 'bool', 'str', 'pairs']
+
+
+@dataclass(**KWONLY_SLOTS)
+class Hyperparameter:
+    """One hyperparameter a trainer accepts, reported to the loop so it can offer it in the project settings.
+
+    Plain data only, so it reaches the loop as it is. ``minimum`` and ``maximum`` apply to ``int`` and ``float``,
+    ``choices`` to ``str``. A ``pairs`` value is text of the form ``"key:value,..."``, which ``parse_pairs`` reads.
+    ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
+    ``default_by_variant`` holds the defaults of the model variants, named as in ``provided_pretrained_models``, whose
+    default differs from ``default``.
+    Whether a value can be changed when a training is started is the project's choice, not the trainer's.
+    """
+    name: str
+    type: HyperparameterType
+    default: Any
+    minimum: float | None = None
+    maximum: float | None = None
+    choices: list[str] | None = None
+    notes: str = ''
+    expert: bool = False
+    default_by_variant: dict[str, Any] | None = None
+
+
 @dataclass(**KWONLY_SLOTS)
 class TrainingStatus():
     id: str  # NOTE this must not be changed, but tests wont detect a change -> update tests!
@@ -33,6 +58,7 @@ class TrainingStatus():
     progress: Optional[float]
 
     pretrained_models: List[PretrainedModel] = field(default_factory=list)
+    hyperparameters: list[Hyperparameter] = field(default_factory=list)
     architecture: Optional[str] = None
     context: Optional[Context] = None
 
@@ -103,13 +129,19 @@ class Training():
         assert self.image_data is not None, 'Image data not set'
         return [image['id'] for image in self.image_data]
 
-    def train_image_count(self) -> int:
-        assert self.image_data is not None, 'Image data not set'
-        return len([image for image in self.image_data if image['set'] == 'train'])
+    def train_images(self) -> list[dict]:
+        return self._images_of_set('train')
 
-    def test_image_count(self) -> int:
+    def val_images(self) -> list[dict]:
+        """The images to select models on: the `val` images if there are any, else the test images."""
+        return self._images_of_set('val') or self.test_images()
+
+    def test_images(self) -> list[dict]:
+        return self._images_of_set('test')
+
+    def _images_of_set(self, set_name: str) -> list[dict]:
         assert self.image_data is not None, 'Image data not set'
-        return len([image for image in self.image_data if image['set'] == 'test'])
+        return [image for image in self.image_data if image['set'] == set_name]
 
 
 @dataclass(**KWONLY_SLOTS)

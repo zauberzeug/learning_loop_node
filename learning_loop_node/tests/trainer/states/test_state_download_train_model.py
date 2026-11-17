@@ -2,12 +2,12 @@
 import asyncio
 import os
 
-import pytest
-
 from ....enums import TrainerState
 from ... import test_helper
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
+
+PROJECT = test_helper.project_name(test_helper.TRAINER_PROJECT)
 
 # pylint: disable=protected-access
 
@@ -15,7 +15,7 @@ from ..testing_trainer_logic import TestingTrainerLogic
 async def test_downloading_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    model_id = await test_helper.get_latest_model_id(project='demo')
+    model_id = await test_helper.get_latest_model_id(project=PROJECT)
     create_active_training_file(trainer,
                                 base_model_uuid=model_id,
                                 training_state=TrainerState.DataDownloaded)
@@ -38,9 +38,7 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
     assert os.path.exists(f'{trainer.training.training_folder}/file_2.txt')
 
 
-@pytest.mark.parametrize('halt_method', ['stop', 'abort'])
-async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogic, halt_method: str):
-    """No model exists yet -> stop() and abort() should produce the same outcome."""
+async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.DataDownloaded)
     trainer._init_from_last_training()
@@ -48,7 +46,7 @@ async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogi
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.TrainModelDownloading, timeout=1, interval=0.001)
 
-    await getattr(trainer, halt_method)()
+    await trainer.abort()
     await asyncio.sleep(0.1)
 
     assert trainer._training is None

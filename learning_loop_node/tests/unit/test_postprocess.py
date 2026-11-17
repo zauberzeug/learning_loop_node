@@ -117,6 +117,30 @@ def test_boxes_too_small_to_be_useful_are_dropped(width: int, height: int):
     assert len(metadata) == 0
 
 
+@pytest.mark.parametrize('x,y,width,height', [
+    (100, 793, 50, 20),  # below a 1024x768 image, as from letterbox padding mapped back unclipped
+    (1030, 100, 50, 20),  # right of it
+    (-60, -50, 40, 30),  # above and left of it
+])
+def test_boxes_wholly_outside_the_image_are_dropped(x: float, y: float, width: float, height: float):
+    predictions = [Prediction(x=x, y=y, width=width, height=height, category_index=0, confidence=0.9)]
+    assert len(to_image_metadata(predictions, model_information(), 768, 1024)) == 0
+    assert len(to_detections(predictions, model_information(), 768, 1024)) == 0
+
+
+def test_a_box_partly_outside_the_image_is_clipped_and_kept():
+    metadata = to_image_metadata([Prediction(x=1000, y=750, width=50, height=40, category_index=0, confidence=0.9)],
+                                 model_information(), 768, 1024)
+    detection = metadata.box_detections[0]
+    assert (detection.x, detection.y, detection.width, detection.height) == (1000, 750, 24, 18)
+
+
+def test_a_box_with_only_a_sliver_inside_the_image_is_dropped():
+    metadata = to_image_metadata([Prediction(x=10, y=766, width=50, height=40, category_index=0, confidence=0.9)],
+                                 model_information(), 768, 1024)
+    assert len(metadata) == 0
+
+
 def test_a_category_type_the_node_cannot_report_is_skipped():
     classification = Category(id='uuid-cls', name='ripe', type=CategoryType.Classification)
     metadata = to_image_metadata([Prediction(x=10, y=10, width=30, height=30, category_index=0, confidence=0.5)],
