@@ -85,10 +85,18 @@ selects on `Training.val_images()`, which falls back to the test images when the
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
 training when one of them is empty; a node that filters them further needs to check its own sets.
 
+`trainer/states.py` decides which image states a set takes its images from (`Training.states`,
+`{set: [state]}` from the training config). The downloader asks the loop for the images of every named
+state and keeps an image when its own state is one of the states of its set, before
+`assign_validation_set` runs. A set the loop does not name uses `complete`, and a training config
+without `states` downloads the complete images as before, so the library works with a loop that does
+not know states. `_sync_training` reports the applied states; the loop records a model as trained on
+complete images only when its trainer reports none.
+
 `trainer/subsets.py` narrows a set to the subsets the loop restricted it to (`Training.subsets`,
 `{set: [{uuid, name}]}` from the training config): the downloader skips the images of a restricted set
-that are in none of its subsets, matched by uuid so a rename in the loop changes nothing, before
-`assign_validation_set` runs, so the accessors above already
+that are in none of its subsets, matched by uuid so a rename in the loop changes nothing, after the
+states and before `assign_validation_set` runs, so the accessors above already
 hand out the restricted sets and a computed validation set comes from the restricted train images.
 `_sync_training` reports the applied subsets; the loop drops them from a model whose trainer does not.
 
@@ -148,6 +156,11 @@ It imports torch, the package does **not** declare it, and only a trainer import
 the library keeps working where nothing trains. Its unit test installs a stand-in under the name
 `torch`, which covers the arithmetic, the guards and the search; whether the cap holds, and what
 a real step costs, can only be seen on a card.
+
+`trainer/dataloader.py` decides how many dataloader workers a training runs. A trainer opts in
+with `node_parser(dataloader_workers=True)` (`--dataloader-workers` / `DATALOADER_WORKERS`,
+defaulting to what the CPUs available to the container allow) and passes the value on to its
+loaders, and to a script it spawns, as it does the VRAM limit.
 
 `helpers/entrypoint.py` holds what every node's `main.py` repeats: `node_parser` builds a
 configargparse parser with `--host`/`--port`, `run_node` starts uvicorn. A setting is a flag

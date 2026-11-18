@@ -32,6 +32,8 @@ class Hyperparameter:
     Plain data only, so it reaches the loop as it is. ``minimum`` and ``maximum`` apply to ``int`` and ``float``,
     ``choices`` to ``str``. A ``pairs`` value is text of the form ``"key:value,..."``, which ``parse_pairs`` reads.
     ``notes`` help whoever sets the value. ``expert`` ones are offered behind an expansion.
+    ``default_by_variant`` holds the defaults of the model variants, named as in ``provided_pretrained_models``, whose
+    default differs from ``default``.
     Whether a value can be changed when a training is started is the project's choice, not the trainer's.
     """
     name: str
@@ -42,6 +44,7 @@ class Hyperparameter:
     choices: list[str] | None = None
     notes: str = ''
     expert: bool = False
+    default_by_variant: dict[str, Any] | None = None
 
 
 @dataclass(**KWONLY_SLOTS)
@@ -87,6 +90,8 @@ class Training():
     base_model_uuid: Optional[str] = None  # model uuid to continue training (is loaded from loop)
     # {set: [{'uuid': ..., 'name': ...}]} of the subsets the loop restricted the sets to
     subsets: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    # {set: [state]} of the states the loop takes each set's images from; a set that is not named uses 'complete'
+    states: dict[str, list[str]] = field(default_factory=dict)
 
     # NOTE: these are set later after the model has been uploaded
     image_data: Optional[List[Dict]] = None
@@ -112,6 +117,12 @@ class Training():
                 key in ('train', 'val', 'test') and isinstance(entries, list) and all(_is_subset(e) for e in entries)
                 for key, entries in subsets.items()):
             raise ValueError("subsets not a dict from the sets train, val and test to lists of {'uuid', 'name'}")
+        states = data.get('states') or {}
+        if not isinstance(states, dict) or not all(
+                key in ('train', 'val', 'test') and isinstance(chosen, list) and chosen
+                and all(isinstance(state, str) for state in chosen)
+                for key, chosen in states.items()):
+            raise ValueError('states not a dict from the sets train, val and test to lists of state names')
 
         training_uuid = str(uuid4())
 
@@ -126,6 +137,7 @@ class Training():
             training_number=data['training_number'],
             base_model_uuid=data.get('base_model_uuid', None),
             subsets=subsets,
+            states=states,
             model_variant=data['model_variant'],
             training_state=TrainerState.Initialized.value
         )
@@ -159,6 +171,7 @@ class TrainingOut():
     hyperparameters: Optional[Dict[str, Any]] = None
     best_epoch: Optional[int] = None
     subsets: dict[str, list[dict[str, str]]] | None = None  # the applied `Training.subsets`; the loop checks them
+    states: dict[str, list[str]] | None = None  # the applied `Training.states`; the loop checks them
 
 
 @dataclass(**KWONLY_SLOTS)

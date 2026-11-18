@@ -30,7 +30,7 @@ from ..helpers.misc import (
 from . import training_results
 from .downloader import TrainingsDownloader
 from .exceptions import CriticalError, HyperparameterMismatchError, NodeNeedsRestartError, TrainingRefusedError
-from .hyperparameters import resolve, warn_about_undeclared
+from .hyperparameters import for_variant, resolve, warn_about_undeclared
 from .io_helpers import ActiveTrainingIO, EnvironmentVars, LastTrainingIO
 from .subsets import subset_names
 from .training_slot import TrainingSlot, training_slot_from_env
@@ -245,7 +245,8 @@ class TrainerLogicGeneric(ABC):
         self._training = self.last_training_io.load()
         assert self._training is not None and self._training.training_folder is not None, 'could not restore training folder'
         try:
-            self._training.hyperparameters = resolve(self.provided_hyperparameters, self._training.hyperparameters)
+            declared = for_variant(self.provided_hyperparameters, self._training.model_variant)
+            self._training.hyperparameters = resolve(declared, self._training.hyperparameters)
         except CriticalError as e:
             logger.warning('restored training does not fit the declared hyperparameters, continuing with the saved '
                            'values: %s', e)
@@ -277,14 +278,16 @@ class TrainerLogicGeneric(ABC):
     def _with_resolved_hyperparameters(self, training_config: dict) -> dict:
         """Returns ``training_config`` with its hyperparameters resolved against the declared ones.
 
-        A config without a hyperparameters dict is returned as it is, for ``Training.generate_training`` to reject.
+        A config without a hyperparameters dict or a model variant is returned as it is, for
+        ``Training.generate_training`` to reject.
 
         :raise HyperparameterMismatchError: if a hyperparameter does not fit its declaration.
         """
-        declared = self.provided_hyperparameters
         received = training_config.get('hyperparameters')
-        if not declared or not isinstance(received, dict):
+        variant = training_config.get('model_variant')
+        if not self.provided_hyperparameters or not isinstance(received, dict) or not isinstance(variant, str):
             return training_config
+        declared = for_variant(self.provided_hyperparameters, variant)
         try:
             resolved = resolve(declared, received)
         except CriticalError as e:
@@ -421,13 +424,15 @@ class TrainerLogicGeneric(ABC):
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        Takes each set's images from the states the loop named for it, from 'complete' if it named none (see `states`).
         Keeps only the images of a restricted set that are in one of its subsets (see `subsets`).
         Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
         A malformed `upload_examples` or `upload_logs` ends the training here, before it has run.
         """
         training_results.check_hyperparameters(self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
-        downloader = TrainingsDownloader(self.node.data_exchanger, subsets=self.training.subsets)
+        downloader = TrainingsDownloader(self.node.data_exchanger, states=self.training.states,
+                                         subsets=self.training.subsets)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         assign_validation_set(image_data, self.training.hyperparameters)
 
@@ -438,8 +443,10 @@ class TrainerLogicGeneric(ABC):
                                       ('test', 'test', self.training.test_images()),
                                       ('validation', 'val', self.training.val_images())):
             if not images:
+                states = self.training.states.get(key)
+                in_states = f' in the states {", ".join(map(repr, states))}' if states else ''
                 in_subsets = f' in the subsets {", ".join(map(repr, names[key]))}' if names.get(key) else ''
-                raise CriticalError(f'The training has no {set_name} images{in_subsets}')
+                raise CriticalError(f'The training has no {set_name} images{in_states}{in_subsets}')
 
     async def _download_model(self) -> None:
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
@@ -484,6 +491,7 @@ class TrainerLogicGeneric(ABC):
                                            test_image_count=sets.count('test'),
                                            hyperparameters=self.hyperparameters_for_state_sync,
                                            best_epoch=new_best_model.epoch,
+                                           states=self.training.states,
                                            subsets=self.training.subsets)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
 
