@@ -85,6 +85,14 @@ selects on `Training.val_images()`, which falls back to the test images when the
 splits through these accessors and never filters `image_data` on `set` itself. `_prepare` fails a
 training when one of them is empty; a node that filters them further needs to check its own sets.
 
+`trainer/states.py` decides which image states a set takes its images from (`Training.states`,
+`{set: [state]}` from the training config). The downloader asks the loop for the images of every named
+state and keeps an image when its own state is one of the states of its set, before
+`assign_validation_set` runs. A set the loop does not name uses `complete`, and a training config
+without `states` downloads the complete images as before, so the library works with a loop that does
+not know states. `_sync_training` reports the applied states; the loop records a model as trained on
+complete images only when its trainer reports none.
+
 `compute_validation_set` is a hyperparameter the library reads itself, like `max_batch_size`, so neither
 counts as undeclared; a trainer lists `COMPUTE_VALIDATION_SET_HYPERPARAMETER` among its own so the loop
 offers it as a switch.
