@@ -87,11 +87,10 @@ def measure_batch_size(build_step: Callable[[], ProbeStep], *, max_batch_size: i
     :param max_batch_size: What the training asked for, as carried in the
         :data:`~.batch_size.REQUESTED_BATCH_SIZE` hyperparameter: the largest batch it may use,
         measured rather than trusted. A size that fits is used as asked for, whether or not it is a
-        power of two; one that does not becomes the largest power of two below it that does. 0 means
-        the card decides alone. A request below ``minimum`` is raised to it, with a warning.
+        power of two; one that does not becomes the largest size below it that does. 0 means the
+        card decides alone. A request below ``minimum`` is raised to it, with a warning.
     :param sample_count: Samples in the training split, when the caller knows it. The search is
-        then bounded by :func:`~.batch_size.dataset_limit`; that bound is never used as the exact
-        candidate.
+        then bounded by :func:`~.batch_size.dataset_limit`.
     :param probe: Names this probe in the log, so a node running several stays readable.
     :param minimum: Smallest size to try, taking precedence over ``max_batch_size``; see
         :func:`~.batch_size.find_batch_size`.
@@ -115,8 +114,7 @@ def measure_batch_size(build_step: Callable[[], ProbeStep], *, max_batch_size: i
         logger.info('%s: %d training samples allow at most %d per batch', probe, sample_count,
                     dataset_limit(sample_count))
 
-    return _probe(build_step, probe=probe, limit=limit, steps_per_trial=steps_per_trial,
-                  candidate=max_batch_size, minimum=minimum)
+    return _probe(build_step, probe=probe, limit=limit, steps_per_trial=steps_per_trial, minimum=minimum)
 
 
 def probe_batch_size(run_batch: Callable[[int], str | None], *, probe: str = 'batch-size probe',
@@ -146,7 +144,7 @@ class _PassStep(ProbeStep):
 
 
 def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, steps_per_trial: int,
-           candidate: int = 0, minimum: int = 1) -> int:
+           minimum: int = 1) -> int:
     """Everything of a probe but the step: the GPU check, the margin, the search, the release.
 
     The margin is a share of the budget :func:`limit_cuda_memory` set in this process.
@@ -158,8 +156,7 @@ def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, steps
 
     margin = reserve_margin(probe=probe)
     try:
-        chosen = _search(build_step, probe=probe, bound=bound, steps_per_trial=steps_per_trial,
-                         minimum=minimum, candidate=candidate)
+        chosen = _search(build_step, probe=probe, bound=bound, steps_per_trial=steps_per_trial, minimum=minimum)
     finally:
         del margin
         free_cuda_memory()
@@ -168,12 +165,12 @@ def _probe(build_step: Callable[[], ProbeStep], *, probe: str, limit: int, steps
 
 
 def _search(build_step: Callable[[], ProbeStep], *, probe: str, bound: int, steps_per_trial: int,
-            minimum: int, candidate: int) -> int:
+            minimum: int) -> int:
     """Build the step, search with it and release it; once this returns, nothing references it."""
     step = build_step()
     try:
         fits = measured_fits(_trial(step, steps_per_trial), probe=probe, on_out_of_memory=step.on_out_of_memory)
-        return find_batch_size(fits, limit=bound, minimum=minimum, candidate=candidate)
+        return find_batch_size(fits, limit=bound, minimum=minimum)
     finally:
         step.release()
 

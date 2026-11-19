@@ -1,10 +1,11 @@
 """Choosing a batch size by probing, rather than configuring one.
 
-The trainer supplies a ``fits`` predicate that runs a representative step at doubling sizes.
-Only powers of two are visited, so equal hardware yields an equal recipe. Nothing here imports a
+The trainer supplies a ``fits`` predicate that runs a representative step at doubling sizes; the
+search then bisects between the last size that fit and the first that did not, so the
+card is filled up to the batch rather than to the power of two below it. Nothing here imports a
 deep-learning framework.
 
-Adapted from PyTorch Lightning's ``BatchSizeFinder`` (power-scaling mode).
+Adapted from PyTorch Lightning's ``BatchSizeFinder`` (its ``binsearch`` mode).
 Copyright The Lightning AI team. Licensed under the Apache License, Version 2.0.
 https://github.com/Lightning-AI/pytorch-lightning
 """
@@ -43,39 +44,25 @@ MIN_TRAIN_STEPS_PER_EPOCH = 8
 """Fewest optimizer steps an epoch must have; :func:`dataset_limit` is derived from it."""
 
 
-def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1,
-                    candidate: int = 0) -> int:
+def find_batch_size(fits: Callable[[int], bool], *, limit: int, minimum: int = 1) -> int:
     """Return the largest batch size that fits, never exceeding ``limit``.
 
-    Powers of two, plus ``minimum`` and ``candidate``, the two sizes outside that set this will
-    return, and only because somebody named them and they then measured.
+    Doubles until a size does not fit, then bisects between it and the last that did.
 
     :param fits: Runs a representative probe; ``False`` on out-of-memory.
-    :param limit: Upper bound; the doubling stops at the largest power of two within it.
+    :param limit: Upper bound; the doubling stops at ``limit`` itself, whether or not it is a power of two.
     :param minimum: Smallest size to try, as named; the doubling continues from the next power of
         two above it. Raise it above one for a step that cannot run on a single sample at all:
         BatchNorm over a 1x1 feature map, a validation pass that halves the batch.
-    :param candidate: An exact size, tried once the doubling has reached its ceiling, so a size
-        that was asked for is used as asked for rather than rounded down. Ignored unless it lies
-        between that ceiling and ``limit``; a bound nobody named — one derived from the dataset,
-        say — must not be passed here.
     :raises InsufficientMemoryError: If not even ``minimum`` fits.
     """
     minimum = max(1, minimum)
     bound = max(limit, minimum)
-    ceiling = max(smaller_pot(bound), minimum)
 
     if not fits(minimum):
         raise InsufficientMemoryError(f'batch size {minimum} does not fit in memory')
 
-    size = minimum
-    while size < ceiling and fits(smaller_pot(size) * 2):
-        size = smaller_pot(size) * 2
-
-    if size == ceiling and ceiling < candidate <= bound and fits(candidate):
-        size = candidate
-
-    return size
+    return _binsearch(fits, minimum, bound)
 
 
 def requested_batch_size(hyperparameters: Mapping[str, Any]) -> int:
@@ -124,3 +111,21 @@ def is_out_of_memory(exception: BaseException) -> bool:
         return True
     message = str(exception).lower()
     return any(text in message for text in ('out of memory', 'alloc_failed', 'cuda error: unknown error'))
+
+
+def _binsearch(fits: Callable[[int], bool], low: int, bound: int) -> int:
+    """Lightning's ``_run_binsearch_scaling`` from a size that fit, its ``max_val`` being ``bound``."""
+    high = None
+    while True:
+        if high is None:
+            if low >= bound:
+                return low
+            size = min(smaller_pot(low) * 2, bound)
+        else:
+            if high - low <= 1:
+                return low
+            size = (high + low) // 2
+        if fits(size):
+            low = size
+        else:
+            high = size

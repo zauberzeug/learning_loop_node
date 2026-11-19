@@ -74,9 +74,12 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
 trainer that are not framework-specific. `iterator_cpu_bound` runs a training generator in a
 spawned process and yields its progress through a `maxsize=1` queue, so the event loop stays
 responsive, CUDA state stays out of the node process, and the training can never run more than
-one item ahead of the bookkeeping. `find_batch_size` probes for the largest power-of-two batch
-that fits, around a `fits` predicate the trainer supplies — none of it imports torch, so a node
-brings its own way of running a step. `macro_f1` scores the confusion matrix
+one item ahead of the bookkeeping. `find_batch_size` probes for the largest batch that fits,
+around a `fits` predicate the trainer supplies — none of it imports torch, so a node brings its
+own way of running a step. It ports the `binsearch` mode of Lightning's `BatchSizeFinder`: it
+doubles until a size does not fit and then bisects between it and the last that did. Lightning's
+own margin on the result is left out, because the probe already reserves `SAFETY_MARGIN`.
+`macro_f1` scores the confusion matrix
 `_get_new_best_training_state` returns.
 
 `trainer/validation_set.py` decides which images a training selects its models on. A node always
@@ -101,8 +104,8 @@ one keeping a dict. `max_batch_size` — the hyperparameter named by the `REQUES
 constant and read through `requested_batch_size`, so every node agrees on the spelling — is the
 largest batch the training may use, and it is measured rather than trusted: a size that fits is
 used as named, whether or not it is a power of two, and one that does not becomes the largest
-power of two below it that does. A training that starts small beats one that runs out of memory
-partway through. The settled size is returned and **not** stored anywhere the next measurement
+size below it that does. A training that starts small beats one that runs out of memory partway
+through. The settled size is returned and **not** stored anywhere the next measurement
 would read it: a trainer reports it as `batch_size`, never under `max_batch_size`, because the
 node saves the hyperparameters with the training (`LastTrainingIO`) and a training resumed after a
 restart reads them back — it would otherwise take its first run's measurement as its bound instead
@@ -121,13 +124,11 @@ step that builds a throwaway model drops an optimizer's gradients after a failed
 `release` how one that moved the real model aside puts it back. `minimum` is for a step that
 cannot run on a single sample at all — BatchNorm over a 1x1 feature map, or a training whose
 validation halves the batch. It is tried as named and wins over a smaller requested size, with a
-warning; it and the requested size are the only sizes the search returns that are not powers of
-two.
+warning.
 
 `probe_batch_size` is the same probe for a pass with no requested size — a detection pass, bounded
-by how many images there are — and takes a plain callable and a limit. The requested size reaches
-the search as its exact candidate only through `measure_batch_size`, so an image count or a
-dataset bound can never be tried as one. A node does not compose `reserve_margin`, `measured_fits`
+by how many images there are — and takes a plain callable and a limit. Both probes try the
+bound they are given as named. A node does not compose `reserve_margin`, `measured_fits`
 and `find_batch_size` itself; they are the pieces both are built from. `measured_fits`
 is where an out-of-memory failure is told from a bug — both arrive as the same exception types,
 and a probe that confuses them reports the smallest batch size as the card's fault.
