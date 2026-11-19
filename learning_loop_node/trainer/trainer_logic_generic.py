@@ -423,22 +423,25 @@ class TrainerLogicGeneric(ABC):
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        Takes each set's images from the states the loop named for it, from 'complete' if it named none (see `states`).
         Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
         A malformed `upload_examples` or `upload_logs` ends the training here, before it has run.
         """
         training_results.check_hyperparameters(self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
-        downloader = TrainingsDownloader(self.node.data_exchanger)
+        downloader = TrainingsDownloader(self.node.data_exchanger, states=self.training.states)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         assign_validation_set(image_data, self.training.hyperparameters)
 
         self.training.image_data = image_data
         self.training.skipped_image_count = skipped_image_count
-        for set_name, images in (('train', self.training.train_images()),
-                                 ('test', self.training.test_images()),
-                                 ('validation', self.training.val_images())):
+        for set_name, key, images in (('train', 'train', self.training.train_images()),
+                                      ('test', 'test', self.training.test_images()),
+                                      ('validation', 'val', self.training.val_images())):
             if not images:
-                raise CriticalError(f'The training has no {set_name} images')
+                states = self.training.states.get(key)
+                in_states = f' in the states {", ".join(map(repr, states))}' if states else ''
+                raise CriticalError(f'The training has no {set_name} images{in_states}')
 
     async def _download_model(self) -> None:
         """If training is continued, the model is downloaded from the Learning Loop to the training_folder.
@@ -482,7 +485,8 @@ class TrainerLogicGeneric(ABC):
                                            train_image_count=sets.count('train') + sets.count('val'),
                                            test_image_count=sets.count('test'),
                                            hyperparameters=self.hyperparameters_for_state_sync,
-                                           best_epoch=new_best_model.epoch)
+                                           best_epoch=new_best_model.epoch,
+                                           states=self.training.states)
                 await asyncio.sleep(0.1)  # NOTE needed for tests.
 
                 result = await self.node.sio_client.call('update_training', (
