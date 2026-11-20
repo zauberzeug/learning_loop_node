@@ -26,13 +26,13 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
     trainer._init_from_last_training()
 
     train_task = asyncio.get_running_loop().create_task(
-        trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded, trainer._upload_model))
+        trainer._perform_state('upload_model', TrainerState.Detecting, trainer._upload_model))
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     await train_task
 
     assert trainer_has_upload_model_error(trainer) is False
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting is not None
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -40,7 +40,7 @@ async def test_successful_upload(mocker: MockerFixture, test_initialized_trainer
 async def test_abort_upload_model(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
+    create_active_training_file(trainer, training_state=TrainerState.TrainModelUploading)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
@@ -62,14 +62,14 @@ async def test_stop_during_upload_lets_it_finish(mocker: MockerFixture, test_ini
         return 'new_model_id'
     mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_get_uuid', side_effect=slow_upload)
 
-    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
+    create_active_training_file(trainer, training_state=TrainerState.TrainModelUploading)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     await trainer.stop()
-    await assert_training_state(trainer.training, TrainerState.TrainModelUploaded, timeout=5, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.Detecting, timeout=5, interval=0.001)
 
     assert trainer_has_upload_model_error(trainer) is False
     assert trainer.training.model_uuid_for_detecting == 'new_model_id'
@@ -81,7 +81,7 @@ async def test_bad_server_response_content(test_initialized_trainer: TestingTrai
     The training should be aborted and the training state should be set to ready_for_cleanup."""
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSynced)
+    create_active_training_file(trainer, training_state=TrainerState.TrainModelUploading)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()

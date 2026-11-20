@@ -45,7 +45,6 @@ class TrainerLogic(TrainerLogicGeneric):
     # ---------------------------------------- IMPLEMENTED ABSTRACT MEHTODS ----------------------------------------
 
     async def _train(self) -> None:
-        previous_state = TrainerState.TrainModelDownloaded
         error_key = 'run_training'
         self._executor = Executor(self.training.training_folder)
         self._process_started = False
@@ -88,7 +87,6 @@ class TrainerLogic(TrainerLogicGeneric):
                 # wind-down uploads the model it has (or ends with a CriticalError if there is none)
                 logging.warning('Training process failed after a stop (%s), winding down with its model', e.cause)
                 return
-            self.training.training_state = previous_state
             raise
         finally:
             self._process_started = False

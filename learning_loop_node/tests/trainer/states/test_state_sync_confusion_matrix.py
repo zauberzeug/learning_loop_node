@@ -8,6 +8,7 @@ from pytest_mock import (  # pip install pytest-mock # pylint: disable=import-er
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
 from ....trainer.trainer_node import TrainerNode
+from ...test_helper import condition
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
@@ -23,14 +24,14 @@ async def test_nothing_to_sync(test_initialized_trainer: TestingTrainerLogic):
 
     # NOTE: this requires trainer to have _training
     # trainer.load_active_training()
-    create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSyncing)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
 
-    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
     assert trainer_has_sync_confusion_matrix_error(trainer) is False
-    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.training.training_state == TrainerState.TrainModelUploading
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -39,17 +40,17 @@ async def test_unsynced_model_available__sync_successful(test_initialized_traine
     assert isinstance(trainer, TestingTrainerLogic)
 
     await mock_socket_io_call(mocker, test_initialized_trainer_node, return_value={'success': True})
-    create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSyncing)
 
     trainer._init_from_last_training()
     trainer.training.image_data = []
     trainer.has_new_model = True
 
     trainer._begin_training_task()
-    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSynced, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainModelUploading, timeout=1, interval=0.001)
 
     assert trainer_has_sync_confusion_matrix_error(trainer) is False
-#    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+#    assert trainer.training.training_state == TrainerState.TrainModelUploading
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -60,7 +61,7 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
 
     await test_initialized_trainer_node.sio_client.disconnect()
     test_initialized_trainer_node.set_skip_repeat_loop(True)
-    create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSyncing)
 
     assert test_initialized_trainer_node.sio_client.connected is False
     trainer.has_new_model = True
@@ -68,10 +69,10 @@ async def test_unsynced_model_available__sio_not_connected(test_initialized_trai
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=10, interval=0.001)
+    await condition(lambda: trainer.errors.has_error_for('sync_confusion_matrix'), timeout=10, interval=0.001)
 
     assert trainer_has_sync_confusion_matrix_error(trainer)  # Due to sio not being connected, the request will fail
-    assert trainer.training.training_state == TrainerState.TrainingFinished
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSyncing
     assert trainer.node.last_training_io.load() == trainer.training
 
 
@@ -81,16 +82,16 @@ async def test_unsynced_model_available__request_is_not_successful(test_initiali
 
     await mock_socket_io_call(mocker, test_initialized_trainer_node, return_value={'success': False})
 
-    create_active_training_file(trainer, training_state=TrainerState.TrainingFinished)
+    create_active_training_file(trainer, training_state=TrainerState.ConfusionMatrixSyncing)
 
     trainer.has_new_model = True
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=10, interval=0.001)
+    await condition(lambda: trainer.errors.has_error_for('sync_confusion_matrix'), timeout=10, interval=0.001)
 
     assert trainer_has_sync_confusion_matrix_error(trainer)  # Due to sio call failure, the error will be set
-    assert trainer.training.training_state == TrainerState.TrainingFinished
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSyncing
     assert trainer.node.last_training_io.load() == trainer.training
 
 

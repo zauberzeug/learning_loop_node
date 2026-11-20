@@ -48,20 +48,18 @@ async def test_a_stop_after_the_training_process_ended_lets_its_upload_finish(tr
 
 
 async def test_a_stopped_training_winds_down_when_its_process_fails(trainer: TestingTrainerLogic):
-    train = asyncio.create_task(trainer._perform_state('run_training', TrainerState.TrainingRunning,
-                                                       TrainerState.TrainingFinished, trainer._train))
+    train = asyncio.create_task(trainer._perform_state('run_training', TrainerState.ConfusionMatrixSyncing, trainer._train))
     await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
     trainer.error_msg = 'graphics card is out of memory'
 
     await trainer.stop()
     await asyncio.wait_for(train, timeout=2)
 
-    assert trainer.training.training_state == TrainerState.TrainingFinished
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSyncing
 
 
 async def test_a_stop_before_the_retried_training_process_has_started_aborts_it(trainer: TestingTrainerLogic):
-    train = asyncio.create_task(trainer._perform_state('run_training', TrainerState.TrainingRunning,
-                                                       TrainerState.TrainingFinished, trainer._train))
+    train = asyncio.create_task(trainer._perform_state('run_training', TrainerState.ConfusionMatrixSyncing, trainer._train))
     await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
     trainer.error_msg = 'graphics card is out of memory'
     await trainer.executor.stop_and_wait()

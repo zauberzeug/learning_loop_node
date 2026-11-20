@@ -146,7 +146,7 @@ async def test_the_results_follow_the_model_in_the_upload_state(trainer: Testing
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core', 'training_results/logs']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
     with zipfile.ZipFile(Path(trainer.training.training_folder) / 'training_results' / 'core.zip') as zipf:
         assert sorted(zipf.namelist()) == [META_FILE, 'result/results.csv']
@@ -166,7 +166,7 @@ async def test_a_trainer_without_results_uploads_only_its_model(trainer: Testing
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
 
 
 @pytest.mark.parametrize('no_answer', [httpx.ReadTimeout('no answer'), httpx.Response(408), httpx.Response(503)])
@@ -180,7 +180,7 @@ async def test_a_part_that_got_no_answer_is_sent_again_in_the_same_state(
 
     assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core', 'training_results/logs',
                                       'training_results/logs']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
     assert not trainer.errors.has_error_for('upload_model')
 
@@ -192,7 +192,7 @@ async def test_a_part_that_never_gets_an_answer_is_skipped_and_the_training_goes
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file'] + ['training_results/core'] * MAX_ATTEMPTS
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
 
 
@@ -206,7 +206,7 @@ async def test_a_failing_results_hook_does_not_stop_the_training(trainer: Testin
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
 
 
@@ -218,7 +218,7 @@ async def test_a_failing_meta_does_not_stop_the_training(trainer: TestingTrainer
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
 
 
 async def test_a_malformed_upload_flag_at_upload_time_skips_only_its_part(trainer: TestingTrainerLogic):
@@ -229,7 +229,7 @@ async def test_a_malformed_upload_flag_at_upload_time_skips_only_its_part(traine
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
 
 
 async def test_a_part_of_another_name_is_left_out(trainer: TestingTrainerLogic):
@@ -273,7 +273,7 @@ async def test_results_the_loop_does_not_store_are_skipped_and_the_training_goes
     await _perform_upload_state(trainer)
 
     assert _uploads(communicator) == ['first/file', 'second/file', 'training_results/core', 'training_results/logs']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
     assert not trainer.errors.has_error_for('upload_model')
 
@@ -286,7 +286,7 @@ async def trainer_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
     node = TrainerNode(name='test', trainer_logic=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
     trainer._init_new_training(CONTEXT, {'categories': [], 'training_number': 3, 'model_variant': '',
                                          'hyperparameters': {}})
-    trainer.training.training_state = TrainerState.ConfusionMatrixSynced
+    trainer.training.training_state = TrainerState.TrainModelUploading
     node.last_training_io.save(trainer.training)
     trainer._get_latest_model_files = AsyncMock(return_value={'first': ['/tmp/model.pt'],  # type: ignore[method-assign]
                                                               'second': ['/tmp/model.wts']})
@@ -320,5 +320,5 @@ def _uploads(communicator: Mock) -> list[str]:
 
 async def _perform_upload_state(trainer: TestingTrainerLogic) -> None:
     """The upload state as `_training_loop` performs it."""
-    await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
+    await trainer._perform_state('upload_model', TrainerState.Detecting,
                                  trainer._upload_model)

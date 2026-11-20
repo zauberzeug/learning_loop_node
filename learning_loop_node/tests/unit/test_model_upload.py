@@ -132,9 +132,9 @@ async def test_a_format_the_loop_cannot_store_keeps_the_training_and_is_sent_aga
 
     await _perform_upload_state(trainer)
 
-    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.training.training_state == TrainerState.TrainModelUploading
     assert trainer.errors.has_error_for('upload_model')
-    assert trainer.node.last_training_io.load().training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.node.last_training_io.load().training_state == TrainerState.TrainModelUploading
     assert not _upload_waits(retry_delays)
 
     await _perform_upload_state(trainer)
@@ -143,7 +143,7 @@ async def test_a_format_the_loop_cannot_store_keeps_the_training_and_is_sent_aga
     assert _upload_waits(retry_delays) == [5, 10]
     assert [put.args[0].split('/')[-2] for put in communicator.put.await_args_list] == \
         ['first', 'second', 'second', 'second']
-    assert trainer.training.training_state == TrainerState.TrainModelUploaded
+    assert trainer.training.training_state == TrainerState.Detecting
     assert trainer.training.model_uuid_for_detecting == MODEL_ID
     assert not trainer.errors.has_error_for('upload_model')
 
@@ -165,17 +165,17 @@ async def test_a_model_upload_that_keeps_failing_keeps_the_training(trainer: Tes
     for _ in range(600):
         await _perform_upload_state(trainer)
 
-    assert trainer.training.training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.training.training_state == TrainerState.TrainModelUploading
     assert trainer.errors.has_error_for('upload_model')
-    assert trainer.node.last_training_io.load().training_state == TrainerState.ConfusionMatrixSynced
+    assert trainer.node.last_training_io.load().training_state == TrainerState.TrainModelUploading
 
 
 async def test_every_state_waits_before_it_is_tried_again(trainer: TestingTrainerLogic, retry_delays: list[float]):
-    trainer.training.training_state = TrainerState.Detected
+    trainer.training.training_state = TrainerState.DetectionUploading
     upload_detections = AsyncMock(side_effect=[OSError('loop unreachable'), OSError('loop unreachable'), None])
 
     for _ in range(3):
-        await trainer._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup,
+        await trainer._perform_state('upload_detections', TrainerState.ReadyForCleanup,
                                      upload_detections)
 
     assert _upload_waits(retry_delays) == [5, 10]
@@ -191,7 +191,7 @@ async def trainer_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
     node = TrainerNode(name='test', trainer_logic=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
     trainer._init_new_training(CONTEXT, {'categories': [], 'training_number': 0, 'model_variant': '',
                                          'hyperparameters': {}})
-    trainer.training.training_state = TrainerState.ConfusionMatrixSynced
+    trainer.training.training_state = TrainerState.TrainModelUploading
     node.last_training_io.save(trainer.training)
     trainer._get_latest_model_files = AsyncMock(return_value={'first': ['/tmp/model.pt'],
                                                               'second': ['/tmp/model.wts']})
@@ -209,7 +209,7 @@ def _answer_uploads(trainer: TestingTrainerLogic, *answers: str | Exception | No
 
 async def _perform_upload_state(trainer: TestingTrainerLogic) -> None:
     """The upload state as `_training_loop` performs it."""
-    await trainer._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded,
+    await trainer._perform_state('upload_model', TrainerState.Detecting,
                                  trainer._upload_model)
 
 

@@ -122,7 +122,7 @@ class Training():
             training_number=data['training_number'],
             base_model_uuid=data.get('base_model_uuid', None),
             model_variant=data['model_variant'],
-            training_state=TrainerState.Initialized.value
+            training_state=TrainerState.DataDownloading.value
         )
 
     def image_ids(self) -> List[str]:
