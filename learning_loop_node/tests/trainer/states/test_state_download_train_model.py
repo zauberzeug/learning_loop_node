@@ -2,6 +2,8 @@
 import asyncio
 import os
 
+from pytest_mock import MockerFixture
+
 from ....enums import TrainerState
 from ... import test_helper
 from ...test_helper import condition
@@ -37,13 +39,14 @@ async def test_downloading_is_successful(test_initialized_trainer: TestingTraine
     assert os.path.exists(f'{trainer.training.training_folder}/file_2.txt')
 
 
-async def test_abort_download_model(test_initialized_trainer: TestingTrainerLogic):
+async def test_abort_download_model(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloading)
     trainer._init_from_last_training()
 
+    step = mocker.spy(trainer, '_download_model')
     trainer._begin_training_task()
-    await assert_training_state(trainer.training, TrainerState.TrainModelDownloading, timeout=1, interval=0.001)
+    await condition(lambda: step.call_count == 1, timeout=2, interval=0.001)
 
     await trainer.abort()
     await asyncio.sleep(0.1)

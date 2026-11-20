@@ -1,5 +1,7 @@
 import asyncio
 
+from pytest_mock import MockerFixture
+
 from ....data_classes import Context
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
@@ -25,13 +27,14 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerL
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
+async def test_abort_preparing(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
     trainer._init_from_last_training()
 
+    step = mocker.spy(trainer, '_prepare')
     trainer._begin_training_task()
-    await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=1, interval=0.001)
+    await condition(lambda: step.call_count == 1, timeout=2, interval=0.001)
 
     await trainer.abort()
     await asyncio.sleep(0.1)

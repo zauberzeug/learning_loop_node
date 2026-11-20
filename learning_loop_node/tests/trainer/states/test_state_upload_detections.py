@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 from dacite import from_dict
+from pytest_mock import MockerFixture
 
 from ....data_classes import BoxDetection, Context, Detections
 from ....enums import TrainerState
@@ -148,16 +149,16 @@ async def test_go_to_cleanup_if_no_detections_exist(test_initialized_trainer: Te
     await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=1, interval=0.001)
 
 
-async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
+async def test_abort_uploading(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
     create_active_training_file(trainer, training_state=TrainerState.DetectionUploading)
     trainer._init_from_last_training()
     await create_valid_detection_file(trainer)
 
+    step = mocker.spy(trainer.active_training_io, 'upload_detetions')
     trainer._begin_training_task()
-
-    await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
+    await condition(lambda: step.call_count == 1, timeout=2, interval=0.001)
 
     await trainer.abort()
     await asyncio.sleep(0.1)

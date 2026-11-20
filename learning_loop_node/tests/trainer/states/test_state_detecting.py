@@ -1,5 +1,7 @@
 import asyncio
 
+from pytest_mock import MockerFixture
+
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
 from ...test_helper import condition, get_dummy_detections
@@ -31,15 +33,15 @@ async def test_successful_detecting(test_initialized_trainer: TestingTrainerLogi
     assert trainer.active_training_io.detections_exist()
 
 
-async def test_detecting_can_be_aborted(test_initialized_trainer: TestingTrainerLogic):
+async def test_detecting_can_be_aborted(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer, training_state=TrainerState.Detecting)
     trainer._init_from_last_training()
     trainer.training.model_uuid_for_detecting = '12345678-bobo-7e92-f95f-424242424242'
 
+    step = mocker.spy(trainer, '_do_detections')
     trainer._begin_training_task()
-
-    await assert_training_state(trainer.training, TrainerState.Detecting, timeout=5, interval=0.001)
+    await condition(lambda: step.call_count == 1, timeout=2, interval=0.001)
     await trainer.abort()
     await asyncio.sleep(0.1)
 
