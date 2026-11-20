@@ -352,71 +352,69 @@ class TrainerLogicGeneric(ABC):
             tstate = self.training.training_state
             await asyncio.sleep(0.6)  # Note: Required for pytests!
 
-            if tstate == TrainerState.Initialized:  # -> DataDownloading -> DataDownloaded
-                await self._perform_state('prepare', TrainerState.DataDownloading, TrainerState.DataDownloaded, self._prepare)
-            elif tstate == TrainerState.DataDownloaded:  # -> TrainModelDownloading -> TrainModelDownloaded
-                await self._perform_state('download_model', TrainerState.TrainModelDownloading, TrainerState.TrainModelDownloaded, self._download_model)
-            elif tstate == TrainerState.TrainModelDownloaded:  # -> TrainingRunning -> TrainingFinished
-                await self._perform_state('run_training', TrainerState.TrainingRunning, TrainerState.TrainingFinished, self._train)
-            elif tstate == TrainerState.TrainingFinished:  # -> ConfusionMatrixSyncing -> ConfusionMatrixSynced
-                await self._perform_state('sync_confusion_matrix', TrainerState.ConfusionMatrixSyncing, TrainerState.ConfusionMatrixSynced, self._sync_training)
-            elif tstate == TrainerState.ConfusionMatrixSynced:  # -> TrainModelUploading -> TrainModelUploaded
-                await self._perform_state('upload_model', TrainerState.TrainModelUploading, TrainerState.TrainModelUploaded, self._upload_model)
-            elif tstate == TrainerState.TrainModelUploaded:  # -> Detecting -> Detected
-                await self._perform_state('detecting', TrainerState.Detecting, TrainerState.Detected, self._do_detections)
-            elif tstate == TrainerState.Detected:  # -> DetectionUploading -> ReadyForCleanup
-                await self._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, self.active_training_io.upload_detetions)
+            if tstate == TrainerState.DataDownloading:
+                await self._perform_state('prepare', TrainerState.TrainModelDownloading, self._prepare)
+            elif tstate == TrainerState.TrainModelDownloading:
+                await self._perform_state('download_model', TrainerState.TrainingRunning, self._download_model)
+            elif tstate == TrainerState.TrainingRunning:
+                await self._perform_state('run_training', TrainerState.ConfusionMatrixSyncing, self._train)
+            elif tstate == TrainerState.ConfusionMatrixSyncing:
+                await self._perform_state('sync_confusion_matrix', TrainerState.TrainModelUploading, self._sync_training)
+            elif tstate == TrainerState.TrainModelUploading:
+                await self._perform_state('upload_model', TrainerState.Detecting, self._upload_model)
+            elif tstate == TrainerState.Detecting:
+                await self._perform_state('detecting', TrainerState.DetectionUploading, self._do_detections)
+            elif tstate == TrainerState.DetectionUploading:
+                await self._perform_state('upload_detections', TrainerState.ReadyForCleanup,
+                                          self.active_training_io.upload_detetions)
             elif tstate == TrainerState.ReadyForCleanup:  # -> Idle (RESTART or _training = None)
                 await self._clear_training()
                 self._may_restart()
+            else:
+                logger.error('Unknown training state %s, cleaning up', tstate)
+                self.training.training_state = TrainerState.ReadyForCleanup
 
-    async def _perform_state(self, error_key: str, state_during: TrainerState, state_after: TrainerState, action: Callable[[], Coroutine], reset_early=False):
+    async def _perform_state(self, error_key: str, next_state: TrainerState, action: Callable[[], Coroutine]) -> None:
         '''
-        Perform a training state and handle errors.
+        Perform the step of the current training state and handle errors.
         - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
-        - If any other error occurs, the error is stored in the errors object and the state is reset to the previous state.
+        - If any other error occurs, the error is stored in the errors object and the state is kept.
           The state is retried after a wait until the training is aborted.
         '''
 
         if failures := self._state_failures.get(error_key):
             await asyncio.sleep(_retry_delay(failures))
         await asyncio.sleep(0.1)
-        logger.info('Performing state: %s', state_during)
-        previous_state = self.training.training_state
-        self.training.training_state = state_during
-        await asyncio.sleep(0.1)
-        if reset_early:
-            self.errors.reset(error_key)
+        state = self.training.training_state
+        logger.info('Performing state: %s', state)
 
         try:
             await action()
 
         except asyncio.CancelledError:
             if self.shutdown_event.is_set():
-                logger.info('CancelledError in %s - shutdown event set', state_during)
+                logger.info('CancelledError in %s - shutdown event set', state)
                 raise
-            logger.info('CancelledError in %s - cleaning up', state_during)
+            logger.info('CancelledError in %s - cleaning up', state)
             self.training.training_state = TrainerState.ReadyForCleanup
         except CriticalError as e:
-            logger.error('CriticalError in %s - Exception: %s', state_during, e)
+            logger.error('CriticalError in %s - Exception: %s', state, e)
             self.errors.set(error_key, str(e))
             self.training.training_state = TrainerState.ReadyForCleanup
         except NodeNeedsRestartError:
             logger.error('Node Restart Requested')
             sys.exit(0)
         except Exception as e:
-            print('Error in %s - Exception: %s', state_during, e, flush=True)
+            print('Error in %s - Exception: %s', state, e, flush=True)
             self.errors.set(error_key, str(e))
-            logger.exception('Error in %s - Exception: %s', state_during, e)
+            logger.exception('Error in %s - Exception: %s', state, e)
             self._state_failures[error_key] = self._state_failures.get(error_key, 0) + 1
-            self.training.training_state = previous_state
             return
         else:
-            logger.info('Successfully finished state: %s', state_during)
-            if not reset_early:
-                self.errors.reset(error_key)
-            self.training.training_state = state_after
+            logger.info('Successfully finished state: %s', state)
+            self.errors.reset(error_key)
+            self.training.training_state = next_state
 
         self._state_failures.pop(error_key, None)
         self.last_training_io.save(self.training)

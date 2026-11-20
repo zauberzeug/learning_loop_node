@@ -23,7 +23,7 @@ def create_training() -> Training:
         hyperparameters={},
         model_variant='',
         training_number=0,
-        training_state=TrainerState.Preparing)
+        training_state=TrainerState.DataDownloading)
     return training
 
 
@@ -35,8 +35,8 @@ def test_fixture_trainer_node(test_initialized_trainer_node):
 def test_save_load_training():
     training = create_training()
     last_training_io = LastTrainingIO('00000000-0000-0000-0000-000000000000')
-    training.training_state = TrainerState.Preparing
+    training.training_state = TrainerState.DataDownloading
     last_training_io.save(training)
 
     training = last_training_io.load()
-    assert training.training_state == TrainerState.Preparing
+    assert training.training_state == TrainerState.DataDownloading

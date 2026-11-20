@@ -2,12 +2,13 @@ import asyncio
 
 import pytest
 from dacite import from_dict
+from pytest_mock import MockerFixture
 
 from ....data_classes import BoxDetection, Context, Detections
 from ....enums import TrainerState
 from ....loop_communication import LoopCommunicator
 from ....trainer.trainer_logic import TrainerLogic
-from ...test_helper import TRAINER_PROJECT, get_dummy_detections, project_name
+from ...test_helper import TRAINER_PROJECT, condition, get_dummy_detections, project_name
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
@@ -46,12 +47,12 @@ async def create_valid_detection_file(trainer: TrainerLogic, number_of_entries: 
 @pytest.mark.asyncio
 async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    create_active_training_file(trainer, training_state=TrainerState.DetectionUploading)
     trainer._init_from_last_training()
 
     await create_valid_detection_file(trainer)
     await asyncio.get_running_loop().create_task(
-        trainer._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, trainer.active_training_io.upload_detetions))
+        trainer._perform_state('upload_detections', TrainerState.ReadyForCleanup, trainer.active_training_io.upload_detetions))
 
     assert trainer.training.training_state == TrainerState.ReadyForCleanup
     assert trainer.node.last_training_io.load() == trainer.training
@@ -61,7 +62,7 @@ async def test_upload_successful(test_initialized_trainer: TestingTrainerLogic):
 async def test_detection_upload_progress_is_stored(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    create_active_training_file(trainer, training_state=TrainerState.DetectionUploading)
     trainer._init_from_last_training()
 
     await create_valid_detection_file(trainer)
@@ -69,7 +70,7 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
     assert trainer.active_training_io.load_detections_upload_file_index() == 0
     # await trainer.upload_detections()
     await asyncio.get_running_loop().create_task(
-        trainer._perform_state('upload_detections', TrainerState.DetectionUploading, TrainerState.ReadyForCleanup, trainer.active_training_io.upload_detetions))
+        trainer._perform_state('upload_detections', TrainerState.ReadyForCleanup, trainer.active_training_io.upload_detetions))
 
     assert trainer.active_training_io.load_detection_upload_progress() == 0  # Progress is reset for every file
     assert trainer.active_training_io.load_detections_upload_file_index() == 1
@@ -79,7 +80,7 @@ async def test_detection_upload_progress_is_stored(test_initialized_trainer: Tes
 async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    create_active_training_file(trainer, training_state=TrainerState.DetectionUploading)
     trainer._init_from_last_training()
 
     await create_valid_detection_file(trainer, 4, 0)
@@ -122,14 +123,14 @@ async def test_ensure_all_detections_are_uploaded(test_initialized_trainer: Test
 async def test_bad_status_from_LearningLoop(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.Detected, context=Context(
+    create_active_training_file(trainer, training_state=TrainerState.DetectionUploading, context=Context(
         organization='zauberzeug', project='some_bad_project'))
     trainer._init_from_last_training()
     trainer.active_training_io.save_detections([get_dummy_detections()])
 
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.Detected, timeout=10, interval=0.001)
+    await condition(lambda: trainer.errors.has_error_for('upload_detections'), timeout=10, interval=0.001)
 
     assert trainer_has_upload_detections_error(trainer)
     assert trainer.node.last_training_io.load() == trainer.training
@@ -141,23 +142,23 @@ async def test_go_to_cleanup_if_no_detections_exist(test_initialized_trainer: Te
     trainer = test_initialized_trainer
 
     # e.g. missing detection file
-    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    create_active_training_file(trainer, training_state=TrainerState.DetectionUploading)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
     await assert_training_state(trainer.training, TrainerState.ReadyForCleanup, timeout=1, interval=0.001)
 
 
-async def test_abort_uploading(test_initialized_trainer: TestingTrainerLogic):
+async def test_abort_uploading(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.Detected)
+    create_active_training_file(trainer, training_state=TrainerState.DetectionUploading)
     trainer._init_from_last_training()
     await create_valid_detection_file(trainer)
 
+    step = mocker.spy(trainer.active_training_io, 'upload_detetions')
     trainer._begin_training_task()
-
-    await assert_training_state(trainer.training, TrainerState.DetectionUploading, timeout=1, interval=0.001)
+    await condition(lambda: step.call_count == 1, timeout=2, interval=0.001)
 
     await trainer.abort()
     await asyncio.sleep(0.1)

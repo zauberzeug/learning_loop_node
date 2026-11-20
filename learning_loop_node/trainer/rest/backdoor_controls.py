@@ -1,6 +1,7 @@
 """These restful endpoints are only to be used for testing purposes and are not part of the 'offical' trainer behavior."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import asdict
 from typing import TYPE_CHECKING, Dict
@@ -8,6 +9,7 @@ from typing import TYPE_CHECKING, Dict
 from fastapi import APIRouter, HTTPException, Request
 
 from ...data_classes import ErrorConfiguration
+from ..executor import Executor
 from ..trainer_logic import TrainerLogic
 
 if TYPE_CHECKING:
@@ -78,11 +80,7 @@ async def add_steps(request: Request):
     trainer_logic = trainer_node.trainer_logic  # NOTE: is MockTrainerLogic which has 'provide_new_model' and 'current_iteration'
 
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
-
-    if not trainer_logic._executor or not trainer_logic._executor.is_running():  # pylint: disable=protected-access
-        training = trainer_logic._training  # pylint: disable=protected-access
-        logging.error('cannot add steps when not running, state: %s', training.training_state if training else 'None')
-        raise HTTPException(status_code=409, detail="trainer is not running")
+    await _wait_for_training_process(trainer_logic)
 
     steps = int(str(await request.body(), 'utf-8'))
 
@@ -103,17 +101,29 @@ async def add_steps(request: Request):
 
 @router.post("/kill_training_process")
 async def kill_process(request: Request):
-
-    # pylint: disable=protected-access
     trainer_node = request.app
     trainer_logic = trainer_node.trainer_logic
     assert isinstance(trainer_logic, TrainerLogic), 'trainer_logic is not TrainerLogic'
-    if not trainer_logic._executor or not trainer_logic._executor.is_running():
-        raise HTTPException(status_code=409, detail="trainer is not running")
-    await trainer_logic._executor.stop_and_wait()
+    executor = await _wait_for_training_process(trainer_logic)
+    await executor.stop_and_wait()
 
 
 @router.post("/force_status_update")
 async def force_status_update(request: Request):
     trainer_node = request.app
     await trainer_node.send_status()
+
+
+async def _wait_for_training_process(trainer_logic: TrainerLogic) -> Executor:
+    """Return the running training process, which starts shortly after the training reports running.
+
+    :raise HTTPException: 409 if no training process runs within 5 seconds.
+    """
+    for _ in range(50):
+        executor = trainer_logic._executor  # pylint: disable=protected-access
+        if executor and executor.is_running():
+            return executor
+        await asyncio.sleep(0.1)
+    training = trainer_logic._training  # pylint: disable=protected-access
+    logging.error('no training process is running, state: %s', training.training_state if training else 'None')
+    raise HTTPException(status_code=409, detail='trainer is not running')

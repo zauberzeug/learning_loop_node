@@ -1,8 +1,11 @@
 import asyncio
 
+from pytest_mock import MockerFixture
+
 from ....data_classes import Context
 from ....enums import TrainerState
 from ....trainer.trainer_logic import TrainerLogic
+from ...test_helper import condition
 from ..state_helper import assert_training_state, create_active_training_file
 from ..testing_trainer_logic import TestingTrainerLogic
 
@@ -18,19 +21,20 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerL
     create_active_training_file(trainer)
     trainer._init_from_last_training()
 
-    await trainer._perform_state('prepare', TrainerState.DataDownloading, TrainerState.DataDownloaded, trainer._prepare)
+    await trainer._perform_state('prepare', TrainerState.TrainModelDownloading, trainer._prepare)
     assert trainer_has_prepare_error(trainer) is False
-    assert trainer.training.training_state == TrainerState.DataDownloaded
+    assert trainer.training.training_state == TrainerState.TrainModelDownloading
     assert trainer.node.last_training_io.load() == trainer.training
 
 
-async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
+async def test_abort_preparing(mocker: MockerFixture, test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
     create_active_training_file(trainer)
     trainer._init_from_last_training()
 
+    step = mocker.spy(trainer, '_prepare')
     trainer._begin_training_task()
-    await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=1, interval=0.001)
+    await condition(lambda: step.call_count == 1, timeout=2, interval=0.001)
 
     await trainer.abort()
     await asyncio.sleep(0.1)
@@ -47,9 +51,9 @@ async def test_request_error(test_initialized_trainer: TestingTrainerLogic):
 
     _ = asyncio.get_running_loop().create_task(trainer._run())
     await assert_training_state(trainer.training, TrainerState.DataDownloading, timeout=3, interval=0.001)
-    await assert_training_state(trainer.training, TrainerState.Initialized, timeout=10, interval=0.001)
+    await condition(lambda: trainer.errors.has_error_for('prepare'), timeout=10, interval=0.001)
 
     assert trainer_has_prepare_error(trainer)
     assert trainer._training is not None  # pylint: disable=protected-access
-    assert trainer.training.training_state == TrainerState.Initialized
+    assert trainer.training.training_state == TrainerState.DataDownloading
     assert trainer.node.last_training_io.load() == trainer.training

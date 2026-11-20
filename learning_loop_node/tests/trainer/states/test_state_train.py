@@ -11,7 +11,7 @@ from ..testing_trainer_logic import TestingTrainerLogic
 async def test_successful_training(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
@@ -22,16 +22,16 @@ async def test_successful_training(test_initialized_trainer: TestingTrainerLogic
 
     assert trainer._executor is not None
     await trainer.stop()  # NOTE normally a training terminates itself
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
 
-    assert trainer.training.training_state == TrainerState.TrainingFinished
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSyncing
     assert trainer.node.last_training_io.load() == trainer.training
 
 
 async def test_stop_running_training(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
@@ -41,7 +41,7 @@ async def test_stop_running_training(test_initialized_trainer: TestingTrainerLog
     assert trainer.start_training_task is not None
 
     await trainer.stop()
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=2, interval=0.01)
+    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=2, interval=0.01)
 
     assert trainer.node.last_training_io.load() == trainer.training
 
@@ -54,7 +54,7 @@ async def test_stop_during_training_uploads_model(mocker: MockerFixture, test_in
     mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_get_uuid',
                  return_value='12345678-abcd-1234-abcd-123456789abc')
 
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
     trainer._begin_training_task()
 
@@ -75,7 +75,7 @@ async def test_abort_during_training(mocker: MockerFixture, test_initialized_tra
     upload_mock = mocker.patch('learning_loop_node.data_exchanger.DataExchanger.upload_model_get_uuid',
                                return_value='12345678-abcd-1234-abcd-123456789abc')
 
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
     trainer._begin_training_task()
 
@@ -94,7 +94,7 @@ async def test_abort_during_training_kills_executor(test_initialized_trainer: Te
     past _train's cleanup and leave the executor process orphaned."""
     trainer = test_initialized_trainer
 
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
     trainer._begin_training_task()
 
@@ -114,7 +114,7 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
     trainer = test_initialized_trainer
 
     # NOTE e.g. when a node-computer is restarted
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
     trainer._can_resume_flag = True
 
@@ -126,6 +126,6 @@ async def test_training_can_maybe_resumed(test_initialized_trainer: TestingTrain
 
     assert trainer._executor is not None
     await trainer._executor.stop_and_wait()  # NOTE normally a training terminates itself e.g
-    await assert_training_state(trainer.training, TrainerState.TrainingFinished, timeout=1, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.ConfusionMatrixSyncing, timeout=1, interval=0.001)
 
     assert trainer.node.last_training_io.load() == trainer.training

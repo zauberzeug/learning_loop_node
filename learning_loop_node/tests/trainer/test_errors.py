@@ -4,6 +4,7 @@ import re
 import pytest
 
 from ...enums import TrainerState
+from ..test_helper import condition
 from .state_helper import assert_training_state, create_active_training_file
 from .testing_trainer_logic import TestingTrainerLogic
 
@@ -12,19 +13,20 @@ from .testing_trainer_logic import TestingTrainerLogic
 
 async def test_training_process_is_stopped_when_trainer_reports_error(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
     trainer._begin_training_task()
 
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     trainer.error_msg = 'some_error'
-    await assert_training_state(trainer.training, TrainerState.TrainModelDownloaded, timeout=6, interval=0.001)
+    await condition(lambda: trainer.errors.has_error_for('run_training'), timeout=6, interval=0.001)
+    assert trainer.training.training_state == TrainerState.TrainingRunning
 
 
 @pytest.mark.skip(reason='The since_last_start flag is deprecated.')
 async def test_log_can_provide_only_data_for_current_run(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer, training_state=TrainerState.TrainModelDownloaded)
+    create_active_training_file(trainer, training_state=TrainerState.TrainingRunning)
     trainer._init_from_last_training()
     trainer._begin_training_task()
 
@@ -35,7 +37,7 @@ async def test_log_can_provide_only_data_for_current_run(test_initialized_traine
     assert len(re.findall('Starting executor', str(trainer._executor.get_log_by_lines()))) == 1
 
     trainer.error_msg = 'some_error'
-    await assert_training_state(trainer.training, TrainerState.TrainModelDownloaded, timeout=6, interval=0.001)
+    await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=6, interval=0.001)
     trainer.error_msg = None
     await assert_training_state(trainer.training, TrainerState.TrainingRunning, timeout=1, interval=0.001)
     await asyncio.sleep(1)

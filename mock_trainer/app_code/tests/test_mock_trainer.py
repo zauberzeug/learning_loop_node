@@ -49,7 +49,7 @@ async def test_get_new_model():
         hyperparameters={},
         model_variant='',
         training_number=0,
-        training_state=TrainerState.Preparing)
+        training_state=TrainerState.DataDownloading)
     mock_trainer._training.image_data = []
     model = mock_trainer._get_new_best_training_state()
     assert model is not None

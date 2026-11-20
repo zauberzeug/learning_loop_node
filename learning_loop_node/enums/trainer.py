@@ -1,24 +1,16 @@
-
 from enum import Enum
 
 
 class TrainerState(str, Enum):
     Idle = 'idle'
     Blocked = 'blocked'  # idle, but unable to take a training
-    Initialized = 'initialized'
     WaitingForSlot = 'waiting_for_slot'
-    Preparing = 'preparing'
+    # a training is in the state of the step it performs next, also while that step waits for a retry
     DataDownloading = 'data_downloading'
-    DataDownloaded = 'data_downloaded'
     TrainModelDownloading = 'train_model_downloading'
-    TrainModelDownloaded = 'train_model_downloaded'
     TrainingRunning = 'running'
-    TrainingFinished = 'training_finished'
     ConfusionMatrixSyncing = 'confusion_matrix_syncing'
-    ConfusionMatrixSynced = 'confusion_matrix_synced'
     TrainModelUploading = 'train_model_uploading'
-    TrainModelUploaded = 'train_model_uploaded'
     Detecting = 'detecting'
-    Detected = 'detected'
     DetectionUploading = 'detection_uploading'
     ReadyForCleanup = 'ready_for_cleanup'
