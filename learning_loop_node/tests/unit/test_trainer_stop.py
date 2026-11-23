@@ -122,6 +122,7 @@ async def trainer_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> As
     TrainerNode(name='test', trainer_logic=trainer, uuid='NODE-000-0000-0000-0000-000000000000')
     trainer._init_new_training(Context(organization='zauberzeug', project='demo'),
                                {'categories': [], 'training_number': 0, 'model_variant': '', 'hyperparameters': {}})
+    trainer.training.training_state = TrainerState.TrainingRunning
     trainer.training_task = asyncio.create_task(asyncio.sleep(10))
     yield trainer
     if trainer._executor:

@@ -10,7 +10,6 @@ from typing import Coroutine, List, Optional
 from dacite import from_dict
 
 from ..data_classes import Detections, ModelInformation, TrainingError
-from ..enums import TrainerState
 from ..helpers.misc import create_image_folder, create_project_folder, images_for_ids, is_valid_uuid4
 from .executor import Executor
 from .trainer_logic_generic import TrainerLogicGeneric
@@ -50,7 +49,6 @@ class TrainerLogic(TrainerLogicGeneric):
         error_key = 'run_training'
         self._executor = Executor(self.training.training_folder)
         self._process_started = False
-        self.training.training_state = TrainerState.TrainingRunning
 
         try:
             await self._start_training()
