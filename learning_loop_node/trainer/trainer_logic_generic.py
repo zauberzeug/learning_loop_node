@@ -409,7 +409,6 @@ class TrainerLogicGeneric(ABC):
             logger.error('Node Restart Requested')
             sys.exit(0)
         except Exception as e:
-            print('Error in %s - Exception: %s', state, e, flush=True)
             self.errors.set(error_key, str(e))
             logger.exception('Error in %s - Exception: %s', state, e)
             self._state_failures[error_key] = self._state_failures.get(error_key, 0) + 1
