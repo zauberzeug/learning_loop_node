@@ -47,7 +47,8 @@ A `DataExchanger` sits on top of the communicator to move images and model zips
   `abort_training` (`abort`) cancels the task in any state, as a shutdown does. `TrainerLogic`
   stops a running training by ending its training process, so the remaining states upload the
   model; a training process that fails after a stop is not retried but winds down with the model
-  it has. Before that process has started, and in a trainer without one, a stop aborts. A
+  it has, as does a stop while a failed process waits for its retry. Before the first process has
+  started, and in a trainer without one, a stop aborts. A
   concrete trainer implements `_train`, `_do_detections`, `_get_new_best_training_state`,
   `_on_metrics_published`, `_get_latest_model_files` and `_clear_training_data`; `TrainerLogic` adds an `Executor` for
   trainers that shell out to a training process. `trainer/training_slot.py` is the right to use

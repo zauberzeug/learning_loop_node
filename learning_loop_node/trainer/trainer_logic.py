@@ -45,15 +45,18 @@ class TrainerLogic(TrainerLogicGeneric):
     # ---------------------------------------- IMPLEMENTED ABSTRACT MEHTODS ----------------------------------------
 
     async def _train(self) -> None:
+        if self._stop_requested:  # stopped while waiting for a retry
+            return
         error_key = 'run_training'
         self._executor = Executor(self.training.training_folder)
         self._process_started = False
-        self._stop_requested = False
         self.training.training_state = TrainerState.TrainingRunning
 
         try:
             await self._start_training()
             self._process_started = True
+            if self._stop_requested:
+                await self.executor.stop_and_wait()
             last_sync_time = datetime.now()
 
             while True:
@@ -156,12 +159,14 @@ class TrainerLogic(TrainerLogicGeneric):
     # ---------------------------------------- OVERWRITTEN METHODS ----------------------------------------
 
     async def _stop_running_training(self) -> None:
-        """End the training process; before it has started, abort."""
-        if not self._process_started:
+        """End the training process. Before the first one has started, abort; after a failed one, wind down."""
+        if not self._process_started and not self._state_failures.get('run_training'):
             await super()._stop_running_training()
             return
         self._stop_requested = True
-        if self._executor and self._executor.is_running():
+        if not self._process_started:
+            self._skip_retry_wait.set()
+        elif self._executor and self._executor.is_running():
             await self.executor.stop_and_wait()
 
     # ---------------------------------------- ABSTRACT METHODS ----------------------------------------

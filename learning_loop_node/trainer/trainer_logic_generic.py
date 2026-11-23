@@ -60,6 +60,7 @@ class TrainerLogicGeneric(ABC):
         self.errors = Errors()
         self._state_failures: Dict[str, int] = {}  # failed attempts in a row, by error key
         self._stop_requested: bool = False  # set by a trainer that stopped its training process; not kept on restart
+        self._skip_retry_wait = asyncio.Event()
 
         self.training_task: Optional[asyncio.Task] = None
         self.shutdown_event: asyncio.Event = asyncio.Event()
@@ -319,6 +320,8 @@ class TrainerLogicGeneric(ABC):
         """
         self.errors.reset_all()
         self._state_failures.clear()
+        self._stop_requested = False
+        self._skip_retry_wait.clear()
         try:
             await self.training_slot.wait_for(self._slot_claim(self.training.context, self.training.training_number))
             await self._training_loop()
@@ -380,11 +383,11 @@ class TrainerLogicGeneric(ABC):
         - If the training is aborted, the CancelledError moves it to ReadyForCleanup; on shutdown it is re-raised.
         - States can raise a CriticalError indicating that there is no point in retrying the state.
         - If any other error occurs, the error is stored in the errors object and the state is kept.
-          The state is retried after a wait until the training is aborted.
+          The state is retried after a wait until the training is aborted; a stop ends the wait early.
         '''
 
         if failures := self._state_failures.get(error_key):
-            await asyncio.sleep(_retry_delay(failures))
+            await self._wait_for_retry(_retry_delay(failures))
         await asyncio.sleep(0.1)
         state = self.training.training_state
         logger.info('Performing state: %s', state)
@@ -418,6 +421,17 @@ class TrainerLogicGeneric(ABC):
 
         self._state_failures.pop(error_key, None)
         self.last_training_io.save(self.training)
+
+    async def _wait_for_retry(self, delay: float) -> None:
+        """Sleep `delay` seconds before a retry, or until a stop ends the wait."""
+        sleep = asyncio.create_task(asyncio.sleep(delay))
+        skip = asyncio.create_task(self._skip_retry_wait.wait())
+        try:
+            await asyncio.wait({sleep, skip}, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            sleep.cancel()
+            skip.cancel()
+        self._skip_retry_wait.clear()
 
     async def _prepare(self) -> None:
         """Downloads images to the images_folder and saves annotations to training.data.image_data.

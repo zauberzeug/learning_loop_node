@@ -58,17 +58,22 @@ async def test_a_stopped_training_winds_down_when_its_process_fails(trainer: Tes
     assert trainer.training.training_state == TrainerState.ConfusionMatrixSyncing
 
 
-async def test_a_stop_before_the_retried_training_process_has_started_aborts_it(trainer: TestingTrainerLogic):
+async def test_a_stop_while_a_failed_training_waits_for_its_retry_winds_down(trainer: TestingTrainerLogic):
     train = asyncio.create_task(trainer._perform_state('run_training', TrainerState.ConfusionMatrixSyncing, trainer._train))
     await condition(lambda: trainer._executor is not None and trainer._executor.is_running(), timeout=2, interval=0.01)
     trainer.error_msg = 'graphics card is out of memory'
     await trainer.executor.stop_and_wait()
     await asyncio.wait_for(train, timeout=2)
-    trainer.training.training_state = TrainerState.TrainingRunning  # the retry has begun, its process not yet
+    failed_executor = trainer.executor
+    retry = asyncio.create_task(trainer._perform_state('run_training', TrainerState.ConfusionMatrixSyncing, trainer._train))
+    await asyncio.sleep(0.1)
 
     await trainer.stop()
+    await asyncio.wait_for(retry, timeout=1)  # the first retry waits 5 s
 
-    assert trainer.training_task.cancelled()
+    assert trainer.training.training_state == TrainerState.ConfusionMatrixSyncing
+    assert trainer.executor is failed_executor
+    assert not trainer.training_task.done()
 
 
 async def test_a_stop_before_the_next_training_process_has_started_aborts_it(trainer: TestingTrainerLogic):
