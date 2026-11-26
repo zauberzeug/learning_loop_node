@@ -422,13 +422,14 @@ class TrainerLogicGeneric(ABC):
         self.last_training_io.save(self.training)
 
     async def _prepare(self) -> None:
-        """Downloads images to the images_folder and saves annotations to training.data.image_data.
+        """Downloads the images the loop chose for the training to the images_folder and saves their annotations
+        to training.data.image_data.
         Moves part of the train images to `val` if `compute_validation_set` asks for it (see `validation_set`).
         A malformed `upload_examples` or `upload_logs` ends the training here, before it has run.
         """
         training_results.check_hyperparameters(self.training.hyperparameters)
         self.node.data_exchanger.set_context(self.training.context)
-        downloader = TrainingsDownloader(self.node.data_exchanger)
+        downloader = TrainingsDownloader(self.node.data_exchanger, self.training.training_number)
         image_data, skipped_image_count = await downloader.download_training_data(self.training.images_folder)
         assign_validation_set(image_data, self.training.hyperparameters)
 

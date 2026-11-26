@@ -8,6 +8,8 @@ from ..testing_trainer_logic import TestingTrainerLogic
 
 # pylint: disable=protected-access
 
+GENERATED_TRAINING = 1  # the training every generated project has; the loop lists its images for the download
+
 
 def trainer_has_prepare_error(trainer: TrainerLogic):
     return trainer.errors.has_error_for('prepare')
@@ -15,7 +17,7 @@ def trainer_has_prepare_error(trainer: TrainerLogic):
 
 async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer)
+    create_active_training_file(trainer, training_number=GENERATED_TRAINING)
     trainer._init_from_last_training()
 
     await trainer._perform_state('prepare', TrainerState.DataDownloading, TrainerState.DataDownloaded, trainer._prepare)
@@ -26,7 +28,7 @@ async def test_preparing_is_successful(test_initialized_trainer: TestingTrainerL
 
 async def test_abort_preparing(test_initialized_trainer: TestingTrainerLogic):
     trainer = test_initialized_trainer
-    create_active_training_file(trainer)
+    create_active_training_file(trainer, training_number=GENERATED_TRAINING)
     trainer._init_from_last_training()
 
     trainer._begin_training_task()
