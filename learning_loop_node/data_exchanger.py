@@ -75,6 +75,15 @@ class DataExchanger():
         assert response.status_code == 200, response
         return (response.json())['image_ids']
 
+    async def fetch_training_image_uuids(self, training_number: int) -> list[str]:
+        """Fetch the uuids of the images the loop chose for the training."""
+        logging.info('Fetching the image uuids of training %s for %s/%s..',
+                     training_number, self.context.organization, self.context.project)
+        response = await self.loop_communicator.get(
+            f'/{self.context.organization}/projects/{self.context.project}/trainings/{training_number}/image_ids')
+        assert response.status_code == 200, response
+        return response.json()['image_ids']
+
     async def download_images_data(self, image_uuids: List[str], chunk_size: int = 100) -> List[Dict[str, Any]]:
         """Download image annotations, tags, set and other information for the given image uuids."""
         logging.info('Fetching annotations, tags, sets, etc. for %s images..', len(image_uuids))

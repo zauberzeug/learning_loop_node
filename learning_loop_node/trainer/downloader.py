@@ -1,18 +1,19 @@
 import logging
 import os
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from ..data_exchanger import DataExchanger
 
 
 class TrainingsDownloader():
 
-    def __init__(self, data_exchanger: DataExchanger, data_query_params: Optional[str] = 'state=complete'):
-        self.data_query_params = data_query_params
+    def __init__(self, data_exchanger: DataExchanger, training_number: int):
         self.data_exchanger = data_exchanger
+        self.training_number = training_number
 
     async def download_training_data(self, image_folder: str) -> Tuple[List[Dict], int]:
-        image_ids = await self.data_exchanger.fetch_image_uuids(query_params=self.data_query_params)
+        """Download the images the loop chose for the training, with their annotations."""
+        image_ids = await self.data_exchanger.fetch_training_image_uuids(self.training_number)
         image_data, skipped_image_count = await self.download_images_and_annotations(image_ids, image_folder)
         return (image_data, skipped_image_count)
 
